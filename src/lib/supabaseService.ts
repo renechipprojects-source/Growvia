@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
+export type { Student, Teacher, Enquiry, Fee, Expense };
 
 export interface Circular {
   id?: string;

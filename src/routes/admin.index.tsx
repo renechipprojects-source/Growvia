@@ -11,16 +11,29 @@ import {
   students, payments, upcomingBirthdays, events, staff,
 } from "@/lib/admin-mock-data";
 
+import { fetchStudents, fetchTeachers } from "@/lib/supabaseService";
+import { useEffect, useState } from "react";
+
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
-  head: () => ({ meta: [{ title: "Dashboard — TinySteps ERP" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Sunshine ERP" }] }),
 });
 
 function Dashboard() {
-  const totalStudents = students.length;
-  const teachersCount = staff.filter((s) => s.role === "Teacher").length;
-  const presentToday = 178;
-  const absentToday = 22;
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [teachersCount, setTeachersCount] = useState(0);
+
+  useEffect(() => {
+    fetchStudents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) setTotalStudents(data.length);
+    });
+    fetchTeachers().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) setTeachersCount(data.length);
+    });
+  }, []);
+
+  const presentToday = Math.round(totalStudents * 0.95);
+  const absentToday = totalStudents - presentToday;
 
   return (
     <div className="flex h-full min-h-0 flex-col">

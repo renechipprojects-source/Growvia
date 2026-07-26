@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { fetchStudents, fetchEnquiries } from "@/lib/supabaseService";
+import { Users, ClipboardCheck, Bell } from "lucide-react";
 import { useAlerts } from "@/lib/alertsContext";
 
 export const Route = createFileRoute("/office/")({ component: Dash });
@@ -16,6 +18,17 @@ const priorityChip: Record<string, string> = {
 function Dash() {
   const { liveFor } = useAlerts();
   const alerts = liveFor("office");
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalEnquiries, setTotalEnquiries] = useState(0);
+
+  useEffect(() => {
+    fetchStudents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) setTotalStudents(data.length);
+    });
+    fetchEnquiries().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) setTotalEnquiries(data.length);
+    });
+  }, []);
 
   return (
     <div>
@@ -25,12 +38,18 @@ function Dash() {
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
-          label="Admissions today"
-          value={3}
+          label="Total Students"
+          value={totalStudents}
+          icon={Users}
+          gradient="from-blue-500 to-cyan-500"
+          sub="Enrolled in database"
+        />
+        <StatCard
+          label="Active Enquiries"
+          value={totalEnquiries}
           icon={ClipboardCheck}
           gradient="from-orange-500 to-amber-500"
-          trend="+1"
-          sub="Approved & enrolled"
+          sub="In admission pipeline"
         />
         <StatCard
           label="Active alerts"

@@ -6,23 +6,39 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext";
 
+import { useEffect, useState } from "react";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
   const classAssignments = getClassAssignments();
   const subjectAssignments = getSubjectAssignments();
   const primaryClass = classAssignments[0];
-  const myClass = primaryClass
+
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
+
+  useEffect(() => {
+    fetchStudents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase && data.length > 0) {
+        setStudentsList(data);
+      }
+    });
+  }, []);
+
+  const fallbackClass = primaryClass
     ? studentsBy(primaryClass.className as ClassName, primaryClass.section as "A" | "B" | undefined)
     : [];
+
+  const myClass = studentsList.length > 0 ? studentsList : fallbackClass;
   const { recs } = primaryClass
     ? todayAttendanceFor(primaryClass.className as ClassName, primaryClass.section as "A" | "B" | undefined)
     : { recs: [] };
   const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
 
   const total = myClass.length;
-  const boys = myClass.filter((s) => s.gender === "Boy").length;
-  const girls = myClass.filter((s) => s.gender === "Girl").length;
+  const boys = myClass.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
+  const girls = myClass.filter((s) => s.gender === "Girl" || (s as any).gender === "Female").length;
   const presentCount = myClass.filter((s) => recMap.get(s.id) === "Present").length;
   const absentCount = myClass.filter((s) => recMap.get(s.id) === "Absent").length;
   const lateCount = myClass.filter((s) => recMap.get(s.id) === "Late").length;

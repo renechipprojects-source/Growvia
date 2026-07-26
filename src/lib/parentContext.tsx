@@ -2,6 +2,7 @@
 // currently being viewed. Supports 1..N children per parent.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PARENT_HOUSEHOLDS, STUDENTS, type Household, type Student } from "./mockData";
+import { fetchStudents } from "./supabaseService";
 
 // Pick a demo household that has multiple children if possible, else fallback.
 function pickDemoHousehold(): Household {
@@ -22,10 +23,23 @@ const STORAGE_KEY = "sunshine.parent.activeChildId";
 
 export function ParentProvider({ children }: { children: ReactNode }) {
   const household = useMemo(() => pickDemoHousehold(), []);
-  const kids = useMemo(
+  const [kidsList, setKidsList] = useState<Student[]>([]);
+
+  useEffect(() => {
+    fetchStudents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase && data.length > 0) {
+        setKidsList(data as any);
+      }
+    });
+  }, []);
+
+  const fallbackKids = useMemo(
     () => household.childrenIds.map((id) => STUDENTS.find((s) => s.id === id)!).filter(Boolean),
     [household],
   );
+
+  const kids = kidsList.length > 0 ? kidsList : fallbackKids;
+
   const [activeId, setActiveId] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -40,7 +54,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     }
   }, [activeId]);
 
-  const active = kids.find((k) => k.id === activeId) ?? kids[0];
+  const active = kids.find((k) => k.id === activeId) ?? kids[0] ?? fallbackKids[0];
 
   const value: ParentState = {
     household,
