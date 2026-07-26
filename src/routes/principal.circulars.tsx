@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { initialCirculars, ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
-import { createCircular, fetchCirculars } from "@/lib/supabaseService";
+import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/principal/circulars")({
   head: () => ({
@@ -93,6 +93,7 @@ function CircularsPage() {
 
   const deleteCircular = (c: Circular) => {
     setItems((prev) => prev.filter((x) => x.id !== c.id));
+    Promise.resolve(deleteCircularService(c.id)).catch(() => {});
     toast.success(`Deleted "${c.title}"`);
     setConfirmDelete(null);
   };

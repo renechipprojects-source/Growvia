@@ -157,6 +157,7 @@ export function setParentStatus(studentId: string, status: CredentialStatus) {
   if (!existing) return;
   store.parents[studentId] = { ...existing, status, updatedAt: new Date().toISOString() };
   write(store);
+  Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
 // ─── Teacher CRUD ───────────────────────────────────────────────────────────
@@ -216,6 +217,7 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   if (!existing) return;
   store.teachers[teacherId] = { ...existing, status, updatedAt: new Date().toISOString() };
   write(store);
+  Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
 // ─── Authentication (used by the shared login page) ─────────────────────────

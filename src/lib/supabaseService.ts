@@ -374,6 +374,59 @@ export async function fetchExpenses(): Promise<{ data: Expense[]; isFromSupabase
   }
 }
 
+export async function updateStudent(id: string, updates: Partial<Student>) {
+  try {
+    const payload: Record<string, any> = {};
+    if (updates.name) payload.name = updates.name;
+    if (updates.className) payload.class_name = updates.className;
+    if (updates.section) payload.section = updates.section;
+    if (updates.parent) payload.parent_name = updates.parent;
+    if (updates.phone) payload.phone = updates.phone;
+    if (updates.feeStatus) payload.fee_status = updates.feeStatus;
+
+    const { data, error } = await supabase.from("students").update(payload).eq("id", id).select();
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
+export async function deleteStudent(id: string) {
+  try {
+    const { error } = await supabase.from("students").delete().eq("id", id);
+    return { error };
+  } catch (err) {
+    return { error: err };
+  }
+}
+
+export async function deleteTeacher(id: string) {
+  try {
+    const { error } = await supabase.from("teachers").delete().eq("id", id);
+    return { error };
+  } catch (err) {
+    return { error: err };
+  }
+}
+
+export async function deleteCircular(id: string) {
+  try {
+    const { error } = await supabase.from("circulars").delete().eq("id", id);
+    return { error };
+  } catch (err) {
+    return { error: err };
+  }
+}
+
+export async function updateProfileStatus(loginId: string, status: string) {
+  try {
+    const { data, error } = await supabase.from("profiles").update({ status }).eq("login_id", loginId).select();
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
 // ─── SYSTEM STATUS CHECK ──────────────────────────────────────────────────
 
 export async function checkSupabaseConnection(): Promise<{
