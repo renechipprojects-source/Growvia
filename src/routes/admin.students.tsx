@@ -1,0 +1,181 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Eye, UserRound } from "lucide-react";
+import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
+import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { type Student } from "@/lib/admin-mock-data";
+import { fetchStudents } from "@/lib/supabaseService";
+
+export const Route = createFileRoute("/admin/students")({
+  component: StudentsPage,
+  head: () => ({ meta: [{ title: "Students — Sunshine ERP" }] }),
+});
+
+function StudentsPage() {
+  const [itemList, setItemList] = useState<Student[]>([]);
+  const [search, setSearch] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  useEffect(() => {
+    fetchStudents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) {
+        const mapped: Student[] = data.map((s) => ({
+          id: s.id,
+          admissionNo: s.admissionNo || s.id,
+          name: s.name,
+          gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
+          dob: s.dob || "2022-01-01",
+          age: s.age || 3,
+          className: s.className as any,
+          section: s.section as any,
+          parent: s.parent,
+          phone: s.phone,
+          address: "Bengaluru",
+          status: "Active",
+          feesStatus: s.feeStatus === "Paid" ? "Paid" : s.feeStatus === "Partial" ? "Partial" : "Due",
+          joinedOn: s.admissionDate || new Date().toISOString().split("T")[0],
+          bloodGroup: "O+",
+          allergies: [],
+          avatar: s.avatar || "",
+        }));
+        setItemList(mapped);
+      }
+    });
+  }, []);
+
+  const active = itemList.filter((s) => s.status === "Active").length;
+  const inactive = itemList.length - active;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const cls = filterValues["Class"];
+    const sec = filterValues["Section"];
+    const st = filterValues["Status"];
+    return itemList.filter((s) => {
+      if (q && !`${s.name} ${s.admissionNo}`.toLowerCase().includes(q)) return false;
+      if (cls && cls !== "all" && s.className !== cls) return false;
+      if (sec && sec !== "all" && s.section !== sec) return false;
+      if (st && st !== "all" && s.status !== st) return false;
+      return true;
+    });
+  }, [itemList, search, filterValues]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title="Students"
+        description="Manage profiles and student records."
+      />
+
+      <div className="shrink-0 space-y-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Total Students" value={itemList.length} icon={<UserRound className="h-5 w-5" />} />
+          <StatCard label="Active" value={active} tone="success" icon={<UserRound className="h-5 w-5" />} />
+          <StatCard label="Inactive" value={inactive} tone="warning" icon={<UserRound className="h-5 w-5" />} />
+          <StatCard label="New this month" value={0} tone="info" icon={<UserRound className="h-5 w-5" />} />
+        </div>
+
+        <FilterBar
+          searchPlaceholder="Search by name, admission no..."
+          filters={[
+            { label: "Class", options: ["Play Group", "Nursery", "LKG", "UKG"] },
+            { label: "Section", options: ["A", "B"] },
+            { label: "Status", options: ["Active", "Inactive"] },
+          ]}
+          search={search}
+          onSearchChange={setSearch}
+          filterValues={filterValues}
+          onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+        />
+      </div>
+
+      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <DataTable
+          columns={["Student", "Admission No.", "Class", "Parent", "Contact", "Fees", "Status", "Action"]}
+          total={filtered.length}
+        >
+          {filtered.map((s) => (
+            <TableRow key={s.id} className="hover:bg-muted/30">
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={s.avatar} />
+                    <AvatarFallback>{s.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-sm font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.gender} · {s.age}y</div>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="font-mono text-xs">{s.admissionNo}</TableCell>
+              <TableCell>{s.className} · {s.section}</TableCell>
+              <TableCell>{s.parent}</TableCell>
+              <TableCell className="text-xs">{s.phone}</TableCell>
+              <TableCell><StatusBadge status={s.feesStatus} /></TableCell>
+              <TableCell><StatusBadge status={s.status} /></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
+                  <Eye className="mr-1.5 h-4 w-4" /> View Profile
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </DataTable>
+      </div>
+
+      {/* View Profile Dialog */}
+      <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
+        <DialogContent className="max-w-md">
+          {selectedStudent && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={selectedStudent.avatar} />
+                    <AvatarFallback>{selectedStudent.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <DialogTitle>{selectedStudent.name}</DialogTitle>
+                    <p className="text-xs text-muted-foreground">{selectedStudent.admissionNo} · {selectedStudent.className} ({selectedStudent.section})</p>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-4 py-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Gender & Age</div>
+                  <div className="mt-0.5">{selectedStudent.gender}, {selectedStudent.age} yrs</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Parent / Guardian</div>
+                  <div className="mt-0.5">{selectedStudent.parent}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Phone</div>
+                  <div className="mt-0.5">{selectedStudent.phone}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Fees Status</div>
+                  <div className="mt-0.5"><StatusBadge status={selectedStudent.feesStatus} /></div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Joined On</div>
+                  <div className="mt-0.5">{selectedStudent.joinedOn}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">Status</div>
+                  <div className="mt-0.5"><StatusBadge status={selectedStudent.status} /></div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
