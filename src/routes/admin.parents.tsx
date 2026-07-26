@@ -41,11 +41,25 @@ function ParentsPage() {
     const q = search.trim().toLowerCase();
     const ch = filterValues["Channel"];
     return parentList.filter((p) => {
-      if (q && !`${p.name} ${p.email} ${p.phone}`.toLowerCase().includes(q)) return false;
+      if (q && !`${p.name} ${p.email} ${p.phone} ${p.children.join(" ")}`.toLowerCase().includes(q)) return false;
       if (ch && ch !== "all" && p.preferredChannel !== ch) return false;
       return true;
     });
   }, [parentList, search, filterValues]);
+
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return;
+    const headers = ["Parent Name", "Phone", "Email", "Occupation", "Children", "Channel"];
+    const rows = filtered.map(p => [p.name, p.phone, p.email, p.occupation, p.children.join(";"), p.preferredChannel]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `parents_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -55,12 +69,13 @@ function ParentsPage() {
       />
       <div className="shrink-0">
         <FilterBar
-          searchPlaceholder="Search parents..."
+          searchPlaceholder="Search parents by name, child, phone..."
           filters={[{ label: "Channel", options: ["Email", "SMS", "WhatsApp"] }]}
           search={search}
           onSearchChange={setSearch}
           filterValues={filterValues}
           onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+          onExport={handleExportCSV}
         />
       </div>
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">

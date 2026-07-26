@@ -45,6 +45,10 @@ function InventoryPage() {
   const vendorName = (id?: string) => (id ? vendors.find((v) => v.id === id)?.name ?? "-" : "-");
   const itemName = (id: string) => items.find((i) => i.id === id)?.name ?? id;
 
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((i) => {
@@ -54,9 +58,17 @@ function InventoryPage() {
         i.sku.toLowerCase().includes(q) ||
         catName(i.categoryId).toLowerCase().includes(q);
       const matchC = categoryId === "all" || i.categoryId === categoryId;
-      return matchQ && matchC;
+      const isLow = i.qty < i.minQty;
+      const matchS = statusFilter === "all" || (statusFilter === "low" ? isLow : !isLow);
+      return matchQ && matchC && matchS;
     });
-  }, [items, query, categoryId, categories]);
+  }, [items, query, categoryId, statusFilter, categories]);
+
+  const totalPages = Math.ceil(filteredItems.length / pageSize) || 1;
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, page, pageSize]);
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col">
@@ -89,13 +101,13 @@ function InventoryPage() {
             <div className="relative min-w-0 flex-1 sm:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search items…"
+                placeholder="Search items by name, code..."
                 className="pl-9"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <Select value={categoryId} onValueChange={setCategoryId}>
+            <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setPage(1); }}>
               <SelectTrigger className="w-[180px]"><SelectValue placeholder="Category" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
@@ -104,18 +116,26 @@ function InventoryPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Stock Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stock Status</SelectItem>
+                <SelectItem value="healthy">In Stock</SelectItem>
+                <SelectItem value="low">Low Stock</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <ScrollTable columns={["Item", "Code", "Category", "Unit", "Stock", "Min", "Vendor", "Updated"]}>
-            {filteredItems.map((i) => {
+            {paginatedItems.map((i) => {
               const low = i.qty < i.minQty;
               return (
-                <TableRow key={i.id}>
+                <TableRow key={i.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{i.name}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{i.sku}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground font-mono">{i.sku}</TableCell>
                   <TableCell><Badge variant="outline">{catName(i.categoryId)}</Badge></TableCell>
                   <TableCell>{i.unit}</TableCell>
                   <TableCell className="font-semibold">
-                    <span className={low ? "text-destructive" : ""}>{i.qty}</span>
+                    <span className={low ? "text-destructive font-bold" : "text-emerald-600"}>{i.qty}</span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{i.minQty}</TableCell>
                   <TableCell>{vendorName(i.vendorId)}</TableCell>
@@ -124,6 +144,34 @@ function InventoryPage() {
               );
             })}
           </ScrollTable>
+          
+          {/* Pagination controls */}
+          <div className="mt-3 flex items-center justify-between border-t pt-3">
+            <div className="text-xs text-muted-foreground">
+              Showing {filteredItems.length} items total
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-accent disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-muted-foreground font-medium">Page {page} of {totalPages}</span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-accent disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="categories" className="mt-3 flex min-h-0 flex-1 flex-col">

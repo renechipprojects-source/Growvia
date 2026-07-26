@@ -1,6 +1,6 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Check, Trash2, Inbox } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Bell, Check, Trash2, Inbox, Clock } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ const labels: Record<string, string> = {
 };
 
 export function TopNav() {
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const parts = pathname.split("/").filter(Boolean);
   const items = useSyncExternalStore(
@@ -38,6 +39,14 @@ export function TopNav() {
   );
   const unread = items.filter((n) => !n.read).length;
 
+  const [time, setTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setTime(new Date());
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 flex flex-col border-b bg-background/80 backdrop-blur">
       <div className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
@@ -45,6 +54,21 @@ export function TopNav() {
           <SidebarTrigger />
         </div>
         <div className="flex-1" />
+        
+        {/* Live Real-Time Date & Time Clock */}
+        {time && (
+          <div className="hidden sm:flex items-center gap-2 rounded-full border bg-card/60 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+            <Clock className="h-3.5 w-3.5 text-primary animate-pulse" />
+            <span>
+              {time.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+            </span>
+            <span className="text-muted-foreground">•</span>
+            <span className="font-mono text-primary">
+              {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-1 sm:gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -93,8 +117,22 @@ export function TopNav() {
                       >
                         <button
                           type="button"
-                          onClick={() => markAdminRead(n.id)}
-                          className="flex-1 min-w-0 text-left"
+                          onClick={() => {
+                            markAdminRead(n.id);
+                            const text = n.title.toLowerCase();
+                            if ((n as any).link) {
+                              navigate({ to: (n as any).link });
+                            } else if (text.includes("fee") || text.includes("payment")) {
+                              navigate({ to: "/admin/fees" });
+                            } else if (text.includes("student") || text.includes("admission")) {
+                              navigate({ to: "/admin/students" });
+                            } else if (text.includes("event") || text.includes("calendar")) {
+                              navigate({ to: "/admin/events" });
+                            } else if (text.includes("teacher") || text.includes("staff")) {
+                              navigate({ to: "/admin/attendance/staff" });
+                            }
+                          }}
+                          className="flex-1 min-w-0 text-left cursor-pointer hover:underline"
                           aria-label={n.read ? "Notification" : "Mark as read"}
                         >
                           <div className="flex items-center gap-2">

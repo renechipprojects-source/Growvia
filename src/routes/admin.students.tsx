@@ -64,6 +64,20 @@ function StudentsPage() {
     });
   }, [itemList, search, filterValues]);
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return;
+    const headers = ["Admission No", "Name", "Class", "Section", "Parent", "Phone", "Status", "Fees Status"];
+    const rows = filtered.map(s => [s.admissionNo, s.name, s.className, s.section, s.parent, s.phone, s.status, s.feesStatus]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `students_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
@@ -76,11 +90,11 @@ function StudentsPage() {
           <StatCard label="Total Students" value={itemList.length} icon={<UserRound className="h-5 w-5" />} />
           <StatCard label="Active" value={active} tone="success" icon={<UserRound className="h-5 w-5" />} />
           <StatCard label="Inactive" value={inactive} tone="warning" icon={<UserRound className="h-5 w-5" />} />
-          <StatCard label="New this month" value={0} tone="info" icon={<UserRound className="h-5 w-5" />} />
+          <StatCard label="New this month" value={itemList.length} tone="info" icon={<UserRound className="h-5 w-5" />} />
         </div>
 
         <FilterBar
-          searchPlaceholder="Search by name, admission no..."
+          searchPlaceholder="Search by name, admission no, parent..."
           filters={[
             { label: "Class", options: ["Play Group", "Nursery", "LKG", "UKG"] },
             { label: "Section", options: ["A", "B"] },
@@ -90,6 +104,7 @@ function StudentsPage() {
           onSearchChange={setSearch}
           filterValues={filterValues}
           onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+          onExport={handleExportCSV}
         />
       </div>
 

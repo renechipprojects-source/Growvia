@@ -77,6 +77,14 @@ export function PasswordResetQueue({ queue, title, description }: {
     completed: rows.filter((r) => r.status === "Completed").length,
   };
 
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
   return (
     <div className="space-y-4">
       <div>
@@ -97,7 +105,7 @@ export function PasswordResetQueue({ queue, title, description }: {
               key={s}
               size="sm"
               variant={filter === s ? "default" : "outline"}
-              onClick={() => setFilter(s as never)}
+              onClick={() => { setFilter(s as never); setPage(1); }}
             >
               {s}
             </Button>
@@ -120,14 +128,14 @@ export function PasswordResetQueue({ queue, title, description }: {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 && (
+              {paginated.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                     No reset requests.
                   </TableCell>
                 </TableRow>
               )}
-              {filtered.map((r) => (
+              {paginated.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-mono text-xs">{r.id}</TableCell>
                   <TableCell className="capitalize">{r.role === "super-admin" ? "admin" : r.role}</TableCell>
@@ -162,6 +170,38 @@ export function PasswordResetQueue({ queue, title, description }: {
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination bar */}
+        <div className="mt-4 flex items-center justify-between border-t pt-3">
+          <div className="text-xs text-muted-foreground font-medium">
+            Showing {filtered.length} reset requests total
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-8 text-xs"
+              >
+                Previous
+              </Button>
+              <span className="text-xs font-medium text-muted-foreground px-2">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-8 text-xs"
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 

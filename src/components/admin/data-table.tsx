@@ -23,6 +23,8 @@ export function FilterBar({
   onSearchChange,
   filterValues,
   onFilterChange,
+  onExport,
+  hideExport = false,
 }: {
   searchPlaceholder?: string;
   filters?: { label: string; options: string[] }[];
@@ -32,6 +34,8 @@ export function FilterBar({
   onSearchChange?: (v: string) => void;
   filterValues?: Record<string, string>;
   onFilterChange?: (label: string, value: string) => void;
+  onExport?: () => void;
+  hideExport?: boolean;
 }) {
   return (
     <Card className="rounded-2xl">
@@ -62,9 +66,12 @@ export function FilterBar({
             </SelectContent>
           </Select>
         ))}
-        <Button variant="outline" size="sm"><Filter className="mr-2 h-4 w-4" />More filters</Button>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" />Export</Button>
+          {!hideExport && (
+            <Button variant="outline" size="sm" onClick={onExport} aria-label="Export Data">
+              <Download className="mr-2 h-4 w-4" />Export
+            </Button>
+          )}
           {onAdd !== undefined && (
             <Button size="sm" onClick={onAdd}><Plus className="mr-2 h-4 w-4" />{addLabel}</Button>
           )}
@@ -77,44 +84,69 @@ export function FilterBar({
 export function DataTable({
   columns,
   children,
-  total,
+  total = 0,
+  page = 1,
+  totalPages = 1,
+  onPageChange,
+  hidePagination = false,
 }: {
   columns: string[];
   children: ReactNode;
   total?: number;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  hidePagination?: boolean;
 }) {
   return (
     <Card className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
-
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div className="min-h-0 flex-1 overflow-auto">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 {columns.map((c) => (
-                  <TableHead key={c} className="whitespace-nowrap text-xs uppercase tracking-wide text-muted-foreground">
+                  <TableHead key={c} className="whitespace-nowrap py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {c}
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody>{children}</TableBody>
+            <TableBody className="divide-y">{children}</TableBody>
           </Table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-          <div className="text-xs text-muted-foreground">
-            {total !== undefined ? `Showing ${total} entries` : ""}
+        {!hidePagination && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 bg-card/50">
+            <div className="text-xs font-medium text-muted-foreground">
+              Showing {total} {total === 1 ? "entry" : "entries"}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange?.(page - 1)}
+                  className="h-8 text-xs"
+                >
+                  Previous
+                </Button>
+                <span className="text-xs font-medium text-muted-foreground px-2">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => onPageChange?.(page + 1)}
+                  className="h-8 text-xs"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem><PaginationPrevious href="#" /></PaginationItem>
-              <PaginationItem><PaginationLink href="#" isActive>1</PaginationLink></PaginationItem>
-              <PaginationItem><PaginationLink href="#">2</PaginationLink></PaginationItem>
-              <PaginationItem><PaginationLink href="#">3</PaginationLink></PaginationItem>
-              <PaginationItem><PaginationNext href="#" /></PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
