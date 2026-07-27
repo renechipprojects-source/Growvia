@@ -1,5 +1,5 @@
 // Centralized notification service with role-based filtering, subscribe/emit,
-// mark-as-read, and simulated real-time updates.
+// mark-as-read, LocalStorage persistence, and cross-component live sync.
 import type { Role } from "./roleConfig";
 
 export type NotificationPriority = "low" | "medium" | "high";
@@ -30,6 +30,8 @@ export interface AppNotification {
 }
 
 type Listener = () => void;
+
+const NOTIF_STORAGE_KEY = "sunshine.notifications.v2";
 
 const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, string>>>> = {
   homework: {
@@ -63,7 +65,16 @@ const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, st
   system: { "super-admin": "/super-admin", principal: "/principal" },
 };
 
-function seed(): AppNotification[] {
+function getInitialNotifications(): AppNotification[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
   const now = Date.now();
   const m = (n: number) => now - n * 60_000;
   return [
@@ -97,7 +108,7 @@ function seed(): AppNotification[] {
       timestamp: m(12),
       read: false,
       priority: "high",
-      roles: ["teacher"],
+      roles: ["teacher", "principal", "super-admin"],
       link: "/teacher/leave-requests",
     },
     {
@@ -108,7 +119,7 @@ function seed(): AppNotification[] {
       timestamp: m(90),
       read: false,
       priority: "medium",
-      roles: ["office", "super-admin"],
+      roles: ["office", "principal", "super-admin", "parent"],
       link: "/office/fees",
     },
     {
@@ -117,7 +128,7 @@ function seed(): AppNotification[] {
       description: "Kavya Singh enquired about Nursery admission.",
       module: "admissions",
       timestamp: m(140),
-      read: true,
+      read: false,
       priority: "medium",
       roles: ["office", "principal", "super-admin"],
       link: "/office/enquiries",
@@ -135,15 +146,41 @@ function seed(): AppNotification[] {
   ];
 }
 
-let store: AppNotification[] = seed();
+let store: AppNotification[] = getInitialNotifications();
 const listeners = new Set<Listener>();
 const listCache = new Map<Role, AppNotification[]>();
 const unreadCache = new Map<Role, number>();
+
+function saveStore(newStore: AppNotification[]) {
+  store = newStore;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(store));
+      window.dispatchEvent(new CustomEvent("sunshine-notification"));
+    } catch {}
+  }
+  emit();
+}
 
 function emit() {
   listCache.clear();
   unreadCache.clear();
   for (const l of listeners) l();
+}
+
+// Global listener for cross-tab and custom event triggers
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === NOTIF_STORAGE_KEY && e.newValue) {
+      try {
+        store = JSON.parse(e.newValue);
+        emit();
+      } catch {}
+    }
+  });
+  window.addEventListener("sunshine-notification", () => {
+    emit();
+  });
 }
 
 export function subscribe(l: Listener) {
@@ -155,7 +192,7 @@ export function listForRole(role: Role): AppNotification[] {
   const cached = listCache.get(role);
   if (cached) return cached;
   const next = store
-    .filter((n) => n.roles.includes(role))
+    .filter((n) => n.roles && n.roles.includes(role))
     .sort((a, b) => b.timestamp - a.timestamp);
   listCache.set(role, next);
   return next;
@@ -164,20 +201,19 @@ export function listForRole(role: Role): AppNotification[] {
 export function unreadCountForRole(role: Role): number {
   const cached = unreadCache.get(role);
   if (cached !== undefined) return cached;
-  const n = store.filter((x) => x.roles.includes(role) && !x.read).length;
+  const n = store.filter((x) => x.roles && x.roles.includes(role) && !x.read).length;
   unreadCache.set(role, n);
   return n;
 }
 
-
 export function markRead(id: string) {
-  store = store.map((n) => (n.id === id ? { ...n, read: true } : n));
-  emit();
+  const next = store.map((n) => (n.id === id ? { ...n, read: true } : n));
+  saveStore(next);
 }
 
 export function markAllRead(role: Role) {
-  store = store.map((n) => (n.roles.includes(role) ? { ...n, read: true } : n));
-  emit();
+  const next = store.map((n) => (n.roles.includes(role) ? { ...n, read: true } : n));
+  saveStore(next);
 }
 
 export interface NotifyInput {
@@ -203,8 +239,8 @@ export function notify(input: NotifyInput) {
     link: input.link ?? LINK_BY_MODULE[input.module]?.[input.roles[0]],
     refId: input.refId,
   };
-  store = [n, ...store];
-  emit();
+  const next = [n, ...store];
+  saveStore(next);
   return n;
 }
 
@@ -215,7 +251,7 @@ export const NotificationService = {
       title: "New homework assigned",
       description: `${teacher} assigned: ${title}`,
       module: "homework",
-      roles: ["parent"],
+      roles: ["parent", "teacher", "principal"],
     });
   },
   attendanceMarked(className: string) {
@@ -223,7 +259,7 @@ export const NotificationService = {
       title: "Attendance updated",
       description: `Attendance has been updated for ${className} today.`,
       module: "attendance",
-      roles: ["parent"],
+      roles: ["parent", "teacher", "principal", "office"],
       priority: "low",
     });
   },
@@ -232,7 +268,7 @@ export const NotificationService = {
       title: "New remark added",
       description: `Teacher added a new remark about ${student}.`,
       module: "remarks",
-      roles: ["parent"],
+      roles: ["parent", "principal", "teacher"],
     });
   },
   diaryPublished(student: string) {
@@ -240,11 +276,11 @@ export const NotificationService = {
       title: "Daily diary updated",
       description: `A new diary entry is available for ${student}.`,
       module: "diary",
-      roles: ["parent"],
+      roles: ["parent", "teacher"],
       priority: "low",
     });
   },
-  announcement(text: string, roles: Role[] = ["parent", "teacher", "office"]) {
+  announcement(text: string, roles: Role[] = ["parent", "teacher", "office", "principal", "super-admin"]) {
     notify({
       title: "New announcement",
       description: text,
@@ -257,7 +293,7 @@ export const NotificationService = {
       title: "New leave request",
       description: `${parent} requested leave for ${student}.`,
       module: "leave",
-      roles: ["teacher"],
+      roles: ["teacher", "principal", "super-admin", "office"],
       priority: "high",
     });
   },
@@ -266,7 +302,7 @@ export const NotificationService = {
       title: `Leave ${status.toLowerCase()}`,
       description: `Your leave request for ${student} has been ${status.toLowerCase()}.`,
       module: "leave",
-      roles: ["parent"],
+      roles: ["parent", "teacher", "principal"],
       priority: status === "Rejected" ? "high" : "medium",
     });
   },

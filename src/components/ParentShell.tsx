@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { NotificationPanel } from "@/components/NotificationPanel";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -78,20 +79,7 @@ export function ParentShell() {
               <IconBtn to="/parent/leave" ariaLabel={t("nav.leave")} badge={pendingLeaves}>
                 <Plane className="h-5 w-5" />
               </IconBtn>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label={t("nav.notifications")}
-                  className="relative h-9 w-9 grid place-items-center rounded-full bg-white/80 hover:bg-white text-slate-700 shadow-sm border border-white/60"
-                >
-                  <Bell className="h-5 w-5" />
-                  {parentCirculars > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] bg-pink-500 text-white">{parentCirculars}</Badge>
-                  )}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>{t("nav.notifications")}</DropdownMenuLabel>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <NotificationPanel role="parent" />
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={t("nav.language")}
