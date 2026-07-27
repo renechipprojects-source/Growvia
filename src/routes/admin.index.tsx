@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { events } from "@/lib/admin-mock-data";
-import { fetchStudents, fetchTeachers, fetchExpenses, fetchFees, type Student } from "@/lib/supabaseService";
+import { fetchStudents, fetchTeachers, fetchExpenses, fetchFees, fetchEvents, type Student } from "@/lib/supabaseService";
 import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/admin/")({
@@ -20,6 +19,7 @@ function Dashboard() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersCount, setTeachersCount] = useState(0);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [eventsList, setEventsList] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStudents().then(({ data, isFromSupabase }) => {
@@ -31,6 +31,11 @@ function Dashboard() {
     fetchFees().then(({ data, isFromSupabase }) => {
       if (isFromSupabase && data.length > 0) {
         setPaymentsList(data);
+      }
+    });
+    fetchEvents().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) {
+        setEventsList(data);
       }
     });
   }, []);
@@ -52,6 +57,8 @@ function Dashboard() {
     return isToday || isTmr;
   });
 
+  const upcomingEvents = eventsList.filter((e) => e.status === "Upcoming" || !e.status);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
@@ -59,85 +66,68 @@ function Dashboard() {
         description="Real-time overview of school operations, student enrollment, and financial metrics."
       />
 
-      <div className="min-h-0 flex-1 overflow-auto pr-1">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="Total Students" value={totalStudents} delta="+8%" icon={<Users className="h-5 w-5" />} />
-          <StatCard label="Present Today" value={presentToday} delta="+2%" icon={<UserCheck className="h-5 w-5" />} tone="success" />
-          <StatCard label="Absent Today" value={absentToday} delta="-4%" icon={<UserX className="h-5 w-5" />} tone="danger" />
-          <StatCard label="Teachers" value={teachersCount} icon={<GraduationCap className="h-5 w-5" />} tone="info" />
-          <StatCard label="Birthdays Today/Tmr" value={upcomingBirthdaysList.length} icon={<Cake className="h-5 w-5" />} tone="info" />
+      <div className="shrink-0 space-y-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} />
+          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} />
+          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} />
+          <StatCard label="Total Staff" value={teachersCount} tone="info" icon={<GraduationCap className="h-5 w-5" />} />
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="rounded-2xl lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <div><CardTitle>Recent Payments</CardTitle><CardDescription>Latest fee transactions in database</CardDescription></div>
+              <div>
+                <CardTitle>Recent Payments</CardTitle>
+                <CardDescription>Latest fee receipts and collection records.</CardDescription>
+              </div>
               <Button variant="ghost" size="sm" asChild><Link to="/admin/fees/payments">View all</Link></Button>
             </CardHeader>
-            <CardContent>
-              {paymentsList.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">No recent payment transactions found.</div>
-              ) : (
-                <div className="divide-y">
-                  {paymentsList.slice(0, 6).map((p) => (
-                    <div key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{p.studentName || p.student_name}</div>
-                        <div className="text-xs text-muted-foreground">{p.id} · {p.month || "Current"}</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm font-semibold">₹{Number(p.amount || 0).toLocaleString()}</div>
-                        <StatusBadge status={p.status || "Paid"} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Birthdays Today & Tomorrow</CardTitle>
-              <Cake className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
             <CardContent className="space-y-3">
-              {upcomingBirthdaysList.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">No birthdays today or tomorrow.</div>
+              {paymentsList.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">No recent fee payments recorded.</div>
               ) : (
-                upcomingBirthdaysList.map((b) => (
-                  <div key={b.id} className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9"><AvatarImage src={b.avatar || "/avatars/student.svg"} /><AvatarFallback>{b.name[0]}</AvatarFallback></Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{b.name}</div>
-                      <div className="text-xs text-muted-foreground">{b.className}-{b.section} · Roll #{b.rollNo}</div>
+                paymentsList.slice(0, 5).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">{p.student_name || p.studentName || "Student Payment"}</div>
+                        <div className="text-xs text-muted-foreground">INV-{p.id} · {p.due_date || "Today"}</div>
+                      </div>
                     </div>
-                    <Badge variant="secondary">Birthday</Badge>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-emerald-600">₹{p.amount || 0}</div>
+                      <Badge variant="outline" className="text-[10px]">Paid</Badge>
+                    </div>
                   </div>
                 ))
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card className="rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div><CardTitle>Recent Admissions</CardTitle></div>
-              <Button variant="ghost" size="sm" asChild><Link to="/admin/students">View all</Link></Button>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cake className="h-5 w-5 text-pink-500" />
+                Birthdays Today / Tomorrow
+              </CardTitle>
+              <CardDescription>Students celebrating birthdays today or tomorrow.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {studentsList.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">No enrolled students yet.</div>
+              {upcomingBirthdaysList.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">No birthdays today or tomorrow.</div>
               ) : (
-                studentsList.slice(0, 6).map((s) => (
-                  <div key={s.id} className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9"><AvatarImage src={s.avatar || "/avatars/student.svg"} /><AvatarFallback>{s.name[0]}</AvatarFallback></Avatar>
+                upcomingBirthdaysList.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 rounded-xl border p-3">
+                    <Avatar className="h-10 w-10"><AvatarImage src={s.avatar || "/avatars/student.svg"} /><AvatarFallback>{s.name[0]}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{s.name}</div>
-                      <div className="text-xs text-muted-foreground">{s.className}-{s.section} · {s.admissionNo}</div>
+                      <div className="text-xs text-muted-foreground">{s.className}-{s.section} · DOB: {s.dob}</div>
                     </div>
-                    <StatusBadge status={s.feeStatus || "Active"} />
+                    <Badge variant="secondary">Birthday</Badge>
                   </div>
                 ))
               )}
@@ -150,18 +140,22 @@ function Dashboard() {
               <Button variant="ghost" size="sm" asChild><Link to="/admin/events">View all</Link></Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {events.filter((e) => e.status === "Upcoming").slice(0, 5).map((e) => (
-                <div key={e.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                    <CalendarClock className="h-5 w-5" />
+              {upcomingEvents.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">No upcoming events scheduled.</div>
+              ) : (
+                upcomingEvents.slice(0, 5).map((e) => (
+                  <div key={e.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <CalendarClock className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{e.title}</div>
+                      <div className="text-xs text-muted-foreground">{e.type || "School Event"} · {e.location || "Main Campus"}</div>
+                    </div>
+                    <Badge variant="secondary">{e.date || "Upcoming"}</Badge>
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{e.title}</div>
-                    <div className="text-xs text-muted-foreground">{e.type} · {e.location}</div>
-                  </div>
-                  <Badge variant="secondary">{e.date}</Badge>
-                </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

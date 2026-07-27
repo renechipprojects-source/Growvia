@@ -428,6 +428,16 @@ export async function updateProfileStatus(loginId: string, status: string) {
   }
 }
 
+export async function fetchEvents(): Promise<{ data: any[]; isFromSupabase: boolean }> {
+  try {
+    const { data, error } = await supabase.from("events").select("*").order("date", { ascending: true });
+    if (error || !data || data.length === 0) return { data: [], isFromSupabase: false };
+    return { data, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
+}
+
 // ─── SYSTEM STATUS CHECK ──────────────────────────────────────────────────
 
 export async function checkSupabaseConnection(): Promise<{
