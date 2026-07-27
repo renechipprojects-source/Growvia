@@ -1,5 +1,5 @@
-// Centralized notification service with role-based filtering, subscribe/emit,
-// mark-as-read, LocalStorage persistence, and cross-component live sync.
+// Centralized live notification service with role-based filtering, subscribe/emit,
+// LocalStorage persistence, live Supabase sync, and zero mock data.
 import type { Role } from "./roleConfig";
 
 export type NotificationPriority = "low" | "medium" | "high";
@@ -31,7 +31,7 @@ export interface AppNotification {
 
 type Listener = () => void;
 
-const NOTIF_STORAGE_KEY = "sunshine.notifications.v2";
+const NOTIF_STORAGE_KEY = "sunshine.notifications.v3";
 
 const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, string>>>> = {
   homework: {
@@ -71,79 +71,14 @@ function getInitialNotifications(): AppNotification[] {
     const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        // Filter out any legacy mock seeds
+        const clean = parsed.filter((n: any) => n && n.id && !String(n.id).startsWith("n-seed-"));
+        return clean;
+      }
     }
   } catch {}
-
-  const now = Date.now();
-  const m = (n: number) => now - n * 60_000;
-  return [
-    {
-      id: "n-seed-1",
-      title: "Homework assigned",
-      description: "Miss Anjali added new homework: Shapes worksheet.",
-      module: "homework",
-      timestamp: m(5),
-      read: false,
-      priority: "medium",
-      roles: ["parent"],
-      link: "/parent/homework",
-    },
-    {
-      id: "n-seed-2",
-      title: "Attendance updated",
-      description: "Diya was marked present today.",
-      module: "attendance",
-      timestamp: m(35),
-      read: false,
-      priority: "low",
-      roles: ["parent"],
-      link: "/parent/attendance",
-    },
-    {
-      id: "n-seed-3",
-      title: "New leave request",
-      description: "Rohit Sharma requested leave for Aarav (Jul 23).",
-      module: "leave",
-      timestamp: m(12),
-      read: false,
-      priority: "high",
-      roles: ["teacher", "principal", "super-admin"],
-      link: "/teacher/leave-requests",
-    },
-    {
-      id: "n-seed-4",
-      title: "Fee payment recorded",
-      description: "₹8,500 received from Neha Patel.",
-      module: "fees",
-      timestamp: m(90),
-      read: false,
-      priority: "medium",
-      roles: ["office", "principal", "super-admin", "parent"],
-      link: "/office/fees",
-    },
-    {
-      id: "n-seed-5",
-      title: "New admission enquiry",
-      description: "Kavya Singh enquired about Nursery admission.",
-      module: "admissions",
-      timestamp: m(140),
-      read: false,
-      priority: "medium",
-      roles: ["office", "principal", "super-admin"],
-      link: "/office/enquiries",
-    },
-    {
-      id: "n-seed-6",
-      title: "Announcement published",
-      description: "Yellow Day celebration tomorrow — please dress your child in yellow.",
-      module: "announcement",
-      timestamp: m(200),
-      read: false,
-      priority: "medium",
-      roles: ["parent", "teacher", "office", "principal", "super-admin"],
-    },
-  ];
+  return [];
 }
 
 let store: AppNotification[] = getInitialNotifications();
@@ -152,7 +87,8 @@ const listCache = new Map<Role, AppNotification[]>();
 const unreadCache = new Map<Role, number>();
 
 function saveStore(newStore: AppNotification[]) {
-  store = newStore;
+  // Purge any mock seeds
+  store = newStore.filter((n) => !n.id.startsWith("n-seed-"));
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(store));
@@ -168,16 +104,103 @@ function emit() {
   for (const l of listeners) l();
 }
 
-// Global listener for cross-tab and custom event triggers
+// Automatically sync live database notifications from Supabase
+export function syncLiveDatabaseNotifications() {
+  if (typeof window === "undefined") return;
+
+  // Clear mock seeds from previous keys
+  try {
+    window.localStorage.removeItem("sunshine.notifications.v2");
+    window.localStorage.removeItem("sunshine.notifications.v1");
+  } catch {}
+
+  import("./supabaseService")
+    .then(({ fetchCirculars, fetchLeaveRequests, fetchEnquiries }) => {
+      fetchCirculars().then(({ data }) => {
+        if (data && data.length > 0) {
+          let updated = false;
+          data.forEach((c) => {
+            const notifId = `n-cir-${c.id || c.title}`;
+            if (!store.some((n) => n.id === notifId)) {
+              store.unshift({
+                id: notifId,
+                title: `Circular: ${c.title}`,
+                description: c.content || c.title,
+                module: "announcement",
+                timestamp: c.published_date ? new Date(c.published_date).getTime() : Date.now(),
+                read: false,
+                priority: "high",
+                roles: ["parent", "teacher", "office", "principal", "super-admin"],
+              });
+              updated = true;
+            }
+          });
+          if (updated) saveStore([...store]);
+        }
+      });
+
+      fetchLeaveRequests().then(({ data }) => {
+        if (data && data.length > 0) {
+          let updated = false;
+          data.forEach((l) => {
+            const notifId = `n-lv-${l.id || l.applicant_name}`;
+            if (!store.some((n) => n.id === notifId)) {
+              store.unshift({
+                id: notifId,
+                title: `Leave Request: ${l.applicant_name}`,
+                description: `${l.applicant_name} (${l.applicant_role}) requested leave: ${l.reason} (${l.status})`,
+                module: "leave",
+                timestamp: l.applied_on ? new Date(l.applied_on).getTime() : Date.now(),
+                read: false,
+                priority: l.status === "Pending" ? "high" : "medium",
+                roles: ["teacher", "principal", "super-admin", "office"],
+              });
+              updated = true;
+            }
+          });
+          if (updated) saveStore([...store]);
+        }
+      });
+
+      fetchEnquiries().then(({ data }) => {
+        if (data && data.length > 0) {
+          let updated = false;
+          data.forEach((e) => {
+            const notifId = `n-enq-${e.id}`;
+            if (!store.some((n) => n.id === notifId)) {
+              store.unshift({
+                id: notifId,
+                title: `Admission Enquiry: ${e.childName}`,
+                description: `${e.parentName} enquired for ${e.interestedClass} (${e.status})`,
+                module: "admissions",
+                timestamp: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
+                read: false,
+                priority: "medium",
+                roles: ["office", "principal", "super-admin"],
+              });
+              updated = true;
+            }
+          });
+          if (updated) saveStore([...store]);
+        }
+      });
+    })
+    .catch(() => {});
+}
+
+// Run initial sync on script load
 if (typeof window !== "undefined") {
+  syncLiveDatabaseNotifications();
+
   window.addEventListener("storage", (e) => {
     if (e.key === NOTIF_STORAGE_KEY && e.newValue) {
       try {
-        store = JSON.parse(e.newValue);
+        store = JSON.parse(e.newValue).filter((n: any) => !n.id.startsWith("n-seed-"));
         emit();
       } catch {}
     }
   });
+
   window.addEventListener("sunshine-notification", () => {
     emit();
   });
@@ -192,7 +215,7 @@ export function listForRole(role: Role): AppNotification[] {
   const cached = listCache.get(role);
   if (cached) return cached;
   const next = store
-    .filter((n) => n.roles && n.roles.includes(role))
+    .filter((n) => n && n.roles && n.roles.includes(role) && !n.id.startsWith("n-seed-"))
     .sort((a, b) => b.timestamp - a.timestamp);
   listCache.set(role, next);
   return next;
@@ -201,7 +224,7 @@ export function listForRole(role: Role): AppNotification[] {
 export function unreadCountForRole(role: Role): number {
   const cached = unreadCache.get(role);
   if (cached !== undefined) return cached;
-  const n = store.filter((x) => x.roles && x.roles.includes(role) && !x.read).length;
+  const n = store.filter((x) => x && x.roles && x.roles.includes(role) && !x.read && !x.id.startsWith("n-seed-")).length;
   unreadCache.set(role, n);
   return n;
 }

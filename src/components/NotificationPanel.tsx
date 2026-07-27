@@ -9,6 +9,7 @@ import {
   markAllRead,
   markRead,
   subscribe,
+  syncLiveDatabaseNotifications,
   unreadCountForRole,
   type AppNotification,
 } from "@/lib/notifications";
@@ -48,10 +49,10 @@ const priorityDot: Record<AppNotification["priority"], string> = {
 export function NotificationPanel({ role }: { role: Role }) {
   const { items, unread } = useNotifications(role);
   const [open, setOpen] = useState(false);
-  // Simulated real-time tick to refresh timestamps
-  const [, force] = useState(0);
+  // Sync live notifications from database on mount & interval tick
   useEffect(() => {
-    const t = setInterval(() => force((n) => n + 1), 30_000);
+    syncLiveDatabaseNotifications();
+    const t = setInterval(() => syncLiveDatabaseNotifications(), 20_000);
     return () => clearInterval(t);
   }, []);
 
