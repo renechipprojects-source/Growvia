@@ -18,7 +18,7 @@ export function StatCard({
       <div className={cn("absolute -top-8 -right-8 h-32 w-32 rounded-full opacity-20 bg-gradient-to-br blur-2xl pointer-events-none", gradient)} />
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-tight break-normal truncate" title={label}>{label}</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-snug whitespace-normal break-normal">{label}</div>
           <div className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight">{value}</div>
           {sub && <div className="mt-1 text-xs text-muted-foreground truncate">{sub}</div>}
         </div>
