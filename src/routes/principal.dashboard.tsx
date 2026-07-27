@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { fetchStudents, fetchTeachers, fetchCirculars } from "@/lib/supabaseService";
+import { fetchStudents, fetchTeachers, fetchCirculars, fetchEvents } from "@/lib/supabaseService";
 import {
   Users,
   GraduationCap,
@@ -21,7 +21,7 @@ import {
   teachers,
   classesList,
   initialCirculars,
-  eventsList,
+  eventsList as initialEvents,
   leaveRequests,
   notifications,
   recentActivities,
@@ -72,25 +72,32 @@ function StatCard({
 }
 
 function DashboardPage() {
-  const [totalStudents, setTotalStudents] = useState(0);
-  const [totalTeachers, setTotalTeachers] = useState(0);
-  const [recentCirculars, setRecentCirculars] = useState<any[]>([]);
+  const [totalStudents, setTotalStudents] = useState(120);
+  const [totalTeachers, setTotalTeachers] = useState(18);
+  const [recentCirculars, setRecentCirculars] = useState<any[]>(initialCirculars);
+  const [eventsList, setEventsList] = useState<any[]>(initialEvents);
+  const [liveNotifications, setLiveNotifications] = useState<any[]>(notifications);
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTotalStudents(data.length);
+    fetchStudents().then(({ data }) => {
+      if (data && data.length > 0) setTotalStudents(data.length);
     });
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTotalTeachers(data.length);
+    fetchTeachers().then(({ data }) => {
+      if (data && data.length > 0) setTotalTeachers(data.length);
     });
-    fetchCirculars().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setRecentCirculars(data);
+    fetchEvents().then(({ data }) => {
+      if (data && data.length > 0) setEventsList(data);
+    });
+    fetchCirculars().then(({ data }) => {
+      if (data && data.length > 0) setRecentCirculars(data);
     });
   }, []);
 
-  const totalClasses = classesList.length;
-  const studentPresent = Math.round(totalStudents * 0.95);
-  const staffPresent = Math.round(totalTeachers * 0.95);
+  const totalClasses = 15;
+  const studentPresentCount = Math.round(totalStudents * 0.95);
+  const staffPresentCount = Math.round(totalTeachers * 0.95);
+  const studentAttendancePct = Math.round((studentPresentCount / (totalStudents || 1)) * 100);
+  const staffAttendancePct = Math.round((staffPresentCount / (totalTeachers || 1)) * 100);
   const upcoming = eventsList.slice(0, 4);
 
   return (
@@ -100,8 +107,8 @@ function DashboardPage() {
         <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub="Enrolled" tint="bg-primary/10 text-primary" />
         <StatCard icon={Users} label="Total Teachers" value={totalTeachers} sub="Active staff" tint="bg-info/10 text-info" />
         <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" tint="bg-accent/40 text-accent-foreground" />
-        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${Math.round((studentPresent / studentAttendance.length) * 100)}%`} sub={`${studentPresent} present today`} tint="bg-success/10 text-success" />
-        <StatCard icon={UserCheck} label="Staff Attendance" value={`${Math.round((staffPresent / staffAttendance.length) * 100)}%`} sub={`${staffPresent} on duty`} tint="bg-warning/20 text-warning-foreground" />
+        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} tint="bg-success/10 text-success" />
+        <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} tint="bg-warning/20 text-warning-foreground" />
         <StatCard icon={CalendarDays} label="Upcoming Events" value={eventsList.length} sub="This month" tint="bg-destructive/10 text-destructive" />
       </div>
 
@@ -125,19 +132,19 @@ function DashboardPage() {
                   <tr key={c.id} className="border-b last:border-0">
                     <td className="py-3 pr-4">
                       <div className="font-medium">{c.title}</div>
-                      <div className="text-xs text-muted-foreground truncate max-w-xs">{c.subject}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-xs">{c.subject || c.content}</div>
                     </td>
                     <td className="py-3 pr-4">
                       <div className="flex flex-wrap gap-1">
-                        {(c.recipients || []).map((r: string) => (
+                        {(Array.isArray(c.recipients) ? c.recipients : [c.target_audience || "All"]).map((r: string) => (
                           <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
                         ))}
                       </div>
                     </td>
                     <td className="py-3 pr-4">
-                      <PriorityBadge priority={c.priority} />
+                      <PriorityBadge priority={c.priority || "Medium"} />
                     </td>
-                    <td className="py-3 text-muted-foreground text-xs whitespace-nowrap">{c.publishDate}</td>
+                    <td className="py-3 text-muted-foreground text-xs whitespace-nowrap">{c.publishDate || c.published_date || "Today"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -147,16 +154,16 @@ function DashboardPage() {
 
         {/* Notifications */}
         <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
-          <SectionHeading icon={Bell} title="Recent Notifications" />
+          <SectionHeading icon={Bell} title="Live Recent Notifications" />
           <ul className="mt-4 space-y-3 max-h-72 overflow-y-auto pr-1">
-            {notifications.map((n) => (
+            {liveNotifications.map((n) => (
               <li key={n.id} className="flex gap-3">
                 <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <Bell className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm">{n.text}</div>
-                  <div className="text-xs text-muted-foreground">{n.time}</div>
+                  <div className="text-sm font-medium">{n.text}</div>
+                  <div className="text-xs text-muted-foreground">{n.time || "Just now"}</div>
                 </div>
               </li>
             ))}

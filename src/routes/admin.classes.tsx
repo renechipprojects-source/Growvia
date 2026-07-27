@@ -7,6 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { classes, staff } from "@/lib/admin-mock-data";
 import { fetchStudents, fetchTeachers, type Student } from "@/lib/supabaseService";
 
+const classNames = ["Nursery", "LKG", "UKG", "Grade 1", "Grade 2"];
+const sectionsList = ["A", "B", "C"];
+const allClassesList = classNames.flatMap((name, ci) =>
+  sectionsList.map((sec, si) => ({
+    id: `CLS-${ci}-${si}`,
+    name,
+    section: sec,
+    fullName: `${name} - Section ${sec}`,
+  }))
+);
+
 export const Route = createFileRoute("/admin/classes")({
   component: ClassesPage,
   head: () => ({ meta: [{ title: "Classes — Sunshine ERP" }] }),
@@ -30,11 +41,9 @@ function ClassesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const sec = filterValues["Section"];
-    return classes.filter((c) => {
-      if (q && !c.toLowerCase().includes(q)) return false;
-      if (sec && sec !== "all") {
-        return ["A", "B"].includes(sec);
-      }
+    return allClassesList.filter((c) => {
+      if (q && !c.fullName.toLowerCase().includes(q)) return false;
+      if (sec && sec !== "all" && c.section !== sec) return false;
       return true;
     });
   }, [search, filterValues]);
@@ -44,8 +53,8 @@ function ClassesPage() {
       <PageHeader title="Classes" description="Class overview with live section strength and assigned class teachers." />
       <div className="shrink-0">
         <FilterBar
-          searchPlaceholder="Search class name..."
-          filters={[{ label: "Section", options: ["A", "B"] }]}
+          searchPlaceholder="Search class name, grade..."
+          filters={[{ label: "Section", options: ["A", "B", "C"] }]}
           search={search}
           onSearchChange={setSearch}
           filterValues={filterValues}
@@ -56,21 +65,23 @@ function ClassesPage() {
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
-          columns={["Class", "Sections", "Live Student Count", "Class Teacher"]}
+          columns={["Class Name", "Section", "Live Student Count", "Class Teacher"]}
           total={filtered.length}
-          hidePagination={true}
         >
           {filtered.map((c, idx) => {
-            const count = studentsList.filter((s) => s.className?.toLowerCase() === c.toLowerCase() || (s as any).class_name?.toLowerCase() === c.toLowerCase()).length;
-            const teacher = teachersList[idx] ?? teachersList[0] ?? { name: "Ananya Sharma", avatar: "/avatars/teacher.svg" };
+            const count = studentsList.filter(
+              (s) =>
+                (s.className?.toLowerCase() === c.name.toLowerCase() || (s as any).class_name?.toLowerCase() === c.name.toLowerCase()) &&
+                (s.section?.toUpperCase() === c.section || !s.section)
+            ).length;
+            const teacher = teachersList[idx % teachersList.length] ?? teachersList[0] ?? { name: "Assigned Teacher", avatar: "/avatars/teacher.svg" };
             return (
-              <TableRow key={c} className="hover:bg-muted/30">
-                <TableCell className="font-semibold text-foreground py-4">{c}</TableCell>
+              <TableRow key={c.id} className="hover:bg-muted/30">
+                <TableCell className="font-semibold text-foreground py-4">{c.name}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1.5">
-                    <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200">Section A</Badge>
-                    <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">Section B</Badge>
-                  </div>
+                  <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 font-semibold">
+                    Section {c.section}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary" className="text-xs font-semibold px-2.5 py-1">

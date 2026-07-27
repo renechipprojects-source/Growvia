@@ -1,6 +1,6 @@
 // Centralized mock data for TinySteps Play School ERP
 
-export const classes = ["Play Group", "Nursery", "LKG", "UKG"] as const;
+export const classes = ["Play Group", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
 export type ClassName = (typeof classes)[number];
 
 export type Status = "Active" | "Inactive" | "Pending" | "Graduated";
