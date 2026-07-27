@@ -28,7 +28,7 @@ export function TransportModule({ readOnly = false }: { readOnly?: boolean } = {
     { key: "fees", label: "Transport Fees", icon: <Wallet className="h-4 w-4" />, page: <TransportFeesPage readOnly={readOnly} /> },
     { key: "maintenance", label: "Vehicle Maintenance", icon: <Wrench className="h-4 w-4" />, page: <VehicleMaintenancePage readOnly={readOnly} /> },
   ];
-  return <ModuleLayout title="Transport" subtitle={readOnly ? "Fleet view (Read Only)" : "Fleet management (Full Control)"} nav={nav} />;
+  return <ModuleLayout title="Transport" subtitle="Fleet management & route allocation" nav={nav} />;
 }
 
 export { TransportDashboard, VehiclesPage, RoutesPage, DriversPage, StudentAllocationPage, TransportFeesPage, VehicleMaintenancePage };

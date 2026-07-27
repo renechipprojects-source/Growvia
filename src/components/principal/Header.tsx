@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Bell, Menu, Check, Trash2, Inbox, Shield } from "lucide-react";
+import { Bell, Menu, Check, Trash2, Inbox, Clock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -73,6 +73,13 @@ export function PrincipalHeader({ onMenu, title }: { onMenu: () => void; title: 
     writeDismissed(dismissed);
   }, [dismissed]);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [time, setTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setTime(new Date());
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const prefs = getPrincipalNotifPrefs();
   const filtered = items.filter((n) => {
@@ -100,10 +107,22 @@ export function PrincipalHeader({ onMenu, title }: { onMenu: () => void; title: 
       </button>
       <div className="min-w-0">
         <h1 className="text-base md:text-lg font-semibold truncate">{title}</h1>
-        <p className="text-xs text-muted-foreground hidden sm:block truncate">
-          Welcome back, {profile.name}
-        </p>
       </div>
+
+      {/* Live Real-Time Date & Time Clock */}
+      {time && (
+        <div className="hidden sm:flex items-center gap-2 rounded-full border bg-card/60 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs ml-2">
+          <Clock className="h-3.5 w-3.5 text-primary animate-pulse" />
+          <span>
+            {time.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className="font-mono text-primary">
+            {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
+        </div>
+      )}
+
       <div className="ml-auto flex items-center gap-3">
         <Popover>
           <PopoverTrigger asChild>
@@ -205,14 +224,6 @@ export function PrincipalHeader({ onMenu, title }: { onMenu: () => void; title: 
             </div>
           </PopoverContent>
         </Popover>
-        <button
-          onClick={() => setSecurityOpen(true)}
-          className="p-2 rounded-md hover:bg-muted"
-          aria-label="Account security"
-          title="Account Security"
-        >
-          <Shield className="w-5 h-5" />
-        </button>
         <button
           type="button"
           onClick={() => setSecurityOpen(true)}
