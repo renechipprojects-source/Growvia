@@ -85,7 +85,7 @@ export function DataTable({
   columns,
   children,
   total,
-  pageSize = 8,
+  pageSize = 15,
   hidePagination = false,
 }: {
   columns: string[];
@@ -103,14 +103,14 @@ export function DataTable({
     : childrenArray.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <Card className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
+    <Card className="mt-4 flex min-h-[550px] flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         <div className="min-h-0 flex-1 overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
+          <Table className="w-full">
+            <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm">
               <TableRow>
                 {columns.map((c) => (
-                  <TableHead key={c} className="whitespace-nowrap py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <TableHead key={c} className="whitespace-nowrap py-4 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {c}
                   </TableHead>
                 ))}

@@ -25,7 +25,7 @@ interface Props<T> {
 }
 
 export function DataTable<T>(props: Props<T>) {
-  const { data, columns, rowKey, searchPlaceholder, searchFields, filters, onAdd, addLabel = "Add New", pageSize = 8, actions } = props;
+  const { data, columns, rowKey, searchPlaceholder, searchFields, filters, onAdd, addLabel = "Add New", pageSize = 15, actions } = props;
   const dt = useDataTable(data, {
     searchFields,
     filters: filters?.map((f) => ({ key: f.key, predicate: f.predicate })),
@@ -57,9 +57,9 @@ export function DataTable<T>(props: Props<T>) {
           </div>
         </CardContent>
       </Card>
-      <Card className="rounded-2xl">
+      <Card className="rounded-2xl min-h-[550px]">
         <CardContent className="p-0">
-          <div className="max-h-[560px] overflow-auto">
+          <div className="min-h-[480px] overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
