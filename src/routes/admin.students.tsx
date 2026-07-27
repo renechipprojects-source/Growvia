@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Eye, UserRound, SortAsc } from "lucide-react";
+import { Eye, UserRound, SortAsc, HeartPulse } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { healthRecords } from "@/modules/health/data/mockData";
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -208,6 +209,30 @@ function StudentsPage() {
                   <div className="mt-0.5"><StatusBadge status={selectedStudent.status} /></div>
                 </div>
               </div>
+
+              {/* Medical & Health Records (if present) */}
+              {(() => {
+                const med = healthRecords.find(
+                  (h) => h.student.toLowerCase() === selectedStudent.name.toLowerCase() || h.admissionNumber === selectedStudent.admissionNo
+                );
+                if (!med) return null;
+                return (
+                  <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50/60 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between font-semibold text-xs text-rose-900">
+                      <span className="flex items-center gap-1.5"><HeartPulse className="h-4 w-4 text-rose-600" /> Medical & Health Records</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-rose-700 border border-rose-200">{med.bloodGroup}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      <div><span className="text-muted-foreground">Height:</span> {med.heightCm} cm</div>
+                      <div><span className="text-muted-foreground">Weight:</span> {med.weightKg} kg</div>
+                      <div><span className="text-muted-foreground">Allergies:</span> {med.allergies}</div>
+                      <div><span className="text-muted-foreground">Conditions:</span> {med.medicalConditions}</div>
+                      <div><span className="text-muted-foreground">Doctor:</span> {med.doctor}</div>
+                      <div><span className="text-muted-foreground">Emergency:</span> {med.emergencyContact}</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </DialogContent>

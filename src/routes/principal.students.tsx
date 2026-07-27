@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { students as seedStudents, type Student } from "@/lib/principal-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { healthRecords } from "@/modules/health/data/mockData";
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
@@ -241,6 +242,27 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
                 <KV k="Email" v={student.parent.email} />
               </Grid>
             </Section>
+
+            {/* Optional Medical Records section */}
+            {(() => {
+              const med = healthRecords.find(
+                (h) => h.student.toLowerCase() === student.name.toLowerCase() || h.admissionNumber === student.admissionNo
+              );
+              if (!med) return null;
+              return (
+                <Section title="Medical & Health Records">
+                  <Grid>
+                    <KV k="Blood Group" v={med.bloodGroup} />
+                    <KV k="Height" v={`${med.heightCm} cm`} />
+                    <KV k="Weight" v={`${med.weightKg} kg`} />
+                    <KV k="Doctor" v={med.doctor} />
+                    <KV k="Allergies" v={med.allergies} wide />
+                    <KV k="Medical Conditions" v={med.medicalConditions} wide />
+                    <KV k="Emergency Contact" v={med.emergencyContact} wide />
+                  </Grid>
+                </Section>
+              );
+            })()}
           </>
         )}
       </DialogContent>

@@ -20,6 +20,7 @@ import {
   LogOut,
   Building2,
   Bus,
+  HeartPulse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -89,6 +90,7 @@ const access: Group = {
 const operations: Item[] = [
   { title: "Inventory", url: "/office/inventory", icon: Boxes },
   { title: "Transport", url: "/office/transport", icon: Bus },
+  { title: "Health & Medical", url: "/office/health", icon: HeartPulse },
   { title: "Messages", url: "/office/messages", icon: MessageSquare },
   { title: "Reports", url: "/office/reports", icon: FileText },
 ];

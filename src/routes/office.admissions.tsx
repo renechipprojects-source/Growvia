@@ -11,12 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ClipboardCheck, LinkIcon } from "lucide-react";
+import { ClipboardCheck, LinkIcon, HeartPulse, Upload, FileText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useEnquiries } from "@/lib/enquiryContext";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { useStudentDocs, DEFAULT_DOCS, type DocEntry } from "@/lib/studentDocsContext";
 import { createStudent } from "@/lib/supabaseService";
+import { healthRecords } from "@/modules/health/data/mockData";
 import type { ClassName, Section } from "@/lib/mockData";
 
 const searchSchema = z.object({
@@ -42,6 +43,14 @@ const schema = z.object({
   transport: z.string().optional(),
   address: z.string().min(3),
   notes: z.string().optional(),
+
+  // Optional Medical Fields
+  heightCm: z.string().optional(),
+  weightKg: z.string().optional(),
+  allergies: z.string().optional(),
+  medicalConditions: z.string().optional(),
+  doctor: z.string().optional(),
+  emergencyContact: z.string().optional(),
 });
 type Values = z.infer<typeof schema>;
 
@@ -128,10 +137,20 @@ function Admissions() {
       branch: "Main Branch",
     });
 
-    if (error) {
-      console.error("Supabase insert error:", error);
-      toast.error(`Error saving to database: ${(error as any)?.message || "Unknown error"}`);
-      return;
+    if (v.allergies || v.medicalConditions || v.heightCm || v.weightKg || v.doctor) {
+      healthRecords.unshift({
+        id: `H-${Date.now().toString().slice(-4)}`,
+        student: v.childName,
+        admissionNumber: v.admissionNo || "ADM-2026",
+        bloodGroup: (v.bloodGroup as any) || "O+",
+        heightCm: parseInt(v.heightCm || "110", 10),
+        weightKg: parseInt(v.weightKg || "20", 10),
+        allergies: v.allergies || "—",
+        medicalConditions: v.medicalConditions || "—",
+        doctor: v.doctor || "Family Doctor",
+        emergencyContact: v.emergencyContact || v.phone,
+        lastCheckup: new Date().toISOString().slice(0, 10),
+      });
     }
 
     toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
@@ -227,8 +246,30 @@ function Admissions() {
               </Field>
 
               <div className="md:col-span-2"><Field label="Address" error={errors.address?.message}><Input {...register("address")} className="bg-white/70" /></Field></div>
-              <div className="md:col-span-2"><Field label="Notes"><Textarea rows={3} {...register("notes")} className="bg-white/70" /></Field></div>
-              <div className="md:col-span-2">
+              <div className="md:col-span-2"><Field label="Notes"><Textarea rows={2} {...register("notes")} className="bg-white/70" /></Field></div>
+
+              {/* Optional Medical Records Section */}
+              <div className="md:col-span-2 mt-2 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-sm text-rose-900 flex items-center gap-2">
+                    <HeartPulse className="h-4 w-4 text-rose-600" /> Medical & Health Records (Optional)
+                  </div>
+                  <Badge variant="outline" className="text-xs bg-white text-rose-700 border-rose-200">Optional</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Record medical conditions, allergies, or emergency health details if needed. These will be visible to Admin & Principal.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <Field label="Height (cm)"><Input type="number" {...register("heightCm")} placeholder="e.g. 115" className="bg-white" /></Field>
+                  <Field label="Weight (kg)"><Input type="number" {...register("weightKg")} placeholder="e.g. 20" className="bg-white" /></Field>
+                  <Field label="Known Allergies"><Input {...register("allergies")} placeholder="e.g. Peanuts, Dust, None" className="bg-white" /></Field>
+                  <Field label="Medical Conditions"><Input {...register("medicalConditions")} placeholder="e.g. Asthma, Diabetes, None" className="bg-white" /></Field>
+                  <Field label="Pediatrician / Doctor"><Input {...register("doctor")} placeholder="e.g. Dr. Mehta" className="bg-white" /></Field>
+                  <Field label="Emergency Medical Contact"><Input {...register("emergencyContact")} placeholder="e.g. +91 98111 22233" className="bg-white" /></Field>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 pt-2">
                 <Button
                   type="submit"
                   disabled={alreadyConverted}
