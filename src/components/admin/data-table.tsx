@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Search, Filter, Download, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,20 +84,24 @@ export function FilterBar({
 export function DataTable({
   columns,
   children,
-  total = 0,
-  page = 1,
-  totalPages = 1,
-  onPageChange,
+  total,
+  pageSize = 8,
   hidePagination = false,
 }: {
   columns: string[];
   children: ReactNode;
   total?: number;
-  page?: number;
-  totalPages?: number;
-  onPageChange?: (page: number) => void;
+  pageSize?: number;
   hidePagination?: boolean;
 }) {
+  const [page, setPage] = useState(1);
+  const childrenArray = Array.isArray(children) ? children.flat() : children ? [children] : [];
+  const realTotal = total ?? childrenArray.length;
+  const totalPages = Math.ceil(childrenArray.length / pageSize) || 1;
+  const paginatedChildren = hidePagination
+    ? childrenArray
+    : childrenArray.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <Card className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
@@ -112,13 +116,23 @@ export function DataTable({
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y">{children}</TableBody>
+            <TableBody className="divide-y">
+              {paginatedChildren.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="py-10 text-center text-sm text-muted-foreground">
+                    No matching records found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedChildren
+              )}
+            </TableBody>
           </Table>
         </div>
         {!hidePagination && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 bg-card/50">
             <div className="text-xs font-medium text-muted-foreground">
-              Showing {total} {total === 1 ? "entry" : "entries"}
+              Showing {childrenArray.length} {childrenArray.length === 1 ? "entry" : "entries"} total
             </div>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -126,7 +140,7 @@ export function DataTable({
                   variant="outline"
                   size="sm"
                   disabled={page <= 1}
-                  onClick={() => onPageChange?.(page - 1)}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="h-8 text-xs"
                 >
                   Previous
@@ -138,7 +152,7 @@ export function DataTable({
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages}
-                  onClick={() => onPageChange?.(page + 1)}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="h-8 text-xs"
                 >
                   Next
