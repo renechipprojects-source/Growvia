@@ -16,6 +16,7 @@ import {
   getAdminNotifications, markAdminRead, markAllAdminRead,
   removeAdminNotification, subscribeAdminNotifications,
 } from "@/lib/admin-notifications";
+import { NotificationPanel } from "@/components/NotificationPanel";
 import { cn } from "@/lib/utils";
 
 const labels: Record<string, string> = {
@@ -70,116 +71,7 @@ export function TopNav() {
         )}
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-                <Bell className="h-5 w-5" />
-                {unread > 0 && (
-                  <span className="absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                    {unread}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-96 p-0">
-              <div className="flex items-center justify-between px-3 py-2">
-                <DropdownMenuLabel className="p-0">
-                  Notifications{" "}
-                  <Badge variant="secondary" className="ml-1">
-                    {unread} unread
-                  </Badge>
-                </DropdownMenuLabel>
-                <button
-                  type="button"
-                  onClick={markAllAdminRead}
-                  disabled={unread === 0}
-                  className="text-xs text-primary hover:underline disabled:opacity-40 disabled:no-underline"
-                >
-                  Mark all read
-                </button>
-              </div>
-              <DropdownMenuSeparator className="my-0" />
-              <div className="max-h-96 overflow-y-auto">
-                {items.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 px-3 py-8 text-center text-muted-foreground">
-                    <Inbox className="h-6 w-6" />
-                    <div className="text-sm">You're all caught up.</div>
-                  </div>
-                ) : (
-                  <ul className="divide-y">
-                    {items.map((n) => (
-                      <li
-                        key={n.id}
-                        className={cn(
-                          "group flex items-start gap-2 px-3 py-2.5",
-                          !n.read && "bg-primary/5",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            markAdminRead(n.id);
-                            const text = n.title.toLowerCase();
-                            if ((n as any).link) {
-                              navigate({ to: (n as any).link });
-                            } else if (text.includes("fee") || text.includes("payment")) {
-                              navigate({ to: "/admin/fees" });
-                            } else if (text.includes("student") || text.includes("admission")) {
-                              navigate({ to: "/admin/students" });
-                            } else if (text.includes("event") || text.includes("calendar")) {
-                              navigate({ to: "/admin/events" });
-                            } else if (text.includes("teacher") || text.includes("staff")) {
-                              navigate({ to: "/admin/attendance/staff" });
-                            }
-                          }}
-                          className="flex-1 min-w-0 text-left cursor-pointer hover:underline"
-                          aria-label={n.read ? "Notification" : "Mark as read"}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full shrink-0",
-                                n.read ? "bg-transparent" : "bg-primary",
-                              )}
-                              aria-hidden
-                            />
-                            <div className={cn("text-sm truncate", !n.read && "font-medium")}>
-                              {n.title}
-                            </div>
-                          </div>
-                          <div className="ml-3.5 text-xs text-muted-foreground">{n.time}</div>
-                        </button>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {!n.read && (
-                            <button
-                              type="button"
-                              onClick={() => markAdminRead(n.id)}
-                              className="rounded p-1 hover:bg-accent"
-                              aria-label="Mark as read"
-                              title="Mark as read"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {n.read && (
-                            <button
-                              type="button"
-                              onClick={() => removeAdminNotification(n.id)}
-                              className="rounded p-1 hover:bg-destructive/10 text-destructive"
-                              aria-label="Remove notification"
-                              title="Remove"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationPanel role="super-admin" />
         </div>
       </div>
       <div className="hidden border-t px-6 py-2 sm:block">

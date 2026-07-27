@@ -43,6 +43,8 @@ export function removeAdminNotification(id: string) {
   emit();
 }
 
+import { notify } from "./notifications";
+
 export function pushAdminNotification(title: string, type: string = "circular") {
   const newNotif: AdminNotification = {
     id: `notif-${Date.now()}`,
@@ -53,4 +55,12 @@ export function pushAdminNotification(title: string, type: string = "circular") 
   };
   store = [newNotif, ...store];
   emit();
+
+  notify({
+    title,
+    description: `Announcement: ${title}`,
+    module: "announcement",
+    roles: ["super-admin", "office", "principal", "teacher", "parent"],
+    priority: "high",
+  });
 }

@@ -275,7 +275,7 @@ export const NotificationService = {
       title: "Fee payment recorded",
       description: `${amount} received from ${from}.`,
       module: "fees",
-      roles: ["office", "accountant" as Role, "super-admin"].filter(Boolean) as Role[],
+      roles: ["office", "principal", "super-admin", "parent"],
     });
   },
   admission(student: string) {
@@ -284,6 +284,63 @@ export const NotificationService = {
       description: `${student} submitted an admission enquiry.`,
       module: "admissions",
       roles: ["office", "principal", "super-admin"],
+    });
+  },
+  admissionCreated(student: string, admissionNo: string) {
+    notify({
+      title: "New admission completed",
+      description: `${student} has been admitted (${admissionNo}).`,
+      module: "admissions",
+      roles: ["office", "principal", "super-admin"],
+      priority: "high",
+      link: "/office/students",
+    });
+  },
+  enquiryCreated(name: string, className: string) {
+    notify({
+      title: "New enquiry received",
+      description: `New enquiry for ${name} (${className}).`,
+      module: "admissions",
+      roles: ["office", "principal", "super-admin"],
+      priority: "medium",
+      link: "/office/enquiries",
+    });
+  },
+  healthAlert(student: string, detail: string) {
+    notify({
+      title: "Health & Medical Alert",
+      description: `Medical update for ${student}: ${detail}`,
+      module: "system",
+      roles: ["office", "principal", "super-admin", "teacher"],
+      priority: "high",
+    });
+  },
+  transportAlert(title: string, detail: string) {
+    notify({
+      title: `Transport: ${title}`,
+      description: detail,
+      module: "system",
+      roles: ["office", "principal", "super-admin", "parent"],
+      priority: "medium",
+    });
+  },
+  passwordResetRequested(name: string, role: string) {
+    notify({
+      title: "Password reset request",
+      description: `${name} (${role}) requested a password reset.`,
+      module: "staff",
+      roles: ["office", "super-admin"],
+      priority: "high",
+      link: "/office/password-resets",
+    });
+  },
+  circularPublished(title: string) {
+    notify({
+      title: `New Circular: ${title}`,
+      description: `Principal published a new circular: "${title}"`,
+      module: "announcement",
+      roles: ["parent", "teacher", "office", "principal", "super-admin"],
+      priority: "high",
     });
   },
 };

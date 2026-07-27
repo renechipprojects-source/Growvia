@@ -18,6 +18,7 @@ import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { useStudentDocs, DEFAULT_DOCS, type DocEntry } from "@/lib/studentDocsContext";
 import { createStudent } from "@/lib/supabaseService";
 import { healthRecords } from "@/modules/health/data/mockData";
+import { NotificationService } from "@/lib/notifications";
 import type { ClassName, Section } from "@/lib/mockData";
 
 const searchSchema = z.object({
@@ -153,6 +154,7 @@ function Admissions() {
       });
     }
 
+    NotificationService.admissionCreated(v.childName, v.admissionNo || "ADM-2026");
     toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
     reset();
     navigate({ to: "/office/students" });

@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { HeartPulse } from "lucide-react";
 import { toast } from "sonner";
 import { healthRecords } from "@/modules/health/data/mockData";
+import { NotificationService } from "@/lib/notifications";
 import type { HealthRecord } from "@/modules/health/types";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -85,6 +86,10 @@ function OfficeStudents() {
       healthRecords.unshift(updatedRecord);
     }
 
+    NotificationService.healthAlert(
+      editingStudent.name,
+      `Blood Group: ${updatedRecord.bloodGroup}, Allergies: ${updatedRecord.allergies}, Conditions: ${updatedRecord.medicalConditions}`
+    );
     toast.success(`Updated Medical Record for ${editingStudent.name}`);
     setEditingStudent(null);
   };
