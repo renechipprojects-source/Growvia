@@ -36,16 +36,29 @@ type Receipt = {
   collectedBy: string;
 };
 
+const DEFAULT_FEE = {
+  id: "F-DEFAULT",
+  studentId: "STD-001",
+  studentName: "Aarav Sharma",
+  className: "Playgroup A",
+  amount: 8500,
+  paid: 0,
+  dueDate: "2026-07-15",
+  status: "Pending" as const,
+  month: "July 2026",
+};
+
 function FeeCollection() {
-  const [selected, setSelected] = useState(FEES[2]);
+  const [selected, setSelected] = useState(FEES[0] ?? DEFAULT_FEE);
   const [q, setQ] = useState("");
+  const currentFee = selected ?? DEFAULT_FEE;
   const admissionNo = useMemo(() => {
-    const s = STUDENTS.find((s) => s.id === selected.studentId);
-    return s?.id ?? selected.studentId;
-  }, [selected]);
+    const s = STUDENTS.find((s) => s.id === currentFee.studentId);
+    return s?.admissionNo ?? s?.id ?? currentFee.studentId;
+  }, [currentFee]);
 
   const [feeType, setFeeType] = useState<string>("Tuition Fee");
-  const [amountPaid, setAmountPaid] = useState<string>(String(selected.amount - selected.paid));
+  const [amountPaid, setAmountPaid] = useState<string>(String((currentFee.amount ?? 8500) - (currentFee.paid ?? 0)));
   const [method, setMethod] = useState<string>("Cash");
   const [reference, setReference] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -53,7 +66,7 @@ function FeeCollection() {
   const [status, setStatus] = useState<string>("Paid");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
-  const amountDue = selected.amount - selected.paid;
+  const amountDue = (currentFee.amount ?? 8500) - (currentFee.paid ?? 0);
   const balance = Math.max(0, amountDue - Number(amountPaid || 0));
 
   const filtered = useMemo(() => {
@@ -74,19 +87,19 @@ function FeeCollection() {
 
   const handleRecord = () => {
     const paidAmt = Number(amountPaid || 0);
-    const newPaid = selected.paid + paidAmt;
-    const newBal = Math.max(0, selected.amount - newPaid);
+    const newPaid = (currentFee.paid ?? 0) + paidAmt;
+    const newBal = Math.max(0, (currentFee.amount ?? 8500) - newPaid);
     const newStatus = newBal === 0 ? "Paid" : newPaid > 0 ? "Partial" : "Pending";
 
     // Update in memory
-    selected.paid = newPaid;
-    selected.status = newStatus as any;
+    currentFee.paid = newPaid;
+    currentFee.status = newStatus as any;
 
     const rcpt: Receipt = {
       receiptNo: `SUN/26-27/${Math.floor(400 + Math.random() * 600)}`,
-      studentName: selected.studentName,
+      studentName: currentFee.studentName,
       admissionNo,
-      className: selected.className,
+      className: currentFee.className,
       feeType,
       amountDue,
       amountPaid: paidAmt,
@@ -101,9 +114,9 @@ function FeeCollection() {
     setReceipt(rcpt);
 
     // Live Notification System Sync
-    NotificationService.feePayment(`₹${paidAmt.toLocaleString()}`, selected.studentName);
+    NotificationService.feePayment(`₹${paidAmt.toLocaleString()}`, currentFee.studentName);
 
-    toast.success(`Payment recorded for ${selected.studentName} (Status: ${newStatus})`);
+    toast.success(`Payment recorded for ${currentFee.studentName} (Status: ${newStatus})`);
   };
 
   return (
@@ -128,7 +141,7 @@ function FeeCollection() {
               <li
                 key={f.id}
                 onClick={() => selectFee(f)}
-                className={`flex items-center justify-between rounded-2xl p-3 text-sm cursor-pointer border ${selected.id === f.id ? "bg-orange-50 border-orange-200" : "bg-white/60 border-transparent"}`}
+                className={`flex items-center justify-between rounded-2xl p-3 text-sm cursor-pointer border ${currentFee.id === f.id ? "bg-orange-50 border-orange-200" : "bg-white/60 border-transparent"}`}
               >
                 <div className="min-w-0">
                   <div className="font-medium truncate">{f.studentName}</div>
@@ -147,13 +160,13 @@ function FeeCollection() {
         <div className="min-h-0 lg:col-span-2 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col">
           <div className="shrink-0 px-5 pt-5 pb-3 flex items-center justify-between">
             <h3 className="font-semibold">Record Payment</h3>
-            <Badge className="bg-slate-100 text-slate-700">{selected.studentName}</Badge>
+            <Badge className="bg-slate-100 text-slate-700">{currentFee.studentName}</Badge>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
             <div className="grid sm:grid-cols-2 gap-3 text-sm">
-              <div><Label>Student Name</Label><Input value={selected.studentName} readOnly className="mt-1.5 bg-white/70" /></div>
+              <div><Label>Student Name</Label><Input value={currentFee.studentName} readOnly className="mt-1.5 bg-white/70" /></div>
               <div><Label>Admission Number</Label><Input value={admissionNo} readOnly className="mt-1.5 bg-white/70" /></div>
-              <div><Label>Class</Label><Input value={selected.className} readOnly className="mt-1.5 bg-white/70" /></div>
+              <div><Label>Class</Label><Input value={currentFee.className} readOnly className="mt-1.5 bg-white/70" /></div>
               <div>
                 <Label>Fee Type</Label>
                 <Select value={feeType} onValueChange={setFeeType}>

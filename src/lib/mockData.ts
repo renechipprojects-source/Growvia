@@ -334,7 +334,16 @@ export const ACTIVITIES: { id: number; title: string; className: string; date: s
 
 // ─── Fees ────────────────────────────────────────────────────────────────────
 
-export const FEES: Fee[] = [];
+export const FEES: Fee[] = [
+  { id: "F-101", studentId: "STD-001", studentName: "Aarav Sharma", className: "Playgroup A", amount: 8500, paid: 8500, dueDate: "2026-07-10", status: "Paid", month: "July 2026" },
+  { id: "F-102", studentId: "STD-002", studentName: "Kiara Patel", className: "Nursery A", amount: 9500, paid: 5000, dueDate: "2026-07-10", status: "Partial", month: "July 2026" },
+  { id: "F-103", studentId: "STD-003", studentName: "Vivaan Rao", className: "LKG A", amount: 10500, paid: 0, dueDate: "2026-07-15", status: "Pending", month: "July 2026" },
+  { id: "F-104", studentId: "STD-004", studentName: "Ishaan Verma", className: "UKG A", amount: 10500, paid: 0, dueDate: "2026-07-15", status: "Pending", month: "July 2026" },
+  { id: "F-105", studentId: "STD-005", studentName: "Anaya Iyer", className: "Playgroup B", amount: 8500, paid: 8500, dueDate: "2026-07-10", status: "Paid", month: "July 2026" },
+  { id: "F-106", studentId: "STD-006", studentName: "Rohan Menon", className: "Nursery B", amount: 9500, paid: 4000, dueDate: "2026-07-10", status: "Partial", month: "July 2026" },
+  { id: "F-107", studentId: "STD-007", studentName: "Sara Khan", className: "LKG B", amount: 10500, paid: 0, dueDate: "2026-07-15", status: "Pending", month: "July 2026" },
+  { id: "F-108", studentId: "STD-008", studentName: "Diya Nair", className: "UKG B", amount: 10500, paid: 10500, dueDate: "2026-07-10", status: "Paid", month: "July 2026" },
+];
 export const RECEIPTS: Receipt[] = [];
 export const EXPENSES: Expense[] = [];
 export const ENQUIRIES: Enquiry[] = [];
