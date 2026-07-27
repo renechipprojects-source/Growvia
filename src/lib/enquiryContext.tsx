@@ -8,6 +8,7 @@ interface Ctx {
   convertedIds: Set<string>;
   updateStatus: (id: string, status: Enquiry["status"]) => void;
   markConverted: (id: string) => void;
+  dropEnquiry: (id: string, reason: string) => void;
   isConverted: (id: string) => boolean;
   getEnquiry: (id: string) => Enquiry | undefined;
   convertibleEnquiries: () => Enquiry[];
@@ -49,12 +50,18 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     Promise.resolve(supabase.from("enquiries").update({ status: "Enrolled" }).eq("id", id)).catch(() => {});
   }, []);
 
+  const dropEnquiry = useCallback((id: string, reason: string) => {
+    setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Dropped" as any, notes: `Dropped: ${reason}` } : e)));
+    Promise.resolve(supabase.from("enquiries").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
+  }, []);
+
   const value = useMemo<Ctx>(
     () => ({
       enquiries,
       convertedIds,
       updateStatus,
       markConverted,
+      dropEnquiry,
       isConverted: (id) => convertedIds.has(id),
       getEnquiry: (id) => enquiries.find((e) => e.id === id),
       convertibleEnquiries: () =>
@@ -62,7 +69,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
           (e) => !convertedIds.has(e.id) && CONVERTIBLE_STATUSES.includes(e.status),
         ),
     }),
-    [enquiries, convertedIds, updateStatus, markConverted],
+    [enquiries, convertedIds, updateStatus, markConverted, dropEnquiry],
   );
 
   return <EnquiryCtx.Provider value={value}>{children}</EnquiryCtx.Provider>;

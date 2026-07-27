@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { Receipt as ReceiptIcon, Printer, Search } from "lucide-react";
+import { NotificationService } from "@/lib/notifications";
 
 export const Route = createFileRoute("/office/fees")({ component: FeeCollection });
 
@@ -72,6 +73,15 @@ function FeeCollection() {
   };
 
   const handleRecord = () => {
+    const paidAmt = Number(amountPaid || 0);
+    const newPaid = selected.paid + paidAmt;
+    const newBal = Math.max(0, selected.amount - newPaid);
+    const newStatus = newBal === 0 ? "Paid" : newPaid > 0 ? "Partial" : "Pending";
+
+    // Update in memory
+    selected.paid = newPaid;
+    selected.status = newStatus as any;
+
     const rcpt: Receipt = {
       receiptNo: `SUN/26-27/${Math.floor(400 + Math.random() * 600)}`,
       studentName: selected.studentName,
@@ -79,17 +89,21 @@ function FeeCollection() {
       className: selected.className,
       feeType,
       amountDue,
-      amountPaid: Number(amountPaid || 0),
-      balance,
+      amountPaid: paidAmt,
+      balance: newBal,
       method,
       reference,
       date,
       remarks,
-      status,
+      status: newStatus,
       collectedBy: "Meena (Office)",
     };
     setReceipt(rcpt);
-    toast.success(`Payment recorded for ${selected.studentName}`);
+
+    // Live Notification System Sync
+    NotificationService.feePayment(`₹${paidAmt.toLocaleString()}`, selected.studentName);
+
+    toast.success(`Payment recorded for ${selected.studentName} (Status: ${newStatus})`);
   };
 
   return (

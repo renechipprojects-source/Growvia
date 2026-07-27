@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { NotificationService } from "./notifications";
 
 export type AlertPriority = "Low" | "Normal" | "High" | "Urgent";
 export type AlertAudience = "teachers" | "office" | "both";
@@ -81,6 +82,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
       { ...a, id: `AL-${Date.now()}`, createdAt: new Date().toISOString(), readBy: [] },
       ...prev,
     ]);
+    NotificationService.circularPublished(a.title);
   }, []);
   const update: AlertsState["update"] = useCallback((id, patch) => {
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
