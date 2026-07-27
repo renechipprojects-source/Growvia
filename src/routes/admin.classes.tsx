@@ -19,11 +19,11 @@ function ClassesPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setStudentsList(data);
+    fetchStudents().then(({ data }) => {
+      if (data && data.length > 0) setStudentsList(data);
     });
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTeachersList(data);
+    fetchTeachers().then(({ data }) => {
+      if (data && data.length > 0) setTeachersList(data);
     });
   }, []);
 
