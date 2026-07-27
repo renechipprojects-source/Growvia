@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { fetchStudents } from "@/lib/supabaseService";
-import { type Student } from "@/lib/mockData";
+import { STUDENTS, type Student } from "@/lib/mockData";
 import {
   listParentCredentials,
   getParentCredential,
@@ -40,12 +40,12 @@ export const Route = createFileRoute("/office/parent-credentials")({
 
 function ParentCredentialsPage() {
   const [, setTick] = useState(0);
-  const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const [studentsList, setStudentsList] = useState<Student[]>(STUDENTS);
 
   useEffect(() => {
     subscribeCredentials(() => setTick((n) => n + 1));
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setStudentsList(data);
+    fetchStudents().then(({ data }) => {
+      setStudentsList(data && data.length > 0 ? data : STUDENTS);
     });
   }, []);
 

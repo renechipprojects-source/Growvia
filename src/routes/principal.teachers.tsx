@@ -9,6 +9,8 @@ import { fetchTeachers } from "@/lib/supabaseService";
 import { type Teacher } from "@/lib/principal-mock-data";
 import { useEffect } from "react";
 
+import { TEACHERS as SEED_TEACHERS } from "@/lib/mockData";
+
 export const Route = createFileRoute("/principal/teachers")({
   head: () => ({
     meta: [
@@ -19,14 +21,27 @@ export const Route = createFileRoute("/principal/teachers")({
   component: TeachersPage,
 });
 
+const DEFAULT_TEACHERS: Teacher[] = SEED_TEACHERS.map((t) => ({
+  id: t.id,
+  empId: t.id,
+  name: t.name,
+  subject: t.subject || "General",
+  qualification: "B.Ed",
+  phone: t.phone || "",
+  email: t.email || "",
+  experience: 3,
+  classesAssigned: [t.className || "Nursery A"],
+  status: "Active",
+}));
+
 function TeachersPage() {
-  const [items, setItems] = useState<Teacher[]>([]);
+  const [items, setItems] = useState<Teacher[]>(DEFAULT_TEACHERS);
   const [q, setQ] = useState("");
   const [subject, setSubject] = useState("all");
 
   useEffect(() => {
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) {
+    fetchTeachers().then(({ data }) => {
+      if (data && data.length > 0) {
         const mapped: Teacher[] = data.map((t) => ({
           id: t.id,
           empId: t.id,

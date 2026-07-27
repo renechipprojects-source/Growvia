@@ -41,10 +41,10 @@ function TeacherCredentialsPage() {
   const [, setTick] = useState(0);
   useEffect(() => subscribeCredentials(() => setTick((n) => n + 1)), []);
 
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>(TEACHERS);
   useEffect(() => {
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTeachers(data);
+    fetchTeachers().then(({ data }) => {
+      setTeachers(data && data.length > 0 ? data : TEACHERS);
     });
   }, []);
 
@@ -52,6 +52,7 @@ function TeacherCredentialsPage() {
   const [filter, setFilter] = useState<"all" | "issued" | "not_issued" | "inactive">("all");
   const [genFor, setGenFor] = useState<string | null>(null);
   const [viewFor, setViewFor] = useState<string | null>(null);
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -68,6 +69,14 @@ function TeacherCredentialsPage() {
       .sort((a, b) => a.teacher.name.localeCompare(b.teacher.name));
   }, [teachers, query, filter]);
 
+  const handleAddStaff = (newTeacher: Teacher) => {
+    setTeachers((prev) => [newTeacher, ...prev]);
+    // Auto-generate credentials for new staff
+    generateTeacherCredential(newTeacher.id, { teacher: newTeacher });
+    toast.success(`Staff ${newTeacher.name} added & login credentials created!`);
+    setViewFor(newTeacher.id);
+  };
+
   const allCreds = listTeacherCredentials();
   const active = allCreds.filter((c) => c.status === "Active").length;
   const inactive = allCreds.filter((c) => c.status === "Inactive").length;
@@ -76,8 +85,13 @@ function TeacherCredentialsPage() {
   return (
     <div>
       <PageHeader
-        title="Teacher Login Accounts"
-        subtitle="Generate, reset, activate or deactivate teacher logins. Teachers cannot create their own accounts."
+        title="Teacher & Staff Login Accounts"
+        subtitle="Generate, reset, activate or deactivate teacher logins. Add new staff to issue accounts instantly."
+        action={
+          <Button onClick={() => setAddStaffOpen(true)} className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full shadow-lg">
+            <UserPlus className="h-4 w-4 mr-2" /> Add Staff / Teacher
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -184,6 +198,7 @@ function TeacherCredentialsPage() {
         </div>
       </SectionCard>
 
+      <AddStaffDialog open={addStaffOpen} onClose={() => setAddStaffOpen(false)} onAdd={handleAddStaff} />
       <GenerateDialog teacherId={genFor} teachersList={teachers} onClose={() => setGenFor(null)} onDone={(id) => { setGenFor(null); setViewFor(id); }} />
       <ViewDialog teacherId={viewFor} teachersList={teachers} onClose={() => setViewFor(null)} />
     </div>
@@ -346,5 +361,79 @@ function Field({ label, value, onCopy, copied, trailing }: { label: string; valu
         </Button>
       </div>
     </div>
+  );
+}
+
+function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (teacher: Teacher) => void }) {
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("English & Rhymes");
+  const [className, setClassName] = useState("Nursery A");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return toast.error("Full Name is required");
+
+    const id = `TCH-${Math.floor(100 + Math.random() * 900)}`;
+    const newTeacher: Teacher = {
+      id,
+      name: name.trim(),
+      subject,
+      className,
+      phone: phone.trim() || "+91 98765 43210",
+      email: email.trim() || `${name.trim().toLowerCase().replace(/\s+/g, ".")}@sunshineschool.edu`,
+      avatar: `https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80`,
+      experience: 3,
+      joined: "2026-01-01",
+      branch: "Main Campus",
+    };
+
+    onAdd(newTeacher);
+    setName("");
+    setPhone("");
+    setEmail("");
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add New Teacher / Staff Member</DialogTitle>
+          <DialogDescription>Register new teaching or administrative staff to automatically issue login credentials.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-700">Full Name *</label>
+            <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ananya Sen" className="mt-1 bg-white" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Subject / Role</label>
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Mathematics" className="mt-1 bg-white" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Assigned Class</label>
+              <Input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. Nursery A" className="mt-1 bg-white" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-700">Phone Number</label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="mt-1 bg-white" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-700">Email Address</label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teacher@sunshineschool.edu" className="mt-1 bg-white" />
+          </div>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="bg-gradient-to-r from-sky-500 to-blue-500 text-white">
+              <UserPlus className="h-4 w-4 mr-2" /> Save & Issue Login
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
