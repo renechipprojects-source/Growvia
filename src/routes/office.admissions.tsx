@@ -28,6 +28,7 @@ const schema = z.object({
   age: z.string().min(1),
   dob: z.string().optional(),
   gender: z.string().optional(),
+  bloodGroup: z.string().optional(),
   parentName: z.string().min(2, "Required"),
   altPhone: z.string().optional(),
   previousSchool: z.string().optional(),
@@ -184,8 +185,14 @@ function Admissions() {
               <Field label="Date of Birth" error={errors.dob?.message}><Input type="date" {...register("dob")} className="bg-white/70" /></Field>
               <Field label="Gender">
                 <Select value={watch("gender") || ""} onValueChange={(v) => setValue("gender", v)}>
-                  <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select Gender" /></SelectTrigger>
                   <SelectContent>{["Boy", "Girl"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="Blood Group">
+                <Select value={watch("bloodGroup") || "O+"} onValueChange={(v) => setValue("bloodGroup", v)}>
+                  <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select Blood Group" /></SelectTrigger>
+                  <SelectContent>{["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
 
