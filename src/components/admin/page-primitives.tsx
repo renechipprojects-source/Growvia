@@ -46,10 +46,10 @@ export function StatCard({
   };
   const deltaPositive = delta?.startsWith("+");
   return (
-    <div className="group rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-muted-foreground">{label}</div>
+    <div className="group rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight break-words pr-1">{label}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
           {delta && (
             <div
@@ -62,7 +62,7 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${toneMap[tone]}`}>
+          <div className={`grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl ${toneMap[tone]}`}>
             {icon}
           </div>
         )}
