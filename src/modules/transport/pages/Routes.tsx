@@ -101,8 +101,6 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
           searchPlaceholder="Search route, driver, vehicle..."
           searchFields={["name", "driver", "vehicle"]}
           filters={filters}
-          onAdd={!readOnly ? handleOpenAdd : undefined}
-          addLabel="Add Route"
           actions={!readOnly ? (r) => (
             <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(r.id, r.name)}>
               <Trash2 className="h-4 w-4 text-destructive" />

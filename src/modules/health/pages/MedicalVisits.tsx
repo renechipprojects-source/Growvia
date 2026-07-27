@@ -41,8 +41,6 @@ export function MedicalVisitsPage() {
           searchPlaceholder="Search student, diagnosis..."
           searchFields={["student", "complaint", "diagnosis", "doctor"]}
           filters={filters}
-          onAdd={() => {}}
-          addLabel="Log Visit"
         />
       </div>
     </div>

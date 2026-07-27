@@ -139,8 +139,6 @@ export function StudentHealthRecordsPage() {
           searchPlaceholder="Search student, admission no, doctor..."
           searchFields={["student", "admissionNumber", "doctor", "allergies"]}
           filters={filters}
-          onAdd={handleOpenAdd}
-          addLabel="Add Record"
           actions={(r) => (
             <div className="flex justify-end gap-1">
               <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(r)}><Pencil className="h-4 w-4" /></Button>

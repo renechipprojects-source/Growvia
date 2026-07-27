@@ -103,8 +103,6 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
           searchPlaceholder="Search student, route..."
           searchFields={["student", "route", "vehicle"]}
           filters={filters}
-          onAdd={!readOnly ? handleOpenAdd : undefined}
-          addLabel="Allocate Student"
           actions={!readOnly ? (a) => (
             <Button variant="ghost" size="icon" onClick={() => handleDelete(a.id, a.student)} aria-label="Delete">
               <Trash2 className="h-4 w-4 text-destructive" />

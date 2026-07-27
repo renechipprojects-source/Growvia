@@ -116,8 +116,6 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
           searchPlaceholder="Search vehicle number, name, driver..."
           searchFields={["number", "name", "driver", "route"]}
           filters={filters}
-          onAdd={!readOnly ? handleOpenAdd : undefined}
-          addLabel="Add Vehicle"
           actions={!readOnly ? (v) => (
             <div className="flex justify-end gap-1">
               <Button

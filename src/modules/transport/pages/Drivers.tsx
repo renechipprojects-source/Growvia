@@ -98,8 +98,6 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
           searchPlaceholder="Search driver, ID, license..."
           searchFields={["name", "employeeId", "license", "mobile"]}
           filters={filters}
-          onAdd={!readOnly ? handleOpenAdd : undefined}
-          addLabel="Add Driver"
           actions={!readOnly ? (d) => (
             <Button variant="ghost" size="icon" onClick={() => handleDelete(d.id, d.name)} aria-label="Delete">
               <Trash2 className="h-4 w-4 text-destructive" />

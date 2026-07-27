@@ -98,8 +98,6 @@ export function VehicleMaintenancePage({ readOnly }: { readOnly?: boolean }) {
           searchPlaceholder="Search vehicle, vendor, service..."
           searchFields={["vehicle", "vendor", "serviceType"]}
           filters={filters}
-          onAdd={!readOnly ? handleOpenAdd : undefined}
-          addLabel="Log Service"
           actions={!readOnly ? (m) => (
             <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, m.vehicle)} aria-label="Delete">
               <Trash2 className="h-4 w-4 text-destructive" />

@@ -41,8 +41,6 @@ export function VaccinationsPage() {
           searchPlaceholder="Search student, vaccine..."
           searchFields={["student", "vaccine", "hospital"]}
           filters={filters}
-          onAdd={() => {}}
-          addLabel="Add Vaccination"
         />
       </div>
     </div>
