@@ -13,18 +13,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { NotificationService } from "@/lib/notifications";
 
+import { useLiveMessages } from "@/lib/messagesStore";
+
 export const Route = createFileRoute("/office/messages")({ component: Messages });
 
 function Messages() {
-  const [messages, setMessages] = useState<Message[]>(SEED_MESSAGES);
+  const { messages, sendMessage, markRead } = useLiveMessages();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [selectedId, setSelectedId] = useState<string | null>(SEED_MESSAGES[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(messages[0]?.id ?? null);
   const [dialog, setDialog] = useState(false);
 
   // Compose modal state
   const [composeOpen, setComposeOpen] = useState(false);
-  const [recipient, setRecipient] = useState("All Parents");
+  const [recipient, setRecipient] = useState<"parent" | "teacher" | "principal" | "all">("all");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [replyText, setReplyText] = useState("");
@@ -51,24 +53,16 @@ function Messages() {
       return;
     }
 
-    const newMsg: Message = {
-      id: `MSG-${Date.now().toString().slice(-4)}`,
+    const created = sendMessage({
       fromId: "USR-OFFICE",
-      fromName: `Office -> ${recipient}`,
-      studentId: "STD-ALL",
-      toParentId: "PRT-ALL",
+      fromName: "Office Staff",
+      recipientRole: recipient,
       subject,
       body,
-      time: "Just now",
-      read: true,
-      priority: "Normal",
-      direction: "outgoing",
-    };
+    });
 
-    setMessages((prev) => [newMsg, ...prev]);
-    setSelectedId(newMsg.id);
-    NotificationService.announcement(`Message to ${recipient}: ${subject}`);
-    toast.success(`Message sent to ${recipient}`);
+    setSelectedId(created.id);
+    toast.success(`Message sent to ${recipient.toUpperCase()}`);
 
     setSubject("");
     setBody("");
@@ -77,22 +71,16 @@ function Messages() {
 
   const handleSendReply = () => {
     if (!replyText.trim() || !selected) return;
-    const replyMsg: Message = {
-      id: `MSG-${Date.now().toString().slice(-4)}`,
+
+    const reply = sendMessage({
       fromId: "USR-OFFICE",
-      fromName: `Office -> ${selected.fromName}`,
-      studentId: selected.studentId || "STD-001",
-      toParentId: selected.toParentId || "PRT-001",
+      fromName: "Office Staff",
+      recipientRole: "all",
       subject: `Re: ${selected.subject}`,
       body: replyText,
-      time: "Just now",
-      read: true,
-      priority: "Normal",
-      direction: "outgoing",
-    };
+    });
 
-    setMessages((prev) => [replyMsg, ...prev]);
-    setSelectedId(replyMsg.id);
+    setSelectedId(reply.id);
     toast.success(`Reply sent to ${selected.fromName}`);
     setReplyText("");
   };
@@ -136,7 +124,7 @@ function Messages() {
                 <button
                   onClick={() => {
                     setSelectedId(m.id);
-                    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
+                    markRead(m.id);
                     setDialog(true);
                   }}
                   className={`w-full text-left px-3 py-3 rounded-2xl transition ${selected?.id === m.id ? "bg-orange-50" : "hover:bg-white/70"}`}
@@ -201,13 +189,13 @@ function Messages() {
           <div className="space-y-3 py-2">
             <div>
               <Label>Recipient</Label>
-              <Select value={recipient} onValueChange={setRecipient}>
+              <Select value={recipient} onValueChange={(v: any) => setRecipient(v)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All Parents">All Parents</SelectItem>
-                  <SelectItem value="Class Teachers">Class Teachers</SelectItem>
-                  <SelectItem value="Principal">Principal</SelectItem>
-                  <SelectItem value="Transport In-Charge">Transport In-Charge</SelectItem>
+                  <SelectItem value="all">Everyone (All Roles)</SelectItem>
+                  <SelectItem value="parent">Parents</SelectItem>
+                  <SelectItem value="teacher">Teachers</SelectItem>
+                  <SelectItem value="principal">Principal</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -71,7 +71,7 @@ function TeacherCredentialsPage() {
   const allCreds = listTeacherCredentials();
   const active = allCreds.filter((c) => c.status === "Active").length;
   const inactive = allCreds.filter((c) => c.status === "Inactive").length;
-  const notIssued = TEACHERS.length - allCreds.length;
+  const notIssued = Math.max(0, teachers.length - allCreds.length);
 
   return (
     <div>
@@ -81,7 +81,7 @@ function TeacherCredentialsPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatCard label="Total teachers" value={TEACHERS.length} tone="from-sky-500 to-blue-500" />
+        <StatCard label="Total teachers" value={teachers.length} tone="from-sky-500 to-blue-500" />
         <StatCard label="Active logins" value={active} tone="from-emerald-500 to-green-500" />
         <StatCard label="Inactive" value={inactive} tone="from-amber-500 to-orange-500" />
         <StatCard label="Not issued" value={notIssued} tone="from-rose-500 to-pink-500" />
@@ -184,8 +184,8 @@ function TeacherCredentialsPage() {
         </div>
       </SectionCard>
 
-      <GenerateDialog teacherId={genFor} onClose={() => setGenFor(null)} onDone={(id) => { setGenFor(null); setViewFor(id); }} />
-      <ViewDialog teacherId={viewFor} onClose={() => setViewFor(null)} />
+      <GenerateDialog teacherId={genFor} teachersList={teachers} onClose={() => setGenFor(null)} onDone={(id) => { setGenFor(null); setViewFor(id); }} />
+      <ViewDialog teacherId={viewFor} teachersList={teachers} onClose={() => setViewFor(null)} />
     </div>
   );
 }
@@ -199,8 +199,8 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
   );
 }
 
-function GenerateDialog({ teacherId, onClose, onDone }: { teacherId: string | null; onClose: () => void; onDone: (id: string) => void }) {
-  const teacher = teacherId ? TEACHERS.find((t) => t.id === teacherId) : undefined;
+function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherId: string | null; teachersList: Teacher[]; onClose: () => void; onDone: (id: string) => void }) {
+  const teacher = teacherId ? teachersList.find((t) => t.id === teacherId) : undefined;
   const [mode, setMode] = useState<"auto" | "custom">("auto");
   const [custom, setCustom] = useState("");
   useEffect(() => { if (teacher) { setMode("auto"); setCustom(""); } }, [teacher]);
@@ -239,7 +239,7 @@ function GenerateDialog({ teacherId, onClose, onDone }: { teacherId: string | nu
           <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
           <Button
             onClick={() => {
-              generateTeacherCredential(teacher.id, { customLoginId: mode === "custom" ? custom : undefined });
+              generateTeacherCredential(teacher.id, { customLoginId: mode === "custom" ? custom : undefined, teacher });
               toast.success(`Login issued for ${teacher.name}`);
               onDone(teacher.id);
             }}
@@ -253,12 +253,12 @@ function GenerateDialog({ teacherId, onClose, onDone }: { teacherId: string | nu
   );
 }
 
-function ViewDialog({ teacherId, onClose }: { teacherId: string | null; onClose: () => void }) {
+function ViewDialog({ teacherId, teachersList, onClose }: { teacherId: string | null; teachersList: Teacher[]; onClose: () => void }) {
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState<"id" | "pw" | null>(null);
   useEffect(() => { setReveal(false); setCopied(null); }, [teacherId]);
 
-  const teacher = teacherId ? TEACHERS.find((t) => t.id === teacherId) : undefined;
+  const teacher = teacherId ? teachersList.find((t) => t.id === teacherId) : undefined;
   const cred = teacherId ? getTeacherCredential(teacherId) : undefined;
   if (!teacher || !cred) return null;
 

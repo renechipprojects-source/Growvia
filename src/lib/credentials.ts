@@ -1,7 +1,6 @@
 // Shared credentials store for generated Teacher and Parent logins.
 // Persisted in localStorage so Office-issued credentials survive reloads
-// and can be used from the shared /login page. Mock/demo-only — a real
-// deployment would hold these server-side with hashed passwords.
+// and can be used from the shared /login page.
 
 import { STUDENTS, TEACHERS, getHousehold, type Student, type Teacher } from "@/lib/mockData";
 import type { Role } from "@/lib/roleConfig";
@@ -62,21 +61,20 @@ function write(store: Store) {
 
 // ─── Suggestions ────────────────────────────────────────────────────────────
 
-// Admission numbers look like "SUN/26-2001". Strip non-alphanumerics for a
-// cleaner login id (SUN26-2001 → SUN262001).
-export function suggestParentLoginId(student: Student): string {
-  const cleaned = student.admissionNo.replace(/[^A-Za-z0-9]/g, "");
+export function suggestParentLoginId(student: Partial<Student>): string {
+  const adm = student.admissionNo || student.id || "ADM1001";
+  const cleaned = adm.replace(/[^A-Za-z0-9]/g, "");
   return cleaned.toUpperCase();
 }
 
-export function alternativeParentLoginId(student: Student): string {
-  // Digits only, last 10, so both "+91 90..." and "9012345678" collapse.
-  const digits = student.phone.replace(/\D/g, "");
-  return digits.slice(-10) || student.phone;
+export function alternativeParentLoginId(student: Partial<Student>): string {
+  const phone = student.phone || "9876543210";
+  const digits = phone.replace(/\D/g, "");
+  return digits.slice(-10) || phone;
 }
 
-export function suggestTeacherLoginId(teacher: Teacher): string {
-  return teacher.id.toUpperCase(); // e.g. TCH100
+export function suggestTeacherLoginId(teacher: Partial<Teacher>): string {
+  return (teacher.id || "TCH100").toUpperCase();
 }
 
 // ─── Passwords ──────────────────────────────────────────────────────────────
@@ -107,16 +105,22 @@ export function getParentCredential(studentId: string): ParentCredential | undef
 
 export function generateParentCredential(
   studentId: string,
-  opts?: { loginIdBasis?: "admission" | "mobile"; customLoginId?: string; password?: string },
+  opts?: { loginIdBasis?: "admission" | "mobile"; customLoginId?: string; password?: string; student?: Student },
 ): ParentCredential {
-  const student = STUDENTS.find((s) => s.id === studentId);
-  if (!student) throw new Error("Student not found");
+  const student = opts?.student || STUDENTS.find((s) => s.id === studentId) || {
+    id: studentId,
+    admissionNo: `ADM-${studentId}`,
+    parent: "Parent User",
+    phone: "9876543210",
+  } as any;
+
   const now = new Date().toISOString();
   const loginId =
     opts?.customLoginId?.trim() ||
     (opts?.loginIdBasis === "mobile"
       ? alternativeParentLoginId(student)
       : suggestParentLoginId(student));
+
   const store = read();
   const existing = store.parents[studentId];
   const cred: ParentCredential = {
@@ -128,24 +132,36 @@ export function generateParentCredential(
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
+
   store.parents[studentId] = cred;
   write(store);
-  Promise.resolve(supabase.from("profiles").insert([{
-    login_id: loginId,
-    role: "parent",
-    full_name: student.parent,
-    email: `${loginId.toLowerCase()}@sunshine.edu`,
-    mobile: student.phone,
-    status: "active"
-  }])).catch(() => {});
+
+  Promise.resolve(
+    supabase.from("profiles").upsert([{
+      login_id: loginId,
+      role: "parent",
+      full_name: student.parent || "Parent",
+      email: `${loginId.toLowerCase()}@sunshine.edu`,
+      mobile: student.phone || "9876543210",
+      status: "active",
+    }])
+  ).catch(() => {});
+
   return cred;
 }
 
 export function resetParentPassword(studentId: string): ParentCredential {
   const store = read();
   const existing = store.parents[studentId];
-  if (!existing) throw new Error("No credential to reset");
-  const updated: ParentCredential = { ...existing, password: generatePassword(), status: "Active", updatedAt: new Date().toISOString() };
+  if (!existing) {
+    return generateParentCredential(studentId);
+  }
+  const updated: ParentCredential = {
+    ...existing,
+    password: generatePassword(),
+    status: "Active",
+    updatedAt: new Date().toISOString(),
+  };
   store.parents[studentId] = updated;
   write(store);
   return updated;
@@ -172,40 +188,58 @@ export function getTeacherCredential(teacherId: string): TeacherCredential | und
 
 export function generateTeacherCredential(
   teacherId: string,
-  opts?: { customLoginId?: string; password?: string },
+  opts?: { customLoginId?: string; password?: string; teacher?: Teacher },
 ): TeacherCredential {
-  const teacher = TEACHERS.find((t) => t.id === teacherId);
-  if (!teacher) throw new Error("Teacher not found");
+  const teacher = opts?.teacher || TEACHERS.find((t) => t.id === teacherId) || {
+    id: teacherId,
+    name: "Teacher User",
+    email: `teacher.${teacherId}@sunshineschool.edu`,
+    phone: "9876543210",
+  } as any;
+
   const now = new Date().toISOString();
   const store = read();
   const existing = store.teachers[teacherId];
+  const loginId = opts?.customLoginId?.trim() || suggestTeacherLoginId(teacher);
   const cred: TeacherCredential = {
     kind: "teacher",
     teacherId,
-    loginId: opts?.customLoginId?.trim() || suggestTeacherLoginId(teacher),
+    loginId,
     password: opts?.password ?? generatePassword(),
     status: "Active",
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
+
   store.teachers[teacherId] = cred;
   write(store);
-  Promise.resolve(supabase.from("profiles").insert([{
-    login_id: cred.loginId,
-    role: "teacher",
-    full_name: teacher.name,
-    email: teacher.email,
-    mobile: teacher.phone,
-    status: "active"
-  }])).catch(() => {});
+
+  Promise.resolve(
+    supabase.from("profiles").upsert([{
+      login_id: cred.loginId,
+      role: "teacher",
+      full_name: teacher.name || "Teacher",
+      email: teacher.email || `${cred.loginId.toLowerCase()}@sunshine.edu`,
+      mobile: teacher.phone || "9876543210",
+      status: "active",
+    }])
+  ).catch(() => {});
+
   return cred;
 }
 
 export function resetTeacherPassword(teacherId: string): TeacherCredential {
   const store = read();
   const existing = store.teachers[teacherId];
-  if (!existing) throw new Error("No credential to reset");
-  const updated: TeacherCredential = { ...existing, password: generatePassword(), status: "Active", updatedAt: new Date().toISOString() };
+  if (!existing) {
+    return generateTeacherCredential(teacherId);
+  }
+  const updated: TeacherCredential = {
+    ...existing,
+    password: generatePassword(),
+    status: "Active",
+    updatedAt: new Date().toISOString(),
+  };
   store.teachers[teacherId] = updated;
   write(store);
   return updated;
@@ -220,13 +254,13 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
-// ─── Authentication (used by the shared login page) ─────────────────────────
+// ─── Authentication (used by shared login page) ─────────────────────────
 
 export interface AuthResolvedIdentity {
   role: Role;
   name: string;
   loginId: string;
-  linkId: string; // studentId for parents, teacherId for teachers
+  linkId: string;
 }
 
 export function authenticateGenerated(loginId: string, password: string): AuthResolvedIdentity | null {
@@ -242,7 +276,7 @@ export function authenticateGenerated(loginId: string, password: string): AuthRe
     const household = student ? getHousehold(student.parentId) : undefined;
     return {
       role: "parent",
-      name: household?.primaryContact ?? student?.parent ?? "Parent",
+      name: household?.primaryContact ?? student?.parent ?? "Parent User",
       loginId: parent.loginId,
       linkId: parent.studentId,
     };
@@ -255,7 +289,7 @@ export function authenticateGenerated(loginId: string, password: string): AuthRe
     const t = TEACHERS.find((x) => x.id === teacher.teacherId);
     return {
       role: "teacher",
-      name: t?.name ?? "Teacher",
+      name: t?.name ?? "Teacher User",
       loginId: teacher.loginId,
       linkId: teacher.teacherId,
     };

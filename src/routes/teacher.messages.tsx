@@ -14,7 +14,7 @@ import { Send, Search, Plus, Inbox, ArrowUpRight, FileText, Paperclip, User, Use
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { sendMessage } from "@/lib/supabaseService";
+import { useLiveMessages } from "@/lib/messagesStore";
 
 export const Route = createFileRoute("/teacher/messages")({ component: TeacherMessages });
 
@@ -27,12 +27,12 @@ function TeacherMessages() {
   const defaultCls = (primary?.className as ClassName) ?? "Nursery";
   const defaultSec = (primary?.section as Section) ?? "A";
 
+  const { messages, sendMessage: dispatchLiveMessage } = useLiveMessages();
   const [folder, setFolder] = useState<Folder>("Inbox");
   const [search, setSearch] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
-  const [local, setLocal] = useState<Message[]>([]);
 
-  const allMessages = useMemo(() => [...local, ...MESSAGES], [local]);
+  const allMessages = messages;
   const filtered = allMessages
     .filter((m) =>
       folder === "Inbox" ? m.direction === "incoming" :
@@ -132,7 +132,7 @@ function TeacherMessages() {
         onClose={() => setComposeOpen(false)}
         defaultClass={defaultCls}
         defaultSection={defaultSec}
-        onSend={(m) => setLocal((prev) => [m, ...prev])}
+        onSend={(input) => dispatchLiveMessage(input)}
       />
     </div>
   );
@@ -147,7 +147,7 @@ function ComposeDialog({
   onClose: () => void;
   defaultClass: ClassName;
   defaultSection: Section;
-  onSend: (m: Message) => void;
+  onSend: (m: any) => void;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [recipientType, setRecipientType] = useState<RecipientType>("class");
@@ -212,26 +212,15 @@ function ComposeDialog({
     const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     for (const s of targets) {
       onSend({
-        id: `MSG-L-${s.id}-${Date.now()}`,
         fromId: "TCH100",
-        fromName: "Miss Priya (Me)",
+        fromName: "Miss Priya (Teacher)",
+        recipientRole: "parent",
         studentId: s.id,
         toParentId: s.parentId,
         subject,
         body,
-        time: stamp,
         priority,
-        read: true,
-        direction: "outgoing",
       });
-      sendMessage({
-        sender_id: "TCH101",
-        sender_name: "Miss Priya",
-        sender_role: "teacher",
-        receiver_id: s.parentId,
-        receiver_role: "parent",
-        message_text: `${subject}: ${body}`,
-      }).catch(() => {});
     }
     toast.success(
       recipientType === "class"

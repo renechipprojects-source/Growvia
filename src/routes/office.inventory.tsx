@@ -61,9 +61,10 @@ function OfficeInventory() {
         </div>
       </div>
 
-      <Tabs defaultValue="items" className="flex-1 min-h-0 flex flex-col">
-        <TabsList className="shrink-0 flex-wrap h-auto justify-start">
-          <TabsTrigger value="items">Items</TabsTrigger>
+      <Tabs defaultValue="notebooks" className="flex-1 min-h-0 flex flex-col">
+        <TabsList className="shrink-0 flex-wrap h-auto justify-start bg-slate-100/80 p-1 rounded-xl">
+          <TabsTrigger value="notebooks" className="font-semibold text-sky-800 data-[state=active]:bg-sky-500 data-[state=active]:text-white rounded-lg">📖 Notebooks &amp; Workbooks</TabsTrigger>
+          <TabsTrigger value="items">All Items</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="vendors">Vendors</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
@@ -73,6 +74,7 @@ function OfficeInventory() {
         </TabsList>
 
         <div className="flex-1 min-h-0 overflow-y-auto pt-3">
+          <TabsContent value="notebooks"><NotebooksTab /></TabsContent>
           <TabsContent value="items"><ItemsTab /></TabsContent>
           <TabsContent value="categories"><CategoriesTab /></TabsContent>
           <TabsContent value="vendors"><VendorsTab /></TabsContent>
@@ -83,6 +85,122 @@ function OfficeInventory() {
         </div>
       </Tabs>
     </div>
+  );
+}
+
+/* ---------------- Notebooks & Workbooks ---------------- */
+
+function NotebooksTab() {
+  const { items, categories, vendors, addItem, issueItem } = useInventory();
+  const [q, setQ] = useState("");
+  const [openAdd, setOpenAdd] = useState(false);
+  const [openIssue, setOpenIssue] = useState(false);
+  const [issueTarget, setIssueTarget] = useState<InventoryItem | null>(null);
+
+  const notebookCat = categories.find((c) => c.name.toLowerCase().includes("notebook")) || categories[0];
+  const notebookItems = useMemo(() => {
+    return items.filter((i) => {
+      const isNotebook = i.categoryId === notebookCat?.id || i.name.toLowerCase().includes("notebook") || i.name.toLowerCase().includes("book");
+      const matchQ = !q || i.name.toLowerCase().includes(q.toLowerCase()) || i.sku.toLowerCase().includes(q.toLowerCase());
+      return isNotebook && matchQ;
+    });
+  }, [items, notebookCat, q]);
+
+  return (
+    <SectionCard
+      title="Notebooks & Workbooks Inventory"
+      action={
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setOpenAdd(true)} className="bg-sky-600 hover:bg-sky-700 text-white rounded-full">
+            <Plus className="h-4 w-4 mr-1" /> Add Notebook Stock
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-wrap gap-2 mb-4 items-center justify-between">
+        <Input
+          placeholder="Search notebooks, workbooks, drawing pads..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-xs bg-white"
+        />
+        <div className="text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{notebookItems.length}</span> notebook item types
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {notebookItems.map((nb) => {
+          const isLow = nb.qty < nb.minQty;
+          const vendor = vendors.find((v) => v.id === nb.vendorId);
+          return (
+            <div key={nb.id} className="rounded-2xl border border-sky-100 bg-gradient-to-b from-white to-sky-50/30 p-4 shadow-sm hover:shadow-md transition">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-semibold text-slate-800">{nb.name}</h4>
+                  <div className="text-xs font-mono text-slate-500 mt-0.5">{nb.sku}</div>
+                </div>
+                <Badge className={isLow ? "bg-rose-500 text-white" : "bg-emerald-500 text-white"}>
+                  {isLow ? "Low Stock" : "In Stock"}
+                </Badge>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs bg-white/80 p-2.5 rounded-xl border border-slate-100">
+                <div>
+                  <span className="text-muted-foreground">Current Stock:</span>
+                  <div className="text-base font-bold text-slate-900">{nb.qty} {nb.unit}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Min Threshold:</span>
+                  <div className="text-base font-medium text-slate-700">{nb.minQty} {nb.unit}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Unit Price:</span>
+                  <div className="font-semibold text-slate-900">{currency(nb.unitPrice)}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Vendor:</span>
+                  <div className="truncate font-medium text-slate-700">{vendor?.name || "Standard Supply"}</div>
+                </div>
+              </div>
+
+              <div className="mt-3 flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full rounded-full border-sky-200 text-sky-700 hover:bg-sky-50"
+                  onClick={() => {
+                    setIssueTarget(nb);
+                    setOpenIssue(true);
+                  }}
+                >
+                  <ArrowUpFromLine className="h-3.5 w-3.5 mr-1" /> Issue to Class
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+
+        {notebookItems.length === 0 && (
+          <div className="col-span-full py-8 text-center text-sm text-muted-foreground">
+            No notebooks found. Click "Add Notebook Stock" to add student notebooks.
+          </div>
+        )}
+      </div>
+
+      <ItemDialog
+        open={openAdd}
+        onOpenChange={setOpenAdd}
+        item={null}
+        categories={categories}
+        vendors={vendors}
+        onSave={(data) => {
+          addItem({ ...data, categoryId: notebookCat?.id || data.categoryId });
+          toast.success("Notebook added to inventory!");
+          setOpenAdd(false);
+        }}
+      />
+    </SectionCard>
   );
 }
 
