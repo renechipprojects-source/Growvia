@@ -239,6 +239,16 @@ export function markAllRead(role: Role) {
   saveStore(next);
 }
 
+export function removeNotification(id: string) {
+  const next = store.filter((n) => n.id !== id);
+  saveStore(next);
+}
+
+export function clearAllNotifications(role: Role) {
+  const next = store.filter((n) => !n.roles.includes(role));
+  saveStore(next);
+}
+
 export interface NotifyInput {
   title: string;
   description: string;

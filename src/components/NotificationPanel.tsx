@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Bell, Check, CheckCheck, Inbox } from "lucide-react";
+import { Bell, Check, CheckCheck, Inbox, Trash2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,6 +8,8 @@ import {
   listForRole,
   markAllRead,
   markRead,
+  removeNotification,
+  clearAllNotifications,
   subscribe,
   syncLiveDatabaseNotifications,
   unreadCountForRole,
@@ -49,6 +51,7 @@ const priorityDot: Record<AppNotification["priority"], string> = {
 export function NotificationPanel({ role }: { role: Role }) {
   const { items, unread } = useNotifications(role);
   const [open, setOpen] = useState(false);
+
   // Sync live notifications from database on mount & interval tick
   useEffect(() => {
     syncLiveDatabaseNotifications();
@@ -68,45 +71,58 @@ export function NotificationPanel({ role }: { role: Role }) {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[22rem] p-0 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-white/80">
+
+      <PopoverContent align="end" className="w-[22rem] p-0 rounded-2xl overflow-hidden shadow-xl border-white/60">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-white/90 backdrop-blur">
           <div className="flex items-center gap-2">
-            <div className="text-sm font-semibold">Notifications</div>
+            <div className="text-sm font-semibold text-slate-800">Notifications</div>
             {unread > 0 && (
               <span className="text-[10px] font-semibold rounded-full bg-rose-100 text-rose-700 px-2 py-0.5">
                 {unread} new
               </span>
             )}
           </div>
+
           {items.length > 0 && (
-            <button
-              onClick={() => markAllRead(role)}
-              className="text-xs font-medium text-slate-500 hover:text-slate-800 inline-flex items-center gap-1"
-            >
-              <CheckCheck className="h-3.5 w-3.5" /> Mark all read
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => markAllRead(role)}
+                title="Mark all as read"
+                className="text-xs font-medium text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 transition"
+              >
+                <CheckCheck className="h-3.5 w-3.5" /> Read
+              </button>
+              <button
+                onClick={() => clearAllNotifications(role)}
+                title="Clear all notifications"
+                className="text-xs font-medium text-rose-600 hover:text-rose-700 inline-flex items-center gap-1 transition"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Clear
+              </button>
+            </div>
           )}
         </div>
+
         <div className="max-h-[26rem] overflow-y-auto">
           {items.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               <Inbox className="h-6 w-6 mx-auto mb-2 opacity-60" />
-              You're all caught up.
+              You're all caught up. No notifications.
             </div>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y divide-slate-100">
               {items.map((n) => {
                 const body = (
                   <div
                     className={cn(
-                      "px-4 py-3 flex gap-3 items-start hover:bg-slate-50 transition-colors",
+                      "px-4 py-3 flex gap-3 items-start hover:bg-slate-50 transition-colors group",
                       !n.read && "bg-rose-50/40",
                     )}
                   >
                     <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", priorityDot[n.priority])} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <div className={cn("text-sm truncate", !n.read ? "font-semibold" : "font-medium text-slate-700")}>
+                        <div className={cn("text-sm truncate", !n.read ? "font-semibold text-slate-900" : "font-medium text-slate-700")}>
                           {n.title}
                         </div>
                         {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />}
@@ -116,23 +132,40 @@ export function NotificationPanel({ role }: { role: Role }) {
                         {n.module} · {timeAgo(n.timestamp)}
                       </div>
                     </div>
-                    {!n.read && (
+
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!n.read && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            markRead(n.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100"
+                          aria-label="Mark read"
+                          title="Mark read"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          markRead(n.id);
+                          removeNotification(n.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700"
-                        aria-label="Mark read"
+                        className="p-1 text-rose-400 hover:text-rose-600 rounded hover:bg-rose-50"
+                        aria-label="Remove notification"
+                        title="Delete notification"
                       >
-                        <Check className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
+
                 return (
-                  <li key={n.id} className="group">
+                  <li key={n.id}>
                     {n.link ? (
                       <Link
                         to={n.link}
@@ -145,13 +178,9 @@ export function NotificationPanel({ role }: { role: Role }) {
                         {body}
                       </Link>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => markRead(n.id)}
-                        className="w-full text-left"
-                      >
+                      <div className="w-full text-left cursor-pointer" onClick={() => markRead(n.id)}>
                         {body}
-                      </button>
+                      </div>
                     )}
                   </li>
                 );
