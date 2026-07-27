@@ -22,12 +22,15 @@ const filters: FilterDef<Maintenance>[] = [
   { key: "vendor", label: "Vendor", options: Array.from(new Set(maintenance.map((m) => m.vendor))), predicate: (r, v) => r.vendor === v },
 ];
 
-export function VehicleMaintenancePage() {
+export function VehicleMaintenancePage({ readOnly }: { readOnly?: boolean }) {
   const totalCost = maintenance.reduce((s, m) => s + m.cost, 0);
   return (
     <div className="mx-auto max-w-[1500px]">
-      <PageHeader title="Vehicle Maintenance" description="Service history and upcoming service schedule."
-        actions={<Button><Plus className="mr-2 h-4 w-4" />Log Service</Button>} />
+      <PageHeader
+        title="Vehicle Maintenance"
+        description="Service history and upcoming service schedule."
+        actions={!readOnly ? <Button><Plus className="mr-2 h-4 w-4" />Log Service</Button> : undefined}
+      />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Service Records" value={maintenance.length} icon={<Wrench className="h-5 w-5" />} />
         <StatCard label="Total Cost" value={currency(totalCost)} tone="warning" icon={<Wrench className="h-5 w-5" />} />
@@ -42,7 +45,7 @@ export function VehicleMaintenancePage() {
           searchPlaceholder="Search vehicle, vendor, service..."
           searchFields={["vehicle", "vendor", "serviceType"]}
           filters={filters}
-          onAdd={() => {}}
+          onAdd={!readOnly ? () => {} : undefined}
           addLabel="Log Service"
         />
       </div>

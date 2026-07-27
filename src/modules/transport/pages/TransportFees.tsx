@@ -21,7 +21,7 @@ const filters: FilterDef<TransportFee>[] = [
   { key: "route", label: "Route", options: Array.from(new Set(transportFees.map((f) => f.route))), predicate: (r, v) => r.route === v },
 ];
 
-export function TransportFeesPage() {
+export function TransportFeesPage({ readOnly }: { readOnly?: boolean } = {}) {
   const totalPaid = transportFees.reduce((s, f) => s + f.paid, 0);
   const totalPending = transportFees.reduce((s, f) => s + f.pending, 0);
   return (

@@ -22,11 +22,14 @@ const filters: FilterDef<Route>[] = [
   { key: "status", label: "Status", options: ["Active", "Inactive"], predicate: (r, v) => r.status === v },
 ];
 
-export function RoutesPage() {
+export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   return (
     <div className="mx-auto max-w-[1500px]">
-      <PageHeader title="Routes" description="Manage transport routes and pickup / drop points."
-        actions={<Button><Plus className="mr-2 h-4 w-4" />Add Route</Button>} />
+      <PageHeader
+        title="Routes"
+        description="Manage transport routes and pickup / drop points."
+        actions={!readOnly ? <Button><Plus className="mr-2 h-4 w-4" />Add Route</Button> : undefined}
+      />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total Routes" value={routes.length} icon={<MapPinned className="h-5 w-5" />} />
         <StatCard label="Active" value={routes.filter((r) => r.status === "Active").length} tone="success" icon={<MapPinned className="h-5 w-5" />} />
@@ -41,7 +44,7 @@ export function RoutesPage() {
           searchPlaceholder="Search route, driver, vehicle..."
           searchFields={["name", "driver", "vehicle"]}
           filters={filters}
-          onAdd={() => {}}
+          onAdd={!readOnly ? () => {} : undefined}
           addLabel="Add Route"
         />
       </div>

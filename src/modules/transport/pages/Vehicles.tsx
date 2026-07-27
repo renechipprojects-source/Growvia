@@ -25,11 +25,14 @@ const filters: FilterDef<Vehicle>[] = [
   { key: "type", label: "Type", options: ["Bus", "Van", "Mini Bus"], predicate: (r, v) => r.type === v },
 ];
 
-export function VehiclesPage() {
+export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   return (
     <div className="mx-auto max-w-[1500px]">
-      <PageHeader title="Vehicles" description="Fleet, drivers and vehicle status."
-        actions={<Button><Plus className="mr-2 h-4 w-4" />Add Vehicle</Button>} />
+      <PageHeader
+        title="Vehicles"
+        description="Fleet, drivers and vehicle status."
+        actions={!readOnly ? <Button><Plus className="mr-2 h-4 w-4" />Add Vehicle</Button> : undefined}
+      />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total Vehicles" value={vehicles.length} icon={<Bus className="h-5 w-5" />} />
         <StatCard label="Active" value={vehicles.filter((v) => v.status === "Active").length} tone="success" icon={<Bus className="h-5 w-5" />} />
@@ -44,14 +47,14 @@ export function VehiclesPage() {
           searchPlaceholder="Search vehicle number, name, driver..."
           searchFields={["number", "name", "driver", "route"]}
           filters={filters}
-          onAdd={() => {}}
+          onAdd={!readOnly ? () => {} : undefined}
           addLabel="Add Vehicle"
-          actions={() => (
+          actions={!readOnly ? () => (
             <div className="flex justify-end gap-1">
               <Button variant="ghost" size="icon" aria-label="Edit"><Pencil className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon" aria-label="Delete"><Trash2 className="h-4 w-4" /></Button>
             </div>
-          )}
+          ) : undefined}
         />
       </div>
     </div>
