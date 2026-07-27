@@ -47,23 +47,16 @@ export function StatCard({
   const deltaPositive = delta?.startsWith("+");
   return (
     <div className="group rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-2 sm:gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-snug whitespace-normal break-normal">{label}</div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-          {delta && (
-            <div
-              className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                deltaPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-              }`}
-            >
-              {delta} vs last month
-            </div>
-          )}
-        </div>
-        {icon && (
-          <div className={`grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl ${toneMap[tone]}`}>
-            {icon}
+      <div className="min-w-0">
+        <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-snug whitespace-normal break-normal">{label}</div>
+        <div className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">{value}</div>
+        {delta && (
+          <div
+            className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+              deltaPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+            }`}
+          >
+            {delta} vs last month
           </div>
         )}
       </div>
