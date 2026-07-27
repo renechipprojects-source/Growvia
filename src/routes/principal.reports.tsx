@@ -55,7 +55,7 @@ function ReportsPage() {
     toast.success(`${kind} exported: ${r.title}`);
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader title="Reports" description="Browse, filter and export school reports as PDF or Excel." />
 
       <div className="card-elevated p-4 md:p-5">

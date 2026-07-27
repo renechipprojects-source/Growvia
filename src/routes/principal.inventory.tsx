@@ -62,7 +62,7 @@ function InventoryPage() {
   }, [items, query, categoryId, categories]);
 
   return (
-    <div className="max-w-[1400px] mx-auto flex h-full min-h-0 flex-col">
+    <div className="w-full max-w-none flex h-full min-h-0 flex-col">
       <PageHeader
         title="Inventory"
         description="Read-only view. Additions and edits are managed by the Office."

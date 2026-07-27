@@ -48,7 +48,7 @@ function StudentAttendancePage() {
   }, []);
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader
         title="Student Attendance"
         description="View-only. Teachers mark attendance from their portal. Data shown for today."

@@ -27,7 +27,7 @@ const filters: FilterDef<Vehicle>[] = [
 
 export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full max-w-none space-y-6">
       <PageHeader
         title="Vehicles"
         description="Fleet, drivers and vehicle status."

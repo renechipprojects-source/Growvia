@@ -134,7 +134,7 @@ function CalendarPage() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader
         title="Calendar"
         description="Add, edit and delete school events — changes save immediately."

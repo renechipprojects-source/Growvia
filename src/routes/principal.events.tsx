@@ -138,7 +138,7 @@ function EventsPage() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto flex h-full min-h-0 flex-col">
+    <div className="w-full max-w-none flex h-full min-h-0 flex-col">
       <PageHeader
         title="Events"
         description="Create, edit and delete school events; choose the audience for each."

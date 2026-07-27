@@ -8,7 +8,7 @@ import { vehicles, routes, drivers, allocations, maintenance } from "../data/moc
 export function TransportDashboard() {
   const maintenanceDue = maintenance.filter((m) => new Date(m.nextServiceDate) <= new Date("2026-08-01")).length;
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full max-w-none space-y-6">
       <PageHeader title="Transport Dashboard" description="Fleet overview, route utilisation and upcoming maintenance." />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatCard label="Total Vehicles" value={vehicles.length} icon={<Bus className="h-5 w-5" />} />

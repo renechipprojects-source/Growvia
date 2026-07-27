@@ -26,7 +26,7 @@ const filters: FilterDef<Allocation>[] = [
 
 export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full max-w-none space-y-6">
       <PageHeader
         title="Student Transport Allocation"
         description="Assign students to routes, vehicles and pickup points."

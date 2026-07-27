@@ -25,7 +25,7 @@ const filters: FilterDef<Maintenance>[] = [
 export function VehicleMaintenancePage({ readOnly }: { readOnly?: boolean }) {
   const totalCost = maintenance.reduce((s, m) => s + m.cost, 0);
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full max-w-none space-y-6">
       <PageHeader
         title="Vehicle Maintenance"
         description="Service history and upcoming service schedule."

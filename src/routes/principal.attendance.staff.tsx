@@ -42,7 +42,7 @@ function StaffAttendancePage() {
   );
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader title="Staff Attendance" description="Read-only staff attendance overview for today." />
 
       <div className="card-elevated p-4 md:p-5">

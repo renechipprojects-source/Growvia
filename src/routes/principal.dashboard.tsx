@@ -94,7 +94,7 @@ function DashboardPage() {
   const upcoming = eventsList.slice(0, 4);
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 auto-rows-fr">
         <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub="Enrolled" tint="bg-primary/10 text-primary" />

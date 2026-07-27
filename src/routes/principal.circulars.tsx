@@ -120,7 +120,7 @@ function CircularsPage() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader
         title="Circular Management"
         description="Create, schedule and publish circulars. Recipients see them in their own portal — they cannot reply or edit."

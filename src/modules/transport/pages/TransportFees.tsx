@@ -25,7 +25,7 @@ export function TransportFeesPage({ readOnly }: { readOnly?: boolean } = {}) {
   const totalPaid = transportFees.reduce((s, f) => s + f.paid, 0);
   const totalPending = transportFees.reduce((s, f) => s + f.pending, 0);
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full max-w-none space-y-6">
       <PageHeader title="Transport Fees" description="Track transport fee collection by student and route." />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Students" value={transportFees.length} icon={<Wallet className="h-5 w-5" />} />

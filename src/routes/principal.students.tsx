@@ -76,7 +76,7 @@ function StudentsPage() {
   }, [items, query, cls]);
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader
         title="Students"
         description="View-only student directory. Search or filter to find a student and open their profile."

@@ -56,7 +56,7 @@ function TeachersPage() {
   );
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="w-full max-w-none">
       <PageHeader title="Teachers" description="Read-only view of teaching staff. Login credentials cannot be edited from here." />
 
       <div className="card-elevated p-4 md:p-5">
