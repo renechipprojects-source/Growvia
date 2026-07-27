@@ -18,7 +18,7 @@ export function StatCard({
     <div className="group rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight break-words pr-1">{label}</div>
+          <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight break-normal truncate" title={label}>{label}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
           {delta && (
             <div

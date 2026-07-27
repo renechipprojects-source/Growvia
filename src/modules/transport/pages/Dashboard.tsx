@@ -10,7 +10,7 @@ export function TransportDashboard() {
   return (
     <div className="w-full max-w-none space-y-6">
       <PageHeader title="Transport Dashboard" description="Fleet overview, route utilisation and upcoming maintenance." />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard label="Total Vehicles" value={vehicles.length} icon={<Bus className="h-5 w-5" />} />
         <StatCard label="Active Routes" value={routes.filter((r) => r.status === "Active").length} tone="success" icon={<MapPinned className="h-5 w-5" />} />
         <StatCard label="Drivers" value={drivers.length} tone="info" icon={<Users className="h-5 w-5" />} />
