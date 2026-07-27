@@ -47,12 +47,14 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
 }
 
 import { pushAdminNotification } from "./admin-notifications";
+import { NotificationService } from "./notifications";
 
 export async function createCircular(circular: Omit<Circular, "id">) {
   const newId = `CIR-${Date.now().toString().slice(-4)}`;
   const payload = { ...circular, id: newId };
   const { data, error } = await supabase.from("circulars").insert([payload]).select();
   pushAdminNotification(`New Circular: ${circular.title}`, "circular");
+  NotificationService.circularPublished(circular.title);
   return { data: data ? data[0] : payload, error };
 }
 

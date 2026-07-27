@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { initialCirculars, ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
 import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
+import { NotificationService } from "@/lib/notifications";
 
 export const Route = createFileRoute("/principal/circulars")({
   head: () => ({
@@ -105,6 +106,7 @@ function CircularsPage() {
 
   const publish = async (c: Circular) => {
     upsert({ ...c, status: "Published" }, "Published");
+    NotificationService.circularPublished(c.title);
     try {
       await createCircular({
         title: c.title,
@@ -223,6 +225,9 @@ function CircularsPage() {
         onClose={() => setMode(null)}
         onSave={(c, action) => {
           upsert(c, action);
+          if (c.status === "Published" || action.toLowerCase().includes("publish")) {
+            NotificationService.circularPublished(c.title);
+          }
           toast.success(action);
           setMode(null);
         }}
