@@ -384,9 +384,10 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
 // ─── FEES ─────────────────────────────────────────────────────────────────
 
 export async function fetchFees(): Promise<{ data: Fee[]; isFromSupabase: boolean }> {
+  const localList = getLocalStore<Fee>("SUNSHINE_FEES");
   try {
     const { data, error } = await supabase.from("fees").select("*");
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error || !data || data.length === 0) return { data: localList, isFromSupabase: false };
     const mapped: Fee[] = data.map((d: any) => ({
       id: d.id,
       studentId: d.student_id,
@@ -398,9 +399,54 @@ export async function fetchFees(): Promise<{ data: Fee[]; isFromSupabase: boolea
       status: d.status,
       month: d.month,
     }));
-    return { data: mapped, isFromSupabase: true };
+    const existingIds = new Set(mapped.map((m) => m.id));
+    const uniqueLocal = localList.filter((l) => !existingIds.has(l.id));
+    return { data: [...uniqueLocal, ...mapped], isFromSupabase: true };
   } catch {
-    return { data: [], isFromSupabase: false };
+    return { data: localList, isFromSupabase: false };
+  }
+}
+
+export async function saveFeeRecord(fee: Fee) {
+  saveLocalStore<Fee>("SUNSHINE_FEES", fee);
+  try {
+    await supabase.from("fees").upsert([{
+      id: fee.id,
+      student_id: fee.studentId,
+      student_name: fee.studentName,
+      class_name: fee.className,
+      amount: fee.amount,
+      paid: fee.paid,
+      due_date: fee.dueDate,
+      status: fee.status,
+      month: fee.month,
+    }]);
+  } catch (err) {
+    console.warn("Supabase fee save notice:", err);
+  }
+}
+
+export async function saveReceipt(rcpt: any) {
+  saveLocalStore<any>("SUNSHINE_RECEIPTS", rcpt);
+  try {
+    await supabase.from("receipts").insert([{
+      receipt_no: rcpt.receiptNo,
+      student_name: rcpt.studentName,
+      admission_no: rcpt.admissionNo,
+      class_name: rcpt.className,
+      fee_type: rcpt.feeType,
+      amount_due: rcpt.amountDue,
+      amount_paid: rcpt.amountPaid,
+      balance: rcpt.balance,
+      method: rcpt.method,
+      reference: rcpt.reference,
+      date: rcpt.date,
+      remarks: rcpt.remarks,
+      status: rcpt.status,
+      collected_by: rcpt.collectedBy,
+    }]);
+  } catch (err) {
+    console.warn("Supabase receipt save notice:", err);
   }
 }
 
