@@ -213,6 +213,52 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
   }
 }
 
+export async function updateStudentSectionAndRoll(id: string, className: string, section: string, rollNo?: number) {
+  const payload: any = { class_name: className, section };
+  if (typeof rollNo === "number") payload.roll_no = rollNo;
+  try {
+    const { data, error } = await supabase.from("students").update(payload).eq("id", id).select();
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
+export async function allocateRollNumbersAlphabetically(targetClass?: string, targetSection?: string) {
+  try {
+    const { data: students } = await fetchStudents();
+    let filtered = students;
+    if (targetClass) filtered = filtered.filter((s) => s.className === targetClass);
+    if (targetSection) filtered = filtered.filter((s) => s.section === targetSection);
+
+    const groups: Record<string, Student[]> = {};
+    filtered.forEach((s) => {
+      const key = `${s.className}_${s.section}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s);
+    });
+
+    let updatedCount = 0;
+
+    for (const key of Object.keys(groups)) {
+      const groupStudents = [...groups[key]].sort((a, b) => a.name.localeCompare(b.name));
+      for (let index = 0; index < groupStudents.length; index++) {
+        const s = groupStudents[index];
+        const newRollNo = index + 1;
+        if (s.rollNo !== newRollNo) {
+          const updated = { ...s, rollNo: newRollNo };
+          saveLocalStore<Student>("SUNSHINE_STUDENTS", updated);
+          await supabase.from("students").update({ roll_no: newRollNo }).eq("id", s.id);
+          updatedCount++;
+        }
+      }
+    }
+    return { count: updatedCount, error: null };
+  } catch (err) {
+    return { count: 0, error: err };
+  }
+}
+
 // ─── TEACHERS ─────────────────────────────────────────────────────────────
 
 export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {

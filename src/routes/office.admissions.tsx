@@ -36,7 +36,6 @@ const schema = z.object({
   email: z.string().email(),
   className: z.string().min(1),
   section: z.string().optional(),
-  rollNo: z.string().optional(),
   admissionNo: z.string().optional(),
   admissionDate: z.string().optional(),
   feePlan: z.string().optional(),
@@ -53,11 +52,6 @@ export const Route = createFileRoute("/office/admissions")({
 
 function autoAdmissionNo() {
   return `SUN/26-${String(Math.floor(1000 + Math.random() * 8999))}`;
-}
-
-function autoRollNo() {
-  // Simple auto-generation — a random 2-digit roll in the class.
-  return String(Math.floor(1 + Math.random() * 40)).padStart(2, "0");
 }
 
 function Admissions() {
@@ -83,7 +77,6 @@ function Admissions() {
     admissionNo: autoAdmissionNo(),
     admissionDate: new Date().toISOString().slice(0, 10),
     section: "A",
-    rollNo: autoRollNo(),
     feePlan: "Standard",
     transport: "No",
   }), [enquiry]);
@@ -117,7 +110,7 @@ function Admissions() {
 
     const { error } = await createStudent({
       admissionNo: v.admissionNo || autoAdmissionNo(),
-      rollNo: parseInt(v.rollNo || "1", 10),
+      rollNo: 0, // Unallocated on admission; assigned alphabetically by teacher after section allocation
       name: v.childName,
       age: parseInt(v.age || "3", 10),
       dob: v.dob || "2022-01-01",
@@ -211,10 +204,15 @@ function Admissions() {
               <Field label="Section">
                 <Select value={watch("section") || "A"} onValueChange={(v) => setValue("section", v)}>
                   <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>
-                  <SelectContent>{["A", "B"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{["A", "B", "C"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              {/* Roll Number is auto-generated on submit and stored in the student's record. */}
+
+              <div className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs text-sky-800 flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 shrink-0 text-sky-600" />
+                <span><strong>Roll Number Allocation:</strong> Roll numbers are not assigned during admission. They will be generated in <strong>alphabetical order</strong> by the Class Teacher after section allocation.</span>
+              </div>
+
               <Field label="Fee Plan">
                 <Select value={watch("feePlan") || "Standard"} onValueChange={(v) => setValue("feePlan", v)}>
                   <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>

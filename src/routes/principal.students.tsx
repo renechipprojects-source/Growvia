@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, SortAsc } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { students as seedStudents, type Student } from "@/lib/principal-mock-data";
-import { fetchStudents } from "@/lib/supabaseService";
+import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
@@ -26,7 +27,7 @@ function StudentsPage() {
   const [cls, setCls] = useState<string>("all");
   const [selected, setSelected] = useState<Student | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data, isFromSupabase }) => {
       if (isFromSupabase) {
         const mapped: Student[] = data.map((s) => ({
@@ -36,7 +37,7 @@ function StudentsPage() {
           gender: s.gender === "Girl" ? "Female" : "Male",
           className: s.className,
           section: s.section || "A",
-          rollNo: s.rollNo || 1,
+          rollNo: s.rollNo || 0,
           dob: s.dob || "2022-01-01",
           bloodGroup: "O+",
           address: "Bengaluru",
@@ -59,7 +60,18 @@ function StudentsPage() {
         setItems(mapped);
       }
     });
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const handleAutoAssignRollNumbers = async () => {
+    const targetCls = cls !== "all" ? cls : undefined;
+    await allocateRollNumbersAlphabetically(targetCls);
+    toast.success("Alphabetical Roll Numbers assigned for class section(s)!");
+    loadData();
+  };
 
   const classes = useMemo(() => Array.from(new Set(items.map((s) => s.className))), [items]);
 
@@ -104,6 +116,10 @@ function StudentsPage() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={handleAutoAssignRollNumbers} className="gap-2">
+            <SortAsc className="h-4 w-4" />
+            Auto-Assign Alphabetical Roll No
+          </Button>
         </div>
 
         <div className="mt-4 overflow-x-auto">

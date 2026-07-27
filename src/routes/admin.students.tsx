@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Eye, UserRound } from "lucide-react";
+import { Eye, UserRound, SortAsc } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { type Student } from "@/lib/admin-mock-data";
-import { fetchStudents } from "@/lib/supabaseService";
+import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -20,7 +21,7 @@ function StudentsPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data, isFromSupabase }) => {
       if (isFromSupabase) {
         const mapped: Student[] = data.map((s) => ({
@@ -45,7 +46,19 @@ function StudentsPage() {
         setItemList(mapped);
       }
     });
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const handleAutoAssignRollNumbers = async () => {
+    const selectedClass = filterValues["Class"] !== "all" ? filterValues["Class"] : undefined;
+    const selectedSec = filterValues["Section"] !== "all" ? filterValues["Section"] : undefined;
+    const res = await allocateRollNumbersAlphabetically(selectedClass, selectedSec);
+    toast.success(`Alphabetical Roll Numbers assigned successfully across section(s)!`);
+    loadData();
+  };
 
   const active = itemList.filter((s) => s.status === "Active").length;
   const inactive = itemList.length - active;
@@ -85,6 +98,12 @@ function StudentsPage() {
       <PageHeader
         title="Students"
         description="Manage profiles and student records."
+        actions={
+          <Button variant="outline" size="sm" onClick={handleAutoAssignRollNumbers} className="gap-2">
+            <SortAsc className="h-4 w-4" />
+            Auto-Assign Alphabetical Roll No
+          </Button>
+        }
       />
 
       <div className="shrink-0 space-y-4">
