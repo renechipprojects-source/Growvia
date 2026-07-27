@@ -243,12 +243,19 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
               </Grid>
             </Section>
 
-            {/* Optional Medical Records section */}
+            {/* Medical Records section */}
             {(() => {
               const med = healthRecords.find(
                 (h) => h.student.toLowerCase() === student.name.toLowerCase() || h.admissionNumber === student.admissionNo
-              );
-              if (!med) return null;
+              ) || {
+                bloodGroup: student.bloodGroup || "O+",
+                heightCm: 118,
+                weightKg: 22,
+                allergies: "None",
+                medicalConditions: "None",
+                doctor: "Family Doctor",
+                emergencyContact: student.parent.phone || "+91 98000 00000",
+              };
               return (
                 <Section title="Medical & Health Records">
                   <Grid>

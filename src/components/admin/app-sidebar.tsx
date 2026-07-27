@@ -30,7 +30,6 @@ const operations: OperationEntry[] = [
   { title: "Events", url: "/admin/events", icon: PartyPopper },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
   { title: "Transport", url: "/admin/transport", icon: Bus },
-  { title: "Health & Medical", url: "/admin/health", icon: HeartPulse },
   { title: "Password Reset Requests", url: "/admin/password-resets", icon: KeyRound },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
 ];
