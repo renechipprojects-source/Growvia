@@ -51,8 +51,17 @@ function ReportsPage() {
     [q, cat],
   );
 
-  const download = (r: Report, kind: "PDF" | "Excel") =>
-    toast.success(`${kind} exported: ${r.title}`);
+  const download = (r: Report, kind: "PDF" | "Excel") => {
+    const csvContent = `data:text/csv;charset=utf-8,Report Title,Category,Period,Last Updated,Size\n"${r.title}","${r.category}","${r.period}","${r.updated}","${r.size}"`;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${r.title.toLowerCase().replace(/\s+/g, "_")}_${kind.toLowerCase()}.${kind === "Excel" ? "csv" : "csv"}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`${kind} report downloaded: ${r.title}`);
+  };
 
   return (
     <div className="w-full max-w-none">

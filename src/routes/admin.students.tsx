@@ -55,9 +55,11 @@ function StudentsPage() {
     const cls = filterValues["Class"];
     const sec = filterValues["Section"];
     const st = filterValues["Status"];
+    const normalize = (str?: string) => (str || "").replace(/\s+/g, "").toLowerCase();
+
     return itemList.filter((s) => {
       if (q && !`${s.name} ${s.admissionNo} ${s.parent || ""} ${s.phone || ""}`.toLowerCase().includes(q)) return false;
-      if (cls && cls !== "all" && s.className?.toLowerCase() !== cls.toLowerCase()) return false;
+      if (cls && cls !== "all" && normalize(s.className) !== normalize(cls)) return false;
       if (sec && sec !== "all" && s.section?.toLowerCase() !== sec.toLowerCase()) return false;
       if (st && st !== "all" && s.status?.toLowerCase() !== st.toLowerCase()) return false;
       return true;
@@ -96,8 +98,8 @@ function StudentsPage() {
         <FilterBar
           searchPlaceholder="Search by name, admission no, parent..."
           filters={[
-            { label: "Class", options: ["Play Group", "Nursery", "LKG", "UKG"] },
-            { label: "Section", options: ["A", "B"] },
+            { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
+            { label: "Section", options: ["A", "B", "C"] },
             { label: "Status", options: ["Active", "Inactive"] },
           ]}
           search={search}

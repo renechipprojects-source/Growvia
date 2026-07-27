@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, DoorOpen, Users } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { classesList } from "@/lib/principal-mock-data";
+import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/principal/classes")({
   head: () => ({
@@ -17,8 +18,20 @@ export const Route = createFileRoute("/principal/classes")({
 });
 
 function ClassesPage() {
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const [teachersList, setTeachersList] = useState<Teacher[]>([]);
   const [q, setQ] = useState("");
   const [sec, setSec] = useState("all");
+
+  useEffect(() => {
+    fetchStudents().then(({ data }) => {
+      if (data && data.length > 0) setStudentsList(data);
+    });
+    fetchTeachers().then(({ data }) => {
+      if (data && data.length > 0) setTeachersList(data as any);
+    });
+  }, []);
+
   const sections = useMemo(() => Array.from(new Set(classesList.map((c) => c.section))), []);
 
   const filtered = useMemo(
@@ -33,7 +46,7 @@ function ClassesPage() {
 
   return (
     <div className="w-full max-w-none">
-      <PageHeader title="Classes" description="Overview of every class, its section, class teacher and current strength." />
+      <PageHeader title="Classes" description="Overview of every class, its section, class teacher and current live strength." />
 
       <div className="card-elevated p-4 md:p-5">
         <div className="flex flex-col md:flex-row gap-3">
@@ -51,29 +64,38 @@ function ClassesPage() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((c) => (
-            <div key={c.id} className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs font-medium uppercase text-primary">Section {c.section}</div>
-                  <div className="text-lg font-semibold mt-0.5">{c.name}</div>
+          {filtered.map((c, idx) => {
+            const count = studentsList.filter(
+              (s) =>
+                (s.className?.toLowerCase() === c.name.toLowerCase() || (s as any).class_name?.toLowerCase() === c.name.toLowerCase()) &&
+                (s.section?.toUpperCase() === c.section || !s.section)
+            ).length;
+            const teacher = teachersList[idx % (teachersList.length || 1)]?.name ?? c.classTeacher ?? "Assigned Teacher";
+
+            return (
+              <div key={c.id} className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-xs font-medium uppercase text-primary">Section {c.section}</div>
+                    <div className="text-lg font-semibold mt-0.5">{c.name}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-semibold">
+                    {c.section}
+                  </div>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-semibold">
-                  {c.section}
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><DoorOpen className="w-3.5 h-3.5" /> Room {c.room || "101"}</span>
+                    <span className="flex items-center gap-1.5 font-semibold text-foreground"><Users className="w-3.5 h-3.5 text-primary" /> {count} live students</span>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <div className="text-[11px] uppercase text-muted-foreground font-medium">Class Teacher</div>
+                    <div className="text-sm mt-0.5 font-medium">{teacher}</div>
+                  </div>
                 </div>
               </div>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><DoorOpen className="w-3.5 h-3.5" /> {c.room}</span>
-                  <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {c.strength} students</span>
-                </div>
-                <div className="pt-2 border-t">
-                  <div className="text-[11px] uppercase text-muted-foreground font-medium">Class Teacher</div>
-                  <div className="text-sm mt-0.5 font-medium">{c.classTeacher}</div>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {filtered.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-10">No classes match your filters.</div>
