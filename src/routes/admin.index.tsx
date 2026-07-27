@@ -60,13 +60,13 @@ function Dashboard() {
   const upcomingEvents = eventsList.filter((e) => e.status === "Upcoming" || !e.status);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto pr-1">
       <PageHeader
         title="Admin Control Center"
         description="Real-time overview of school operations, student enrollment, and financial metrics."
       />
 
-      <div className="shrink-0 space-y-4">
+      <div className="mt-4 space-y-6 pb-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} />
           <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} />
@@ -133,10 +133,41 @@ function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Recent Admissions</CardTitle>
+                <CardDescription>Newly enrolled student profiles.</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" asChild><Link to="/admin/students">View all</Link></Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {studentsList.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">No enrolled students yet.</div>
+              ) : (
+                studentsList.slice(0, 5).map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 rounded-xl border p-3">
+                    <Avatar className="h-9 w-9"><AvatarImage src={s.avatar || "/avatars/student.svg"} /><AvatarFallback>{s.name[0]}</AvatarFallback></Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{s.name}</div>
+                      <div className="text-xs text-muted-foreground">{s.className}-{s.section} · {s.admissionNo}</div>
+                    </div>
+                    <StatusBadge status={s.feeStatus || "Active"} />
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Upcoming Events</CardTitle>
+              <div>
+                <CardTitle>Upcoming Events</CardTitle>
+                <CardDescription>Scheduled school events & activities.</CardDescription>
+              </div>
               <Button variant="ghost" size="sm" asChild><Link to="/admin/events">View all</Link></Button>
             </CardHeader>
             <CardContent className="space-y-3">

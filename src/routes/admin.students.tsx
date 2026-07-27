@@ -56,10 +56,10 @@ function StudentsPage() {
     const sec = filterValues["Section"];
     const st = filterValues["Status"];
     return itemList.filter((s) => {
-      if (q && !`${s.name} ${s.admissionNo}`.toLowerCase().includes(q)) return false;
-      if (cls && cls !== "all" && s.className !== cls) return false;
-      if (sec && sec !== "all" && s.section !== sec) return false;
-      if (st && st !== "all" && s.status !== st) return false;
+      if (q && !`${s.name} ${s.admissionNo} ${s.parent || ""} ${s.phone || ""}`.toLowerCase().includes(q)) return false;
+      if (cls && cls !== "all" && s.className?.toLowerCase() !== cls.toLowerCase()) return false;
+      if (sec && sec !== "all" && s.section?.toLowerCase() !== sec.toLowerCase()) return false;
+      if (st && st !== "all" && s.status?.toLowerCase() !== st.toLowerCase()) return false;
       return true;
     });
   }, [itemList, search, filterValues]);

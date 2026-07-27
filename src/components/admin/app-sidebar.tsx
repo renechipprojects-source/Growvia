@@ -1,9 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, UserRound, GraduationCap, CalendarCheck,
   Wallet, PartyPopper, Boxes, BarChart3, ChevronRight, Sparkles,
-  UserCog, LogOut, KeyRound,
+  UserCog, LogOut, KeyRound, Bus,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { adminSignOut } from "@/lib/admin-auth";
+import { listForQueue, subscribeResets } from "@/lib/passwordResets";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
 type Group = { title: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
@@ -28,6 +29,7 @@ const operations: OperationEntry[] = [
   },
   { title: "Events", url: "/admin/events", icon: PartyPopper },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
+  { title: "Transport", url: "/admin/transport", icon: Bus },
   { title: "Password Reset Requests", url: "/admin/password-resets", icon: KeyRound },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
 ];
@@ -60,30 +62,50 @@ function isGroup(entry: OperationEntry): entry is Group {
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const isActive = (url: string) => pathname === url;
+
+  const [pendingResets, setPendingResets] = useState(
+    () => listForQueue("admin").filter((r) => r.status === "Pending").length,
+  );
+
+  useEffect(() => {
+    const update = () =>
+      setPendingResets(listForQueue("admin").filter((r) => r.status === "Pending").length);
+    update();
+    return subscribeResets(update);
+  }, []);
+
+  const isActive = (url: string) =>
+    url === "/admin" ? pathname === "/admin" : pathname.startsWith(url);
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/admin" className="flex items-center gap-2 px-2 py-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <Sparkles className="h-5 w-5" />
           </div>
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold">TinySteps ERP</div>
-            <div className="truncate text-xs text-muted-foreground">Play School Suite</div>
+          <div>
+            <div className="text-sm font-semibold tracking-tight text-sidebar-foreground">
+              Sunshine ERP
+            </div>
+            <div className="text-[11px] font-medium text-sidebar-foreground/70">
+              Admin Portal
+            </div>
           </div>
-        </Link>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-medium text-xs">Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/admin")}>
-                  <Link to="/admin"><LayoutDashboard /><span>Dashboard</span></Link>
+                  <Link to="/admin">
+                    <LayoutDashboard />
+                    <span>Dashboard</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -111,7 +133,15 @@ export function AppSidebar() {
                 ) : (
                   <SidebarMenuItem key={entry.url}>
                     <SidebarMenuButton asChild isActive={isActive(entry.url)}>
-                      <Link to={entry.url}><entry.icon /><span>{entry.title}</span></Link>
+                      <Link to={entry.url} className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <entry.icon />
+                          <span>{entry.title}</span>
+                        </div>
+                        {entry.url === "/admin/password-resets" && pendingResets > 0 && (
+                          <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" title={`${pendingResets} pending resets`} />
+                        )}
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ),

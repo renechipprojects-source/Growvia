@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LogOut,
   Building2,
+  Bus,
 } from "lucide-react";
 import {
   Sidebar,
@@ -87,6 +88,7 @@ const access: Group = {
 
 const operations: Item[] = [
   { title: "Inventory", url: "/office/inventory", icon: Boxes },
+  { title: "Transport", url: "/office/transport", icon: Bus },
   { title: "Messages", url: "/office/messages", icon: MessageSquare },
   { title: "Reports", url: "/office/reports", icon: FileText },
 ];

@@ -42,3 +42,15 @@ export function removeAdminNotification(id: string) {
   store = store.filter((n) => n.id !== id);
   emit();
 }
+
+export function pushAdminNotification(title: string, type: string = "circular") {
+  const newNotif: AdminNotification = {
+    id: `notif-${Date.now()}`,
+    title,
+    time: "Just now",
+    type,
+    read: false,
+  };
+  store = [newNotif, ...store];
+  emit();
+}

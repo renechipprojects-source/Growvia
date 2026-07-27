@@ -26,6 +26,7 @@ import { Route as AdminParentsRouteImport } from './routes/admin.parents'
 import { Route as AdminPasswordResetsRouteImport } from './routes/admin.password-resets'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
+import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
 import { Route as OfficeAdmissionsRouteImport } from './routes/office.admissions'
 import { Route as OfficeClassAssignmentRouteImport } from './routes/office.class-assignment'
@@ -41,6 +42,7 @@ import { Route as OfficeReceiptsRouteImport } from './routes/office.receipts'
 import { Route as OfficeReportsRouteImport } from './routes/office.reports'
 import { Route as OfficeStudentsRouteImport } from './routes/office.students'
 import { Route as OfficeTeacherCredentialsRouteImport } from './routes/office.teacher-credentials'
+import { Route as OfficeTransportRouteImport } from './routes/office.transport'
 import { Route as OfficeVisitsRouteImport } from './routes/office.visits'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentAttendanceRouteImport } from './routes/parent.attendance'
@@ -61,6 +63,7 @@ import { Route as PrincipalInventoryRouteImport } from './routes/principal.inven
 import { Route as PrincipalReportsRouteImport } from './routes/principal.reports'
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
+import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherActivitiesRouteImport } from './routes/teacher.activities'
 import { Route as TeacherAlertsRouteImport } from './routes/teacher.alerts'
@@ -165,6 +168,11 @@ const AdminStudentsRoute = AdminStudentsRouteImport.update({
   path: '/students',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTransportRoute = AdminTransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
+  getParentRoute: () => AdminRoute,
+} as any)
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -241,6 +249,11 @@ const OfficeTeacherCredentialsRoute =
     path: '/teacher-credentials',
     getParentRoute: () => OfficeRoute,
   } as any)
+const OfficeTransportRoute = OfficeTransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeVisitsRoute = OfficeVisitsRouteImport.update({
   id: '/visits',
   path: '/visits',
@@ -339,6 +352,11 @@ const PrincipalStudentsRoute = PrincipalStudentsRouteImport.update({
 const PrincipalTeachersRoute = PrincipalTeachersRouteImport.update({
   id: '/teachers',
   path: '/teachers',
+  getParentRoute: () => PrincipalRoute,
+} as any)
+const PrincipalTransportRoute = PrincipalTransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
   getParentRoute: () => PrincipalRoute,
 } as any)
 const TeacherIndexRoute = TeacherIndexRouteImport.update({
@@ -451,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
@@ -465,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
+  '/office/transport': typeof OfficeTransportRoute
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
@@ -483,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
+  '/principal/transport': typeof PrincipalTransportRoute
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
@@ -518,6 +539,7 @@ export interface FileRoutesByTo {
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
@@ -532,6 +554,7 @@ export interface FileRoutesByTo {
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
+  '/office/transport': typeof OfficeTransportRoute
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
@@ -550,6 +573,7 @@ export interface FileRoutesByTo {
   '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
+  '/principal/transport': typeof PrincipalTransportRoute
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
@@ -591,6 +615,7 @@ export interface FileRoutesById {
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
@@ -605,6 +630,7 @@ export interface FileRoutesById {
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
+  '/office/transport': typeof OfficeTransportRoute
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
@@ -623,6 +649,7 @@ export interface FileRoutesById {
   '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
+  '/principal/transport': typeof PrincipalTransportRoute
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
@@ -665,6 +692,7 @@ export interface FileRouteTypes {
     | '/admin/password-resets'
     | '/admin/reports'
     | '/admin/students'
+    | '/admin/transport'
     | '/office/admissions'
     | '/office/class-assignment'
     | '/office/enquiries'
@@ -679,6 +707,7 @@ export interface FileRouteTypes {
     | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
+    | '/office/transport'
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
@@ -697,6 +726,7 @@ export interface FileRouteTypes {
     | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
+    | '/principal/transport'
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
@@ -732,6 +762,7 @@ export interface FileRouteTypes {
     | '/admin/password-resets'
     | '/admin/reports'
     | '/admin/students'
+    | '/admin/transport'
     | '/office/admissions'
     | '/office/class-assignment'
     | '/office/enquiries'
@@ -746,6 +777,7 @@ export interface FileRouteTypes {
     | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
+    | '/office/transport'
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
@@ -764,6 +796,7 @@ export interface FileRouteTypes {
     | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
+    | '/principal/transport'
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
@@ -804,6 +837,7 @@ export interface FileRouteTypes {
     | '/admin/password-resets'
     | '/admin/reports'
     | '/admin/students'
+    | '/admin/transport'
     | '/office/admissions'
     | '/office/class-assignment'
     | '/office/enquiries'
@@ -818,6 +852,7 @@ export interface FileRouteTypes {
     | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
+    | '/office/transport'
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
@@ -836,6 +871,7 @@ export interface FileRouteTypes {
     | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
+    | '/principal/transport'
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
@@ -992,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/transport': {
+      id: '/admin/transport'
+      path: '/transport'
+      fullPath: '/admin/transport'
+      preLoaderRoute: typeof AdminTransportRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/office/': {
       id: '/office/'
       path: '/'
@@ -1095,6 +1138,13 @@ declare module '@tanstack/react-router' {
       path: '/teacher-credentials'
       fullPath: '/office/teacher-credentials'
       preLoaderRoute: typeof OfficeTeacherCredentialsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/office/transport': {
+      id: '/office/transport'
+      path: '/transport'
+      fullPath: '/office/transport'
+      preLoaderRoute: typeof OfficeTransportRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/office/visits': {
@@ -1235,6 +1285,13 @@ declare module '@tanstack/react-router' {
       path: '/teachers'
       fullPath: '/principal/teachers'
       preLoaderRoute: typeof PrincipalTeachersRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
+    '/principal/transport': {
+      id: '/principal/transport'
+      path: '/transport'
+      fullPath: '/principal/transport'
+      preLoaderRoute: typeof PrincipalTransportRouteImport
       parentRoute: typeof PrincipalRoute
     }
     '/teacher/': {
@@ -1387,6 +1444,7 @@ interface AdminRouteChildren {
   AdminPasswordResetsRoute: typeof AdminPasswordResetsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
+  AdminTransportRoute: typeof AdminTransportRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminAttendanceStaffRoute: typeof AdminAttendanceStaffRoute
   AdminAttendanceStudentsRoute: typeof AdminAttendanceStudentsRoute
@@ -1402,6 +1460,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPasswordResetsRoute: AdminPasswordResetsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
+  AdminTransportRoute: AdminTransportRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminAttendanceStaffRoute: AdminAttendanceStaffRoute,
   AdminAttendanceStudentsRoute: AdminAttendanceStudentsRoute,
@@ -1425,6 +1484,7 @@ interface OfficeRouteChildren {
   OfficeReportsRoute: typeof OfficeReportsRoute
   OfficeStudentsRoute: typeof OfficeStudentsRoute
   OfficeTeacherCredentialsRoute: typeof OfficeTeacherCredentialsRoute
+  OfficeTransportRoute: typeof OfficeTransportRoute
   OfficeVisitsRoute: typeof OfficeVisitsRoute
   OfficeIndexRoute: typeof OfficeIndexRoute
 }
@@ -1444,6 +1504,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeReportsRoute: OfficeReportsRoute,
   OfficeStudentsRoute: OfficeStudentsRoute,
   OfficeTeacherCredentialsRoute: OfficeTeacherCredentialsRoute,
+  OfficeTransportRoute: OfficeTransportRoute,
   OfficeVisitsRoute: OfficeVisitsRoute,
   OfficeIndexRoute: OfficeIndexRoute,
 }
@@ -1488,6 +1549,7 @@ interface PrincipalRouteChildren {
   PrincipalReportsRoute: typeof PrincipalReportsRoute
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
+  PrincipalTransportRoute: typeof PrincipalTransportRoute
   PrincipalIndexRoute: typeof PrincipalIndexRoute
   PrincipalAttendanceStaffRoute: typeof PrincipalAttendanceStaffRoute
   PrincipalAttendanceStudentsRoute: typeof PrincipalAttendanceStudentsRoute
@@ -1503,6 +1565,7 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalReportsRoute: PrincipalReportsRoute,
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
+  PrincipalTransportRoute: PrincipalTransportRoute,
   PrincipalIndexRoute: PrincipalIndexRoute,
   PrincipalAttendanceStaffRoute: PrincipalAttendanceStaffRoute,
   PrincipalAttendanceStudentsRoute: PrincipalAttendanceStudentsRoute,

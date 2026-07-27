@@ -42,7 +42,7 @@ function ParentsPage() {
     const ch = filterValues["Channel"];
     return parentList.filter((p) => {
       if (q && !`${p.name} ${p.email} ${p.phone} ${p.children.join(" ")}`.toLowerCase().includes(q)) return false;
-      if (ch && ch !== "all" && p.preferredChannel !== ch) return false;
+      if (ch && ch !== "all" && p.preferredChannel?.toLowerCase() !== ch.toLowerCase()) return false;
       return true;
     });
   }, [parentList, search, filterValues]);
