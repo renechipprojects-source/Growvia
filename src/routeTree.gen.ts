@@ -61,13 +61,13 @@ import { Route as PrincipalCircularsRouteImport } from './routes/principal.circu
 import { Route as PrincipalClassesRouteImport } from './routes/principal.classes'
 import { Route as PrincipalDashboardRouteImport } from './routes/principal.dashboard'
 import { Route as PrincipalEventsRouteImport } from './routes/principal.events'
+import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as PrincipalHealthRouteImport } from './routes/principal.health'
 import { Route as PrincipalInventoryRouteImport } from './routes/principal.inventory'
 import { Route as PrincipalReportsRouteImport } from './routes/principal.reports'
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
 import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
-import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherActivitiesRouteImport } from './routes/teacher.activities'
 import { Route as TeacherAlertsRouteImport } from './routes/teacher.alerts'
@@ -348,6 +348,11 @@ const PrincipalEventsRoute = PrincipalEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => PrincipalRoute,
 } as any)
+const PrincipalFeesRoute = PrincipalFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => PrincipalRoute,
+} as any)
 const PrincipalHealthRoute = PrincipalHealthRouteImport.update({
   id: '/health',
   path: '/health',
@@ -376,11 +381,6 @@ const PrincipalTeachersRoute = PrincipalTeachersRouteImport.update({
 const PrincipalTransportRoute = PrincipalTransportRouteImport.update({
   id: '/transport',
   path: '/transport',
-  getParentRoute: () => PrincipalRoute,
-} as any)
-const PrincipalFeesRoute = PrincipalFeesRouteImport.update({
-  id: '/fees',
-  path: '/fees',
   getParentRoute: () => PrincipalRoute,
 } as any)
 const TeacherIndexRoute = TeacherIndexRouteImport.update({
@@ -525,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/reports': typeof PrincipalReportsRoute
@@ -598,6 +599,7 @@ export interface FileRoutesByTo {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/reports': typeof PrincipalReportsRoute
@@ -677,6 +679,7 @@ export interface FileRoutesById {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/reports': typeof PrincipalReportsRoute
@@ -757,6 +760,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/reports'
@@ -830,6 +834,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/reports'
@@ -908,6 +913,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/reports'
@@ -1619,13 +1625,13 @@ interface PrincipalRouteChildren {
   PrincipalClassesRoute: typeof PrincipalClassesRoute
   PrincipalDashboardRoute: typeof PrincipalDashboardRoute
   PrincipalEventsRoute: typeof PrincipalEventsRoute
+  PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalHealthRoute: typeof PrincipalHealthRoute
   PrincipalInventoryRoute: typeof PrincipalInventoryRoute
   PrincipalReportsRoute: typeof PrincipalReportsRoute
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
   PrincipalTransportRoute: typeof PrincipalTransportRoute
-  PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalIndexRoute: typeof PrincipalIndexRoute
   PrincipalAttendanceStaffRoute: typeof PrincipalAttendanceStaffRoute
   PrincipalAttendanceStudentsRoute: typeof PrincipalAttendanceStudentsRoute
@@ -1637,13 +1643,13 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalClassesRoute: PrincipalClassesRoute,
   PrincipalDashboardRoute: PrincipalDashboardRoute,
   PrincipalEventsRoute: PrincipalEventsRoute,
+  PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalHealthRoute: PrincipalHealthRoute,
   PrincipalInventoryRoute: PrincipalInventoryRoute,
   PrincipalReportsRoute: PrincipalReportsRoute,
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
   PrincipalTransportRoute: PrincipalTransportRoute,
-  PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalIndexRoute: PrincipalIndexRoute,
   PrincipalAttendanceStaffRoute: PrincipalAttendanceStaffRoute,
   PrincipalAttendanceStudentsRoute: PrincipalAttendanceStudentsRoute,

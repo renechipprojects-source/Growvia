@@ -191,7 +191,7 @@ function StudentsPage() {
 function StudentDialog({ student, onClose }: { student: Student | null; onClose: () => void }) {
   return (
     <Dialog open={!!student} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
         {student && (
           <>
             <DialogHeader>

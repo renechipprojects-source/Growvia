@@ -37,7 +37,7 @@ function PrincipalLayout() {
 
   return (
     <InventoryProvider>
-      <div className="principal-shell h-screen flex overflow-hidden bg-background">
+      <div className="principal-shell h-screen flex overflow-hidden bg-gradient-to-br from-slate-50 via-sky-50/20 to-indigo-50/20">
         <PrincipalSidebar
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}

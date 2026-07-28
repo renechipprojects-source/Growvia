@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin")({
 function AdminLayout() {
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-muted/30">
+      <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-50 via-sky-50/20 to-indigo-50/20">
         <AppSidebar />
         <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
           <TopNav />

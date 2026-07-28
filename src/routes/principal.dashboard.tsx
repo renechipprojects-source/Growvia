@@ -48,27 +48,27 @@ function StatCard({
   label,
   value,
   sub,
-  tint,
+  gradient = "from-blue-500 to-sky-500",
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string | number;
   sub?: string;
-  tint: string;
+  gradient?: string;
+  tint?: string;
 }) {
   return (
-    <div className="card-elevated h-full p-5 flex items-start gap-4 min-w-0">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="min-w-0 flex-1 flex flex-col justify-center">
-        <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide leading-snug break-words">
-          {label}
+    <div className="group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl p-5 shadow-lg shadow-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 min-w-0">
+      <div className={`absolute -top-8 -right-8 h-32 w-32 rounded-full opacity-10 bg-gradient-to-br ${gradient} blur-2xl pointer-events-none group-hover:opacity-25 transition-opacity duration-300`} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 leading-snug">{label}</div>
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{value}</div>
+          {sub && <div className="mt-1 text-xs text-slate-500 font-medium truncate">{sub}</div>}
         </div>
-        <div className="text-2xl font-semibold mt-1 leading-tight break-words">{value}</div>
-        {sub && (
-          <div className="text-xs text-muted-foreground mt-1 leading-snug break-words">{sub}</div>
-        )}
+        <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-md shadow-slate-900/10 group-hover:scale-110 transition-transform duration-300`}>
+          <Icon className="w-6 h-6" />
+        </div>
       </div>
     </div>
   );
@@ -111,13 +111,13 @@ function DashboardPage() {
     <div className="w-full max-w-none flex flex-1 min-h-0 flex-col overflow-y-auto space-y-6 pr-1">
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 auto-rows-fr">
-        <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub="Enrolled" tint="bg-primary/10 text-primary" />
-        <StatCard icon={Users} label="Total Teachers" value={totalTeachers} sub="Active staff" tint="bg-info/10 text-info" />
-        <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" tint="bg-accent/40 text-accent-foreground" />
-        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} tint="bg-success/10 text-success" />
-        <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} tint="bg-warning/20 text-warning-foreground" />
+        <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub="Enrolled" gradient="from-blue-500 to-sky-500" />
+        <StatCard icon={Users} label="Total Teachers" value={totalTeachers} sub="Active staff" gradient="from-purple-500 to-indigo-500" />
+        <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" gradient="from-emerald-500 to-teal-500" />
+        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} gradient="from-amber-500 to-orange-500" />
+        <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} gradient="from-sky-500 to-cyan-500" />
         <Link to="/principal/transport">
-          <StatCard icon={Bus} label="Transport Fleet" value="4 Buses" sub="Active routes" tint="bg-purple-100 text-purple-700 hover:border-primary transition-all cursor-pointer" />
+          <StatCard icon={Bus} label="Transport Fleet" value="4 Buses" sub="Active routes" gradient="from-cyan-500 to-teal-500" />
         </Link>
       </div>
 

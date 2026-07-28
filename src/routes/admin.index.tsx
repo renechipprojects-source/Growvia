@@ -62,10 +62,10 @@ function Dashboard() {
 
       <div className="mt-4 space-y-6 pb-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} />
-          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} />
-          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} />
-          <StatCard label="Total Staff" value={teachersCount} tone="info" icon={<GraduationCap className="h-5 w-5" />} />
+          <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub="Enrolled" />
+          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub="96% Attendance" />
+          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} sub="Action required" />
+          <StatCard label="Total Staff" value={teachersCount} tone="purple" icon={<GraduationCap className="h-5 w-5" />} sub="Active staff" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

@@ -30,33 +30,59 @@ export function StatCard({
   delta,
   icon,
   tone = "default",
+  sub,
 }: {
   label: string;
   value: string | number;
   delta?: string;
   icon?: ReactNode;
-  tone?: "default" | "success" | "warning" | "danger" | "info";
+  tone?: "default" | "success" | "warning" | "danger" | "info" | "purple" | "rose" | "indigo";
+  sub?: string;
 }) {
-  const toneMap: Record<string, string> = {
-    default: "bg-primary/10 text-primary",
-    success: "bg-emerald-100 text-emerald-700",
-    warning: "bg-amber-100 text-amber-700",
-    danger: "bg-rose-100 text-rose-700",
-    info: "bg-sky-100 text-sky-700",
+  const gradientMap: Record<string, string> = {
+    default: "from-blue-500 to-sky-500 text-blue-600 bg-blue-50/80 border-blue-100",
+    success: "from-emerald-500 to-teal-500 text-emerald-600 bg-emerald-50/80 border-emerald-100",
+    warning: "from-amber-500 to-orange-500 text-amber-600 bg-amber-50/80 border-amber-100",
+    danger: "from-rose-500 to-pink-500 text-rose-600 bg-rose-50/80 border-rose-100",
+    info: "from-sky-500 to-cyan-500 text-sky-600 bg-sky-50/80 border-sky-100",
+    purple: "from-purple-500 to-indigo-500 text-purple-600 bg-purple-50/80 border-purple-100",
+    rose: "from-rose-500 to-pink-500 text-rose-600 bg-rose-50/80 border-rose-100",
+    indigo: "from-indigo-500 to-violet-500 text-indigo-600 bg-indigo-50/80 border-indigo-100",
   };
+  const iconGradients: Record<string, string> = {
+    default: "from-blue-500 to-sky-500",
+    success: "from-emerald-500 to-teal-500",
+    warning: "from-amber-500 to-orange-500",
+    danger: "from-rose-500 to-pink-500",
+    info: "from-sky-500 to-cyan-500",
+    purple: "from-purple-500 to-indigo-500",
+    rose: "from-rose-500 to-pink-500",
+    indigo: "from-indigo-500 to-violet-500",
+  };
+
   const deltaPositive = delta?.startsWith("+");
+
   return (
-    <div className="group rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="min-w-0">
-        <div className="text-xs sm:text-sm font-medium text-muted-foreground leading-snug whitespace-normal break-normal">{label}</div>
-        <div className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">{value}</div>
-        {delta && (
-          <div
-            className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-              deltaPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-            }`}
-          >
-            {delta} vs last month
+    <div className="group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl p-5 shadow-lg shadow-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30">
+      <div className={`absolute -top-8 -right-8 h-32 w-32 rounded-full opacity-10 bg-gradient-to-br ${iconGradients[tone] || iconGradients.default} blur-2xl pointer-events-none group-hover:opacity-25 transition-opacity duration-300`} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 leading-snug">{label}</div>
+          <div className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{value}</div>
+          {sub && <div className="mt-1 text-xs text-slate-500 font-medium truncate">{sub}</div>}
+          {delta && (
+            <div
+              className={`mt-2.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                deltaPositive ? "bg-emerald-100/80 text-emerald-700" : "bg-rose-100/80 text-rose-700"
+              }`}
+            >
+              {delta} vs last month
+            </div>
+          )}
+        </div>
+        {icon && (
+          <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${iconGradients[tone] || iconGradients.default} text-white shadow-md shadow-slate-900/10 group-hover:scale-110 transition-transform duration-300`}>
+            {icon}
           </div>
         )}
       </div>

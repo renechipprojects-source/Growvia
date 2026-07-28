@@ -136,7 +136,7 @@ function ClassDetailsModal({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-4">
             <span>Class Details — {classItem.name} ({classItem.section})</span>
