@@ -168,7 +168,7 @@ function StudentsPage() {
 
       {/* View Profile Dialog */}
       <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
           {selectedStudent && (
             <>
               <DialogHeader>

@@ -166,7 +166,7 @@ function CircularsPage() {
         }
       />
 
-      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div className="rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className="flex flex-col md:flex-row gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -413,7 +413,7 @@ function CircularEditor({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
         <DialogHeader>
           <DialogTitle>
             {mode === "create" ? "New Circular" : mode === "edit" ? "Edit Circular" : "Circular Details"}

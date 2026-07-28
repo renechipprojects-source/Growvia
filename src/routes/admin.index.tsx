@@ -69,7 +69,7 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="rounded-2xl lg:col-span-2">
+          <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Recent Payments</CardTitle>
@@ -82,9 +82,9 @@ function Dashboard() {
                 <div className="py-8 text-center text-sm text-muted-foreground">No recent fee payments recorded.</div>
               ) : (
                 paymentsList.slice(0, 5).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white/60 p-3 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
                         <CreditCard className="h-5 w-5" />
                       </div>
                       <div>
@@ -102,7 +102,7 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl">
+          <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cake className="h-5 w-5 text-pink-500" />
@@ -115,7 +115,7 @@ function Dashboard() {
                 <div className="py-8 text-center text-sm text-muted-foreground">No birthdays today or tomorrow.</div>
               ) : (
                 upcomingBirthdaysList.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-xl border p-3">
+                  <div key={s.id} className="flex items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/60 p-3 shadow-xs">
                     <Avatar className="h-10 w-10"><AvatarImage src={s.avatar || "/avatars/student.svg"} /><AvatarFallback>{s.name[0]}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{s.name}</div>
@@ -130,7 +130,7 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="rounded-2xl">
+          <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Recent Admissions</CardTitle>
@@ -156,7 +156,7 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl">
+          <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Upcoming Events</CardTitle>

@@ -37,26 +37,46 @@ export interface LeaveRequest {
 
 // ─── CIRCULARS & NOTICES ──────────────────────────────────────────────────
 
-export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
+export async function fetchCirculars(): Promise<{ data: any[]; isFromSupabase: boolean }> {
+  const localList = getLocalStore<any>("SUNSHINE_CIRCULARS");
   try {
     const { data, error } = await supabase.from("circulars").select("*").order("published_date", { ascending: false });
-    if (error || !data) return { data: [], isFromSupabase: false };
-    return { data, isFromSupabase: true };
+    if (error || !data || data.length === 0) {
+      return { data: localList, isFromSupabase: false };
+    }
+    const existingIds = new Set(data.map((d: any) => d.id));
+    const uniqueLocal = localList.filter((l: any) => !existingIds.has(l.id));
+    return { data: [...uniqueLocal, ...data], isFromSupabase: true };
   } catch {
-    return { data: [], isFromSupabase: false };
+    return { data: localList, isFromSupabase: false };
   }
 }
 
 import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
 
-export async function createCircular(circular: Omit<Circular, "id">) {
-  const newId = `CIR-${Date.now().toString().slice(-4)}`;
-  const payload = { ...circular, id: newId };
-  const { data, error } = await supabase.from("circulars").insert([payload]).select();
-  pushAdminNotification(`New Circular: ${circular.title}`, "circular");
-  NotificationService.circularPublished(circular.title);
-  return { data: data ? data[0] : payload, error };
+export async function createCircular(circular: any) {
+  const newId = circular.id || `CIR-${Date.now().toString().slice(-4)}`;
+  const payload = {
+    id: newId,
+    title: circular.title,
+    content: circular.content || circular.description || circular.subject,
+    target_audience: circular.target_audience || (circular.recipients ? circular.recipients.join(",") : "All"),
+    published_date: circular.published_date || new Date().toISOString().split("T")[0],
+    author: circular.author || "Principal Office",
+    priority: circular.priority || "Medium",
+    expiry_date: circular.expiry_date || circular.expiryDate,
+    recipients: circular.recipients,
+  };
+  saveLocalStore<any>("SUNSHINE_CIRCULARS", payload);
+  try {
+    const { data, error } = await supabase.from("circulars").insert([payload]).select();
+    pushAdminNotification(`New Circular: ${circular.title}`, "circular");
+    NotificationService.circularPublished(circular.title);
+    return { data: data ? data[0] : payload, error };
+  } catch (err) {
+    return { data: payload, error: null };
+  }
 }
 
 // ─── MESSAGING ────────────────────────────────────────────────────────────
