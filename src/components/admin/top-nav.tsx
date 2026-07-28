@@ -74,30 +74,32 @@ export function TopNav() {
           <NotificationPanel role="super-admin" />
         </div>
       </div>
-      <div className="hidden border-t px-6 py-2 sm:block">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
-            </BreadcrumbItem>
-            {parts.map((p, i) => {
-              const isLast = i === parts.length - 1;
-              return (
-                <span key={p + i} className="flex items-center gap-1.5">
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    {isLast ? (
-                      <BreadcrumbPage className="capitalize">{labels[p] ?? p}</BreadcrumbPage>
-                    ) : (
-                      <span className="capitalize text-muted-foreground">{labels[p] ?? p}</span>
-                    )}
-                  </BreadcrumbItem>
-                </span>
-              );
-            })}
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+      {!pathname.includes("admission") && (
+        <div className="hidden border-t px-6 py-2 sm:block">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
+              </BreadcrumbItem>
+              {parts.map((p, i) => {
+                const isLast = i === parts.length - 1;
+                return (
+                  <span key={p + i} className="flex items-center gap-1.5">
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      {isLast ? (
+                        <BreadcrumbPage className="capitalize">{labels[p] ?? p}</BreadcrumbPage>
+                      ) : (
+                        <span className="capitalize text-muted-foreground">{labels[p] ?? p}</span>
+                      )}
+                    </BreadcrumbItem>
+                  </span>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      )}
     </header>
   );
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { STUDENTS } from "@/lib/mockData";
 import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { healthRecords } from "@/modules/health/data/mockData";
@@ -24,7 +25,7 @@ function StudentsPage() {
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
-      const sourceList = data && data.length > 0 ? data : [];
+      const sourceList = data && data.length > 0 ? data : (STUDENTS as any);
       const mapped: Student[] = sourceList.map((s: any) => ({
         id: s.id,
         admissionNo: s.admissionNo || s.id,
@@ -42,7 +43,7 @@ function StudentsPage() {
         joinedOn: s.admissionDate || new Date().toISOString().split("T")[0],
         bloodGroup: "O+",
         allergies: [],
-        avatar: s.avatar || "",
+        avatar: s.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(s.name)}`,
       }));
       setItemList(mapped);
     });
@@ -129,7 +130,7 @@ function StudentsPage() {
         />
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-4 flex w-full max-w-none min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
           columns={["Student", "Admission No.", "Class", "Parent", "Contact", "Fees", "Status", "Action"]}
           total={filtered.length}
