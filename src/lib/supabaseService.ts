@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
+import { STUDENTS, TEACHERS, ENQUIRIES, FEES, type Student, type Teacher, type Enquiry, type Fee, type Expense } from "./mockData";
 import { generateParentCredential } from "./credentials";
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -108,8 +108,18 @@ function getLocalStore<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (key === "SUNSHINE_STUDENTS") return STUDENTS as any;
+    if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
+    if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
+    if (key === "SUNSHINE_FEES") return FEES as any;
+    return [];
   } catch {
+    if (key === "SUNSHINE_STUDENTS") return STUDENTS as any;
+    if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
+    if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
+    if (key === "SUNSHINE_FEES") return FEES as any;
     return [];
   }
 }
@@ -128,7 +138,7 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
   const localList = getLocalStore<Student>("SUNSHINE_STUDENTS");
   try {
     const { data, error } = await supabase.from("students").select("*");
-    if (error || !data) return { data: localList, isFromSupabase: true };
+    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : STUDENTS, isFromSupabase: true };
     const mapped: Student[] = data.map((d: any) => ({
       id: d.id,
       rollNo: d.roll_no,
@@ -271,7 +281,7 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
   const localList = getLocalStore<Teacher>("SUNSHINE_TEACHERS");
   try {
     const { data, error } = await supabase.from("teachers").select("*");
-    if (error || !data) return { data: localList, isFromSupabase: true };
+    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : TEACHERS, isFromSupabase: true };
     const mapped: Teacher[] = data.map((d: any) => ({
       id: d.id,
       name: d.name,
@@ -393,7 +403,7 @@ export async function fetchFees(): Promise<{ data: Fee[]; isFromSupabase: boolea
   const localList = getLocalStore<Fee>("SUNSHINE_FEES");
   try {
     const { data, error } = await supabase.from("fees").select("*");
-    if (error || !data || data.length === 0) return { data: localList, isFromSupabase: false };
+    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : FEES, isFromSupabase: false };
     const mapped: Fee[] = data.map((d: any) => ({
       id: d.id,
       studentId: d.student_id,
