@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { STUDENTS } from "@/lib/mockData";
 import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
-import { healthRecords } from "@/modules/health/data/mockData";
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -211,37 +210,6 @@ function StudentsPage() {
                   <div className="mt-0.5"><StatusBadge status={selectedStudent.status} /></div>
                 </div>
               </div>
-
-              {/* Medical & Health Records */}
-              {(() => {
-                const med = healthRecords.find(
-                  (h) => h.student.toLowerCase() === selectedStudent.name.toLowerCase() || h.admissionNumber === selectedStudent.admissionNo
-                ) || {
-                  bloodGroup: selectedStudent.gender === "Male" ? "O+" : "A+",
-                  heightCm: 118,
-                  weightKg: 22,
-                  allergies: "None",
-                  medicalConditions: "None",
-                  doctor: "Family Doctor",
-                  emergencyContact: selectedStudent.phone || "+91 98000 00000",
-                };
-                return (
-                  <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50/60 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between font-semibold text-xs text-rose-900">
-                      <span className="flex items-center gap-1.5"><HeartPulse className="h-4 w-4 text-rose-600" /> Medical & Health Records</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-rose-700 border border-rose-200">{med.bloodGroup}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                      <div><span className="text-muted-foreground">Height:</span> {med.heightCm} cm</div>
-                      <div><span className="text-muted-foreground">Weight:</span> {med.weightKg} kg</div>
-                      <div><span className="text-muted-foreground">Allergies:</span> {med.allergies}</div>
-                      <div><span className="text-muted-foreground">Conditions:</span> {med.medicalConditions}</div>
-                      <div><span className="text-muted-foreground">Doctor:</span> {med.doctor}</div>
-                      <div><span className="text-muted-foreground">Emergency:</span> {med.emergencyContact}</div>
-                    </div>
-                  </div>
-                );
-              })()}
             </>
           )}
         </DialogContent>

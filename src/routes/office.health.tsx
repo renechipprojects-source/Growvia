@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { HealthModule } from "@/modules/health";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/office/health")({
-  component: () => <HealthModule />,
-  head: () => ({ meta: [{ title: "Student Health & Medical Records — Sunshine ERP" }] }),
+  beforeLoad: () => {
+    throw redirect({ to: "/office" });
+  },
 });

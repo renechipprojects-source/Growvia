@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { HealthModule } from "@/modules/health";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/principal/health")({
-  component: () => <HealthModule />,
-  head: () => ({ meta: [{ title: "Health Module — Principal View" }] }),
+  beforeLoad: () => {
+    throw redirect({ to: "/principal" });
+  },
 });

@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { students as seedStudents, type Student } from "@/lib/principal-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
-import { healthRecords } from "@/modules/health/data/mockData";
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
@@ -260,31 +259,6 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
                 </div>
               </div>
             </Section>
-
-            {/* Medical Records section */}
-            {(() => {
-              const med = healthRecords.find(
-                (h) => h.student.toLowerCase() === student.name.toLowerCase() || h.admissionNumber === student.admissionNo
-              ) || {
-                bloodGroup: student.bloodGroup || "O+",
-                heightCm: 118,
-                weightKg: 22,
-                allergies: "None",
-                medicalConditions: "None",
-                doctor: "Family Doctor",
-                emergencyContact: student.parent.phone || "+91 98000 00000",
-              };
-              return (
-                <Section title="Medical & Health Records">
-                  <Grid>
-                    <KV k="Blood Group" v={med.bloodGroup} />
-                    <KV k="Height / Weight" v={`${med.heightCm} cm / ${med.weightKg} kg`} />
-                    <KV k="Doctor / Emergency" v={`${med.doctor} (${med.emergencyContact})`} wide />
-                    <KV k="Allergies / Conditions" v={`${med.allergies} · ${med.medicalConditions}`} wide />
-                  </Grid>
-                </Section>
-              );
-            })()}
           </>
         )}
       </DialogContent>

@@ -7,92 +7,21 @@ import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { HeartPulse } from "lucide-react";
-import { toast } from "sonner";
-import { healthRecords } from "@/modules/health/data/mockData";
-import { NotificationService } from "@/lib/notifications";
-import type { HealthRecord } from "@/modules/health/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Eye, GraduationCap, UserCheck, ShieldCheck, CreditCard } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
 
 function OfficeStudents() {
   const [data, setData] = useState<Student[]>([]);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [healthForm, setHealthForm] = useState<Partial<HealthRecord>>({
-    bloodGroup: "O+",
-    heightCm: 115,
-    weightKg: 20,
-    allergies: "None",
-    medicalConditions: "None",
-    doctor: "Dr. Mehta",
-    emergencyContact: "",
-  });
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     fetchStudents().then(({ data: fetched }) => {
       setData(fetched && fetched.length > 0 ? fetched : STUDENTS);
     });
   }, []);
-
-  const openHealthModal = (student: Student) => {
-    setEditingStudent(student);
-    const existing = healthRecords.find(
-      (h) => h.student.toLowerCase() === student.name.toLowerCase() || h.admissionNumber === student.admissionNo
-    );
-    if (existing) {
-      setHealthForm({ ...existing });
-    } else {
-      setHealthForm({
-        bloodGroup: ((student as any).bloodGroup as any) || "O+",
-        heightCm: 115,
-        weightKg: 20,
-        allergies: "None",
-        medicalConditions: "None",
-        doctor: "Family Doctor",
-        emergencyContact: student.phone || "",
-      });
-    }
-  };
-
-  const handleSaveHealthRecord = () => {
-    if (!editingStudent) return;
-
-    const index = healthRecords.findIndex(
-      (h) => h.student.toLowerCase() === editingStudent.name.toLowerCase() || h.admissionNumber === editingStudent.admissionNo
-    );
-
-    const updatedRecord: HealthRecord = {
-      id: index >= 0 ? healthRecords[index].id : `H-${Date.now().toString().slice(-4)}`,
-      student: editingStudent.name,
-      admissionNumber: editingStudent.admissionNo || "ADM-2026",
-      bloodGroup: (healthForm.bloodGroup as any) || "O+",
-      heightCm: Number(healthForm.heightCm || 115),
-      weightKg: Number(healthForm.weightKg || 20),
-      allergies: healthForm.allergies || "None",
-      medicalConditions: healthForm.medicalConditions || "None",
-      doctor: healthForm.doctor || "Family Doctor",
-      emergencyContact: healthForm.emergencyContact || editingStudent.phone,
-      lastCheckup: new Date().toISOString().slice(0, 10),
-    };
-
-    if (index >= 0) {
-      healthRecords[index] = updatedRecord;
-    } else {
-      healthRecords.unshift(updatedRecord);
-    }
-
-    NotificationService.healthAlert(
-      editingStudent.name,
-      `Blood Group: ${updatedRecord.bloodGroup}, Allergies: ${updatedRecord.allergies}, Conditions: ${updatedRecord.medicalConditions}`
-    );
-    toast.success(`Updated Medical Record for ${editingStudent.name}`);
-    setEditingStudent(null);
-  };
 
   const cols: ColumnDef<Student>[] = [
     { header: "ID", accessorKey: "id" },
@@ -124,8 +53,8 @@ function OfficeStudents() {
       cell: (c) => {
         const s = c.row.original;
         return (
-          <Button size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => openHealthModal(s)}>
-            <HeartPulse className="mr-1.5 h-3.5 w-3.5 text-rose-600" /> Edit Health Record
+          <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" /> View Profile
           </Button>
         );
       },
@@ -135,102 +64,99 @@ function OfficeStudents() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0">
-        <PageHeader title="Students" subtitle="Manage enrolled students and medical records linked with admissions." />
+        <PageHeader title="Students" subtitle="Directory of enrolled students, parents, fee ledgers and submitted records." />
       </div>
       <div className="flex-1 min-h-0">
         <DataTable data={data} columns={cols} searchKey="name" fillParent />
       </div>
 
-      {/* Edit Health Record Dialog (Office Exclusive Editable Controls) */}
-      <Dialog open={!!editingStudent} onOpenChange={(open) => !open && setEditingStudent(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-rose-900">
-              <HeartPulse className="h-5 w-5 text-rose-600" /> Edit Health Record — {editingStudent?.name}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Student Profile Dialog */}
+      <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          {selectedStudent && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border">
+                      <AvatarImage src={selectedStudent.avatar} />
+                      <AvatarFallback>{selectedStudent.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <DialogTitle className="text-base">{selectedStudent.name}</DialogTitle>
+                      <div className="text-xs text-muted-foreground">ID: {selectedStudent.id} · Class {selectedStudent.className}</div>
+                    </div>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-xs">Enrolled</Badge>
+                </div>
+              </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Blood Group</Label>
-                <Select value={healthForm.bloodGroup || "O+"} onValueChange={(v) => setHealthForm((p) => ({ ...p, bloodGroup: v as any }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                      <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4 text-xs mt-2">
+                {/* 1. Student Details */}
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                  <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5 text-primary" /> Student Details
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">Date of Birth:</span> 12 Jan 2021</div>
+                    <div><span className="text-muted-foreground">Gender:</span> Male</div>
+                    <div><span className="text-muted-foreground">Blood Group:</span> O+</div>
+                    <div><span className="text-muted-foreground">Joined On:</span> {selectedStudent.admissionDate || "2024-06-01"}</div>
+                  </div>
+                </div>
+
+                {/* 2. Parent Details */}
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                  <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <UserCheck className="h-3.5 w-3.5 text-indigo-600" /> Parent Details
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">Parent Name:</span> {selectedStudent.parent}</div>
+                    <div><span className="text-muted-foreground">Mobile Phone:</span> {selectedStudent.phone || "+91 98765 43210"}</div>
+                    <div><span className="text-muted-foreground">Email Address:</span> parent@school.com</div>
+                    <div><span className="text-muted-foreground">Address:</span> Bengaluru, Karnataka</div>
+                  </div>
+                </div>
+
+                {/* 3. Class & Attendance */}
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                  <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <UserCheck className="h-3.5 w-3.5 text-emerald-600" /> Class & Attendance Summary
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">Class & Section:</span> {selectedStudent.className} - A</div>
+                    <div><span className="text-muted-foreground">Attendance Rate:</span> <span className="font-bold text-emerald-700">96% Present</span></div>
+                  </div>
+                </div>
+
+                {/* 4. Fee Status */}
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                  <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-amber-600" /> Fee Ledger Status
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">Annual Expected:</span> ₹8,500</div>
+                    <div><span className="text-muted-foreground">Paid Amount:</span> ₹8,500</div>
+                    <div><span className="text-muted-foreground">Pending Balance:</span> ₹0</div>
+                    <div><span className="text-muted-foreground">Status:</span> <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Paid (3/3)</Badge></div>
+                  </div>
+                </div>
+
+                {/* 5. Documents */}
+                <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                  <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Submitted Documents
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-1.5 rounded border bg-background flex justify-between"><span>Birth Certificate</span> <span className="text-emerald-600 font-bold">✓ Verified</span></div>
+                    <div className="p-1.5 rounded border bg-background flex justify-between"><span>Immunization Card</span> <span className="text-emerald-600 font-bold">✓ Verified</span></div>
+                    <div className="p-1.5 rounded border bg-background flex justify-between"><span>Address Proof</span> <span className="text-emerald-600 font-bold">✓ Verified</span></div>
+                    <div className="p-1.5 rounded border bg-background flex justify-between"><span>Transfer Certificate</span> <span className="text-sky-600 font-bold">✓ Submitted</span></div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label>Height (cm)</Label>
-                <Input
-                  type="number"
-                  value={healthForm.heightCm || ""}
-                  onChange={(e) => setHealthForm((p) => ({ ...p, heightCm: Number(e.target.value) }))}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Weight (kg)</Label>
-                <Input
-                  type="number"
-                  value={healthForm.weightKg || ""}
-                  onChange={(e) => setHealthForm((p) => ({ ...p, weightKg: Number(e.target.value) }))}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Doctor / Pediatrician</Label>
-                <Input
-                  value={healthForm.doctor || ""}
-                  onChange={(e) => setHealthForm((p) => ({ ...p, doctor: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Known Allergies</Label>
-              <Input
-                value={healthForm.allergies || ""}
-                onChange={(e) => setHealthForm((p) => ({ ...p, allergies: e.target.value }))}
-                placeholder="e.g. Peanuts, Dust, None"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label>Medical Conditions / Illness</Label>
-              <Input
-                value={healthForm.medicalConditions || ""}
-                onChange={(e) => setHealthForm((p) => ({ ...p, medicalConditions: e.target.value }))}
-                placeholder="e.g. Asthma, Diabetes, None"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label>Emergency Medical Phone</Label>
-              <Input
-                value={healthForm.emergencyContact || ""}
-                onChange={(e) => setHealthForm((p) => ({ ...p, emergencyContact: e.target.value }))}
-                placeholder="+91 98000 00000"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="mt-2">
-            <Button variant="outline" onClick={() => setEditingStudent(null)}>Cancel</Button>
-            <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={handleSaveHealthRecord}>
-              Save Health Record
-            </Button>
-          </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
