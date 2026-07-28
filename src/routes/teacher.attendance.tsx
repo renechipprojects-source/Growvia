@@ -113,7 +113,7 @@ function Att() {
           action={
             <Button
               onClick={() => {
-                saveAttendance(cls, sec, date, state, list);
+                saveAttendance(cls, sec, date, state, list, "Meenakshi Sundaram (Class Teacher)");
                 NotificationService.attendanceMarked(`${cls}-${sec}`);
                 toast.success(`Attendance saved for ${cls}-${sec} (${counts.P} Present)`);
               }}
