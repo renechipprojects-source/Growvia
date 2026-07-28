@@ -450,21 +450,51 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
 
 // ─── FEES ─────────────────────────────────────────────────────────────────
 
-export async function fetchFees(): Promise<{ data: Fee[]; isFromSupabase: boolean }> {
-  const localList = getLocalStore<Fee>("SUNSHINE_FEES");
+// ─── FEES ─────────────────────────────────────────────────────────────────
+
+export interface PaymentTransaction {
+  id: string;
+  receiptNo: string;
+  amount: number;
+  date: string;
+  method: "Cash" | "UPI" | "Bank Transfer" | "Cheque";
+  reference?: string;
+  feeType: string;
+  installmentNo: number;
+  remarks?: string;
+  collectedBy: string;
+}
+
+export interface FeeLedgerItem extends Fee {
+  admissionNo?: string;
+  section?: string;
+  academicYear?: string;
+  totalInstallments?: number;
+  paidInstallments?: number;
+  payments?: PaymentTransaction[];
+}
+
+export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
+  const localList = getLocalStore<FeeLedgerItem>("SUNSHINE_FEES");
   try {
     const { data, error } = await supabase.from("fees").select("*");
-    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : FEES, isFromSupabase: false };
-    const mapped: Fee[] = data.map((d: any) => ({
+    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : (FEES as FeeLedgerItem[]), isFromSupabase: false };
+    const mapped: FeeLedgerItem[] = data.map((d: any) => ({
       id: d.id,
       studentId: d.student_id,
       studentName: d.student_name,
+      admissionNo: d.admission_no || d.student_id,
       className: d.class_name,
+      section: d.section || "A",
+      academicYear: d.academic_year || "2026-2027",
       amount: Number(d.amount),
       paid: Number(d.paid),
       dueDate: d.due_date,
       status: d.status,
       month: d.month,
+      totalInstallments: d.total_installments || 3,
+      paidInstallments: d.paid_installments || (d.status === "Paid" ? 3 : d.paid > 0 ? 1 : 0),
+      payments: Array.isArray(d.payments) ? d.payments : [],
     }));
     const existingIds = new Set(mapped.map((m) => m.id));
     const uniqueLocal = localList.filter((l) => !existingIds.has(l.id));
@@ -474,19 +504,23 @@ export async function fetchFees(): Promise<{ data: Fee[]; isFromSupabase: boolea
   }
 }
 
-export async function saveFeeRecord(fee: Fee) {
-  saveLocalStore<Fee>("SUNSHINE_FEES", fee);
+export async function saveFeeRecord(fee: FeeLedgerItem) {
+  saveLocalStore<FeeLedgerItem>("SUNSHINE_FEES", fee);
   try {
     await supabase.from("fees").upsert([{
       id: fee.id,
       student_id: fee.studentId,
       student_name: fee.studentName,
+      admission_no: fee.admissionNo,
       class_name: fee.className,
       amount: fee.amount,
       paid: fee.paid,
       due_date: fee.dueDate,
       status: fee.status,
       month: fee.month,
+      total_installments: fee.totalInstallments,
+      paid_installments: fee.paidInstallments,
+      payments: fee.payments,
     }]);
   } catch (err) {
     console.warn("Supabase fee save notice:", err);
