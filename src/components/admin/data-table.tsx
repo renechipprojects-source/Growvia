@@ -85,7 +85,7 @@ export function DataTable({
   columns,
   children,
   total,
-  pageSize = 15,
+  pageSize = 8,
   hidePagination = false,
 }: {
   columns: string[];
@@ -105,12 +105,12 @@ export function DataTable({
   return (
     <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto max-h-[58vh] sm:max-h-[62vh] w-full">
+        <div className="min-h-0 flex-1 overflow-auto w-full">
           <Table className="w-full min-w-full">
-            <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm">
+            <TableHeader className="sticky top-0 z-10 bg-muted/90 backdrop-blur-md">
               <TableRow>
                 {columns.map((c) => (
-                  <TableHead key={c} className="whitespace-nowrap py-4 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <TableHead key={c} className="whitespace-nowrap py-3.5 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {c}
                   </TableHead>
                 ))}
@@ -130,7 +130,7 @@ export function DataTable({
           </Table>
         </div>
         {!hidePagination && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 bg-card/50">
+          <div className="shrink-0 border-t px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs font-medium text-muted-foreground">
               Showing {childrenArray.length} {childrenArray.length === 1 ? "entry" : "entries"} total
             </div>
