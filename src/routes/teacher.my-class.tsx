@@ -20,6 +20,10 @@ export const Route = createFileRoute("/teacher/my-class")({ component: MyClass }
 const TABS = ["Overview", "Attendance", "Homework", "Academics", "Students", "Activities", "Remarks"] as const;
 type Tab = (typeof TABS)[number];
 
+import { useEffect } from "react";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { STUDENTS } from "@/lib/mockData";
+
 function MyClass() {
   const assignments = getClassAssignments();
   const active = assignments[0];
@@ -27,6 +31,12 @@ function MyClass() {
   const [localRemark, setLocalRemark] = useState<Record<string, string>>({});
   const headerQuery = useSearchQuery();
   const [localSearch, setLocalSearch] = useState("");
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+
+  useEffect(() => {
+    fetchStudents().then(({ data }) => setAllStudents(data));
+  }, []);
+
   const q = headerQuery || localSearch;
 
   if (!active) {
@@ -39,12 +49,17 @@ function MyClass() {
 
   const cls = active.className as ClassName;
   const sec = active.section as Section;
-  const list = studentsBy(cls, sec);
+
+  const list = useMemo(() => {
+    const source = allStudents.length > 0 ? allStudents : STUDENTS;
+    return source.filter((s) => s.className === cls && (!sec || s.section === sec));
+  }, [allStudents, cls, sec]);
+
   const { recs } = todayAttendanceFor(cls, sec);
   const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
 
-  const boys = list.filter((s) => s.gender === "Boy").length;
-  const girls = list.filter((s) => s.gender === "Girl").length;
+  const boys = list.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
+  const girls = list.filter((s) => s.gender === "Girl" || (s as any).gender === "Female").length;
   const present = list.filter((s) => recMap.get(s.id) === "Present").length;
   const absent = list.filter((s) => recMap.get(s.id) === "Absent").length;
   const attnPct = list.length ? Math.round((present / list.length) * 100) : 0;
@@ -54,7 +69,8 @@ function MyClass() {
   const classRemarks = REMARKS.filter((r) => list.some((s) => s.id === r.studentId));
   const upcomingBirthdays = list
     .filter((s) => {
-      const [, m] = s.dob.split("-").map(Number);
+      const parts = (s.dob || "").split("-").map(Number);
+      const m = parts[1];
       return m === 7 || m === 8;
     })
     .slice(0, 5);
