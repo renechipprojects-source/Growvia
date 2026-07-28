@@ -49,7 +49,7 @@ function ClassesPage() {
   }, [search, filterValues]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Classes" description="Class overview with live section strength and assigned class teachers." />
       <div className="shrink-0">
         <FilterBar

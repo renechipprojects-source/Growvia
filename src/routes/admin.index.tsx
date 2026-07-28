@@ -54,7 +54,7 @@ function Dashboard() {
   const upcomingEvents = eventsList.filter((e) => e.status === "Upcoming" || !e.status);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto pr-1">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto pr-1 w-full max-w-none">
       <PageHeader
         title="Admin Control Center"
         description="Real-time overview of school operations, student enrollment, and financial metrics."

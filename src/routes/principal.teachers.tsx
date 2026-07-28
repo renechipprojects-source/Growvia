@@ -71,10 +71,10 @@ function TeachersPage() {
   );
 
   return (
-    <div className="w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Teachers" description="Read-only view of teaching staff. Login credentials cannot be edited from here." />
 
-      <div className="card-elevated p-4 md:p-5">
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -89,7 +89,7 @@ function TeachersPage() {
           </Select>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="mt-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1">
           {filtered.map((t) => (
             <div key={t.id} className="rounded-xl border bg-card p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3">

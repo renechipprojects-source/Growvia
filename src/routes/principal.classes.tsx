@@ -45,11 +45,11 @@ function ClassesPage() {
   );
 
   return (
-    <div className="w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Classes" description="Overview of every class, its section, class teacher and current live strength." />
 
-      <div className="card-elevated p-4 md:p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by class name or class teacher" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
@@ -63,7 +63,7 @@ function ClassesPage() {
           </Select>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="mt-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-1">
           {filtered.map((c, idx) => {
             const count = studentsList.filter(
               (s) =>

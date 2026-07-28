@@ -63,11 +63,11 @@ function StaffAttendancePage() {
   );
 
   return (
-    <div className="w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Staff Attendance" description="Live staff attendance overview for today." />
 
-      <div className="card-elevated p-4 md:p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search staff by name" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
@@ -81,8 +81,7 @@ function StaffAttendancePage() {
           </Select>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <div className="max-h-[65vh] overflow-y-auto rounded-lg border">
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
                 <tr>
@@ -113,7 +112,6 @@ function StaffAttendancePage() {
               </tbody>
             </table>
           </div>
-        </div>
       </div>
     </div>
   );

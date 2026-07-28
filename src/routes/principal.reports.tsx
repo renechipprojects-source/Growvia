@@ -64,11 +64,11 @@ function ReportsPage() {
   };
 
   return (
-    <div className="w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Reports" description="Browse, filter and export school reports as PDF or Excel." />
 
-      <div className="card-elevated p-4 md:p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search reports" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
@@ -86,8 +86,7 @@ function ReportsPage() {
           </Select>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <div className="max-h-[65vh] overflow-y-auto rounded-lg border">
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
                 <tr>
@@ -125,9 +124,8 @@ function ReportsPage() {
               </tbody>
             </table>
           </div>
-        </div>
 
-        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground shrink-0">
           <span>Showing {filtered.length} of {reports.length} reports</span>
           <Button variant="ghost" size="sm">
             <Download className="w-4 h-4 mr-1.5" /> Bulk export

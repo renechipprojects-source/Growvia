@@ -58,7 +58,7 @@ function EventsPage() {
   const uniqueLocations = Array.from(new Set(eventsList.map((e) => e.location || "Main Campus"))).length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader title="Events" description="View upcoming and past school events and activities." />
       
       <div className="shrink-0 space-y-4">
