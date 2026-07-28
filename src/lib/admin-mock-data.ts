@@ -39,7 +39,33 @@ export interface Student {
   avatar: string;
 }
 
-export const students: Student[] = [];
+export const students: Student[] = Array.from({ length: 40 }).map((_, i) => {
+  const cName = pick(classes, i);
+  const sec = i % 2 === 0 ? "A" : "B";
+  const fn = pick(firstNames, i);
+  const ln = pick(lastNames, i);
+  const name = `${fn} ${ln}`;
+  const id = `STU${1001 + i}`;
+  return {
+    id,
+    admissionNo: `SUN/26-${1000 + i}`,
+    name,
+    gender: i % 2 === 0 ? "Male" : "Female",
+    dob: `2022-0${(i % 9) + 1}-1${i % 9}`,
+    age: cName === "Play Group" ? 2 : cName === "Nursery" ? 3 : cName === "LKG" ? 4 : 5,
+    className: cName,
+    section: sec,
+    parent: `Mr. & Mrs. ${ln}`,
+    phone: `+91 98765 ${10000 + i}`,
+    address: "Bengaluru",
+    status: "Active",
+    feesStatus: i % 3 === 0 ? "Paid" : i % 3 === 1 ? "Partial" : "Due",
+    joinedOn: "2025-06-01",
+    bloodGroup: pick(["O+", "A+", "B+", "AB+"], i),
+    allergies: i % 5 === 0 ? ["Dust"] : [],
+    avatar: `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+  };
+});
 
 export interface Parent {
   id: string;
@@ -53,7 +79,17 @@ export interface Parent {
   avatar: string;
 }
 
-export const parents: Parent[] = [];
+export const parents: Parent[] = students.slice(0, 15).map((s, i) => ({
+  id: `PAR-${501 + i}`,
+  name: s.parent,
+  email: `${s.name.toLowerCase().replace(/\s+/g, ".")}@sunshine-parents.com`,
+  phone: s.phone,
+  occupation: pick(["Software Engineer", "Business Owner", "Doctor", "Architect", "Manager"], i),
+  children: [s.name],
+  preferredChannel: pick(["WhatsApp", "Email", "SMS"], i),
+  emergencyContact: s.phone,
+  avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(s.parent)}`,
+}));
 
 export interface Staff {
   id: string;
@@ -69,7 +105,18 @@ export interface Staff {
   avatar: string;
 }
 
-export const staff: Staff[] = [];
+export const staff: Staff[] = [
+  { id: "STF-01", name: "Ananya Sen", role: "Teacher", className: "Play Group", qualification: "B.Ed (Montessori)", phone: "+91 98765 43210", email: "ananya.sen@sunshine.edu", joinedOn: "2023-06-01", salary: 35000, status: "Active", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-02", name: "Sneha Kulkarni", role: "Teacher", className: "Play Group", qualification: "Nursery Teacher Training", phone: "+91 98765 43211", email: "sneha.k@sunshine.edu", joinedOn: "2024-01-15", salary: 32000, status: "Active", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-03", name: "Miss Priya Sharma", role: "Teacher", className: "Nursery", qualification: "M.A. English, B.Ed", phone: "+91 98765 43212", email: "priya.sharma@sunshine.edu", joinedOn: "2022-08-10", salary: 38000, status: "Active", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-04", name: "Sunita Sharma", role: "Teacher", className: "Nursery", qualification: "B.A., NTT", phone: "+91 98765 43213", email: "sunita.s@sunshine.edu", joinedOn: "2024-05-01", salary: 33000, status: "Active", avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-05", name: "Meera Nair", role: "Teacher", className: "LKG", qualification: "B.Sc., B.Ed", phone: "+91 98765 43214", email: "meera.nair@sunshine.edu", joinedOn: "2021-04-12", salary: 40000, status: "Active", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-06", name: "Kavita Reddy", role: "Teacher", className: "LKG", qualification: "B.A. Fine Arts", phone: "+91 98765 43215", email: "kavita.reddy@sunshine.edu", joinedOn: "2023-09-20", salary: 34000, status: "Active", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-07", name: "Rajesh Kumar", role: "Teacher", className: "UKG", qualification: "M.Sc., B.Ed", phone: "+91 98765 43216", email: "rajesh.kumar@sunshine.edu", joinedOn: "2020-02-15", salary: 42000, status: "Active", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-08", name: "Vikram Verma", role: "Teacher", className: "UKG", qualification: "B.P.Ed, B.Ed", phone: "+91 98765 43217", email: "vikram.verma@sunshine.edu", joinedOn: "2023-01-10", salary: 36000, status: "Active", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80" },
+  { id: "STF-09", name: "Ramesh Caretaker", role: "Caretaker", qualification: "Secondary School", phone: "+91 98765 43218", email: "ramesh@sunshine.edu", joinedOn: "2022-01-01", salary: 18000, status: "Active", avatar: "" },
+  { id: "STF-10", name: "Sunita Helper", role: "Helper", qualification: "Primary School", phone: "+91 98765 43219", email: "sunita.helper@sunshine.edu", joinedOn: "2023-03-01", salary: 15000, status: "Active", avatar: "" },
+];
 
 export interface Payment {
   id: string;
@@ -82,7 +129,16 @@ export interface Payment {
   invoice: string;
 }
 
-export const payments: Payment[] = [];
+export const payments: Payment[] = students.slice(0, 15).map((s, i) => ({
+  id: `PAY-${101 + i}`,
+  studentId: s.id,
+  studentName: s.name,
+  amount: s.className === "Play Group" ? 8500 : s.className === "Nursery" ? 9500 : 10500,
+  method: pick(["UPI", "Cash", "Card", "Bank Transfer"], i),
+  date: `2026-07-${String((i % 25) + 1).padStart(2, "0")}`,
+  status: i % 4 === 0 ? "Pending" : "Success",
+  invoice: `INV-2026-${1000 + i}`,
+}));
 
 export const feeStructure = [
   { className: "Play Group", tuition: 18000, transport: 6000, meals: 4500, activity: 2000 },
@@ -101,7 +157,13 @@ export interface Activity {
   notes: string;
 }
 
-export const activities: Activity[] = [];
+export const activities: Activity[] = [
+  { id: "ACT-01", className: "Play Group", topic: "Finger Painting & Color Fun", category: "Art", teacher: "Ananya Sen", date: "2026-07-25", notes: "Kids mixed primary colors with enthusiasm." },
+  { id: "ACT-02", className: "Nursery", topic: "Puppet Story: The Lion & The Mouse", category: "Story", teacher: "Miss Priya Sharma", date: "2026-07-24", notes: "Excellent listening and participation." },
+  { id: "ACT-03", className: "LKG", topic: "Clay Sculpting & Geometric Shapes", category: "Craft", teacher: "Meera Nair", date: "2026-07-23", notes: "Created clay spheres and cubes." },
+  { id: "ACT-04", className: "UKG", topic: "Alphabet & Number Treasure Hunt", category: "Learning", teacher: "Rajesh Kumar", date: "2026-07-22", notes: "High energy team building activity." },
+  { id: "ACT-05", className: "Nursery", topic: "Outdoor Sandpit & Giant Bubbles", category: "Outdoor", teacher: "Sunita Sharma", date: "2026-07-21", notes: "Motor skills exercise in playground." },
+];
 
 export interface AttendanceRow {
   studentId: string;
@@ -112,7 +174,14 @@ export interface AttendanceRow {
   outTime?: string;
 }
 
-export const attendanceToday: AttendanceRow[] = [];
+export const attendanceToday: AttendanceRow[] = students.slice(0, 20).map((s, i) => ({
+  studentId: s.id,
+  studentName: s.name,
+  className: s.className,
+  status: i % 7 === 0 ? "Absent" : i % 9 === 0 ? "Late" : "Present",
+  inTime: i % 7 === 0 ? undefined : "08:45 AM",
+  outTime: i % 7 === 0 ? undefined : "01:30 PM",
+}));
 
 export const vehicles = [
   { id: "V-01", number: "KA-05-AB-1234", driver: "Ramesh K.", capacity: 24, route: "Route A - HSR", status: "Active" },
