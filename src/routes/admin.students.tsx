@@ -23,29 +23,28 @@ function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   const loadData = () => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) {
-        const mapped: Student[] = data.map((s) => ({
-          id: s.id,
-          admissionNo: s.admissionNo || s.id,
-          name: s.name,
-          gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
-          dob: s.dob || "2022-01-01",
-          age: s.age || 3,
-          className: s.className as any,
-          section: s.section as any,
-          parent: s.parent,
-          phone: s.phone,
-          address: "Bengaluru",
-          status: "Active",
-          feesStatus: s.feeStatus === "Paid" ? "Paid" : s.feeStatus === "Partial" ? "Partial" : "Due",
-          joinedOn: s.admissionDate || new Date().toISOString().split("T")[0],
-          bloodGroup: "O+",
-          allergies: [],
-          avatar: s.avatar || "",
-        }));
-        setItemList(mapped);
-      }
+    fetchStudents().then(({ data }) => {
+      const sourceList = data && data.length > 0 ? data : [];
+      const mapped: Student[] = sourceList.map((s: any) => ({
+        id: s.id,
+        admissionNo: s.admissionNo || s.id,
+        name: s.name,
+        gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
+        dob: s.dob || "2022-01-01",
+        age: s.age || 3,
+        className: s.className as any,
+        section: s.section as any,
+        parent: typeof s.parent === "string" ? s.parent : s.parent?.name || "Parent",
+        phone: s.phone || "",
+        address: "Bengaluru",
+        status: "Active",
+        feesStatus: s.feeStatus === "Paid" ? "Paid" : s.feeStatus === "Partial" ? "Partial" : "Due",
+        joinedOn: s.admissionDate || new Date().toISOString().split("T")[0],
+        bloodGroup: "O+",
+        allergies: [],
+        avatar: s.avatar || "",
+      }));
+      setItemList(mapped);
     });
   };
 

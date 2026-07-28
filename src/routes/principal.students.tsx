@@ -29,37 +29,36 @@ function StudentsPage() {
   const [selected, setSelected] = useState<Student | null>(null);
 
   const loadData = () => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) {
-        const mapped: Student[] = data.map((s) => ({
-          id: s.id,
-          admissionNo: s.admissionNo || s.id,
-          name: s.name,
-          gender: s.gender === "Girl" ? "Female" : "Male",
-          className: s.className,
-          section: s.section || "A",
-          rollNo: s.rollNo || 0,
-          dob: s.dob || "2022-01-01",
-          bloodGroup: "O+",
-          address: "Bengaluru",
-          parent: {
-            name: s.parent || "Parent",
-            phone: s.phone || "",
-            email: "parent@school.com",
-            occupation: "Service",
-          },
-          academic: {
-            term: "Term 1",
-            average: 85,
-            rank: 1,
-            remarks: "Good performance",
-          },
-          attendance: { present: 95, absent: 5, late: 0, total: 100 },
-          teacherRemarks: "Active in class",
-          avatarSeed: s.name,
-        }));
-        setItems(mapped);
-      }
+    fetchStudents().then(({ data }) => {
+      const sourceList = data && data.length > 0 ? data : (seedStudents as any);
+      const mapped: Student[] = sourceList.map((s: any) => ({
+        id: s.id,
+        admissionNo: s.admissionNo || s.id,
+        name: s.name,
+        gender: s.gender === "Girl" ? "Female" : s.gender || "Male",
+        className: s.className || "Nursery",
+        section: s.section || "A",
+        rollNo: s.rollNo || 0,
+        dob: s.dob || "2022-01-01",
+        bloodGroup: "O+",
+        address: "Bengaluru",
+        parent: {
+          name: typeof s.parent === "string" ? s.parent : s.parent?.name || "Parent",
+          phone: s.phone || (typeof s.parent === "object" ? s.parent?.phone : "") || "",
+          email: "parent@school.com",
+          occupation: "Service",
+        },
+        academic: {
+          term: "Term 1",
+          average: 85,
+          rank: 1,
+          remarks: "Good performance",
+        },
+        attendance: { present: 95, absent: 5, late: 0, total: 100 },
+        teacherRemarks: "Active in class",
+        avatarSeed: s.name,
+      }));
+      setItems(mapped);
     });
   };
 

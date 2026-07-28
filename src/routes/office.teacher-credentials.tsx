@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { TEACHERS, type Teacher } from "@/lib/mockData";
-import { fetchTeachers } from "@/lib/supabaseService";
+import { fetchTeachers, createTeacher } from "@/lib/supabaseService";
 import {
   listTeacherCredentials,
   getTeacherCredential,
@@ -71,8 +71,8 @@ function TeacherCredentialsPage() {
 
   const handleAddStaff = (newTeacher: Teacher) => {
     setTeachers((prev) => [newTeacher, ...prev]);
-    // Auto-generate credentials for new staff
     generateTeacherCredential(newTeacher.id, { teacher: newTeacher });
+    Promise.resolve(createTeacher(newTeacher)).catch(() => {});
     toast.success(`Staff ${newTeacher.name} added & login credentials created!`);
     setViewFor(newTeacher.id);
   };
