@@ -51,7 +51,6 @@ const nav: NavItem[] = [
   { label: "Calendar", to: "/principal/calendar", icon: Calendar },
   { label: "Inventory", to: "/principal/inventory", icon: Boxes },
   { label: "Transport", to: "/principal/transport", icon: Bus },
-  { label: "Reports", to: "/principal/reports", icon: FileBarChart },
 ];
 
 export function PrincipalSidebar({
