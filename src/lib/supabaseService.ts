@@ -128,7 +128,9 @@ function saveLocalStore<T>(key: string, item: T) {
   if (typeof window === "undefined") return;
   try {
     const current = getLocalStore<T>(key);
-    localStorage.setItem(key, JSON.stringify([item, ...current]));
+    const itemAny = item as any;
+    const filtered = itemAny?.id ? current.filter((c: any) => c.id !== itemAny.id) : current;
+    localStorage.setItem(key, JSON.stringify([item, ...filtered]));
   } catch {}
 }
 
@@ -165,6 +167,50 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
     return { data: [...uniqueLocal, ...mapped], isFromSupabase: true };
   } catch {
     return { data: localList, isFromSupabase: true };
+  }
+}
+
+export async function createInitialFeeForStudent(student: Student) {
+  try {
+    const { data: existingFees } = await fetchFees();
+    const duplicate = existingFees.find(
+      (f) =>
+        f.studentId === student.id ||
+        f.id === `F-STU-${student.id}` ||
+        (f.studentName === student.name && f.className.includes(student.className))
+    );
+    if (duplicate) {
+      return duplicate;
+    }
+
+    const CLASS_FEE_MAP: Record<string, number> = {
+      Playgroup: 8500,
+      Nursery: 9500,
+      LKG: 10500,
+      UKG: 10500,
+    };
+
+    const feeAmount = CLASS_FEE_MAP[student.className] || 9500;
+    const currentMonth = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    const dueDateStr = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    const initialFee: Fee = {
+      id: `F-STU-${student.id}`,
+      studentId: student.id,
+      studentName: student.name,
+      className: `${student.className} ${student.section || "A"}`.trim(),
+      amount: feeAmount,
+      paid: student.feeStatus === "Paid" ? feeAmount : 0,
+      dueDate: dueDateStr,
+      status: student.feeStatus === "Paid" ? "Paid" : "Pending",
+      month: currentMonth,
+    };
+
+    await saveFeeRecord(initialFee);
+    return initialFee;
+  } catch (err) {
+    console.warn("Initial fee creation notice:", err);
+    return null;
   }
 }
 
@@ -216,6 +262,11 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
   saveLocalStore<Student>("SUNSHINE_STUDENTS", formattedStudent);
   try {
     generateParentCredential(formattedStudent.id, { student: formattedStudent });
+  } catch {}
+
+  // Auto-create initial fee record for newly admitted student
+  try {
+    await createInitialFeeForStudent(formattedStudent);
   } catch {}
 
   try {
