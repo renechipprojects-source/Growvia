@@ -11,6 +11,7 @@ import { NotificationService } from "@/lib/notifications";
 import { getClassAssignments, getSubjectAssignments, type TeacherAssignment } from "@/lib/teacherContext";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Badge } from "@/components/ui/badge";
+import { saveAttendance } from "@/lib/attendanceStore";
 import { z } from "zod";
 
 const searchSchema = z.object({ a: z.string().optional() });
@@ -100,8 +101,9 @@ function Att() {
           action={
             <Button
               onClick={() => {
+                saveAttendance(cls, sec, date, state);
                 NotificationService.attendanceMarked(`${cls}-${sec}`);
-                toast.success("Attendance saved");
+                toast.success(`Attendance saved for ${cls}-${sec} (${counts.P} Present)`);
               }}
               className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full"
             >

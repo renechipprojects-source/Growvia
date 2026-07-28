@@ -188,12 +188,17 @@ function Messages() {
           <DialogHeader><DialogTitle>Send New Message</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>Recipient</Label>
+              <Label>Recipient Target</Label>
               <Select value={recipient} onValueChange={(v: any) => setRecipient(v)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Everyone (All Roles)</SelectItem>
-                  <SelectItem value="parent">Parents</SelectItem>
+                  <SelectItem value="all">Everyone (All Portals)</SelectItem>
+                  <SelectItem value="parent">All Parents</SelectItem>
+                  <SelectItem value="nursery_a">Parents of Nursery A</SelectItem>
+                  <SelectItem value="nursery_b">Parents of Nursery B</SelectItem>
+                  <SelectItem value="lkg_a">Parents of LKG A</SelectItem>
+                  <SelectItem value="ukg_a">Parents of UKG A</SelectItem>
+                  <SelectItem value="playgroup_a">Parents of Playgroup A</SelectItem>
                   <SelectItem value="teacher">Teachers</SelectItem>
                   <SelectItem value="principal">Principal</SelectItem>
                 </SelectContent>

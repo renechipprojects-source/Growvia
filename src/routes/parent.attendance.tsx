@@ -3,6 +3,8 @@ import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { useParent } from "@/lib/parentContext";
 import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
+import { useLiveAttendance } from "@/lib/attendanceStore";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/parent/attendance")({
   component: ParentAttendance,
@@ -11,19 +13,31 @@ export const Route = createFileRoute("/parent/attendance")({
 function ParentAttendance() {
   const { activeChild: CHILD } = useParent();
   const { t } = useT();
-  const days = Array.from({ length: 30 }).map((_, i) => ({
-    d: i + 1,
-    p: (i + 2) % 7 !== 0 && (i * 17) % 11 !== 0,
-  }));
-  const present = days.filter((d) => d.p).length;
-  const absent = days.length - present;
-  const pct = Math.round((present / days.length) * 100);
+  const { attendance: liveRecords } = useLiveAttendance(CHILD.id);
+
+  // Combine live saved records with fallback monthly attendance days
+  const baseDays = Array.from({ length: 30 }).map((_, i) => {
+    const dayStr = `2026-07-${String(i + 1).padStart(2, "0")}`;
+    const live = liveRecords.find((r) => r.date === dayStr);
+    const isPresent = live ? (live.status === "P" || live.status === "L") : ((i + 2) % 7 !== 0 && (i * 17) % 11 !== 0);
+    const statusText = live ? (live.status === "P" ? "Present" : live.status === "A" ? "Absent" : live.status === "L" ? "Late" : "Leave") : (isPresent ? "Present" : "Absent");
+    return {
+      d: i + 1,
+      date: dayStr,
+      p: isPresent,
+      statusText,
+    };
+  });
+
+  const present = baseDays.filter((d) => d.p).length;
+  const absent = baseDays.length - present;
+  const pct = Math.round((present / baseDays.length) * 100);
 
   return (
     <div>
       <PageHeader
         title={t("att.title")}
-        subtitle={`${CHILD.name} · ${CHILD.attendance}${t("att.termSuffix")}`}
+        subtitle={`${CHILD.name} · ${CHILD.className}-${CHILD.section} · ${pct}% Attendance`}
         action={<ChildSwitcher />}
       />
 
@@ -42,16 +56,17 @@ function ParentAttendance() {
         </div>
         <div className="rounded-3xl bg-white/70 border border-white/60 p-5 shadow">
           <div className="text-xs uppercase tracking-widest text-muted-foreground">{t("att.total")}</div>
-          <div className="text-3xl font-bold mt-1">{days.length}</div>
+          <div className="text-3xl font-bold mt-1">{baseDays.length}</div>
         </div>
       </div>
 
       <SectionCard title={t("att.thisMonth")}>
         <div className="grid grid-cols-7 gap-1.5 text-xs">
-          {days.map((d) => (
+          {baseDays.map((d) => (
             <div
               key={d.d}
-              className={`aspect-square rounded-lg grid place-items-center ${d.p ? "bg-pink-500 text-white" : "bg-slate-200 text-slate-500"}`}
+              title={`${d.date}: ${d.statusText}`}
+              className={`aspect-square rounded-lg grid place-items-center font-medium ${d.p ? "bg-pink-500 text-white" : "bg-rose-100 text-rose-700"}`}
             >
               {d.d}
             </div>
@@ -63,7 +78,7 @@ function ParentAttendance() {
             {t("att.presentLegend")}
           </div>
           <div className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-slate-200" />
+            <span className="h-3 w-3 rounded bg-rose-100 border border-rose-300" />
             {t("att.absentLegend")}
           </div>
         </div>
@@ -72,22 +87,16 @@ function ParentAttendance() {
       <div className="mt-4">
         <SectionCard title={t("att.daily")}>
           <ul className="divide-y">
-            {days
+            {baseDays
               .slice()
               .reverse()
               .slice(0, 10)
               .map((d) => (
                 <li key={d.d} className="flex items-center justify-between py-2 text-sm">
-                  <span className="text-slate-700">{t("att.dayN", { n: d.d })}</span>
-                  <span
-                    className={
-                      d.p
-                        ? "text-emerald-600 font-medium"
-                        : "text-rose-600 font-medium"
-                    }
-                  >
-                    {d.p ? t("status.present") : t("status.absent")}
-                  </span>
+                  <span className="text-slate-700 font-medium">July {d.d}, 2026</span>
+                  <Badge className={d.p ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}>
+                    {d.statusText}
+                  </Badge>
                 </li>
               ))}
           </ul>

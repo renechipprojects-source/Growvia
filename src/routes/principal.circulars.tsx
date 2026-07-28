@@ -31,23 +31,22 @@ function CircularsPage() {
   const [items, setItems] = useState<Circular[]>([]);
 
   useEffect(() => {
-    fetchCirculars().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) {
-        const mapped: Circular[] = data.map((d) => ({
-          id: d.id || `C-${Math.random()}`,
-          title: d.title,
-          subject: d.title,
-          description: d.content,
-          priority: "Medium",
-          publishDate: d.published_date,
-          expiryDate: d.published_date,
-          recipients: ["Parents", "Teachers"],
-          status: "Published",
-          createdAt: d.published_date,
-          history: [{ at: d.published_date, action: "Published from Supabase" }],
-        }));
-        setItems(mapped);
-      }
+    fetchCirculars().then(({ data }) => {
+      const source = data && data.length > 0 ? data : [];
+      const mapped: Circular[] = source.map((d: any) => ({
+        id: d.id || `C-${Math.random()}`,
+        title: d.title,
+        subject: d.title,
+        description: d.content || d.description,
+        priority: d.priority || "Medium",
+        publishDate: d.published_date || d.publishDate || new Date().toISOString().slice(0, 10),
+        expiryDate: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        recipients: d.recipients || ["Parents", "Teachers"],
+        status: (d.status as any) || "Published",
+        createdAt: d.published_date || d.createdAt || new Date().toISOString(),
+        history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
+      }));
+      setItems(mapped.length > 0 ? mapped : initialCirculars);
     });
   }, []);
 

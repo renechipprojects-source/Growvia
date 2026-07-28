@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
+import { generateParentCredential } from "./credentials";
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
 export interface Circular {
@@ -203,6 +204,9 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
 
   // Always save locally first so user never experiences data loss or stuck UI
   saveLocalStore<Student>("SUNSHINE_STUDENTS", formattedStudent);
+  try {
+    generateParentCredential(formattedStudent.id, { student: formattedStudent });
+  } catch {}
 
   try {
     const { data, error } = await supabase.from("students").insert([payload]).select();
