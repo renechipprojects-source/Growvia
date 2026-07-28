@@ -38,7 +38,7 @@ export function FilterBar({
   hideExport?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl">
+    <Card className="rounded-2xl w-full max-w-none">
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
         <div className="relative min-w-0 flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -105,8 +105,8 @@ export function DataTable({
   return (
     <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto max-h-[58vh] sm:max-h-[62vh]">
-          <Table className="w-full">
+        <div className="min-h-0 flex-1 overflow-auto max-h-[58vh] sm:max-h-[62vh] w-full">
+          <Table className="w-full min-w-full">
             <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm">
               <TableRow>
                 {columns.map((c) => (
