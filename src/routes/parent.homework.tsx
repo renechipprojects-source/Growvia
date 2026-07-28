@@ -6,6 +6,8 @@ import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Info } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
+import { useLiveHomework } from "@/lib/homeworkStore";
+
 export const Route = createFileRoute("/parent/homework")({
   component: ParentHomework,
 });
@@ -13,7 +15,8 @@ export const Route = createFileRoute("/parent/homework")({
 function ParentHomework() {
   const { t } = useT();
   const q = useSearchQuery();
-  const items = HOMEWORK.filter((h) => matchesSearch(q, h.title, h.subject, h.className));
+  const { homeworkList } = useLiveHomework();
+  const items = homeworkList.filter((h) => matchesSearch(q, h.title, h.subject, h.className));
   const matchLabel = q
     ? ` · ${items.length === 1 ? t("hw.matchOne", { n: items.length }) : t("hw.matchMany", { n: items.length })}`
     : "";

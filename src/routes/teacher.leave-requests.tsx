@@ -9,8 +9,10 @@ import { toast } from "sonner";
 import { NotificationService } from "@/lib/notifications";
 
 
+import { useLeave } from "@/lib/leaveContext";
+
 interface Req {
-  id: number;
+  id: string;
   student: string;
   className: string;
   parent: string;
@@ -22,27 +24,42 @@ interface Req {
 }
 
 const SEED: Req[] = [
-  { id: 1, student: "Diya Patel", className: "Nursery", parent: "Neha Patel", from: "2026-07-24", to: "2026-07-26", reason: "Family wedding out of town", status: "Pending" },
-  { id: 2, student: "Aarav Sharma", className: "Nursery", parent: "Rohit Sharma", from: "2026-07-23", to: "2026-07-23", reason: "Doctor's appointment", status: "Pending" },
-  { id: 3, student: "Kiara Reddy", className: "Nursery", parent: "Sneha Reddy", from: "2026-07-18", to: "2026-07-19", reason: "Fever & cold", status: "Approved", remarks: "Get well soon!" },
+  { id: "LV-101", student: "Diya Patel", className: "Nursery A", parent: "Neha Patel", from: "2026-07-24", to: "2026-07-26", reason: "Family wedding out of town", status: "Pending" },
+  { id: "LV-102", student: "Aarav Sharma", className: "Nursery A", parent: "Rohit Sharma", from: "2026-07-23", to: "2026-07-23", reason: "Doctor's appointment", status: "Pending" },
+  { id: "LV-103", student: "Kiara Reddy", className: "Nursery A", parent: "Sneha Reddy", from: "2026-07-18", to: "2026-07-19", reason: "Fever & cold", status: "Approved", remarks: "Get well soon!" },
 ];
 
 export const Route = createFileRoute("/teacher/leave-requests")({ component: LeaveRequests });
 
 function LeaveRequests() {
-  const [reqs, setReqs] = useState<Req[]>(SEED);
-  const [remarks, setRemarks] = useState<Record<number, string>>({});
+  const { requests: liveRequests, setStatus: updateContextStatus } = useLeave();
+  const [remarks, setRemarks] = useState<Record<string, string>>({});
+  const [localStatuses, setLocalStatuses] = useState<Record<string, "Approved" | "Rejected">>({});
 
-  const act = (id: number, status: "Approved" | "Rejected") => {
-    const req = reqs.find((r) => r.id === id);
-    setReqs((rs) => rs.map((r) => (r.id === id ? { ...r, status, remarks: remarks[id] } : r)));
+  const allReqs: Req[] = [
+    ...liveRequests.map((r) => ({
+      id: r.id,
+      student: r.studentName,
+      className: `${r.className}-${r.section}`,
+      parent: `${r.studentName}'s Parent`,
+      from: r.from,
+      to: r.to,
+      reason: r.reason,
+      status: (localStatuses[r.id] ?? r.status) as any,
+    })),
+    ...SEED,
+  ];
+
+  const act = (id: string, status: "Approved" | "Rejected") => {
+    const req = allReqs.find((r) => r.id === id);
+    setLocalStatuses((s) => ({ ...s, [id]: status }));
+    updateContextStatus(id, status);
     if (req) NotificationService.leaveDecision(req.student, status);
-    toast.success(`Leave ${status.toLowerCase()}`);
+    toast.success(`Leave ${status.toLowerCase()} for ${req?.student ?? "student"}`);
   };
 
-
-  const pending = reqs.filter((r) => r.status === "Pending");
-  const decided = reqs.filter((r) => r.status !== "Pending");
+  const pending = allReqs.filter((r) => r.status === "Pending");
+  const decided = allReqs.filter((r) => r.status !== "Pending");
 
   return (
     <div>
@@ -55,11 +72,11 @@ function LeaveRequests() {
         </div>
         <div className="rounded-3xl bg-white/70 border border-white/60 p-3 sm:p-5 shadow">
           <div className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground">Approved</div>
-          <div className="text-2xl sm:text-3xl font-bold mt-1 text-emerald-600">{reqs.filter((r) => r.status === "Approved").length}</div>
+          <div className="text-2xl sm:text-3xl font-bold mt-1 text-emerald-600">{allReqs.filter((r) => r.status === "Approved").length}</div>
         </div>
         <div className="rounded-3xl bg-white/70 border border-white/60 p-3 sm:p-5 shadow">
           <div className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground">Rejected</div>
-          <div className="text-2xl sm:text-3xl font-bold mt-1 text-rose-600">{reqs.filter((r) => r.status === "Rejected").length}</div>
+          <div className="text-2xl sm:text-3xl font-bold mt-1 text-rose-600">{allReqs.filter((r) => r.status === "Rejected").length}</div>
         </div>
       </div>
 

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { initialCirculars, ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
 import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
-import { NotificationService } from "@/lib/notifications";
+import { NotificationService, type Role } from "@/lib/notifications";
 
 export const Route = createFileRoute("/principal/circulars")({
   head: () => ({
@@ -104,20 +104,54 @@ function CircularsPage() {
     toast.success("Circular archived");
   };
 
+  const mapRecipientsToRoles = (recipients: string[]): Role[] => {
+    const roles: Role[] = [];
+    if (recipients.includes("Parents") || recipients.includes("Students & Parents")) roles.push("parent");
+    if (recipients.includes("Teachers")) roles.push("teacher");
+    if (recipients.includes("Office Staff") || recipients.includes("Office")) roles.push("office");
+    if (recipients.includes("Admin") || recipients.includes("Principal")) roles.push("principal", "super-admin");
+    return roles.length > 0 ? roles : ["parent", "teacher", "office", "principal", "super-admin"];
+  };
+
+  const syncCircularToAlerts = (c: Circular) => {
+    try {
+      const KEY = "sunshine.alerts.v1";
+      const raw = localStorage.getItem(KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      const newAlert = {
+        id: `AL-${c.id}`,
+        title: c.title,
+        description: c.description || c.subject,
+        priority: c.priority === "High" ? "Urgent" : c.priority,
+        publishDate: c.publishDate || new Date().toISOString().slice(0, 10),
+        expiryDate: c.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        audience: c.recipients.includes("Parents") && c.recipients.includes("Teachers") ? "both" : c.recipients.includes("Teachers") ? "teachers" : "office",
+        createdAt: new Date().toISOString(),
+        readBy: [],
+      };
+      if (!list.some((x: any) => x.id === newAlert.id)) {
+        list.unshift(newAlert);
+        localStorage.setItem(KEY, JSON.stringify(list));
+      }
+    } catch {}
+  };
+
   const publish = async (c: Circular) => {
     upsert({ ...c, status: "Published" }, "Published");
-    NotificationService.circularPublished(c.title);
+    const targetRoles = mapRecipientsToRoles(c.recipients);
+    NotificationService.circularPublished(c.title, targetRoles);
+    syncCircularToAlerts(c);
     try {
       await createCircular({
         title: c.title,
         content: c.description || c.subject,
-        target_audience: c.recipients.includes("Parents") ? "Parents" : c.recipients.includes("Teachers") ? "Teachers" : "All",
+        target_audience: (c.recipients.includes("Parents") ? "Parents" : c.recipients.includes("Teachers") ? "Teachers" : "All") as any,
         published_date: new Date().toISOString().split("T")[0],
         author: "Principal Office",
       });
-      toast.success("Circular published to selected recipients and saved to Supabase!");
+      toast.success("Circular published to selected recipients!");
     } catch {
-      toast.success("Circular published to selected recipients");
+      toast.success("Circular published to selected recipients!");
     }
   };
 
@@ -226,7 +260,9 @@ function CircularsPage() {
         onSave={(c, action) => {
           upsert(c, action);
           if (c.status === "Published" || action.toLowerCase().includes("publish")) {
-            NotificationService.circularPublished(c.title);
+            const targetRoles = mapRecipientsToRoles(c.recipients);
+            NotificationService.circularPublished(c.title, targetRoles);
+            syncCircularToAlerts(c);
           }
           toast.success(action);
           setMode(null);

@@ -1,6 +1,7 @@
 // Centralized live notification service with role-based filtering, subscribe/emit,
 // LocalStorage persistence, live Supabase sync, and zero mock data.
 import type { Role } from "./roleConfig";
+export type { Role };
 
 export type NotificationPriority = "low" | "medium" | "high";
 export type NotificationModule =
@@ -404,12 +405,14 @@ export const NotificationService = {
       link: "/office/password-resets",
     });
   },
-  circularPublished(title: string) {
+  circularPublished(title: string, roles?: Role[]) {
+    const defaultRoles: Role[] = ["parent", "teacher", "office", "principal", "super-admin"];
+    const targetRoles: Role[] = roles && roles.length > 0 ? roles : defaultRoles;
     notify({
       title: `New Circular: ${title}`,
       description: `Principal published a new circular: "${title}"`,
       module: "announcement",
-      roles: ["parent", "teacher", "office", "principal", "super-admin"],
+      roles: targetRoles,
       priority: "high",
     });
   },
