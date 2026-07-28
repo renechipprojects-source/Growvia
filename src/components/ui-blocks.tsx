@@ -39,7 +39,7 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("rounded-3xl border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 p-5", className)}>
+    <Card className={cn("w-full max-w-none rounded-3xl border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 p-5", className)}>
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-semibold">{title}</h3>
         {action}

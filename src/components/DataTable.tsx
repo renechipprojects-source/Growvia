@@ -53,7 +53,7 @@ export function DataTable<T>({
   });
 
   return (
-    <div className={cn("flex flex-col gap-3", fillParent && "h-full min-h-0")}>
+    <div className={cn("w-full max-w-none flex flex-col gap-3", fillParent && "h-full min-h-0")}>
       {searchKey && (
         <div className="relative max-w-sm shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
