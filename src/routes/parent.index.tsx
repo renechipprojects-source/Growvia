@@ -8,6 +8,9 @@ import { useParent } from "@/lib/parentContext";
 import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
 
+import { useEffect, useState } from "react";
+import { fetchFees, type Fee } from "@/lib/supabaseService";
+
 export const Route = createFileRoute("/parent/")({ component: Dash });
 
 function Dash() {
@@ -15,6 +18,16 @@ function Dash() {
   const { activeChild: child, children, household, setActiveChildId } = useParent();
   const parentFirstName = household.primaryContact.split(" ")[0];
 
+  const [feeRecord, setFeeRecord] = useState<Fee | null>(null);
+
+  useEffect(() => {
+    fetchFees().then(({ data }) => {
+      const match = data.find((f) => f.studentId === child.id || f.studentName === child.name);
+      if (match) setFeeRecord(match);
+    });
+  }, [child]);
+
+  const dueAmount = feeRecord ? Math.max(0, (feeRecord.amount ?? 8500) - (feeRecord.paid ?? 0)) : 8500;
   const childHW = HOMEWORK.filter((h) => h.className === child.className && (!h.section || h.section === child.section));
   const className = t(`className.${child.className}`, child.className);
 
@@ -69,7 +82,7 @@ function Dash() {
         <StatCard label={t("dash.attendance")} value={`${child.attendance}%`} icon={UserCheck} gradient="from-pink-500 to-fuchsia-500" />
         <StatCard label={t("dash.homework")} value={childHW.length} icon={BookOpen} gradient="from-fuchsia-500 to-purple-500" sub={t("dash.homeworkActive")} />
         <StatCard label={t("dash.todaysDiary")} value="1" icon={NotebookPen} gradient="from-purple-500 to-pink-500" sub={t("dash.todaysDiaryJustNow")} />
-        <StatCard label={t("dash.feeDue")} value="₹8,500" icon={DollarSign} gradient="from-rose-500 to-pink-500" sub={t("dash.feeDueSub")} />
+        <StatCard label={t("dash.feeDue")} value={`₹${dueAmount.toLocaleString()}`} icon={DollarSign} gradient="from-rose-500 to-pink-500" sub={t("dash.feeDueSub")} />
         <StatCard label={t("dash.recentPhotos")} value={GALLERY.length} icon={ImageIcon} gradient="from-pink-400 to-purple-400" />
       </div>
 

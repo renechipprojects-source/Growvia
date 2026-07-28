@@ -21,24 +21,36 @@ const Ctx = createContext<ParentState | null>(null);
 
 const STORAGE_KEY = "sunshine.parent.activeChildId";
 
+import { getSession } from "./auth";
+
 export function ParentProvider({ children }: { children: ReactNode }) {
+  const session = getSession();
   const household = useMemo(() => pickDemoHousehold(), []);
-  const [kidsList, setKidsList] = useState<Student[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     fetchStudents().then(({ data, isFromSupabase }) => {
       if (isFromSupabase && data.length > 0) {
-        setKidsList(data as any);
+        setAllStudents(data as any);
       }
     });
   }, []);
 
-  const fallbackKids = useMemo(
-    () => household.childrenIds.map((id) => STUDENTS.find((s) => s.id === id)!).filter(Boolean),
-    [household],
-  );
-
-  const kids = kidsList.length > 0 ? kidsList : fallbackKids;
+  const kids = useMemo(() => {
+    const source = allStudents.length > 0 ? allStudents : STUDENTS;
+    if (session?.role === "parent") {
+      const matching = source.filter(
+        (s) =>
+          s.id === session.linkId ||
+          s.parentId === session.linkId ||
+          (session.name && s.parent && s.parent.toLowerCase() === session.name.toLowerCase()) ||
+          (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, "")))
+      );
+      if (matching.length > 0) return matching;
+    }
+    const fallbackList = household.childrenIds.map((id) => source.find((s) => s.id === id)!).filter(Boolean);
+    return fallbackList.length > 0 ? fallbackList : [source[0]];
+  }, [allStudents, session, household]);
 
   const [activeId, setActiveId] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -54,7 +66,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     }
   }, [activeId]);
 
-  const active = kids.find((k) => k.id === activeId) ?? kids[0] ?? fallbackKids[0];
+  const active = kids.find((k) => k.id === activeId) ?? kids[0];
 
   const value: ParentState = {
     household,
