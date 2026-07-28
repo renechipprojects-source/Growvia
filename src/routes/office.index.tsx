@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
-import { fetchStudents, fetchEnquiries } from "@/lib/supabaseService";
-import { Users, ClipboardCheck, Bell } from "lucide-react";
+import { fetchStudents, fetchEnquiries, fetchFees } from "@/lib/supabaseService";
+import { Users, ClipboardCheck, Bell, CreditCard } from "lucide-react";
 import { useAlerts } from "@/lib/alertsContext";
 
 export const Route = createFileRoute("/office/")({ component: Dash });
@@ -20,6 +20,7 @@ function Dash() {
   const alerts = liveFor("office");
   const [totalStudents, setTotalStudents] = useState(0);
   const [totalEnquiries, setTotalEnquiries] = useState(0);
+  const [totalFees, setTotalFees] = useState(0);
 
   useEffect(() => {
     fetchStudents().then(({ data, isFromSupabase }) => {
@@ -27,6 +28,9 @@ function Dash() {
     });
     fetchEnquiries().then(({ data, isFromSupabase }) => {
       if (isFromSupabase) setTotalEnquiries(data.length);
+    });
+    fetchFees().then(({ data, isFromSupabase }) => {
+      if (isFromSupabase) setTotalFees(data.length);
     });
   }, []);
 
@@ -36,7 +40,7 @@ function Dash() {
         title="Office Command Center"
         subtitle="Focused on admissions and administrative work."
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Students"
           value={totalStudents}
@@ -52,10 +56,17 @@ function Dash() {
           sub="In admission pipeline"
         />
         <StatCard
+          label="Fee Ledgers"
+          value={totalFees}
+          icon={CreditCard}
+          gradient="from-emerald-500 to-teal-500"
+          sub="Active fee records"
+        />
+        <StatCard
           label="Active alerts"
           value={alerts.length}
           icon={Bell}
-          gradient="from-indigo-500 to-blue-500"
+          gradient="from-indigo-500 to-purple-500"
           sub="From the Principal"
         />
       </div>
