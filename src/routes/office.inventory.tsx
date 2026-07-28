@@ -278,7 +278,7 @@ function ItemsTab() {
       </Button>
     }>
       <div className="flex flex-wrap gap-2 mb-3">
-        <Input placeholder="Search item or SKU..." value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <Input placeholder="Search by Item Name or Item Code (SKU)..." value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         <Select value={cat} onValueChange={setCat}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
