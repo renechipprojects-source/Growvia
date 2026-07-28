@@ -73,7 +73,7 @@ export function DataTable<T>({
       >
         <div className={cn(fillParent ? "flex-1 min-h-0 overflow-auto" : "overflow-x-auto")}>
           <table className="w-full text-sm">
-            <thead className={cn("bg-white/80 text-left", fillParent && "sticky top-0 z-10 backdrop-blur")}>
+            <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-md text-left shadow-sm">
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
                   {hg.headers.map((h) => (

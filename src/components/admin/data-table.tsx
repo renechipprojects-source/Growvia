@@ -107,7 +107,7 @@ export function DataTable({
       <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto w-full">
           <Table className="w-full min-w-full">
-            <TableHeader className="sticky top-0 z-10 bg-muted/90 backdrop-blur-md">
+            <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md shadow-sm">
               <TableRow>
                 {columns.map((c) => (
                   <TableHead key={c} className="whitespace-nowrap py-3.5 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
