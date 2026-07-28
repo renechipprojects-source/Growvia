@@ -96,19 +96,21 @@ function StudentsPage() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader
-        title="Students"
-        description="Manage profiles and student records."
-        actions={
-          <Button variant="outline" size="sm" onClick={handleAutoAssignRollNumbers} className="gap-2">
-            <SortAsc className="h-4 w-4" />
-            Auto-Assign Alphabetical Roll No
-          </Button>
-        }
-      />
+      <div className="shrink-0">
+        <PageHeader
+          title="Students"
+          description="Manage student profiles, enrollment, and health records."
+          actions={
+            <Button variant="outline" size="sm" onClick={handleAutoAssignRollNumbers} className="gap-2">
+              <SortAsc className="h-4 w-4" />
+              Auto-Assign Alphabetical Roll No
+            </Button>
+          }
+        />
+      </div>
 
-      <div className="shrink-0 space-y-4">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="shrink-0 space-y-3 mt-2">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Total Students" value={itemList.length} icon={<UserRound className="h-5 w-5" />} />
           <StatCard label="Active" value={active} tone="success" icon={<UserRound className="h-5 w-5" />} />
           <StatCard label="Inactive" value={inactive} tone="warning" icon={<UserRound className="h-5 w-5" />} />
@@ -130,7 +132,7 @@ function StudentsPage() {
         />
       </div>
 
-      <div className="mt-4 flex w-full max-w-none min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-3 flex w-full max-w-none min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
           columns={["Student", "Admission No.", "Class", "Parent", "Contact", "Fees", "Status", "Action"]}
           total={filtered.length}
