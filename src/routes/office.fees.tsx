@@ -323,16 +323,12 @@ function FeeCollection() {
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground sticky top-0 z-10 backdrop-blur">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Student Name</th>
-                <th className="text-left px-4 py-3 font-medium">Adm No.</th>
-                <th className="text-left px-4 py-3 font-medium">Class & Sec</th>
+                <th className="text-left px-4 py-3 font-medium">Class</th>
                 <th className="text-left px-4 py-3 font-medium">Total Fee</th>
-                <th className="text-left px-4 py-3 font-medium">Discount</th>
-                <th className="text-left px-4 py-3 font-medium">Final Fee</th>
-                <th className="text-left px-4 py-3 font-medium">Total Paid</th>
-                <th className="text-left px-4 py-3 font-medium">Remaining</th>
+                <th className="text-left px-4 py-3 font-medium">Paid Amount</th>
+                <th className="text-left px-4 py-3 font-medium">Pending Amount</th>
                 <th className="text-left px-4 py-3 font-medium">Installments</th>
                 <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-left px-4 py-3 font-medium">Last Payment</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -351,10 +347,7 @@ function FeeCollection() {
                 return (
                   <tr key={f.id} className="hover:bg-white/60 transition">
                     <td className="px-4 py-3 font-semibold text-slate-800">{f.studentName}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</td>
                     <td className="px-4 py-3">{f.className}</td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">₹{origFee.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-amber-700 font-medium">{discAmt > 0 ? `-₹${discAmt.toLocaleString()}` : "—"}</td>
                     <td className="px-4 py-3 font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-emerald-700">₹{paid.toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
@@ -371,7 +364,6 @@ function FeeCollection() {
                         {f.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{f.lastPaymentDate || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openEditFeeFor(f)}>
@@ -394,7 +386,7 @@ function FeeCollection() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground text-sm">
                     No student fee ledger records found matching query.
                   </td>
                 </tr>
