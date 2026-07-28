@@ -105,7 +105,7 @@ export function DataTable({
   return (
     <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto w-full">
+        <div className="min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-320px)] w-full">
           <Table className="w-full min-w-full">
             <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md shadow-sm">
               <TableRow>

@@ -66,7 +66,7 @@ export function DataTable<T>({
         </div>
       )}
       <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div className="flex-1 min-h-0 overflow-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-320px)] w-full">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-md text-left shadow-sm">
               {table.getHeaderGroups().map((hg) => (
