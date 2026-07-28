@@ -36,6 +36,9 @@ function assignmentLabel(a: TeacherAssignment) {
     : `${a.subject} · ${a.className}-${a.section}`;
 }
 
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { STUDENTS } from "@/lib/mockData";
+
 function Att() {
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -51,19 +54,28 @@ function Att() {
 
   const active =
     (activeId && assignments.find((x) => x.id === activeId)) || assignments[0];
-  // URL param that points to an unassigned entry is blocked
   if (activeId && !assignments.find((x) => x.id === activeId)) {
     throw notFound();
   }
 
   const [date, setDate] = useState("2026-07-22");
   const [localSearch, setLocalSearch] = useState("");
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+
+  useEffect(() => {
+    fetchStudents().then(({ data }) => setAllStudents(data));
+  }, []);
+
   const headerQuery = useSearchQuery();
   const q = headerQuery || localSearch;
 
   const cls = active.className as ClassName;
   const sec = active.section as Section;
-  const list = useMemo(() => studentsBy(cls, sec), [cls, sec]);
+
+  const list = useMemo(() => {
+    const source = allStudents.length > 0 ? allStudents : STUDENTS;
+    return source.filter((s) => s.className === cls && (!sec || s.section === sec));
+  }, [allStudents, cls, sec]);
 
   const seed = useMemo(() => {
     const recs = ATTENDANCE_RECORDS.filter((r) => r.date === date);
@@ -101,7 +113,7 @@ function Att() {
           action={
             <Button
               onClick={() => {
-                saveAttendance(cls, sec, date, state);
+                saveAttendance(cls, sec, date, state, list);
                 NotificationService.attendanceMarked(`${cls}-${sec}`);
                 toast.success(`Attendance saved for ${cls}-${sec} (${counts.P} Present)`);
               }}

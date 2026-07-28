@@ -28,14 +28,27 @@ export function saveAttendance(
   className: string,
   section: string,
   date: string,
-  records: Record<string, "P" | "A" | "L" | "Lv">
+  records: Record<string, "P" | "A" | "L" | "Lv">,
+  studentList?: { id: string; name: string }[]
 ) {
   const current = getStoredAttendance();
   const updatedMap = new Map(current.map((item) => [`${item.studentId}_${item.date}`, item]));
 
+  let localStudents: { id: string; name: string }[] = [];
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("SUNSHINE_STUDENTS");
+      if (raw) localStudents = JSON.parse(raw);
+    } catch {}
+  }
+
   const time = new Date().toISOString();
   Object.entries(records).forEach(([studentId, status]) => {
-    const student = STUDENTS.find((s) => s.id === studentId);
+    const student =
+      (studentList && studentList.find((s) => s.id === studentId)) ||
+      localStudents.find((s) => s.id === studentId) ||
+      STUDENTS.find((s) => s.id === studentId);
+
     const entry: StudentAttendanceEntry = {
       studentId,
       studentName: student ? student.name : studentId,

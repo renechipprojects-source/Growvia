@@ -27,10 +27,15 @@ function StatusPill({ s }: { s: "P" | "A" | "L" }) {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${map[s]}`}>{s} · {label}</span>;
 }
 
+import { useLiveAttendance } from "@/lib/attendanceStore";
+
 function StudentAttendancePage() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { attendance: liveAttendanceRecords } = useLiveAttendance(undefined, todayStr);
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
@@ -40,14 +45,18 @@ function StudentAttendancePage() {
 
   const attendanceData = useMemo(() => {
     if (studentsList.length === 0) return initialAttendance;
-    return studentsList.map((s, idx) => ({
-      id: s.id || `ATT-${idx}`,
-      name: s.name,
-      className: s.className || "Nursery",
-      section: s.section || (idx % 2 === 0 ? "A" : "B"),
-      status: (idx % 12 === 3 ? "A" : idx % 15 === 7 ? "L" : "P") as "P" | "A" | "L",
-    }));
-  }, [studentsList]);
+    return studentsList.map((s, idx) => {
+      const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
+      const st = live ? (live.status === "A" ? "A" : live.status === "L" ? "L" : "P") : "P";
+      return {
+        id: s.id || `ATT-${idx}`,
+        name: s.name,
+        className: s.className || "Nursery",
+        section: s.section || "A",
+        status: st as "P" | "A" | "L",
+      };
+    });
+  }, [studentsList, liveAttendanceRecords]);
 
   const filtered = useMemo(
     () =>

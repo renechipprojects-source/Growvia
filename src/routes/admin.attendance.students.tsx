@@ -44,11 +44,15 @@ function statusToMark(s: string): Mark {
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useEffect } from "react";
 
+import { useLiveAttendance } from "@/lib/attendanceStore";
+
 function StudentAttendancePage() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [viewingId, setViewingId] = useState<string | null>(null);
+
+  const { attendance: liveAttendanceRecords } = useLiveAttendance();
 
   useEffect(() => {
     fetchStudents().then(({ data, isFromSupabase }) => {
@@ -60,14 +64,20 @@ function StudentAttendancePage() {
 
   const attendanceData = useMemo(() => {
     const list = studentsList.length > 0 ? studentsList : students;
-    return list.map((s, idx) => ({
-      studentId: s.id,
-      studentName: s.name,
-      className: s.className || (s as any).class_name || "Nursery",
-      inTime: "08:45 AM",
-      status: idx % 7 === 0 ? "Absent" : idx % 5 === 0 ? "Late" : "Present",
-    }));
-  }, [studentsList]);
+    return list.map((s) => {
+      const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
+      const statusText = live
+        ? (live.status === "A" ? "Absent" : live.status === "L" ? "Late" : live.status === "Lv" ? "Leave" : "Present")
+        : "Present";
+      return {
+        studentId: s.id,
+        studentName: s.name,
+        className: s.className || (s as any).class_name || "Nursery",
+        inTime: live?.updatedAt ? new Date(live.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "08:45 AM",
+        status: statusText,
+      };
+    });
+  }, [studentsList, liveAttendanceRecords]);
 
   const marks: Record<string, Mark> = useMemo(
     () =>
