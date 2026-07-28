@@ -83,14 +83,9 @@ function Login() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Secure role-based access
           </div>
-          <div className="mt-6 flex items-center gap-3">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 via-fuchsia-500 to-pink-500 text-white shadow-xl">
-              <Sparkles className="h-7 w-7" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold tracking-tight text-slate-900">Sunshine Play School</div>
-              <div className="text-sm text-slate-600">Enterprise Resource Planning</div>
-            </div>
+          <div className="mt-6">
+            <div className="text-2xl font-bold tracking-tight text-slate-900">Sunshine Play School</div>
+            <div className="text-sm text-slate-600">Enterprise Resource Planning</div>
           </div>
           <h1 className="mt-8 text-4xl font-bold tracking-tight text-slate-900">
             Welcome back to Sunshine ERP
@@ -108,11 +103,8 @@ function Login() {
 
         {/* Login form */}
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-6 flex items-center justify-center gap-2 lg:hidden">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 via-fuchsia-500 to-pink-500 text-white shadow">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div className="text-lg font-bold tracking-tight">Sunshine ERP</div>
+          <div className="mb-6 flex items-center justify-center lg:hidden">
+            <div className="text-lg font-bold tracking-tight text-slate-900">Sunshine ERP</div>
           </div>
           <Card className="rounded-3xl border-white/60 bg-white/90 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl sm:p-8">
             <div className="text-xl font-bold text-slate-900">Sign in</div>

@@ -8,10 +8,12 @@ import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext
 
 import { useEffect, useState } from "react";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { useLiveActivities } from "@/lib/activitiesStore";
 
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
+  const { activities: liveActivities } = useLiveActivities();
   const classAssignments = getClassAssignments();
   const subjectAssignments = getSubjectAssignments();
   const primaryClass = classAssignments[0];
@@ -195,7 +197,7 @@ function Dash() {
       <div className="mt-6 grid lg:grid-cols-2 gap-4">
         <SectionCard title="Recent activities">
           <div className="grid grid-cols-2 gap-3">
-            {ACTIVITIES.slice(0, 4).map((a) => (
+            {liveActivities.slice(0, 4).map((a) => (
               <div key={a.id} className="rounded-2xl overflow-hidden bg-white shadow-sm">
                 <img src={a.cover} className="h-24 w-full object-cover" alt="" />
                 <div className="p-2 text-sm font-medium truncate">{a.title}</div>

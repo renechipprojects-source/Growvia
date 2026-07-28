@@ -215,7 +215,7 @@ function RoleShellInner({ role }: { role: Role }) {
               <div className="font-semibold truncate">{theme.subtitle}</div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-3 justify-end">
-              {!isDashboard && (
+              {!isDashboard && role !== "teacher" && (
               <div className="relative hidden md:block">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -226,7 +226,7 @@ function RoleShellInner({ role }: { role: Role }) {
                 />
               </div>
               )}
-              <SupabaseStatus />
+              {role !== "teacher" && <SupabaseStatus />}
               <NotificationPanel role={role} />
               <Badge className={cn("hidden sm:inline-flex", theme.chip)}>
                 <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
@@ -241,7 +241,7 @@ function RoleShellInner({ role }: { role: Role }) {
           </header>
 
           {/* Mobile search row */}
-          {!isDashboard && (
+          {!isDashboard && role !== "teacher" && (
           <div className="md:hidden mb-3 relative shrink-0">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
