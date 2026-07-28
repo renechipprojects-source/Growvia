@@ -259,7 +259,7 @@ function RoleShellInner({ role }: { role: Role }) {
             own list/table scroll — the outer overflow-y-auto only kicks in
             for legacy pages whose content exceeds the available height.
           */}
-          <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden w-full max-w-none">
             <Outlet />
           </div>
         </main>

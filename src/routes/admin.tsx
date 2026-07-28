@@ -23,7 +23,7 @@ function AdminLayout() {
         <AppSidebar />
         <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
           <TopNav />
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 sm:px-6 py-5 w-full max-w-none">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 sm:px-6 py-5 w-full max-w-none">
             <Outlet />
           </main>
         </SidebarInset>

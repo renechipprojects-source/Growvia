@@ -38,16 +38,16 @@ function PrincipalLayout() {
 
   return (
     <InventoryProvider>
-      <div className="principal-shell min-h-screen flex bg-background">
+      <div className="principal-shell h-screen flex overflow-hidden bg-background">
         <PrincipalSidebar
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
         />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           <PrincipalHeader onMenu={() => setMobileOpen(true)} title={title} />
-          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden w-full max-w-none">
+          <main className="flex-1 flex flex-col min-h-0 p-4 md:p-6 lg:p-8 overflow-hidden w-full max-w-none">
             <Outlet />
           </main>
         </div>
