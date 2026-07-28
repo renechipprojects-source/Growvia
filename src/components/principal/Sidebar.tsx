@@ -97,26 +97,26 @@ export function PrincipalSidebar({
       )}
       <aside
         className={cn(
-          "fixed z-50 inset-y-0 left-0 bg-white/85 backdrop-blur-xl text-slate-800 border-r border-white/60 shadow-md flex flex-col transition-[transform,width] duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+          "fixed z-50 inset-y-0 left-0 bg-white/95 backdrop-blur-xl text-slate-800 border-r border-slate-200/90 shadow-sm flex flex-col transition-[transform,width] duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
           isCompact ? "w-20" : "w-72",
         )}
       >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
+        <div className="flex items-center justify-between px-4 h-16 border-b border-slate-200/80">
           <div className={cn("flex items-center gap-2.5 min-w-0", isCompact && "justify-center w-full")}>
-            <div className="w-9 h-9 shrink-0 rounded-lg gradient-primary flex items-center justify-center shadow-lg">
-              <School className="w-5 h-5 text-primary-foreground" />
+            <div className="w-9 h-9 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md">
+              <School className="w-5 h-5 text-white" />
             </div>
             {!isCompact && (
               <div className="min-w-0">
-                <div className="text-sm font-semibold leading-tight truncate">Bright Bloom</div>
-                <div className="text-[11px] text-sidebar-foreground/60 leading-tight">Principal Portal</div>
+                <div className="text-sm font-bold text-slate-900 leading-tight truncate">Bright Bloom</div>
+                <div className="text-[11px] font-medium text-slate-500 leading-tight">Principal Portal</div>
               </div>
             )}
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-md hover:bg-sidebar-accent"
+            className="lg:hidden p-1.5 rounded-md text-slate-600 hover:bg-slate-100"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -141,25 +141,25 @@ export function PrincipalSidebar({
                     }}
                     title={isCompact ? item.label : undefined}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                       isCompact ? "justify-center" : "justify-between",
                       activeGroup
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60",
+                        ? "bg-indigo-50 text-indigo-700 font-semibold shadow-xs"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
                     )}
                   >
                     <span className={cn("flex items-center gap-3", isCompact && "justify-center")}>
-                      <Icon className="w-[18px] h-[18px] shrink-0" />
+                      <Icon className={cn("w-[18px] h-[18px] shrink-0", activeGroup ? "text-indigo-600" : "text-slate-600")} />
                       {!isCompact && item.label}
                     </span>
                     {!isCompact && (
                       <ChevronDown
-                        className={cn("w-4 h-4 transition-transform", attendanceOpen && "rotate-180")}
+                        className={cn("w-4 h-4 text-slate-500 transition-transform", attendanceOpen && "rotate-180")}
                       />
                     )}
                   </button>
                   {attendanceOpen && !isCompact && (
-                    <div className="mt-1 ml-9 space-y-0.5 border-l border-sidebar-border pl-3">
+                    <div className="mt-1 ml-9 space-y-0.5 border-l border-slate-200 pl-3">
                       {item.children.map((c) => {
                         const active = pathname === c.to;
                         return (
@@ -168,10 +168,10 @@ export function PrincipalSidebar({
                             to={c.to}
                             onClick={onClose}
                             className={cn(
-                              "block px-3 py-2 rounded-md text-sm transition-colors",
+                              "block px-3 py-2 rounded-lg text-sm transition-all",
                               active
-                                ? "bg-sidebar-primary/20 text-sidebar-primary-foreground font-medium"
-                                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60",
+                                ? "bg-indigo-50 text-indigo-700 font-bold"
+                                : "text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900",
                             )}
                           >
                             {c.label}
@@ -191,51 +191,51 @@ export function PrincipalSidebar({
                 onClick={onClose}
                 title={isCompact ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
                   isCompact && "justify-center",
                   active
-                    ? "bg-sidebar-primary/20 text-white shadow-inner"
-                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60",
+                    ? "bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600 shadow-xs"
+                    : "text-slate-700 font-medium hover:bg-slate-100 hover:text-slate-900",
                 )}
               >
-                <Icon className="w-[18px] h-[18px] shrink-0" />
+                <Icon className={cn("w-[18px] h-[18px] shrink-0", active ? "text-indigo-600" : "text-slate-600")} />
                 {!isCompact && item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border space-y-1">
+        <div className="p-3 border-t border-slate-200/80 space-y-1">
           <button
             onClick={handleLogout}
             title={isCompact ? "Sign out" : undefined}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/85 hover:bg-destructive/20 hover:text-white transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition-all",
               isCompact && "justify-center",
             )}
           >
-            <LogOut className="w-[18px] h-[18px] shrink-0" />
+            <LogOut className="w-[18px] h-[18px] shrink-0 text-slate-600 group-hover:text-rose-600" />
             {!isCompact && <span>Sign out</span>}
           </button>
           <button
             onClick={onToggleCollapsed}
             title={isCompact ? "Expand" : "Collapse"}
             className={cn(
-              "hidden lg:flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs uppercase tracking-widest text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors",
+              "hidden lg:flex w-full items-center gap-3 px-3 py-2 rounded-xl text-xs uppercase tracking-widest font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all",
               isCompact && "justify-center",
             )}
           >
             {isCompact ? (
-              <ChevronsRight className="w-4 h-4" />
+              <ChevronsRight className="w-4 h-4 text-slate-600" />
             ) : (
               <>
-                <ChevronsLeft className="w-4 h-4" />
+                <ChevronsLeft className="w-4 h-4 text-slate-600" />
                 <span>Collapse</span>
               </>
             )}
           </button>
           {!isCompact && (
-            <div className="mt-2 text-[10px] text-sidebar-foreground/40 truncate px-3">
+            <div className="mt-2 text-xs text-slate-600 font-medium truncate px-3">
               Signed in as {profile.name}
             </div>
           )}

@@ -76,17 +76,17 @@ export function AppSidebar() {
     url === "/admin" ? pathname === "/admin" : pathname.startsWith(url);
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+    <Sidebar className="border-r border-slate-200/90 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
+      <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Sparkles className="h-5 w-5" />
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold tracking-tight text-sidebar-foreground">
+            <div className="text-sm font-bold tracking-tight text-slate-900">
               Sunshine ERP
             </div>
-            <div className="text-[11px] font-medium text-sidebar-foreground/70">
+            <div className="text-[11px] font-medium text-slate-500">
               Admin Portal
             </div>
           </div>
@@ -95,14 +95,14 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="font-medium text-xs">Overview</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-bold text-xs text-slate-500 uppercase tracking-wider">Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/admin")}>
                   <Link to="/admin">
-                    <LayoutDashboard />
-                    <span>Dashboard</span>
+                    <LayoutDashboard className="text-slate-600" />
+                    <span className="font-medium">Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -111,7 +111,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Modules</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-bold text-xs text-slate-500 uppercase tracking-wider">Modules</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {groups.map((g) => (
@@ -122,7 +122,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-bold text-xs text-slate-500 uppercase tracking-wider">Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {operations.map((entry) =>
@@ -133,8 +133,8 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive(entry.url)}>
                       <Link to={entry.url} className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
-                          <entry.icon />
-                          <span>{entry.title}</span>
+                          <entry.icon className="text-slate-600" />
+                          <span className="font-medium">{entry.title}</span>
                         </div>
                         {entry.url === "/admin/password-resets" && pendingResets > 0 && (
                           <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" title={`${pendingResets} pending resets`} />
@@ -149,15 +149,15 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-slate-200/80">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={adminSignOut}
               tooltip="Sign out"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="text-slate-700 font-medium hover:bg-rose-50 hover:text-rose-700"
             >
-              <LogOut />
+              <LogOut className="text-slate-600 group-hover:text-rose-600" />
               <span>Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
