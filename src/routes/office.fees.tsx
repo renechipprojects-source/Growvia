@@ -270,7 +270,7 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-4">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-4">
       <div className="shrink-0">
         <PageHeader title="Student Fee Ledger Module" subtitle="Single-row student ledgers, editable fee structures, discounts, installment histories, and receipts." />
       </div>

@@ -95,7 +95,7 @@ function StudentsPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Students"
         description="Manage profiles and student records."

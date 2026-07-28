@@ -50,7 +50,7 @@ function OfficeInventory() {
   const totalValue = inv.items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <div className="shrink-0">
         <PageHeader title="Office Inventory" subtitle="Items, categories, vendors, purchases, stock and issues." />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">

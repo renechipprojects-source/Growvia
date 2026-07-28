@@ -70,7 +70,7 @@ function InventoryPage() {
   }, [filteredItems, page, pageSize]);
 
   return (
-    <div className="flex h-full min-h-0 w-full max-w-none flex-col">
+    <div className="flex flex-1 min-h-0 w-full max-w-none flex-col">
       <PageHeader
         title="Inventory"
         description="Read-only view. Additions and edits are managed by the Office."

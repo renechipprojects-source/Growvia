@@ -108,7 +108,7 @@ function StudentAttendancePage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Student Attendance Module"
         description="View class-wise attendance records, weekly/monthly breakdown, and detailed student reports."

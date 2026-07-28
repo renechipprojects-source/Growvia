@@ -88,14 +88,14 @@ function StudentsPage() {
   }, [items, query, cls]);
 
   return (
-    <div className="w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Students"
         description="View-only student directory. Search or filter to find a student and open their profile."
       />
 
-      <div className="card-elevated p-4 md:p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -122,8 +122,7 @@ function StudentsPage() {
           </Button>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <div className="max-h-[65vh] overflow-y-auto rounded-lg border">
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
                 <tr>
@@ -177,8 +176,6 @@ function StudentsPage() {
           </div>
         </div>
         <div className="mt-3 text-xs text-muted-foreground">Showing {filtered.length} of {items.length} students</div>
-      </div>
-
       <StudentDialog student={selected} onClose={() => setSelected(null)} />
     </div>
   );

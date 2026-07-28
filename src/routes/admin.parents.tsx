@@ -64,7 +64,7 @@ function ParentsPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Parents"
         description="Directory of all registered parents and guardians."

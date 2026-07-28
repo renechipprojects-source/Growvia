@@ -65,7 +65,7 @@ function PaymentsPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Student Fee Ledger"
         description="Single-row student fee ledgers, discounts, installment progress, and remaining balances."
