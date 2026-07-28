@@ -200,6 +200,58 @@ function NotebooksTab() {
           setOpenAdd(false);
         }}
       />
+
+      <Dialog open={openIssue} onOpenChange={setOpenIssue}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Issue Notebooks to Class</DialogTitle>
+            <DialogDescription>
+              {issueTarget ? `Issue "${issueTarget.name}" (Current Stock: ${issueTarget.qty} ${issueTarget.unit})` : "Select class and quantity"}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const issuedTo = (form.elements.namedItem("issuedTo") as HTMLInputElement).value;
+              const qty = Number((form.elements.namedItem("qty") as HTMLInputElement).value);
+              const purpose = (form.elements.namedItem("purpose") as HTMLInputElement).value;
+              if (!issueTarget) return;
+              if (qty > issueTarget.qty) {
+                toast.error(`Cannot issue ${qty} — only ${issueTarget.qty} in stock!`);
+                return;
+              }
+              issueItem({
+                itemId: issueTarget.id,
+                issuedTo: issuedTo || "Nursery A",
+                qty,
+                date: new Date().toISOString().slice(0, 10),
+                purpose: purpose || "Class Distribution",
+              });
+              toast.success(`Issued ${qty} ${issueTarget.unit} of "${issueTarget.name}" to ${issuedTo || "Class"}!`);
+              setOpenIssue(false);
+            }}
+            className="space-y-3"
+          >
+            <div>
+              <Label>Assigned Class / Department</Label>
+              <Input name="issuedTo" required defaultValue="Nursery A" placeholder="e.g. Nursery A / Playgroup B" className="mt-1" />
+            </div>
+            <div>
+              <Label>Quantity to Issue</Label>
+              <Input name="qty" type="number" min={1} max={issueTarget?.qty || 100} defaultValue={10} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Distribution Purpose</Label>
+              <Input name="purpose" defaultValue="Term 1 Notebook Distribution" placeholder="e.g. Term 1 Distribution" className="mt-1" />
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setOpenIssue(false)}>Cancel</Button>
+              <Button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white">Confirm Issue</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </SectionCard>
   );
 }

@@ -17,19 +17,18 @@ function PaymentsPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchFees().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        const mapped = data.map((d: any) => ({
-          id: d.id,
-          studentName: d.studentName || d.student_name,
-          invoice: `INV-${d.id}`,
-          amount: Number(d.amount || 0),
-          method: "UPI",
-          date: d.due_date || new Date().toISOString().split("T")[0],
-          status: d.status === "Paid" ? "Success" : d.status,
-        }));
-        setPaymentsList(mapped);
-      }
+    fetchFees().then(({ data }) => {
+      const source = data && data.length > 0 ? data : mockPayments;
+      const mapped = source.map((d: any) => ({
+        id: d.id,
+        studentName: d.studentName || d.student_name,
+        invoice: d.invoice || `INV-${d.id}`,
+        amount: Number(d.amount || 0),
+        method: d.method || "UPI",
+        date: d.dueDate || d.due_date || new Date().toISOString().split("T")[0],
+        status: d.status === "Paid" ? "Success" : d.status || "Success",
+      }));
+      setPaymentsList(mapped);
     });
   }, []);
 
