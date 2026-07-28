@@ -81,18 +81,20 @@ function MyClass() {
   );
 
   return (
-    <div>
-      <PageHeader
-        title={`My Class · ${cls}-${sec}`}
-        subtitle="Full class-teacher access to every student."
-        action={
-          <Badge className="bg-emerald-100 text-emerald-700">
-            <ShieldCheck className="h-3 w-3 mr-1" /> Class Teacher
-          </Badge>
-        }
-      />
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
+        <PageHeader
+          title={`My Class · ${cls}-${sec}`}
+          subtitle="Full class-teacher access to every student."
+          action={
+            <Badge className="bg-emerald-100 text-emerald-700">
+              <ShieldCheck className="h-3 w-3 mr-1" /> Class Teacher
+            </Badge>
+          }
+        />
+      </div>
 
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+      <div className="sticky top-0 z-20 flex items-center gap-2 mb-3 overflow-x-auto bg-background/95 backdrop-blur-md pt-1 pb-2 shrink-0">
         {TABS.map((t) => (
           <button
             key={t}

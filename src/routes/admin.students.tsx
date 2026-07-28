@@ -95,8 +95,8 @@ function StudentsPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <div className="shrink-0">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
         <PageHeader
           title="Students"
           description="Manage student profiles, enrollment, and health records."
@@ -109,7 +109,7 @@ function StudentsPage() {
         />
       </div>
 
-      <div className="shrink-0 space-y-3 mt-2">
+      <div className="sticky top-0 z-20 space-y-3 bg-background/95 backdrop-blur-md pt-2 pb-2">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Total Students" value={itemList.length} icon={<UserRound className="h-5 w-5" />} />
           <StatCard label="Active" value={active} tone="success" icon={<UserRound className="h-5 w-5" />} />
@@ -132,7 +132,7 @@ function StudentsPage() {
         />
       </div>
 
-      <div className="mt-3 flex w-full max-w-none min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-2 flex w-full max-w-none min-h-0 flex-1 flex-col">
         <DataTable
           columns={["Student", "Admission No.", "Class", "Parent", "Contact", "Fees", "Status", "Action"]}
           total={filtered.length}

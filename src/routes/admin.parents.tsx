@@ -64,12 +64,14 @@ function ParentsPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader
-        title="Parents"
-        description="Directory of all registered parents and guardians."
-      />
-      <div className="shrink-0">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
+        <PageHeader
+          title="Parents"
+          description="Directory of all registered parents and guardians."
+        />
+      </div>
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2">
         <FilterBar
           searchPlaceholder="Search parents by name, child, phone..."
           filters={[{ label: "Channel", options: ["Email", "SMS", "WhatsApp"] }]}
@@ -80,7 +82,7 @@ function ParentsPage() {
           onExport={handleExportCSV}
         />
       </div>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden w-full max-w-none">
+      <div className="mt-2 flex min-h-0 flex-1 flex-col w-full max-w-none">
         <DataTable columns={["Parent", "Phone", "Email", "Occupation", "Children", "Preferred"]} total={filtered.length}>
           {filtered.map((p) => (
             <TableRow key={p.id}>

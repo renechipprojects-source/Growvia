@@ -270,25 +270,24 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-4">
-      <div className="shrink-0">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-3 pr-1">
+      <div>
         <PageHeader title="Student Fee Ledger Module" subtitle="Single-row student ledgers, editable fee structures, discounts, installment histories, and receipts." />
       </div>
 
-      {/* Summary Cards */}
-      <div className="shrink-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} icon={DollarSign} gradient="from-purple-500 to-indigo-500" />
-        <StatCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} icon={Wallet} gradient="from-emerald-500 to-teal-500" />
-        <StatCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} icon={Tag} gradient="from-amber-500 to-orange-500" />
-        <StatCard label="Pending Balance" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} icon={Clock} gradient="from-rose-500 to-orange-500" />
-        <StatCard label="Students Fully Paid" value={summary.fullyPaidCount} icon={CheckCircle} gradient="from-teal-500 to-emerald-500" />
-        <StatCard label="Receipts Generated" value={summary.totalReceipts} icon={FileText} gradient="from-sky-500 to-blue-500" />
-      </div>
+      <div className="sticky top-0 z-20 space-y-3 bg-background/95 backdrop-blur-md pt-2 pb-2">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} icon={DollarSign} gradient="from-purple-500 to-indigo-500" />
+          <StatCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} icon={Wallet} gradient="from-emerald-500 to-teal-500" />
+          <StatCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} icon={Tag} gradient="from-amber-500 to-orange-500" />
+          <StatCard label="Pending Balance" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} icon={Clock} gradient="from-rose-500 to-orange-500" />
+          <StatCard label="Students Fully Paid" value={summary.fullyPaidCount} icon={CheckCircle} gradient="from-teal-500 to-emerald-500" />
+          <StatCard label="Receipts Generated" value={summary.totalReceipts} icon={FileText} gradient="from-sky-500 to-blue-500" />
+        </div>
 
-      {/* Main Student Fee Ledger Table Section */}
-      <div className="flex-1 min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col overflow-hidden">
         {/* Filter bar */}
-        <div className="shrink-0 p-4 border-b border-white/60 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="p-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="relative flex-1 w-full">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -313,6 +312,10 @@ function FeeCollection() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Main Student Fee Ledger Table Section */}
+      <div className="flex-1 min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col overflow-hidden">
 
         {/* Ledger Table */}
         <div className="flex-1 min-h-0 overflow-y-auto">

@@ -88,41 +88,45 @@ function StudentsPage() {
   }, [items, query, cls]);
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader
-        title="Students"
-        description="View-only student directory. Search or filter to find a student and open their profile."
-      />
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
+        <PageHeader
+          title="Students"
+          description="View-only student directory. Search or filter to find a student and open their profile."
+        />
+      </div>
 
-      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex flex-col md:flex-row gap-3 shrink-0">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, admission no. or parent"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+      <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col">
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-3 pt-1">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, admission no. or parent"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={cls} onValueChange={setCls}>
+              <SelectTrigger className="md:w-56">
+                <SelectValue placeholder="Filter by class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={handleAutoAssignRollNumbers} className="gap-2">
+              <SortAsc className="h-4 w-4" />
+              Auto-Assign Alphabetical Roll No
+            </Button>
           </div>
-          <Select value={cls} onValueChange={setCls}>
-            <SelectTrigger className="md:w-56">
-              <SelectValue placeholder="Filter by class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Classes</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleAutoAssignRollNumbers} className="gap-2">
-            <SortAsc className="h-4 w-4" />
-            Auto-Assign Alphabetical Roll No
-          </Button>
         </div>
 
-        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
+        <div className="mt-3 flex-1 min-h-0 overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
                 <tr>

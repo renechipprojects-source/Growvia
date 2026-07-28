@@ -108,13 +108,15 @@ function StudentAttendancePage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader
-        title="Student Attendance Module"
-        description="View class-wise attendance records, weekly/monthly breakdown, and detailed student reports."
-      />
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
+        <PageHeader
+          title="Student Attendance Module"
+          description="View class-wise attendance records, weekly/monthly breakdown, and detailed student reports."
+        />
+      </div>
 
-      <div className="shrink-0 space-y-4">
+      <div className="sticky top-0 z-20 space-y-3 bg-background/95 backdrop-blur-md pt-2 pb-2">
         {/* Dynamic Summary Cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
           <StatCard label="Total Students" value={metrics.totalStudents} tone="info" icon={<UserCheck className="h-5 w-5" />} />
@@ -136,7 +138,7 @@ function StudentAttendancePage() {
         />
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <DataTable
           columns={["Student Name", "Adm No.", "Class & Sec", "Today Status", "Overall %", "Action"]}
           total={filteredStudents.length}

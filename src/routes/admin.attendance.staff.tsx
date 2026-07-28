@@ -179,13 +179,15 @@ function StaffAttendancePage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader
-        title="Staff Attendance"
-        description="View real-time staff attendance recorded by the office attendance system."
-      />
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+      <div>
+        <PageHeader
+          title="Staff Attendance"
+          description="View real-time staff attendance recorded by the office attendance system."
+        />
+      </div>
 
-      <div className="shrink-0 space-y-4">
+      <div className="sticky top-0 z-20 space-y-3 bg-background/95 backdrop-blur-md pt-2 pb-2">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Present" value={present} tone="success" icon={<UserCheck className="h-5 w-5" />} />
           <StatCard label="Absent" value={absent} tone="danger" icon={<UserX className="h-5 w-5" />} />
@@ -207,7 +209,7 @@ function StaffAttendancePage() {
         />
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <DataTable
           columns={[
             "Staff",

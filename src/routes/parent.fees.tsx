@@ -69,8 +69,10 @@ function ParentFees() {
     : [];
 
   return (
-    <div>
-      <PageHeader title={t("fees.title")} subtitle={t("fees.subtitle")} action={<ChildSwitcher />} />
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1 space-y-4">
+      <div>
+        <PageHeader title={t("fees.title")} subtitle={t("fees.subtitle")} action={<ChildSwitcher />} />
+      </div>
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Main Fee Ledger Card */}
         <div className="rounded-3xl bg-gradient-to-br from-pink-500 via-fuchsia-500 to-purple-500 text-white p-6 shadow-xl lg:col-span-1 space-y-4">
