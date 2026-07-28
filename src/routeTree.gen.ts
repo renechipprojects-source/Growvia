@@ -67,6 +67,7 @@ import { Route as PrincipalReportsRouteImport } from './routes/principal.reports
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
 import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
+import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherActivitiesRouteImport } from './routes/teacher.activities'
 import { Route as TeacherAlertsRouteImport } from './routes/teacher.alerts'
@@ -375,6 +376,11 @@ const PrincipalTeachersRoute = PrincipalTeachersRouteImport.update({
 const PrincipalTransportRoute = PrincipalTransportRouteImport.update({
   id: '/transport',
   path: '/transport',
+  getParentRoute: () => PrincipalRoute,
+} as any)
+const PrincipalFeesRoute = PrincipalFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
   getParentRoute: () => PrincipalRoute,
 } as any)
 const TeacherIndexRoute = TeacherIndexRouteImport.update({
@@ -1309,6 +1315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalEventsRouteImport
       parentRoute: typeof PrincipalRoute
     }
+    '/principal/fees': {
+      id: '/principal/fees'
+      path: '/fees'
+      fullPath: '/principal/fees'
+      preLoaderRoute: typeof PrincipalFeesRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
     '/principal/health': {
       id: '/principal/health'
       path: '/health'
@@ -1612,6 +1625,7 @@ interface PrincipalRouteChildren {
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
   PrincipalTransportRoute: typeof PrincipalTransportRoute
+  PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalIndexRoute: typeof PrincipalIndexRoute
   PrincipalAttendanceStaffRoute: typeof PrincipalAttendanceStaffRoute
   PrincipalAttendanceStudentsRoute: typeof PrincipalAttendanceStudentsRoute
@@ -1629,6 +1643,7 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
   PrincipalTransportRoute: PrincipalTransportRoute,
+  PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalIndexRoute: PrincipalIndexRoute,
   PrincipalAttendanceStaffRoute: PrincipalAttendanceStaffRoute,
   PrincipalAttendanceStudentsRoute: PrincipalAttendanceStudentsRoute,

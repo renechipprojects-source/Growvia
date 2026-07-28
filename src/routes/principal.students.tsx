@@ -140,14 +140,18 @@ function StudentsPage() {
               </thead>
               <tbody>
                 {filtered.map((s) => (
-                  <tr key={s.id} className="border-t hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={s.id}
+                    onClick={() => setSelected(s)}
+                    className="border-t hover:bg-muted/30 transition-colors cursor-pointer group"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full gradient-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
                           {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                         </div>
                         <div>
-                          <div className="font-medium">{s.name}</div>
+                          <div className="font-medium group-hover:text-primary transition-colors">{s.name}</div>
                           <div className="text-xs text-muted-foreground">{s.gender} · {s.bloodGroup}</div>
                         </div>
                       </div>
@@ -162,7 +166,7 @@ function StudentsPage() {
                       <div className="text-xs text-muted-foreground">{s.parent.phone}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={() => setSelected(s)}>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setSelected(s); }}>
                         <Eye className="w-4 h-4 mr-1.5" /> View
                       </Button>
                     </td>
@@ -192,55 +196,69 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
         {student && (
           <>
             <DialogHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full gradient-primary text-primary-foreground font-semibold flex items-center justify-center">
-                  {student.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+              <div className="flex items-center justify-between pr-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full gradient-primary text-primary-foreground font-semibold flex items-center justify-center text-base">
+                    {student.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg">{student.name}</DialogTitle>
+                    <div className="text-xs text-muted-foreground">{student.admissionNo} · {student.className} - {student.section} · Roll #{student.rollNo || 1}</div>
+                  </div>
                 </div>
-                <div>
-                  <DialogTitle className="text-lg">{student.name}</DialogTitle>
-                  <div className="text-xs text-muted-foreground">{student.admissionNo} · {student.className} - {student.section} · Roll {student.rollNo}</div>
-                </div>
+                <Badge className="bg-emerald-100 text-emerald-700 text-xs">Active Student</Badge>
               </div>
             </DialogHeader>
 
-            <Section title="Personal Details">
+            <Section title="Personal & Parent Details">
               <Grid>
                 <KV k="Gender" v={student.gender} />
                 <KV k="Date of Birth" v={student.dob} />
                 <KV k="Blood Group" v={student.bloodGroup} />
-                <KV k="Address" v={student.address} wide />
-              </Grid>
-            </Section>
-
-            <Section title="Academic Summary">
-              <Grid>
-                <KV k="Term" v={student.academic.term} />
-                <KV k="Average" v={`${student.academic.average}%`} />
-                <KV k="Class Rank" v={`#${student.academic.rank}`} />
-                <KV k="Remarks" v={student.academic.remarks} wide />
-              </Grid>
-            </Section>
-
-            <Section title="Attendance Summary">
-              <Grid>
-                <KV k="Present" v={String(student.attendance.present)} />
-                <KV k="Absent" v={String(student.attendance.absent)} />
-                <KV k="Late" v={String(student.attendance.late)} />
-                <KV k="% Attendance" v={`${Math.round((student.attendance.present / student.attendance.total) * 100)}%`} />
-              </Grid>
-            </Section>
-
-            <Section title="Teacher Remarks">
-              <p className="text-sm text-foreground/90">{student.teacherRemarks}</p>
-            </Section>
-
-            <Section title="Parent Information">
-              <Grid>
-                <KV k="Name" v={student.parent.name} />
+                <KV k="Address" v={student.address} />
+                <KV k="Parent Name" v={student.parent.name} />
+                <KV k="Parent Phone" v={student.parent.phone} />
+                <KV k="Parent Email" v={student.parent.email} />
                 <KV k="Occupation" v={student.parent.occupation} />
-                <KV k="Phone" v={student.parent.phone} />
-                <KV k="Email" v={student.parent.email} />
               </Grid>
+            </Section>
+
+            <Section title="Fee Ledger & Status">
+              <Grid>
+                <KV k="Total Annual Fee" v="₹8,500" />
+                <KV k="Total Paid So Far" v="₹8,500" />
+                <KV k="Pending Balance" v="₹0" />
+                <KV k="Fee Payment Status" v="Paid (3/3 Installments)" />
+              </Grid>
+            </Section>
+
+            <Section title="Academic & Attendance Summary">
+              <Grid>
+                <KV k="Term Performance" v={`${student.academic.term} (${student.academic.average}%)`} />
+                <KV k="Attendance Rate" v={`${Math.round((student.attendance.present / student.attendance.total) * 100)}% (${student.attendance.present}/100 Days)`} />
+                <KV k="Teacher Remarks" v={student.teacherRemarks} wide />
+              </Grid>
+            </Section>
+
+            <Section title="Submitted Student Documents">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
+                  <span>Birth Certificate</span>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
+                </div>
+                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
+                  <span>Immunization Record</span>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
+                </div>
+                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
+                  <span>Address Proof</span>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
+                </div>
+                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
+                  <span>Transfer Certificate</span>
+                  <Badge className="bg-sky-100 text-sky-700 text-[10px]">Submitted</Badge>
+                </div>
+              </div>
             </Section>
 
             {/* Medical Records section */}
@@ -260,12 +278,9 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
                 <Section title="Medical & Health Records">
                   <Grid>
                     <KV k="Blood Group" v={med.bloodGroup} />
-                    <KV k="Height" v={`${med.heightCm} cm`} />
-                    <KV k="Weight" v={`${med.weightKg} kg`} />
-                    <KV k="Doctor" v={med.doctor} />
-                    <KV k="Allergies" v={med.allergies} wide />
-                    <KV k="Medical Conditions" v={med.medicalConditions} wide />
-                    <KV k="Emergency Contact" v={med.emergencyContact} wide />
+                    <KV k="Height / Weight" v={`${med.heightCm} cm / ${med.weightKg} kg`} />
+                    <KV k="Doctor / Emergency" v={`${med.doctor} (${med.emergencyContact})`} wide />
+                    <KV k="Allergies / Conditions" v={`${med.allergies} · ${med.medicalConditions}`} wide />
                   </Grid>
                 </Section>
               );

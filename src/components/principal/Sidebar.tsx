@@ -14,8 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   School,
-  Boxes,
-  Bus,
+  Wallet,
   X,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
@@ -36,7 +35,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { label: "Dashboard", to: "/principal/dashboard", icon: LayoutDashboard },
   { label: "Students", to: "/principal/students", icon: GraduationCap },
-  { label: "Teachers", to: "/principal/teachers", icon: Users },
+  { label: "Staff", to: "/principal/teachers", icon: Users },
   { label: "Classes", to: "/principal/classes", icon: BookOpen },
   {
     label: "Attendance",
@@ -46,11 +45,8 @@ const nav: NavItem[] = [
       { label: "Staff Attendance", to: "/principal/attendance/staff" },
     ],
   },
-  { label: "Circular Management", to: "/principal/circulars", icon: Megaphone },
-  { label: "Events", to: "/principal/events", icon: CalendarDays },
-  { label: "Calendar", to: "/principal/calendar", icon: Calendar },
-  { label: "Inventory", to: "/principal/inventory", icon: Boxes },
-  { label: "Transport", to: "/principal/transport", icon: Bus },
+  { label: "Fees Overview", to: "/principal/fees", icon: Wallet },
+  { label: "Circulars", to: "/principal/circulars", icon: Megaphone },
 ];
 
 export function PrincipalSidebar({
