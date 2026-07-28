@@ -149,3 +149,19 @@ export function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+export function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 p-5 transition-all duration-300 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function GlassTableContainer({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`w-full max-w-none overflow-x-auto rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 ${className}`}>
+      {children}
+    </div>
+  );
+}

@@ -97,7 +97,7 @@ export function PrincipalHeader({ onMenu, title }: { onMenu: () => void; title: 
     .join("");
 
   return (
-    <header className="sticky top-0 z-30 bg-card/90 backdrop-blur border-b border-border h-16 flex items-center gap-3 px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex items-center gap-3 px-4 md:px-6 h-16 border-b border-white/60 bg-white/80 backdrop-blur-xl shadow-xs">
       <button
         onClick={onMenu}
         className="lg:hidden p-2 rounded-md hover:bg-muted"

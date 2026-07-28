@@ -38,13 +38,13 @@ export function FilterBar({
   hideExport?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl w-full max-w-none shrink-0 shadow-sm">
+    <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 w-full max-w-none shrink-0">
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
         <div className="relative min-w-0 flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={searchPlaceholder}
-            className="pl-9"
+            className="pl-9 rounded-xl border-slate-200/80 bg-white/80 backdrop-blur-md focus:ring-2 focus:ring-indigo-500/20"
             value={search ?? ""}
             onChange={(e) => onSearchChange?.(e.target.value)}
           />
@@ -55,7 +55,7 @@ export function FilterBar({
             value={filterValues?.[f.label] ?? "all"}
             onValueChange={(v) => onFilterChange?.(f.label, v)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] rounded-xl border-slate-200/80 bg-white/80">
               <SelectValue placeholder={f.label} />
             </SelectTrigger>
             <SelectContent>
@@ -68,12 +68,12 @@ export function FilterBar({
         ))}
         <div className="ml-auto flex items-center gap-2">
           {!hideExport && (
-            <Button variant="outline" size="sm" onClick={onExport} aria-label="Export Data">
+            <Button variant="outline" size="sm" className="rounded-xl border-slate-200/80 bg-white/80" onClick={onExport} aria-label="Export Data">
               <Download className="mr-2 h-4 w-4" />Export
             </Button>
           )}
           {onAdd !== undefined && (
-            <Button size="sm" onClick={onAdd}><Plus className="mr-2 h-4 w-4" />{addLabel}</Button>
+            <Button size="sm" className="rounded-xl bg-slate-900 text-white shadow-md hover:bg-slate-800" onClick={onAdd}><Plus className="mr-2 h-4 w-4" />{addLabel}</Button>
           )}
         </div>
       </CardContent>
@@ -103,20 +103,20 @@ export function DataTable({
     : childrenArray.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
+    <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
       <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-320px)] w-full">
+        <div className="min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-320px)] w-full max-w-none">
           <Table className="w-full min-w-full">
-            <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md shadow-sm">
-              <TableRow>
+            <TableHeader className="sticky top-0 z-20 bg-slate-100/90 backdrop-blur-md border-b">
+              <TableRow className="border-b border-slate-200/60 hover:bg-transparent">
                 {columns.map((c) => (
-                  <TableHead key={c} className="whitespace-nowrap py-3.5 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <TableHead key={c} className="whitespace-nowrap py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     {c}
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y">
+            <TableBody className="divide-y divide-slate-100">
               {paginatedChildren.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="py-10 text-center text-sm text-muted-foreground">

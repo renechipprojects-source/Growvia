@@ -49,7 +49,7 @@ export function TopNav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex flex-col border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-30 flex flex-col border-b border-white/60 bg-white/80 backdrop-blur-xl shadow-xs">
       <div className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
         <div className="flex items-center gap-2">
           <SidebarTrigger />

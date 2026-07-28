@@ -97,7 +97,7 @@ export function PrincipalSidebar({
       )}
       <aside
         className={cn(
-          "fixed z-50 inset-y-0 left-0 bg-sidebar text-sidebar-foreground flex flex-col transition-[transform,width] duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+          "fixed z-50 inset-y-0 left-0 bg-white/85 backdrop-blur-xl text-slate-800 border-r border-white/60 shadow-md flex flex-col transition-[transform,width] duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
           isCompact ? "w-20" : "w-72",
         )}
