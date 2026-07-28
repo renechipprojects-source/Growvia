@@ -103,9 +103,9 @@ export function DataTable({
     : childrenArray.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <Card className="mt-4 flex w-full max-w-none min-h-[550px] flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="min-h-0 flex-1 overflow-auto">
+    <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-auto max-h-[58vh] sm:max-h-[62vh]">
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm">
               <TableRow>
