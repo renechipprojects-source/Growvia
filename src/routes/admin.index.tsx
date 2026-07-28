@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, fetchExpenses, fetchFees, fetchEvents, type Student } from "@/lib/supabaseService";
+import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/admin/")({
@@ -21,28 +22,21 @@ function Dashboard() {
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
   const [eventsList, setEventsList] = useState<any[]>([]);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { attendance: liveTodayRecords } = useLiveAttendance(undefined, todayStr);
+
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setStudentsList(data);
-    });
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTeachersCount(data.length);
-    });
-    fetchFees().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setPaymentsList(data);
-      }
-    });
-    fetchEvents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) {
-        setEventsList(data);
-      }
-    });
+    fetchStudents().then(({ data }) => setStudentsList(data));
+    fetchTeachers().then(({ data }) => setTeachersCount(data.length));
+    fetchFees().then(({ data }) => setPaymentsList(data));
+    fetchEvents().then(({ data }) => setEventsList(data));
   }, []);
 
   const totalStudents = studentsList.length;
-  const presentToday = Math.round(totalStudents * 0.95);
-  const absentToday = totalStudents - presentToday;
+  const presentFromLive = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
+  const absentFromLive = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
+  const presentToday = liveTodayRecords.length > 0 ? presentFromLive : Math.round(totalStudents * 0.95);
+  const absentToday = liveTodayRecords.length > 0 ? absentFromLive : (totalStudents - presentToday);
 
   // Compute upcoming birthdays (Today & Tomorrow)
   const today = new Date();

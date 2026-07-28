@@ -30,6 +30,8 @@ import {
 } from "@/lib/principal-mock-data";
 import { Badge } from "@/components/ui/badge";
 
+import { useLiveAttendance } from "@/lib/attendanceStore";
+
 export const Route = createFileRoute("/principal/dashboard")({
   head: () => ({
     meta: [
@@ -78,6 +80,9 @@ function DashboardPage() {
   const [eventsList, setEventsList] = useState<any[]>(initialEvents);
   const [liveNotifications, setLiveNotifications] = useState<any[]>(notifications);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { attendance: liveToday } = useLiveAttendance(undefined, todayStr);
+
   useEffect(() => {
     fetchStudents().then(({ data }) => {
       if (data && data.length > 0) setTotalStudents(data.length);
@@ -94,7 +99,8 @@ function DashboardPage() {
   }, []);
 
   const totalClasses = 15;
-  const studentPresentCount = Math.round(totalStudents * 0.95);
+  const presentFromLive = liveToday.filter((r) => r.status === "P" || r.status === "L").length;
+  const studentPresentCount = liveToday.length > 0 ? presentFromLive : Math.round(totalStudents * 0.95);
   const staffPresentCount = Math.round(totalTeachers * 0.95);
   const studentAttendancePct = Math.round((studentPresentCount / (totalStudents || 1)) * 100);
   const staffAttendancePct = Math.round((staffPresentCount / (totalTeachers || 1)) * 100);
