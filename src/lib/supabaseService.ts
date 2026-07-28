@@ -194,17 +194,20 @@ export async function createInitialFeeForStudent(student: Student) {
     const currentMonth = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const dueDateStr = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    const initialFee: Fee = {
+    const initialFee: FeeLedgerItem = recalculateFeeLedger({
       id: `F-STU-${student.id}`,
       studentId: student.id,
       studentName: student.name,
       className: `${student.className} ${student.section || "A"}`.trim(),
+      originalFee: feeAmount,
+      discountAmount: 0,
+      finalFee: feeAmount,
       amount: feeAmount,
       paid: student.feeStatus === "Paid" ? feeAmount : 0,
       dueDate: dueDateStr,
       status: student.feeStatus === "Paid" ? "Paid" : "Pending",
       month: currentMonth,
-    };
+    });
 
     await saveFeeRecord(initialFee);
     return initialFee;
@@ -448,12 +451,12 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
   return { data, error };
 }
 
-// ─── FEES ─────────────────────────────────────────────────────────────────
-
-// ─── FEES ─────────────────────────────────────────────────────────────────
+// ─── FEES & STUDENT FEE LEDGER ──────────────────────────────────────────────
 
 export interface PaymentTransaction {
-  id: string;
+  id: string; // payment_id
+  feeLedgerId?: string;
+  studentId: string;
   receiptNo: string;
   amount: number;
   date: string;
@@ -465,62 +468,147 @@ export interface PaymentTransaction {
   collectedBy: string;
 }
 
-export interface FeeLedgerItem extends Fee {
+export interface FeeLedgerItem {
+  id: string;
+  studentId: string;
+  studentName: string;
   admissionNo?: string;
+  className: string;
   section?: string;
   academicYear?: string;
-  totalInstallments?: number;
-  paidInstallments?: number;
-  payments?: PaymentTransaction[];
+  originalFee: number;
+  discountAmount: number;
+  finalFee: number;
+  amount: number; // backward compatibility
+  paid: number;
+  remainingAmount: number;
+  totalInstallments: number;
+  paidInstallments: number;
+  status: "Paid" | "Partial" | "Pending";
+  dueDate?: string;
+  month?: string;
+  lastPaymentDate?: string;
+  payments: PaymentTransaction[];
+  updatedAt?: string;
+}
+
+export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerItem {
+  const originalFee = Number(ledger.originalFee ?? ledger.amount ?? 8500);
+  const discountAmount = Math.max(0, Number(ledger.discountAmount ?? 0));
+  const finalFee = Math.max(0, originalFee - discountAmount);
+
+  const payments = Array.isArray(ledger.payments) ? ledger.payments : [];
+  const paid = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+  const remainingAmount = Math.max(0, finalFee - paid);
+
+  const totalInstallments = ledger.totalInstallments || 3;
+  const paidInstallments = payments.length > 0 ? Math.min(totalInstallments, payments.length) : (paid >= finalFee && finalFee > 0 ? totalInstallments : 0);
+  const status: "Paid" | "Partial" | "Pending" = remainingAmount === 0 && finalFee > 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
+  const lastPaymentDate = payments.length > 0 ? payments[payments.length - 1].date : ledger.lastPaymentDate || "—";
+
+  return {
+    id: ledger.id || `F-STU-${ledger.studentId}`,
+    studentId: ledger.studentId || "STD-001",
+    studentName: ledger.studentName || "Student",
+    admissionNo: ledger.admissionNo || `ADM-${ledger.studentId}`,
+    className: ledger.className || "Playgroup",
+    section: ledger.section || "A",
+    academicYear: ledger.academicYear || "2026-2027",
+    originalFee,
+    discountAmount,
+    finalFee,
+    amount: finalFee,
+    paid,
+    remainingAmount,
+    totalInstallments,
+    paidInstallments,
+    status,
+    dueDate: ledger.dueDate || "2026-07-15",
+    month: ledger.month || "Academic Year 2026-2027",
+    lastPaymentDate,
+    payments,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
   const localList = getLocalStore<FeeLedgerItem>("SUNSHINE_FEES");
   try {
     const { data, error } = await supabase.from("fees").select("*");
-    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : (FEES as FeeLedgerItem[]), isFromSupabase: false };
-    const mapped: FeeLedgerItem[] = data.map((d: any) => ({
-      id: d.id,
-      studentId: d.student_id,
-      studentName: d.student_name,
-      admissionNo: d.admission_no || d.student_id,
-      className: d.class_name,
-      section: d.section || "A",
-      academicYear: d.academic_year || "2026-2027",
-      amount: Number(d.amount),
-      paid: Number(d.paid),
-      dueDate: d.due_date,
-      status: d.status,
-      month: d.month,
-      totalInstallments: d.total_installments || 3,
-      paidInstallments: d.paid_installments || (d.status === "Paid" ? 3 : d.paid > 0 ? 1 : 0),
-      payments: Array.isArray(d.payments) ? d.payments : [],
-    }));
-    const existingIds = new Set(mapped.map((m) => m.id));
-    const uniqueLocal = localList.filter((l) => !existingIds.has(l.id));
-    return { data: [...uniqueLocal, ...mapped], isFromSupabase: true };
+    if (error || !data || data.length === 0) {
+      const source = localList.length > 0 ? localList : (FEES as any[]);
+      const deduplicatedMap = new Map<string, FeeLedgerItem>();
+
+      source.forEach((item: any) => {
+        const key = item.studentId || item.id;
+        if (!deduplicatedMap.has(key)) {
+          const rec = recalculateFeeLedger(item);
+          deduplicatedMap.set(key, rec);
+        }
+      });
+
+      return { data: Array.from(deduplicatedMap.values()), isFromSupabase: false };
+    }
+
+    const deduplicatedMap = new Map<string, FeeLedgerItem>();
+    data.forEach((d: any) => {
+      const key = d.student_id || d.id;
+      if (!deduplicatedMap.has(key)) {
+        const item: FeeLedgerItem = recalculateFeeLedger({
+          id: d.id,
+          studentId: d.student_id,
+          studentName: d.student_name,
+          admissionNo: d.admission_no || d.student_id,
+          className: d.class_name,
+          section: d.section || "A",
+          academicYear: d.academic_year || "2026-2027",
+          originalFee: Number(d.original_fee || d.amount || 8500),
+          discountAmount: Number(d.discount_amount || 0),
+          finalFee: Number(d.final_fee || d.amount || 8500),
+          amount: Number(d.final_fee || d.amount || 8500),
+          paid: Number(d.paid || 0),
+          dueDate: d.due_date,
+          status: d.status,
+          month: d.month,
+          totalInstallments: d.total_installments || 3,
+          paidInstallments: d.paid_installments || 0,
+          payments: Array.isArray(d.payments) ? d.payments : [],
+        });
+        deduplicatedMap.set(key, item);
+      }
+    });
+
+    return { data: Array.from(deduplicatedMap.values()), isFromSupabase: true };
   } catch {
-    return { data: localList, isFromSupabase: false };
+    return { data: localList.map(recalculateFeeLedger), isFromSupabase: false };
   }
 }
 
 export async function saveFeeRecord(fee: FeeLedgerItem) {
-  saveLocalStore<FeeLedgerItem>("SUNSHINE_FEES", fee);
+  const recalculated = recalculateFeeLedger(fee);
+  saveLocalStore<FeeLedgerItem>("SUNSHINE_FEES", recalculated);
   try {
     await supabase.from("fees").upsert([{
-      id: fee.id,
-      student_id: fee.studentId,
-      student_name: fee.studentName,
-      admission_no: fee.admissionNo,
-      class_name: fee.className,
-      amount: fee.amount,
-      paid: fee.paid,
-      due_date: fee.dueDate,
-      status: fee.status,
-      month: fee.month,
-      total_installments: fee.totalInstallments,
-      paid_installments: fee.paidInstallments,
-      payments: fee.payments,
+      id: recalculated.id,
+      student_id: recalculated.studentId,
+      student_name: recalculated.studentName,
+      admission_no: recalculated.admissionNo,
+      class_name: recalculated.className,
+      section: recalculated.section,
+      academic_year: recalculated.academicYear,
+      original_fee: recalculated.originalFee,
+      discount_amount: recalculated.discountAmount,
+      final_fee: recalculated.finalFee,
+      amount: recalculated.finalFee,
+      paid: recalculated.paid,
+      remaining_amount: recalculated.remainingAmount,
+      due_date: recalculated.dueDate,
+      status: recalculated.status,
+      month: recalculated.month,
+      total_installments: recalculated.totalInstallments,
+      paid_installments: recalculated.paidInstallments,
+      payments: recalculated.payments,
+      updated_at: recalculated.updatedAt,
     }]);
   } catch (err) {
     console.warn("Supabase fee save notice:", err);

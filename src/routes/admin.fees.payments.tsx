@@ -4,84 +4,61 @@ import { PageHeader, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { payments as mockPayments } from "@/lib/admin-mock-data";
-import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchFees, recalculateFeeLedger, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/admin/fees/payments")({
   component: PaymentsPage,
-  head: () => ({ meta: [{ title: "Payments — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Student Fee Ledger — Sunshine ERP" }] }),
 });
 
 function PaymentsPage() {
-  const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [feeLedgers, setFeeLedgers] = useState<FeeLedgerItem[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchFees().then(({ data }) => {
       if (data && data.length > 0) {
-        const flattened: any[] = [];
-        data.forEach((ledger: FeeLedgerItem) => {
-          if (ledger.payments && ledger.payments.length > 0) {
-            ledger.payments.forEach((p) => {
-              flattened.push({
-                id: p.id,
-                receiptNo: p.receiptNo,
-                studentName: ledger.studentName,
-                admissionNo: ledger.admissionNo || "ADM-1001",
-                className: ledger.className,
-                amount: p.amount,
-                method: p.method,
-                date: p.date,
-                status: "Success",
-                installmentNo: p.installmentNo || 1,
-                totalInstallments: ledger.totalInstallments || 3,
-              });
-            });
-          } else {
-            flattened.push({
-              id: ledger.id,
-              receiptNo: `SUN/26-27/${Math.floor(2000 + Math.random() * 8000)}`,
-              studentName: ledger.studentName,
-              admissionNo: ledger.admissionNo || "ADM-1001",
-              className: ledger.className,
-              amount: ledger.paid || 0,
-              method: "Cash",
-              date: ledger.dueDate || "2026-07-15",
-              status: ledger.status === "Paid" ? "Success" : ledger.status === "Partial" ? "Partial" : "Pending",
-              installmentNo: ledger.paidInstallments || 1,
-              totalInstallments: ledger.totalInstallments || 3,
-            });
-          }
-        });
-        setPaymentsList(flattened);
-      } else {
-        setPaymentsList(mockPayments);
+        setFeeLedgers(data);
       }
     });
   }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const m = filterValues["Method"];
     const st = filterValues["Status"];
-    return paymentsList.filter((p) => {
-      if (q && !`${p.id} ${p.studentName} ${p.receiptNo || p.invoice}`.toLowerCase().includes(q)) return false;
-      if (m && m !== "all" && p.method !== m) return false;
-      if (st && st !== "all" && p.status !== st) return false;
-      return true;
+    return feeLedgers.filter((ledger) => {
+      const matchSearch =
+        !q ||
+        ledger.studentName.toLowerCase().includes(q) ||
+        (ledger.admissionNo && ledger.admissionNo.toLowerCase().includes(q)) ||
+        ledger.className.toLowerCase().includes(q);
+      const matchStatus = !st || st === "all" || ledger.status === st;
+      return matchSearch && matchStatus;
     });
-  }, [paymentsList, search, filterValues]);
+  }, [feeLedgers, search, filterValues]);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) return;
-    const headers = ["Receipt No", "Student Name", "Class", "Amount", "Method", "Date", "Status"];
-    const rows = filtered.map(p => [p.receiptNo || p.id, p.studentName, p.className, p.amount, p.method, p.date, p.status]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const headers = ["Student Name", "Adm No", "Class", "Original Fee", "Discount", "Final Fee", "Paid", "Remaining", "Installments", "Status", "Last Payment"];
+    const rows = filtered.map((f) => [
+      f.studentName,
+      f.admissionNo || "ADM-1001",
+      f.className,
+      f.originalFee || f.amount || 8500,
+      f.discountAmount || 0,
+      f.finalFee || f.amount || 8500,
+      f.paid || 0,
+      f.remainingAmount || 0,
+      `${f.paidInstallments || 0}/${f.totalInstallments || 3}`,
+      f.status,
+      f.lastPaymentDate || "—",
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `payments_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `student_fee_ledger_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -90,15 +67,14 @@ function PaymentsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
-        title="Payments & Fee Transactions"
-        description="View payment receipts, installment transactions across every student and method."
+        title="Student Fee Ledger"
+        description="Single-row student fee ledgers, discounts, installment progress, and remaining balances."
       />
       <div className="shrink-0">
         <FilterBar
-          searchPlaceholder="Search receipt no., student name, admission no..."
+          searchPlaceholder="Search student name, admission no., class..."
           filters={[
-            { label: "Method", options: ["Cash", "UPI", "Bank Transfer", "Cheque"] },
-            { label: "Status", options: ["Success", "Partial", "Pending"] },
+            { label: "Status", options: ["Paid", "Partial", "Pending"] },
           ]}
           search={search}
           onSearchChange={setSearch}
@@ -109,25 +85,42 @@ function PaymentsPage() {
       </div>
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
-          columns={["Receipt #", "Student", "Class", "Amount Paid", "Method", "Date", "Installment", "Status"]}
+          columns={["Student Name", "Adm No", "Class", "Total Fee", "Discount", "Final Fee", "Total Paid", "Remaining", "Installments", "Status", "Last Payment"]}
           total={filtered.length}
         >
-          {filtered.map((p) => (
-            <TableRow key={p.id} className="hover:bg-muted/30">
-              <TableCell className="font-mono text-xs font-semibold text-slate-800">{p.receiptNo || p.id}</TableCell>
-              <TableCell className="font-medium">{p.studentName}</TableCell>
-              <TableCell>{p.className}</TableCell>
-              <TableCell className="font-semibold text-emerald-700">₹{p.amount.toLocaleString()}</TableCell>
-              <TableCell><Badge variant="outline">{p.method}</Badge></TableCell>
-              <TableCell className="text-sm">{p.date}</TableCell>
-              <TableCell>
-                <Badge variant="secondary" className="text-[10px]">
-                  Inst {p.installmentNo}/{p.totalInstallments}
-                </Badge>
-              </TableCell>
-              <TableCell><StatusBadge status={p.status} /></TableCell>
-            </TableRow>
-          ))}
+          {filtered.map((f) => {
+            const origFee = f.originalFee || f.amount || 8500;
+            const discAmt = f.discountAmount || 0;
+            const finalFee = f.finalFee || origFee - discAmt;
+            const paid = f.paid || 0;
+            const remaining = Math.max(0, finalFee - paid);
+            const instTotal = f.totalInstallments || 3;
+            const instPaid = f.status === "Paid" ? instTotal : f.paidInstallments || (f.payments?.length || (paid > 0 ? 1 : 0));
+            const pct = finalFee ? Math.min(100, Math.round((paid / finalFee) * 100)) : 0;
+
+            return (
+              <TableRow key={f.id} className="hover:bg-muted/30">
+                <TableCell className="font-semibold text-slate-800">{f.studentName}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</TableCell>
+                <TableCell>{f.className}</TableCell>
+                <TableCell className="font-medium text-slate-700">₹{origFee.toLocaleString()}</TableCell>
+                <TableCell className="text-amber-700 font-medium">{discAmt > 0 ? `-₹${discAmt.toLocaleString()}` : "—"}</TableCell>
+                <TableCell className="font-bold text-slate-900">₹{finalFee.toLocaleString()}</TableCell>
+                <TableCell className="font-semibold text-emerald-700">₹{paid.toLocaleString()}</TableCell>
+                <TableCell className="font-semibold text-rose-600">₹{remaining.toLocaleString()}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <Badge variant="outline" className="text-[10px] shrink-0 font-medium">
+                      {instPaid}/{instTotal} Inst
+                    </Badge>
+                    <Progress value={pct} className="h-1.5 flex-1" />
+                  </div>
+                </TableCell>
+                <TableCell><StatusBadge status={f.status} /></TableCell>
+                <TableCell className="text-xs text-muted-foreground">{f.lastPaymentDate || "—"}</TableCell>
+              </TableRow>
+            );
+          })}
         </DataTable>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
-import { fetchFees, type Fee } from "@/lib/supabaseService";
+import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/parent/")({ component: Dash });
 
@@ -18,7 +18,7 @@ function Dash() {
   const { activeChild: child, children, household, setActiveChildId } = useParent();
   const parentFirstName = household.primaryContact.split(" ")[0];
 
-  const [feeRecord, setFeeRecord] = useState<Fee | null>(null);
+  const [feeRecord, setFeeRecord] = useState<FeeLedgerItem | null>(null);
 
   useEffect(() => {
     fetchFees().then(({ data }) => {

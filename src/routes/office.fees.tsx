@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { FEES as SEED_FEES, STUDENTS as SEED_STUDENTS } from "@/lib/mockData";
-import { fetchStudents, fetchFees, saveFeeRecord, saveReceipt, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
+import { fetchStudents, fetchFees, saveFeeRecord, saveReceipt, recalculateFeeLedger, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import {
   Receipt as ReceiptIcon, Printer, Search, Plus, CheckCircle, Clock,
-  DollarSign, Wallet, FileText, Eye, CreditCard, ChevronRight, UserCheck, ShieldCheck
+  DollarSign, Wallet, FileText, Eye, Edit3, Tag, Sparkles
 } from "lucide-react";
 import { NotificationService } from "@/lib/notifications";
 
@@ -47,10 +48,16 @@ function FeeCollection() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
-  // Selection states
+  // Selection & Modal states
   const [activeLedger, setActiveLedger] = useState<FeeLedgerItem | null>(null);
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [openRecordModal, setOpenRecordModal] = useState(false);
+  const [openEditFeeModal, setOpenEditFeeModal] = useState(false);
+
+  // Edit Fee Form states
+  const [editOriginalFee, setEditOriginalFee] = useState<string>("");
+  const [editDiscountAmount, setEditDiscountAmount] = useState<string>("");
+  const [editRemarks, setEditRemarks] = useState<string>("");
 
   // Record Payment Form states
   const [feeType, setFeeType] = useState<string>("Tuition Fee");
@@ -76,25 +83,28 @@ function FeeCollection() {
         const dynamicFees: FeeLedgerItem[] = currentStudents.map((s, idx) => {
           const totalFee = s.className === "Playgroup" ? 8500 : s.className === "Nursery" ? 9500 : 10500;
           const paidAmt = s.feeStatus === "Paid" ? totalFee : s.feeStatus === "Partial" ? Math.round(totalFee / 2) : 0;
-          const status = paidAmt === totalFee ? "Paid" : paidAmt > 0 ? "Partial" : "Pending";
-          const paidInst = status === "Paid" ? 3 : status === "Partial" ? 1 : 0;
-          return {
+          return recalculateFeeLedger({
             id: `F-STU-${s.id}`,
             studentId: s.id,
             studentName: s.name,
             admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
             className: `${s.className} ${s.section || "A"}`,
             academicYear: "2026-2027",
+            originalFee: totalFee,
+            discountAmount: 0,
+            finalFee: totalFee,
             amount: totalFee,
             paid: paidAmt,
+            remainingAmount: Math.max(0, totalFee - paidAmt),
             dueDate: "2026-07-15",
-            status,
+            status: paidAmt === totalFee ? "Paid" : paidAmt > 0 ? "Partial" : "Pending",
             month: "Academic Year 2026-2027",
             totalInstallments: 3,
-            paidInstallments: paidInst,
+            paidInstallments: paidAmt === totalFee ? 3 : paidAmt > 0 ? 1 : 0,
             payments: paidAmt > 0 ? [
               {
                 id: `TXN-INIT-${s.id}`,
+                studentId: s.id,
                 receiptNo: `SUN/26-27/${2000 + idx}`,
                 amount: paidAmt,
                 date: "2026-06-10",
@@ -104,7 +114,7 @@ function FeeCollection() {
                 collectedBy: "Office Staff",
               }
             ] : [],
-          };
+          });
         });
         setFeeList(dynamicFees);
       }
@@ -114,8 +124,9 @@ function FeeCollection() {
 
   // Summary Metrics
   const summary = useMemo(() => {
-    const totalExpected = feeList.reduce((acc, f) => acc + (f.amount || 0), 0);
+    const totalExpected = feeList.reduce((acc, f) => acc + (f.finalFee || f.amount || 0), 0);
     const totalCollected = feeList.reduce((acc, f) => acc + (f.paid || 0), 0);
+    const totalDiscounts = feeList.reduce((acc, f) => acc + (f.discountAmount || 0), 0);
     const totalPending = Math.max(0, totalExpected - totalCollected);
     const fullyPaidCount = feeList.filter((f) => f.status === "Paid").length;
     const pendingCount = feeList.filter((f) => f.status !== "Paid").length;
@@ -124,6 +135,7 @@ function FeeCollection() {
     return {
       totalExpected,
       totalCollected,
+      totalDiscounts,
       totalPending,
       fullyPaidCount,
       pendingCount,
@@ -148,8 +160,8 @@ function FeeCollection() {
     setActiveLedger(f);
     const plan = f.totalInstallments || 3;
     setInstallmentPlan(plan);
-    const remaining = Math.max(0, (f.amount || 0) - (f.paid || 0));
-    const instAmt = Math.min(remaining, Math.round(f.amount / plan));
+    const remaining = Math.max(0, (f.finalFee || f.amount || 0) - (f.paid || 0));
+    const instAmt = Math.min(remaining, Math.round((f.finalFee || f.amount || 0) / plan));
     setAmountPaid(String(instAmt > 0 ? instAmt : remaining));
     setReference("");
     setRemarks("");
@@ -161,20 +173,57 @@ function FeeCollection() {
     setOpenDetailModal(true);
   };
 
+  const openEditFeeFor = (f: FeeLedgerItem) => {
+    setActiveLedger(f);
+    setEditOriginalFee(String(f.originalFee || f.amount || 8500));
+    setEditDiscountAmount(String(f.discountAmount || 0));
+    setEditRemarks("");
+    setOpenEditFeeModal(true);
+  };
+
+  const handleSaveFeeStructure = () => {
+    if (!activeLedger) return;
+    const origFee = Number(editOriginalFee || 0);
+    const discAmt = Number(editDiscountAmount || 0);
+
+    if (origFee < 0 || discAmt < 0) {
+      return toast.error("Fee amounts cannot be negative.");
+    }
+    if (discAmt > origFee) {
+      return toast.error("Discount cannot exceed original total fee.");
+    }
+
+    const updated = recalculateFeeLedger({
+      ...activeLedger,
+      originalFee: origFee,
+      discountAmount: discAmt,
+    });
+
+    setFeeList((prev) => prev.map((f) => (f.id === activeLedger.id ? updated : f)));
+    saveFeeRecord(updated);
+    setActiveLedger(updated);
+    setOpenEditFeeModal(false);
+
+    toast.success(`Fee structure updated for ${updated.studentName}! Final Fee: ₹${updated.finalFee.toLocaleString()}`);
+  };
+
   const handleRecordPayment = () => {
     if (!activeLedger) return;
     const paidAmt = Number(amountPaid || 0);
     if (paidAmt <= 0) return toast.error("Please enter a valid payment amount.");
 
-    const newTotalPaid = (activeLedger.paid || 0) + paidAmt;
-    const newBal = Math.max(0, activeLedger.amount - newTotalPaid);
-    const newStatus: "Paid" | "Partial" | "Pending" = newBal === 0 ? "Paid" : "Partial";
+    const remainingBal = Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0));
+    if (paidAmt > remainingBal) {
+      return toast.error(`Payment amount (₹${paidAmt.toLocaleString()}) cannot exceed remaining balance (₹${remainingBal.toLocaleString()}).`);
+    }
 
-    const nextInstNo = (activeLedger.paidInstallments || 0) + 1;
+    const nextInstNo = (activeLedger.payments?.length || 0) + 1;
     const rcptNo = `SUN/26-27/${Math.floor(4000 + Math.random() * 6000)}`;
 
     const newTxn: PaymentTransaction = {
       id: `TXN-${Date.now()}`,
+      feeLedgerId: activeLedger.id,
+      studentId: activeLedger.studentId,
       receiptNo: rcptNo,
       amount: paidAmt,
       date,
@@ -186,14 +235,11 @@ function FeeCollection() {
       collectedBy: "Office Staff",
     };
 
-    const updatedLedger: FeeLedgerItem = {
+    const updatedLedger = recalculateFeeLedger({
       ...activeLedger,
-      paid: newTotalPaid,
-      status: newStatus,
       totalInstallments: installmentPlan,
-      paidInstallments: newStatus === "Paid" ? installmentPlan : nextInstNo,
       payments: [...(activeLedger.payments || []), newTxn],
-    };
+    });
 
     setFeeList((prev) => prev.map((f) => (f.id === activeLedger.id ? updatedLedger : f)));
     saveFeeRecord(updatedLedger);
@@ -204,14 +250,14 @@ function FeeCollection() {
       admissionNo: activeLedger.admissionNo || activeLedger.studentId,
       className: activeLedger.className,
       feeType,
-      amountDue: Math.max(0, activeLedger.amount - (activeLedger.paid || 0)),
+      amountDue: remainingBal,
       amountPaid: paidAmt,
-      balance: newBal,
+      balance: updatedLedger.remainingAmount,
       method,
       reference,
       date,
       remarks,
-      status: newStatus,
+      status: updatedLedger.status,
       collectedBy: "Office Staff",
     };
 
@@ -226,20 +272,20 @@ function FeeCollection() {
   return (
     <div className="flex flex-col h-full min-h-0 space-y-4">
       <div className="shrink-0">
-        <PageHeader title="Student Fee Ledger & Collection" subtitle="Manage student fee balances, installment plans, and generated receipts." />
+        <PageHeader title="Student Fee Ledger Module" subtitle="Single-row student ledgers, editable fee structures, discounts, installment histories, and receipts." />
       </div>
 
       {/* Summary Cards */}
       <div className="shrink-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} icon={DollarSign} gradient="from-purple-500 to-indigo-500" />
         <StatCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} icon={Wallet} gradient="from-emerald-500 to-teal-500" />
-        <StatCard label="Total Pending Amount" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} icon={Clock} gradient="from-rose-500 to-orange-500" />
+        <StatCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} icon={Tag} gradient="from-amber-500 to-orange-500" />
+        <StatCard label="Pending Balance" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} icon={Clock} gradient="from-rose-500 to-orange-500" />
         <StatCard label="Students Fully Paid" value={summary.fullyPaidCount} icon={CheckCircle} gradient="from-teal-500 to-emerald-500" />
-        <StatCard label="Students Pending" value={summary.pendingCount} icon={Clock} gradient="from-amber-500 to-yellow-500" />
         <StatCard label="Receipts Generated" value={summary.totalReceipts} icon={FileText} gradient="from-sky-500 to-blue-500" />
       </div>
 
-      {/* Main Ledger Section */}
+      {/* Main Student Fee Ledger Table Section */}
       <div className="flex-1 min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col overflow-hidden">
         {/* Filter bar */}
         <div className="shrink-0 p-4 border-b border-white/60 flex flex-col md:flex-row items-center justify-between gap-3">
@@ -270,38 +316,46 @@ function FeeCollection() {
 
         {/* Ledger Table */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground sticky top-0 z-10 backdrop-blur">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Student</th>
+                <th className="text-left px-4 py-3 font-medium">Student Name</th>
                 <th className="text-left px-4 py-3 font-medium">Adm No.</th>
-                <th className="text-left px-4 py-3 font-medium">Class</th>
-                <th className="text-left px-4 py-3 font-medium">Academic Year</th>
+                <th className="text-left px-4 py-3 font-medium">Class & Sec</th>
                 <th className="text-left px-4 py-3 font-medium">Total Fee</th>
-                <th className="text-left px-4 py-3 font-medium">Paid</th>
-                <th className="text-left px-4 py-3 font-medium">Pending</th>
-                <th className="text-left px-4 py-3 font-medium">Installment Progress</th>
+                <th className="text-left px-4 py-3 font-medium">Discount</th>
+                <th className="text-left px-4 py-3 font-medium">Final Fee</th>
+                <th className="text-left px-4 py-3 font-medium">Total Paid</th>
+                <th className="text-left px-4 py-3 font-medium">Remaining</th>
+                <th className="text-left px-4 py-3 font-medium">Installments</th>
                 <th className="text-left px-4 py-3 font-medium">Status</th>
+                <th className="text-left px-4 py-3 font-medium">Last Payment</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-muted/30">
               {filtered.map((f) => {
-                const pending = Math.max(0, f.amount - f.paid);
+                const origFee = f.originalFee || f.amount || 8500;
+                const discAmt = f.discountAmount || 0;
+                const finalFee = f.finalFee || origFee - discAmt;
+                const paid = f.paid || 0;
+                const remaining = Math.max(0, finalFee - paid);
+
                 const instTotal = f.totalInstallments || 3;
-                const instPaid = f.status === "Paid" ? instTotal : f.paidInstallments || (f.paid > 0 ? 1 : 0);
-                const pct = Math.min(100, Math.round((f.paid / f.amount) * 100));
+                const instPaid = f.status === "Paid" ? instTotal : f.paidInstallments || (f.payments?.length || (paid > 0 ? 1 : 0));
+                const pct = finalFee ? Math.min(100, Math.round((paid / finalFee) * 100)) : 0;
 
                 return (
                   <tr key={f.id} className="hover:bg-white/60 transition">
                     <td className="px-4 py-3 font-semibold text-slate-800">{f.studentName}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</td>
                     <td className="px-4 py-3">{f.className}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{f.academicYear || "2026-2027"}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">₹{f.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold text-emerald-700">₹{f.paid.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold text-rose-600">₹{pending.toLocaleString()}</td>
-                    <td className="px-4 py-3 min-w-[140px]">
+                    <td className="px-4 py-3 text-slate-700 font-medium">₹{origFee.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-amber-700 font-medium">{discAmt > 0 ? `-₹${discAmt.toLocaleString()}` : "—"}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
+                    <td className="px-4 py-3 font-semibold text-emerald-700">₹{paid.toLocaleString()}</td>
+                    <td className="px-4 py-3 font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
+                    <td className="px-4 py-3 min-w-[130px]">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px] shrink-0 font-medium">
                           {instPaid}/{instTotal} Inst
@@ -314,15 +368,19 @@ function FeeCollection() {
                         {f.status}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{f.lastPaymentDate || "—"}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => openDetailsFor(f)}>
-                          <Eye className="h-4 w-4 mr-1 text-slate-600" /> Details
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openEditFeeFor(f)}>
+                          <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit Fee
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openDetailsFor(f)}>
+                          <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> Details
                         </Button>
                         <Button
                           size="sm"
                           onClick={() => openRecordPaymentFor(f)}
-                          className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-xs font-medium"
+                          className="h-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-xs font-medium px-3"
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Pay
                         </Button>
@@ -333,7 +391,7 @@ function FeeCollection() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                  <td colSpan={12} className="px-4 py-12 text-center text-muted-foreground text-sm">
                     No student fee ledger records found matching query.
                   </td>
                 </tr>
@@ -347,74 +405,75 @@ function FeeCollection() {
       <Dialog open={openDetailModal} onOpenChange={setOpenDetailModal}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Student Fee Ledger Details</DialogTitle>
+            <DialogTitle>Student Fee Ledger & Payment History</DialogTitle>
           </DialogHeader>
 
           {activeLedger && (
             <div className="space-y-4 text-sm mt-2">
-              {/* Cover info */}
+              {/* Cover Info Tile */}
               <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-4 border border-orange-200/60 flex items-center justify-between">
                 <div>
                   <div className="text-base font-bold text-slate-900">{activeLedger.studentName}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    Admission No: <span className="font-mono">{activeLedger.admissionNo || "ADM-1001"}</span> · Class {activeLedger.className}
+                    Admission No: <span className="font-mono">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: {activeLedger.className}
                   </div>
                   <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || "2026-2027"}</div>
                 </div>
-                <Badge className={activeLedger.status === "Paid" ? "bg-emerald-100 text-emerald-700" : activeLedger.status === "Partial" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}>
-                  {activeLedger.status}
-                </Badge>
-              </div>
-
-              {/* Financial Breakdown Tiles */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border bg-card p-3">
-                  <div className="text-xs text-muted-foreground">Total Fee</div>
-                  <div className="text-lg font-bold text-slate-900 mt-1">₹{activeLedger.amount.toLocaleString()}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-3">
-                  <div className="text-xs text-muted-foreground">Total Paid</div>
-                  <div className="text-lg font-bold text-emerald-600 mt-1">₹{activeLedger.paid.toLocaleString()}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-3">
-                  <div className="text-xs text-muted-foreground">Remaining Balance</div>
-                  <div className="text-lg font-bold text-rose-600 mt-1">₹{Math.max(0, activeLedger.amount - activeLedger.paid).toLocaleString()}</div>
+                <div className="text-right">
+                  <Badge className={activeLedger.status === "Paid" ? "bg-emerald-100 text-emerald-700" : activeLedger.status === "Partial" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}>
+                    {activeLedger.status}
+                  </Badge>
+                  <Button size="sm" variant="outline" className="mt-2 h-7 text-xs flex items-center" onClick={() => { setOpenDetailModal(false); openEditFeeFor(activeLedger); }}>
+                    <Edit3 className="h-3 w-3 mr-1 text-amber-600" /> Edit Structure
+                  </Button>
                 </div>
               </div>
 
-              {/* Installment Plan Progress */}
-              <SectionCard title="Installment Plan Progress">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Installment Progress ({activeLedger.status === "Paid" ? activeLedger.totalInstallments || 3 : activeLedger.paidInstallments || (activeLedger.paid > 0 ? 1 : 0)} / {activeLedger.totalInstallments || 3} Completed)</span>
-                    <span>{Math.min(100, Math.round((activeLedger.paid / activeLedger.amount) * 100))}% Paid</span>
-                  </div>
-                  <Progress value={Math.min(100, Math.round((activeLedger.paid / activeLedger.amount) * 100))} className="h-2" />
-                </div>
-              </SectionCard>
+              {/* Fee Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                <MetricTile label="Original Fee" value={`₹${(activeLedger.originalFee || activeLedger.amount || 8500).toLocaleString()}`} color="text-slate-800" />
+                <MetricTile label="Discount" value={activeLedger.discountAmount ? `-₹${activeLedger.discountAmount.toLocaleString()}` : "₹0"} color="text-amber-700" />
+                <MetricTile label="Final Fee" value={`₹${(activeLedger.finalFee || activeLedger.amount || 8500).toLocaleString()}`} color="text-slate-900 font-bold" />
+                <MetricTile label="Total Paid" value={`₹${(activeLedger.paid || 0).toLocaleString()}`} color="text-emerald-700 font-bold" />
+                <MetricTile label="Remaining" value={`₹${Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0)).toLocaleString()}`} color="text-rose-600 font-bold" />
+              </div>
 
-              {/* Payment Transactions & Receipts History */}
-              <SectionCard title="Payment & Receipt History">
-                {(!activeLedger.payments || activeLedger.payments.length === 0) ? (
-                  <div className="text-xs text-muted-foreground py-4 text-center">No payment transactions recorded yet.</div>
-                ) : (
-                  <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {activeLedger.payments.map((p, idx) => (
-                      <li key={p.id || idx} className="rounded-xl border p-3 flex items-center justify-between text-xs bg-white">
+              {/* Installment History Breakdown */}
+              <SectionCard title="Installment History Breakdown">
+                <div className="space-y-3">
+                  {Array.from({ length: activeLedger.totalInstallments || 3 }).map((_, instIdx) => {
+                    const instNo = instIdx + 1;
+                    const payment = activeLedger.payments?.find((p) => p.installmentNo === instNo) || activeLedger.payments?.[instIdx];
+                    const expectedInstAmt = Math.round((activeLedger.finalFee || activeLedger.amount || 8500) / (activeLedger.totalInstallments || 3));
+
+                    return (
+                      <div key={instNo} className={cn("rounded-2xl border p-3 text-xs flex items-center justify-between transition", payment ? "bg-emerald-50/50 border-emerald-200" : "bg-slate-50/50 border-slate-200")}>
                         <div>
-                          <div className="font-semibold text-slate-900">Receipt #{p.receiptNo}</div>
-                          <div className="text-muted-foreground">{p.date} · Method: {p.method} · Inst #{p.installmentNo || idx + 1}</div>
+                          <div className="font-bold text-slate-800">
+                            Installment {instNo} {payment ? <Badge className="ml-2 bg-emerald-100 text-emerald-700 text-[10px]">Paid</Badge> : <Badge className="ml-2 bg-rose-100 text-rose-700 text-[10px]">Pending</Badge>}
+                          </div>
+                          {payment ? (
+                            <div className="text-muted-foreground mt-1 space-y-0.5">
+                              <div>Receipt No: <span className="font-mono font-medium text-slate-800">{payment.receiptNo}</span> · Method: <b>{payment.method}</b></div>
+                              <div>Date: <b>{payment.date}</b> · Collected By: <b>{payment.collectedBy || "Office Staff"}</b></div>
+                              {payment.remarks && <div className="italic text-slate-500">Remarks: "{payment.remarks}"</div>}
+                            </div>
+                          ) : (
+                            <div className="text-muted-foreground mt-1">Expected: ₹{expectedInstAmt.toLocaleString()}</div>
+                          )}
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-emerald-700">₹{p.amount.toLocaleString()}</div>
-                          <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-sky-600" onClick={() => window.print()}>
-                            <Printer className="h-3 w-3 mr-1" /> Print
-                          </Button>
+                          <div className="text-base font-bold text-slate-900">{payment ? `₹${payment.amount.toLocaleString()}` : `₹${expectedInstAmt.toLocaleString()}`}</div>
+                          {payment && (
+                            <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-sky-600" onClick={() => window.print()}>
+                              <Printer className="h-3 w-3 mr-1" /> Reprint Receipt
+                            </Button>
+                          )}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
               </SectionCard>
             </div>
           )}
@@ -436,6 +495,70 @@ function FeeCollection() {
         </DialogContent>
       </Dialog>
 
+      {/* EDIT FEE STRUCTURE MODAL */}
+      <Dialog open={openEditFeeModal} onOpenChange={setOpenEditFeeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Student Fee Structure & Discount</DialogTitle>
+          </DialogHeader>
+
+          {activeLedger && (
+            <div className="space-y-4 text-xs">
+              <div className="rounded-xl bg-amber-50 p-3 border border-amber-200">
+                <div className="font-bold text-slate-900">{activeLedger.studentName}</div>
+                <div className="text-muted-foreground">Class: {activeLedger.className} · Adm No: {activeLedger.admissionNo || "ADM-1001"}</div>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">Original Total Fee (₹)</Label>
+                <Input
+                  type="number"
+                  value={editOriginalFee}
+                  onChange={(e) => setEditOriginalFee(e.target.value)}
+                  placeholder="8500"
+                  className="mt-1 font-semibold text-slate-800"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">Discount / Fee Reduction Amount (₹)</Label>
+                <Input
+                  type="number"
+                  value={editDiscountAmount}
+                  onChange={(e) => setEditDiscountAmount(e.target.value)}
+                  placeholder="0"
+                  className="mt-1 font-semibold text-amber-700"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Scholarship, sibling concession, management discount, etc.</p>
+              </div>
+
+              {/* Recalculated Preview */}
+              <div className="rounded-xl bg-slate-100 p-3 space-y-1">
+                <div className="flex justify-between font-semibold">
+                  <span>Recalculated Final Fee:</span>
+                  <span className="text-slate-900 font-bold">₹{Math.max(0, Number(editOriginalFee || 0) - Number(editDiscountAmount || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Already Paid:</span>
+                  <span className="text-emerald-700 font-semibold">₹{(activeLedger.paid || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>New Remaining Balance:</span>
+                  <span className="text-rose-600 font-semibold">₹{Math.max(0, (Number(editOriginalFee || 0) - Number(editDiscountAmount || 0)) - (activeLedger.paid || 0)).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setOpenEditFeeModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveFeeStructure} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              Save Fee Structure & Recalculate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* RECORD PAYMENT MODAL */}
       <Dialog open={openRecordModal} onOpenChange={setOpenRecordModal}>
         <DialogContent className="max-w-md">
@@ -448,7 +571,7 @@ function FeeCollection() {
               <div className="rounded-xl bg-orange-50 p-3 border border-orange-200">
                 <div className="font-semibold text-slate-900">{activeLedger.studentName}</div>
                 <div className="text-muted-foreground mt-0.5">Class: {activeLedger.className} · Adm No: {activeLedger.admissionNo || "ADM-1001"}</div>
-                <div className="text-rose-700 font-medium mt-1">Pending Balance: ₹{Math.max(0, activeLedger.amount - activeLedger.paid).toLocaleString()}</div>
+                <div className="text-rose-700 font-medium mt-1">Pending Balance: ₹{Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0)).toLocaleString()}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -541,6 +664,15 @@ function FeeCollection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function MetricTile({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="rounded-xl border bg-card p-2.5">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className={cn("text-sm font-semibold mt-0.5", color)}>{value}</div>
     </div>
   );
 }
