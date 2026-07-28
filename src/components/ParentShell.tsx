@@ -107,7 +107,7 @@ export function ParentShell() {
         </header>
 
         {/* Main */}
-        <main className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 py-4 pb-24 w-full max-w-none overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col px-3 sm:px-4 py-4 pb-24 w-full max-w-none overflow-y-auto">
           <Outlet />
         </main>
 

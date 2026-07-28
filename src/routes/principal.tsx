@@ -45,9 +45,9 @@ function PrincipalLayout() {
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
         />
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <PrincipalHeader onMenu={() => setMobileOpen(true)} title={title} />
-          <main className="flex-1 flex flex-col min-h-0 p-4 md:p-6 lg:p-8 overflow-hidden w-full max-w-none">
+          <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8 w-full max-w-none">
             <Outlet />
           </main>
         </div>
