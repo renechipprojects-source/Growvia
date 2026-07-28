@@ -13,9 +13,9 @@ const titleMap: Record<string, string> = {
   "/principal/attendance/students": "Student Attendance",
   "/principal/attendance/staff": "Staff Attendance",
   "/principal/circulars": "Circular Management",
-  "/principal/events": "Events",
-  "/principal/calendar": "Calendar",
   "/principal/inventory": "Inventory",
+  "/principal/transport": "Transport",
+  "/principal/fees": "Fees Overview",
 };
 
 export const Route = createFileRoute("/principal")({

@@ -14,6 +14,7 @@ import {
   Activity,
   ClipboardList,
   ArrowRight,
+  Bus,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -115,7 +116,9 @@ function DashboardPage() {
         <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" tint="bg-accent/40 text-accent-foreground" />
         <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} tint="bg-success/10 text-success" />
         <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} tint="bg-warning/20 text-warning-foreground" />
-        <StatCard icon={CalendarDays} label="Upcoming Events" value={eventsList.length} sub="This month" tint="bg-destructive/10 text-destructive" />
+        <Link to="/principal/transport">
+          <StatCard icon={Bus} label="Transport Fleet" value="4 Buses" sub="Active routes" tint="bg-purple-100 text-purple-700 hover:border-primary transition-all cursor-pointer" />
+        </Link>
       </div>
 
       {/* Main grid */}

@@ -15,6 +15,8 @@ import {
   ChevronsRight,
   School,
   Wallet,
+  Bus,
+  Boxes,
   X,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
@@ -46,6 +48,8 @@ const nav: NavItem[] = [
     ],
   },
   { label: "Fees Overview", to: "/principal/fees", icon: Wallet },
+  { label: "Transport", to: "/principal/transport", icon: Bus },
+  { label: "Inventory", to: "/principal/inventory", icon: Boxes },
   { label: "Circulars", to: "/principal/circulars", icon: Megaphone },
 ];
 
