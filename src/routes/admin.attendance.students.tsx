@@ -274,8 +274,7 @@ export function AttendanceDetailsModal({
           </div>
 
           {/* Key Metrics Breakdown */}
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center">
-            <MetricTile label="School Days" value={details.totalSchoolDays} color="text-slate-800" />
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
             <MetricTile label="Present Days" value={details.presentDays} color="text-emerald-600" />
             <MetricTile label="Absent Days" value={details.absentDays} color="text-rose-600" />
             <MetricTile label="Late Days" value={details.lateDays} color="text-amber-600" />

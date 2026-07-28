@@ -1,46 +1,40 @@
 import { useState, type ReactNode } from "react";
+import { PageHeader } from "@/components/admin/page-primitives";
 
 export type NavItem = { key: string; label: string; icon?: ReactNode; page: ReactNode };
 
 export function ModuleLayout({ title, subtitle, nav }: { title: string; subtitle?: string; nav: NavItem[] }) {
   const [active, setActive] = useState(nav[0].key);
   const current = nav.find((n) => n.key === active) ?? nav[0];
+
   return (
-    <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground md:block">
-        <div className="border-b p-5">
-          <div className="text-lg font-semibold tracking-tight">{title}</div>
-          {subtitle && <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>}
-        </div>
-        <nav className="space-y-1 p-3">
+    <div className="flex h-full min-h-0 flex-col w-full max-w-none space-y-4">
+      {/* Top Header & Tab Navigation */}
+      <div className="shrink-0 space-y-3">
+        <PageHeader title={title} description={subtitle} />
+
+        {/* Clean Horizontal Tab Bar (No nested sidebar) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/60">
           {nav.map((n) => (
             <button
               key={n.key}
               onClick={() => setActive(n.key)}
-              className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-all ${
                 active === n.key
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               {n.icon}
-              {n.label}
+              <span>{n.label}</span>
             </button>
           ))}
-        </nav>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b bg-card px-6 py-3 md:hidden">
-          <div className="font-semibold">{title}</div>
-          <select
-            value={active}
-            onChange={(e) => setActive(e.target.value)}
-            className="ml-auto rounded-md border bg-background px-2 py-1 text-sm"
-          >
-            {nav.map((n) => <option key={n.key} value={n.key}>{n.label}</option>)}
-          </select>
-        </header>
-        <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6">{current.page}</main>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {current.page}
       </div>
     </div>
   );

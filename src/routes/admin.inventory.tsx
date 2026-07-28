@@ -55,8 +55,7 @@ function InventoryPage() {
       const matchQ =
         !q ||
         i.name.toLowerCase().includes(q) ||
-        i.sku.toLowerCase().includes(q) ||
-        catName(i.categoryId).toLowerCase().includes(q);
+        i.sku.toLowerCase().includes(q);
       const matchC = categoryId === "all" || i.categoryId === categoryId;
       const isLow = i.qty < i.minQty;
       const matchS = statusFilter === "all" || (statusFilter === "low" ? isLow : !isLow);
