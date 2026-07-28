@@ -64,7 +64,7 @@ export function ParentShell() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-pink-50 via-fuchsia-50 to-purple-50">
-      <div className="w-full max-w-7xl mx-auto min-h-screen flex flex-col">
+      <div className="w-full max-w-none mx-auto min-h-screen flex flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-white/60 shadow-sm">
           <div className="px-4 py-3 flex items-center gap-3">
@@ -113,7 +113,7 @@ export function ParentShell() {
 
         {/* Bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/60 bg-white/85 backdrop-blur-xl">
-          <div className="w-full max-w-7xl mx-auto grid grid-cols-5">
+          <div className="w-full max-w-none mx-auto grid grid-cols-5">
             {tabs.map((tab) => {
               const active = tab.match(pathname);
               const Icon = tab.icon;
@@ -142,7 +142,7 @@ export function ParentShell() {
         {moreOpen && (
           <>
             <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setMoreOpen(false)} aria-hidden />
-            <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white shadow-2xl p-4 w-full max-w-7xl mx-auto">
+            <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white shadow-2xl p-4 w-full max-w-none mx-auto">
               <div className="flex items-center justify-between mb-3">
                 <div className="font-semibold">{t("nav.more")}</div>
                 <button onClick={() => setMoreOpen(false)} className="p-1 rounded-full hover:bg-slate-100" aria-label={t("app.close")}>
