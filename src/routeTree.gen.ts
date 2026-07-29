@@ -18,6 +18,7 @@ import { Route as ParentRouteImport } from './routes/parent'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCircularsRouteImport } from './routes/admin.circulars'
 import { Route as AdminClassesRouteImport } from './routes/admin.classes'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminFeesRouteImport } from './routes/admin.fees'
@@ -30,6 +31,7 @@ import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
 import { Route as OfficeAdmissionsRouteImport } from './routes/office.admissions'
+import { Route as OfficeCircularsRouteImport } from './routes/office.circulars'
 import { Route as OfficeClassAssignmentRouteImport } from './routes/office.class-assignment'
 import { Route as OfficeEnquiriesRouteImport } from './routes/office.enquiries'
 import { Route as OfficeExpensesRouteImport } from './routes/office.expenses'
@@ -49,6 +51,7 @@ import { Route as OfficeVisitsRouteImport } from './routes/office.visits'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentAttendanceRouteImport } from './routes/parent.attendance'
 import { Route as ParentChildRouteImport } from './routes/parent.child'
+import { Route as ParentCircularsRouteImport } from './routes/parent.circulars'
 import { Route as ParentDiaryRouteImport } from './routes/parent.diary'
 import { Route as ParentFeesRouteImport } from './routes/parent.fees'
 import { Route as ParentGalleryRouteImport } from './routes/parent.gallery'
@@ -72,6 +75,7 @@ import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherActivitiesRouteImport } from './routes/teacher.activities'
 import { Route as TeacherAlertsRouteImport } from './routes/teacher.alerts'
 import { Route as TeacherAttendanceRouteImport } from './routes/teacher.attendance'
+import { Route as TeacherCircularsRouteImport } from './routes/teacher.circulars'
 import { Route as TeacherDiaryRouteImport } from './routes/teacher.diary'
 import { Route as TeacherGalleryRouteImport } from './routes/teacher.gallery'
 import { Route as TeacherHomeworkRouteImport } from './routes/teacher.homework'
@@ -132,6 +136,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCircularsRoute = AdminCircularsRouteImport.update({
+  id: '/circulars',
+  path: '/circulars',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminClassesRoute = AdminClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
@@ -190,6 +199,11 @@ const OfficeIndexRoute = OfficeIndexRouteImport.update({
 const OfficeAdmissionsRoute = OfficeAdmissionsRouteImport.update({
   id: '/admissions',
   path: '/admissions',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeCircularsRoute = OfficeCircularsRouteImport.update({
+  id: '/circulars',
+  path: '/circulars',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeClassAssignmentRoute = OfficeClassAssignmentRouteImport.update({
@@ -286,6 +300,11 @@ const ParentAttendanceRoute = ParentAttendanceRouteImport.update({
 const ParentChildRoute = ParentChildRouteImport.update({
   id: '/child',
   path: '/child',
+  getParentRoute: () => ParentRoute,
+} as any)
+const ParentCircularsRoute = ParentCircularsRouteImport.update({
+  id: '/circulars',
+  path: '/circulars',
   getParentRoute: () => ParentRoute,
 } as any)
 const ParentDiaryRoute = ParentDiaryRouteImport.update({
@@ -403,6 +422,11 @@ const TeacherAttendanceRoute = TeacherAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => TeacherRoute,
 } as any)
+const TeacherCircularsRoute = TeacherCircularsRouteImport.update({
+  id: '/circulars',
+  path: '/circulars',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const TeacherDiaryRoute = TeacherDiaryRouteImport.update({
   id: '/diary',
   path: '/diary',
@@ -485,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
@@ -496,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
+  '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
@@ -514,6 +540,7 @@ export interface FileRoutesByFullPath {
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
+  '/parent/circulars': typeof ParentCircularsRoute
   '/parent/diary': typeof ParentDiaryRoute
   '/parent/fees': typeof ParentFeesRoute
   '/parent/gallery': typeof ParentGalleryRoute
@@ -535,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
+  '/teacher/circulars': typeof TeacherCircularsRoute
   '/teacher/diary': typeof TeacherDiaryRoute
   '/teacher/gallery': typeof TeacherGalleryRoute
   '/teacher/homework': typeof TeacherHomeworkRoute
@@ -559,6 +587,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
@@ -570,6 +599,7 @@ export interface FileRoutesByTo {
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
+  '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
@@ -588,6 +618,7 @@ export interface FileRoutesByTo {
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
+  '/parent/circulars': typeof ParentCircularsRoute
   '/parent/diary': typeof ParentDiaryRoute
   '/parent/fees': typeof ParentFeesRoute
   '/parent/gallery': typeof ParentGalleryRoute
@@ -609,6 +640,7 @@ export interface FileRoutesByTo {
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
+  '/teacher/circulars': typeof TeacherCircularsRoute
   '/teacher/diary': typeof TeacherDiaryRoute
   '/teacher/gallery': typeof TeacherGalleryRoute
   '/teacher/homework': typeof TeacherHomeworkRoute
@@ -639,6 +671,7 @@ export interface FileRoutesById {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
@@ -650,6 +683,7 @@ export interface FileRoutesById {
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
+  '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
@@ -668,6 +702,7 @@ export interface FileRoutesById {
   '/office/visits': typeof OfficeVisitsRoute
   '/parent/attendance': typeof ParentAttendanceRoute
   '/parent/child': typeof ParentChildRoute
+  '/parent/circulars': typeof ParentCircularsRoute
   '/parent/diary': typeof ParentDiaryRoute
   '/parent/fees': typeof ParentFeesRoute
   '/parent/gallery': typeof ParentGalleryRoute
@@ -689,6 +724,7 @@ export interface FileRoutesById {
   '/teacher/activities': typeof TeacherActivitiesRoute
   '/teacher/alerts': typeof TeacherAlertsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
+  '/teacher/circulars': typeof TeacherCircularsRoute
   '/teacher/diary': typeof TeacherDiaryRoute
   '/teacher/gallery': typeof TeacherGalleryRoute
   '/teacher/homework': typeof TeacherHomeworkRoute
@@ -720,6 +756,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
+    | '/admin/circulars'
     | '/admin/classes'
     | '/admin/events'
     | '/admin/fees'
@@ -731,6 +768,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
+    | '/office/circulars'
     | '/office/class-assignment'
     | '/office/enquiries'
     | '/office/expenses'
@@ -749,6 +787,7 @@ export interface FileRouteTypes {
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
+    | '/parent/circulars'
     | '/parent/diary'
     | '/parent/fees'
     | '/parent/gallery'
@@ -770,6 +809,7 @@ export interface FileRouteTypes {
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
+    | '/teacher/circulars'
     | '/teacher/diary'
     | '/teacher/gallery'
     | '/teacher/homework'
@@ -794,6 +834,7 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/forgot-password'
+    | '/admin/circulars'
     | '/admin/classes'
     | '/admin/events'
     | '/admin/fees'
@@ -805,6 +846,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
+    | '/office/circulars'
     | '/office/class-assignment'
     | '/office/enquiries'
     | '/office/expenses'
@@ -823,6 +865,7 @@ export interface FileRouteTypes {
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
+    | '/parent/circulars'
     | '/parent/diary'
     | '/parent/fees'
     | '/parent/gallery'
@@ -844,6 +887,7 @@ export interface FileRouteTypes {
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
+    | '/teacher/circulars'
     | '/teacher/diary'
     | '/teacher/gallery'
     | '/teacher/homework'
@@ -873,6 +917,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
+    | '/admin/circulars'
     | '/admin/classes'
     | '/admin/events'
     | '/admin/fees'
@@ -884,6 +929,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
+    | '/office/circulars'
     | '/office/class-assignment'
     | '/office/enquiries'
     | '/office/expenses'
@@ -902,6 +948,7 @@ export interface FileRouteTypes {
     | '/office/visits'
     | '/parent/attendance'
     | '/parent/child'
+    | '/parent/circulars'
     | '/parent/diary'
     | '/parent/fees'
     | '/parent/gallery'
@@ -923,6 +970,7 @@ export interface FileRouteTypes {
     | '/teacher/activities'
     | '/teacher/alerts'
     | '/teacher/attendance'
+    | '/teacher/circulars'
     | '/teacher/diary'
     | '/teacher/gallery'
     | '/teacher/homework'
@@ -1020,6 +1068,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/circulars': {
+      id: '/admin/circulars'
+      path: '/circulars'
+      fullPath: '/admin/circulars'
+      preLoaderRoute: typeof AdminCircularsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/classes': {
       id: '/admin/classes'
       path: '/classes'
@@ -1102,6 +1157,13 @@ declare module '@tanstack/react-router' {
       path: '/admissions'
       fullPath: '/office/admissions'
       preLoaderRoute: typeof OfficeAdmissionsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/office/circulars': {
+      id: '/office/circulars'
+      path: '/circulars'
+      fullPath: '/office/circulars'
+      preLoaderRoute: typeof OfficeCircularsRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/office/class-assignment': {
@@ -1235,6 +1297,13 @@ declare module '@tanstack/react-router' {
       path: '/child'
       fullPath: '/parent/child'
       preLoaderRoute: typeof ParentChildRouteImport
+      parentRoute: typeof ParentRoute
+    }
+    '/parent/circulars': {
+      id: '/parent/circulars'
+      path: '/circulars'
+      fullPath: '/parent/circulars'
+      preLoaderRoute: typeof ParentCircularsRouteImport
       parentRoute: typeof ParentRoute
     }
     '/parent/diary': {
@@ -1398,6 +1467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherAttendanceRouteImport
       parentRoute: typeof TeacherRoute
     }
+    '/teacher/circulars': {
+      id: '/teacher/circulars'
+      path: '/circulars'
+      fullPath: '/teacher/circulars'
+      preLoaderRoute: typeof TeacherCircularsRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/teacher/diary': {
       id: '/teacher/diary'
       path: '/diary'
@@ -1512,6 +1588,7 @@ const AdminFeesRouteWithChildren = AdminFeesRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminCircularsRoute: typeof AdminCircularsRoute
   AdminClassesRoute: typeof AdminClassesRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFeesRoute: typeof AdminFeesRouteWithChildren
@@ -1529,6 +1606,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCircularsRoute: AdminCircularsRoute,
   AdminClassesRoute: AdminClassesRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminFeesRoute: AdminFeesRouteWithChildren,
@@ -1549,6 +1627,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface OfficeRouteChildren {
   OfficeAdmissionsRoute: typeof OfficeAdmissionsRoute
+  OfficeCircularsRoute: typeof OfficeCircularsRoute
   OfficeClassAssignmentRoute: typeof OfficeClassAssignmentRoute
   OfficeEnquiriesRoute: typeof OfficeEnquiriesRoute
   OfficeExpensesRoute: typeof OfficeExpensesRoute
@@ -1570,6 +1649,7 @@ interface OfficeRouteChildren {
 
 const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeAdmissionsRoute: OfficeAdmissionsRoute,
+  OfficeCircularsRoute: OfficeCircularsRoute,
   OfficeClassAssignmentRoute: OfficeClassAssignmentRoute,
   OfficeEnquiriesRoute: OfficeEnquiriesRoute,
   OfficeExpensesRoute: OfficeExpensesRoute,
@@ -1595,6 +1675,7 @@ const OfficeRouteWithChildren =
 interface ParentRouteChildren {
   ParentAttendanceRoute: typeof ParentAttendanceRoute
   ParentChildRoute: typeof ParentChildRoute
+  ParentCircularsRoute: typeof ParentCircularsRoute
   ParentDiaryRoute: typeof ParentDiaryRoute
   ParentFeesRoute: typeof ParentFeesRoute
   ParentGalleryRoute: typeof ParentGalleryRoute
@@ -1607,6 +1688,7 @@ interface ParentRouteChildren {
 const ParentRouteChildren: ParentRouteChildren = {
   ParentAttendanceRoute: ParentAttendanceRoute,
   ParentChildRoute: ParentChildRoute,
+  ParentCircularsRoute: ParentCircularsRoute,
   ParentDiaryRoute: ParentDiaryRoute,
   ParentFeesRoute: ParentFeesRoute,
   ParentGalleryRoute: ParentGalleryRoute,
@@ -1663,6 +1745,7 @@ interface TeacherRouteChildren {
   TeacherActivitiesRoute: typeof TeacherActivitiesRoute
   TeacherAlertsRoute: typeof TeacherAlertsRoute
   TeacherAttendanceRoute: typeof TeacherAttendanceRoute
+  TeacherCircularsRoute: typeof TeacherCircularsRoute
   TeacherDiaryRoute: typeof TeacherDiaryRoute
   TeacherGalleryRoute: typeof TeacherGalleryRoute
   TeacherHomeworkRoute: typeof TeacherHomeworkRoute
@@ -1678,6 +1761,7 @@ const TeacherRouteChildren: TeacherRouteChildren = {
   TeacherActivitiesRoute: TeacherActivitiesRoute,
   TeacherAlertsRoute: TeacherAlertsRoute,
   TeacherAttendanceRoute: TeacherAttendanceRoute,
+  TeacherCircularsRoute: TeacherCircularsRoute,
   TeacherDiaryRoute: TeacherDiaryRoute,
   TeacherGalleryRoute: TeacherGalleryRoute,
   TeacherHomeworkRoute: TeacherHomeworkRoute,

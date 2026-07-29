@@ -9,6 +9,7 @@ import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext
 import { useEffect, useState } from "react";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useLiveActivities } from "@/lib/activitiesStore";
+import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
@@ -216,6 +217,10 @@ function Dash() {
             ))}
           </div>
         </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <RecentCircularWidget role="teacher" viewAllLink="/teacher/circulars" />
       </div>
     </div>
   );

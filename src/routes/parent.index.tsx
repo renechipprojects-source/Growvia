@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
+import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/parent/")({ component: Dash });
 
@@ -144,6 +145,10 @@ function Dash() {
             ))}
           </div>
         </SectionCard>
+      </div>
+
+      <div className="mt-6">
+        <RecentCircularWidget role="parent" viewAllLink="/parent/circulars" />
       </div>
     </div>
   );

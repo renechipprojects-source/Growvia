@@ -134,6 +134,7 @@ export const ROLES: Record<Role, RoleTheme> = {
       { to: "/teacher/gallery", label: "Gallery", icon: ImageIcon },
       { to: "/teacher/progress", label: "Student Progress", icon: TrendingUp },
       { to: "/teacher/leave-requests", label: "Leave Requests", icon: Plane },
+      { to: "/teacher/circulars", label: "Circulars", icon: Megaphone },
       { to: "/teacher/alerts", label: "Alerts", icon: Bell },
       { to: "/teacher/messages", label: "Messages", icon: MessageSquare },
     ],
@@ -162,6 +163,7 @@ export const ROLES: Record<Role, RoleTheme> = {
         ],
       },
 
+      { to: "/parent/circulars", label: "Circulars", icon: Megaphone },
       { to: "/parent/diary", label: "Daily Diary", icon: NotebookPen },
       { to: "/parent/fees", label: "Fees", icon: DollarSign },
       { to: "/parent/messages", label: "Messages", icon: MessageSquare },

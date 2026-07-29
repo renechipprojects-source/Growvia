@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, UserRound, GraduationCap, CalendarCheck,
   Wallet, PartyPopper, Boxes, BarChart3, ChevronRight, Sparkles,
-  UserCog, LogOut, KeyRound, Bus, HeartPulse,
+  UserCog, LogOut, KeyRound, Bus, HeartPulse, Megaphone,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -19,6 +19,7 @@ type Group = { title: string; icon: React.ComponentType<{ className?: string }>;
 type OperationEntry = Item | Group;
 
 const operations: OperationEntry[] = [
+  { title: "Circulars", url: "/admin/circulars", icon: Megaphone },
   {
     title: "Attendance",
     icon: CalendarCheck,

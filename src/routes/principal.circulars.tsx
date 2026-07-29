@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { initialCirculars, ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
 import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
 import { NotificationService, type Role } from "@/lib/notifications";
+import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
 
 export const Route = createFileRoute("/principal/circulars")({
   head: () => ({
@@ -259,6 +260,13 @@ function CircularsPage() {
             </table>
           </div>
       </div>
+
+      <CircularDetailsModal
+        open={mode === "view"}
+        onClose={() => setMode(null)}
+        circular={editing}
+        role="principal"
+      />
 
       <CircularEditor
         mode={mode}

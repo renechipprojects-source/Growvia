@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchStudents, fetchEnquiries, fetchFees } from "@/lib/supabaseService";
 import { Users, ClipboardCheck, Bell, CreditCard } from "lucide-react";
 import { useAlerts } from "@/lib/alertsContext";
+import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/office/")({ component: Dash });
 
@@ -82,23 +83,7 @@ function Dash() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Circulars & Alerts">
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active alerts.</p>
-          ) : (
-            <ul className="space-y-2">
-              {alerts.slice(0, 5).map((a) => (
-                <li key={a.id} className="rounded-2xl bg-white/70 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="text-sm font-semibold">{a.title}</div>
-                    <Badge className={priorityChip[a.priority]}>{a.priority}</Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
+        <RecentCircularWidget role="office" viewAllLink="/office/circulars" />
       </div>
     </div>
   );

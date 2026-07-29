@@ -9,6 +9,8 @@ import { useEffect, useMemo, useState } from "react";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import { SupabaseStatus } from "@/components/SupabaseStatus";
 import { SearchProvider, useSearch } from "@/lib/searchContext";
+import { fetchCirculars } from "@/lib/supabaseService";
+import { getUnreadCountForRole } from "@/lib/circularReadStore";
 
 export function RoleShell({ role }: { role: Role }) {
   return (
@@ -60,6 +62,16 @@ function RoleShellInner({ role }: { role: Role }) {
   }, [theme.nav, pathname]);
   const [groupsOpen, setGroupsOpen] = useState<Record<string, boolean>>(initialGroupsOpen);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchCirculars().then(({ data }) => {
+      if (data && Array.isArray(data)) {
+        setUnreadCount(getUnreadCountForRole(data, role));
+      }
+    });
+  }, [role, pathname]);
+
   const sidebarContent = (compact: boolean) => (
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
@@ -76,6 +88,7 @@ function RoleShellInner({ role }: { role: Role }) {
       <nav className="mt-4 space-y-1 flex-1 min-h-0 overflow-y-auto pr-1">
         {theme.nav.map((item) => {
           const active = isItemActive(item);
+          const isCirculars = item.label === "Circulars" || item.to.includes("circulars");
           if (item.children && !compact) {
             const isOpen = groupsOpen[item.to] ?? active;
             return (
@@ -131,7 +144,16 @@ function RoleShellInner({ role }: { role: Role }) {
               )}
             >
               <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : "text-slate-500")} />
-              {!compact && <span className="truncate">{item.label}</span>}
+              {!compact && (
+                <div className="flex items-center justify-between flex-1 min-w-0">
+                  <span className="truncate">{item.label}</span>
+                  {isCirculars && unreadCount > 0 && (
+                    <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold text-[10px] shadow-sm">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+              )}
             </Link>
           );
         })}

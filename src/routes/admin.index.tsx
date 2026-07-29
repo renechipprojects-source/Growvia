@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, fetchExpenses, fetchFees, fetchEvents, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState } from "react";
+import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
@@ -183,6 +184,10 @@ function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="w-full">
+          <RecentCircularWidget role="admin" viewAllLink="/admin/circulars" />
         </div>
       </div>
     </div>

@@ -33,6 +33,8 @@ import { Badge } from "@/components/ui/badge";
 
 import { useLiveAttendance } from "@/lib/attendanceStore";
 
+import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
+
 export const Route = createFileRoute("/principal/dashboard")({
   head: () => ({
     meta: [
@@ -125,41 +127,8 @@ function DashboardPage() {
       {/* Main grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 auto-rows-fr">
         {/* Circulars */}
-        <div className="card-elevated p-5 xl:col-span-2 min-w-0">
-          <SectionHeading icon={Megaphone} title="Recent Circulars" to="/principal/circulars" />
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-muted-foreground border-b">
-                  <th className="py-2 pr-4 font-medium">Title</th>
-                  <th className="py-2 pr-4 font-medium">Recipients</th>
-                  <th className="py-2 pr-4 font-medium">Priority</th>
-                  <th className="py-2 font-medium">Published</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentCirculars.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0">
-                    <td className="py-3 pr-4">
-                      <div className="font-medium">{c.title}</div>
-                      <div className="text-xs text-muted-foreground truncate max-w-xs">{c.subject || c.content}</div>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(Array.isArray(c.recipients) ? c.recipients : [c.target_audience || "All"]).map((r: string) => (
-                          <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <PriorityBadge priority={c.priority || "Medium"} />
-                    </td>
-                    <td className="py-3 text-muted-foreground text-xs whitespace-nowrap">{c.publishDate || c.published_date || "Today"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="xl:col-span-2 min-w-0">
+          <RecentCircularWidget role="principal" viewAllLink="/principal/circulars" />
         </div>
 
         {/* Notifications */}
