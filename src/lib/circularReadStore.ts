@@ -1,43 +1,62 @@
-// Centralized read-tracking and delivery statistics store for ERP Circulars
+// Centralized read-tracking, acknowledgement, and delivery statistics store for ERP Circulars
 
 const READ_STORAGE_KEY = "sunshine.circulars.read.v1";
+const ACK_STORAGE_KEY = "sunshine.circulars.ack.v1";
 
 interface ReadStore {
   [circularId: string]: string[]; // Array of user IDs or role keys who have read this circular
 }
 
-function getReadStore(): ReadStore {
+function getReadStore(key = READ_STORAGE_KEY): ReadStore {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(READ_STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function saveReadStore(store: ReadStore) {
+function saveReadStore(store: ReadStore, key = READ_STORAGE_KEY) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(store));
+    localStorage.setItem(key, JSON.stringify(store));
   } catch {}
 }
 
 export function markCircularAsRead(circularId: string, roleOrUserId: string) {
   if (!circularId || !roleOrUserId) return;
-  const store = getReadStore();
+  const store = getReadStore(READ_STORAGE_KEY);
   const readers = store[circularId] || [];
   if (!readers.includes(roleOrUserId)) {
     store[circularId] = [...readers, roleOrUserId];
-    saveReadStore(store);
+    saveReadStore(store, READ_STORAGE_KEY);
   }
 }
 
 export function isCircularRead(circularId: string, roleOrUserId: string): boolean {
   if (!circularId || !roleOrUserId) return false;
-  const store = getReadStore();
+  const store = getReadStore(READ_STORAGE_KEY);
   const readers = store[circularId] || [];
   return readers.includes(roleOrUserId);
+}
+
+export function acknowledgeCircular(circularId: string, roleOrUserId: string) {
+  if (!circularId || !roleOrUserId) return;
+  markCircularAsRead(circularId, roleOrUserId);
+  const store = getReadStore(ACK_STORAGE_KEY);
+  const acks = store[circularId] || [];
+  if (!acks.includes(roleOrUserId)) {
+    store[circularId] = [...acks, roleOrUserId];
+    saveReadStore(store, ACK_STORAGE_KEY);
+  }
+}
+
+export function isCircularAcknowledged(circularId: string, roleOrUserId: string): boolean {
+  if (!circularId || !roleOrUserId) return false;
+  const store = getReadStore(ACK_STORAGE_KEY);
+  const acks = store[circularId] || [];
+  return acks.includes(roleOrUserId);
 }
 
 export function getUnreadCountForRole(circulars: any[], role: string): number {
@@ -70,11 +89,15 @@ export function isCircularTargetedToRole(circular: any, role: string): boolean {
 }
 
 export function getDeliveryStats(circularId: string, recipients?: string[]) {
-  const store = getReadStore();
-  const readers = store[circularId] || [];
-  const readCount = readers.length;
+  const readStore = getReadStore(READ_STORAGE_KEY);
+  const ackStore = getReadStore(ACK_STORAGE_KEY);
 
-  let totalSent = 45; // Base recipient count for school branch
+  const readers = readStore[circularId] || [];
+  const acks = ackStore[circularId] || [];
+  const readCount = readers.length;
+  const ackCount = acks.length;
+
+  let totalSent = 45; // Base recipient count
   if (Array.isArray(recipients) && recipients.length > 0) {
     if (recipients.includes("Parents")) totalSent += 80;
     if (recipients.includes("Teachers")) totalSent += 20;
@@ -82,10 +105,14 @@ export function getDeliveryStats(circularId: string, recipients?: string[]) {
   }
 
   const unreadCount = Math.max(0, totalSent - readCount);
+  const pendingAckCount = Math.max(0, totalSent - ackCount);
+
   return {
     totalSent,
     readCount,
+    ackCount,
     unreadCount,
+    pendingAckCount,
     readPercentage: Math.min(100, Math.round((readCount / (totalSent || 1)) * 100)),
   };
 }

@@ -12,6 +12,8 @@ import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState } from "react";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
+import { DashboardHealthCards } from "@/components/admin/DashboardHealthCards";
+
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
   head: () => ({ meta: [{ title: "Dashboard — Sunshine ERP" }] }),
@@ -56,12 +58,14 @@ function Dashboard() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto pr-1 w-full max-w-none">
+
       <PageHeader
         title="Admin Control Center"
         description="Real-time overview of school operations, student enrollment, and financial metrics."
       />
 
       <div className="mt-4 space-y-6 pb-6">
+        <DashboardHealthCards />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub="Enrolled" />
           <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub="96% Attendance" />

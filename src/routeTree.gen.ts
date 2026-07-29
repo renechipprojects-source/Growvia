@@ -18,6 +18,7 @@ import { Route as ParentRouteImport } from './routes/parent'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminCircularsRouteImport } from './routes/admin.circulars'
 import { Route as AdminClassesRouteImport } from './routes/admin.classes'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -28,6 +29,7 @@ import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
 import { Route as AdminParentsRouteImport } from './routes/admin.parents'
 import { Route as AdminPasswordResetsRouteImport } from './routes/admin.password-resets'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
@@ -137,6 +139,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCircularsRoute = AdminCircularsRouteImport.update({
   id: '/circulars',
   path: '/circulars',
@@ -185,6 +192,11 @@ const AdminPasswordResetsRoute = AdminPasswordResetsRouteImport.update({
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
@@ -515,6 +527,7 @@ export interface FileRoutesByFullPath {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -525,6 +538,7 @@ export interface FileRoutesByFullPath {
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -594,6 +608,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -604,6 +619,7 @@ export interface FileRoutesByTo {
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -679,6 +695,7 @@ export interface FileRoutesById {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -689,6 +706,7 @@ export interface FileRoutesById {
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -765,6 +783,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
+    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -775,6 +794,7 @@ export interface FileRouteTypes {
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -844,6 +864,7 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/forgot-password'
+    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -854,6 +875,7 @@ export interface FileRouteTypes {
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -928,6 +950,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
+    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -938,6 +961,7 @@ export interface FileRouteTypes {
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -1080,6 +1104,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/circulars': {
       id: '/admin/circulars'
       path: '/circulars'
@@ -1148,6 +1179,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/admin/reports'
       preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/students': {
@@ -1607,6 +1645,7 @@ const AdminFeesRouteWithChildren = AdminFeesRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminCircularsRoute: typeof AdminCircularsRoute
   AdminClassesRoute: typeof AdminClassesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
@@ -1617,6 +1656,7 @@ interface AdminRouteChildren {
   AdminParentsRoute: typeof AdminParentsRoute
   AdminPasswordResetsRoute: typeof AdminPasswordResetsRoute
   AdminReportsRoute: typeof AdminReportsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminTransportRoute: typeof AdminTransportRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1626,6 +1666,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminCircularsRoute: AdminCircularsRoute,
   AdminClassesRoute: AdminClassesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
@@ -1636,6 +1677,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminParentsRoute: AdminParentsRoute,
   AdminPasswordResetsRoute: AdminPasswordResetsRoute,
   AdminReportsRoute: AdminReportsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminTransportRoute: AdminTransportRoute,
   AdminIndexRoute: AdminIndexRoute,

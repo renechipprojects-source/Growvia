@@ -1,10 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Bell, CheckCircle2, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Calendar, User, Bell, CheckCircle2, ShieldCheck, Eye, EyeOff, ThumbsUp } from "lucide-react";
 import { AttachmentViewer } from "./AttachmentViewer";
-import { markCircularAsRead, getDeliveryStats } from "@/lib/circularReadStore";
+import { markCircularAsRead, acknowledgeCircular, isCircularAcknowledged, getDeliveryStats } from "@/lib/circularReadStore";
+import { toast } from "sonner";
 
 interface CircularDetailsModalProps {
   open: boolean;
@@ -14,9 +15,12 @@ interface CircularDetailsModalProps {
 }
 
 export function CircularDetailsModal({ open, onClose, circular, role }: CircularDetailsModalProps) {
+  const [acknowledged, setAcknowledged] = useState(false);
+
   useEffect(() => {
     if (open && circular?.id && role) {
       markCircularAsRead(circular.id, role);
+      setAcknowledged(isCircularAcknowledged(circular.id, role));
     }
   }, [open, circular?.id, role]);
 
@@ -30,6 +34,12 @@ export function CircularDetailsModal({ open, onClose, circular, role }: Circular
 
   const stats = getDeliveryStats(circular.id, recipientsList);
   const isPrincipalOrAdmin = role === "principal" || role === "super-admin" || role === "admin";
+
+  const handleAcknowledge = () => {
+    acknowledgeCircular(circular.id, role);
+    setAcknowledged(true);
+    toast.success("Thank you! You have acknowledged reading this circular.");
+  };
 
   const priorityColor =
     circular.priority === "High"
@@ -104,39 +114,51 @@ export function CircularDetailsModal({ open, onClose, circular, role }: Circular
             <div className="rounded-2xl bg-indigo-50/60 border border-indigo-100 p-4 space-y-3">
               <div className="flex items-center justify-between text-xs font-semibold text-indigo-900 uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> Delivery & Read Statistics
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> Delivery & Acknowledgement Statistics
                 </span>
                 <span>{stats.readPercentage}% Read</span>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-white rounded-xl p-2.5 border border-indigo-100 shadow-sm">
-                  <div className="text-xs text-slate-500">Sent To</div>
-                  <div className="text-base font-bold text-slate-800">{stats.totalSent}</div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                <div className="bg-white rounded-xl p-2 border border-indigo-100 shadow-xs">
+                  <div className="text-[11px] text-slate-500">Sent To</div>
+                  <div className="text-sm font-bold text-slate-800">{stats.totalSent}</div>
                 </div>
-                <div className="bg-white rounded-xl p-2.5 border border-emerald-100 shadow-sm">
-                  <div className="text-xs text-emerald-600 font-medium flex items-center justify-center gap-1">
-                    <Eye className="w-3 h-3" /> Read
-                  </div>
-                  <div className="text-base font-bold text-emerald-700">{stats.readCount}</div>
+                <div className="bg-white rounded-xl p-2 border border-emerald-100 shadow-xs">
+                  <div className="text-[11px] text-emerald-600 font-medium">Read</div>
+                  <div className="text-sm font-bold text-emerald-700">{stats.readCount}</div>
                 </div>
-                <div className="bg-white rounded-xl p-2.5 border border-amber-100 shadow-sm">
-                  <div className="text-xs text-amber-600 font-medium flex items-center justify-center gap-1">
-                    <EyeOff className="w-3 h-3" /> Pending
-                  </div>
-                  <div className="text-base font-bold text-amber-700">{stats.unreadCount}</div>
+                <div className="bg-white rounded-xl p-2 border border-blue-100 shadow-xs">
+                  <div className="text-[11px] text-blue-600 font-medium">Acknowledged</div>
+                  <div className="text-sm font-bold text-blue-700">{stats.ackCount}</div>
+                </div>
+                <div className="bg-white rounded-xl p-2 border border-amber-100 shadow-xs">
+                  <div className="text-[11px] text-amber-600 font-medium">Pending</div>
+                  <div className="text-sm font-bold text-amber-700">{stats.unreadCount}</div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <DialogFooter className="border-t border-slate-100 pt-3 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+        <DialogFooter className="border-t border-slate-100 pt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
             <CheckCircle2 className="w-4 h-4" /> Marked as Read
           </div>
-          <Button onClick={onClose} variant="outline" className="rounded-xl border-slate-200">
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isPrincipalOrAdmin && (
+              <Button
+                onClick={handleAcknowledge}
+                disabled={acknowledged}
+                className={acknowledged ? "bg-emerald-100 text-emerald-800 rounded-xl" : "bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-md"}
+              >
+                <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
+                {acknowledged ? "Acknowledged" : "I have read this circular"}
+              </Button>
+            )}
+            <Button onClick={onClose} variant="outline" className="rounded-xl border-slate-200">
+              Close
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
