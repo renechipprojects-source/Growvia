@@ -31,6 +31,8 @@ export function readAuditLogs(): AuditLogEntry[] {
   return SEED;
 }
 
+export const getAuditLogs = readAuditLogs;
+
 export function logAuditEvent(entry: Omit<AuditLogEntry, "id" | "timestamp">) {
   if (typeof window === "undefined") return;
   const current = readAuditLogs();

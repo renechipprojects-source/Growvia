@@ -30,7 +30,7 @@ function DeveloperConsolePage() {
 
   // Local editable draft state initialized from current settings
   const [draft, setDraft] = useState(settings);
-  const [logs] = useState(readAuditLogs());
+  const [logs] = useState(getAuditLogs());
   const [isHealthChecking, setIsHealthChecking] = useState(false);
 
   const handleSave = () => {

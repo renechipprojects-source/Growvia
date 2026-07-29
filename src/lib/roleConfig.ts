@@ -3,7 +3,7 @@ import {
   ClipboardList, School, Calendar, Bell, FileText, UserCheck, Baby, MessageSquare,
   Image as ImageIcon, BookOpen, CalendarClock, PhoneCall, ClipboardCheck, Receipt,
   Percent, Wallet, TrendingUp, Heart, CreditCard, Plane, ListChecks, PartyPopper,
-  Sparkles, ShieldCheck, Megaphone, NotebookPen, KeyRound, Boxes, type LucideIcon,
+  Sparkles, ShieldCheck, Megaphone, NotebookPen, KeyRound, Boxes, Code2, type LucideIcon,
 } from "lucide-react";
 
 export type Role = "super-admin" | "principal" | "office" | "teacher" | "parent" | "developer";
