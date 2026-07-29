@@ -575,6 +575,7 @@ export interface FeeLedgerItem {
   remainingAmount: number;
   totalInstallments: number;
   paidInstallments: number;
+  installmentsUsed?: number;
   status: "Paid" | "Partial" | "Pending";
   dueDate?: string;
   month?: string;
@@ -592,8 +593,9 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
   const paid = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
   const remainingAmount = Math.max(0, finalFee - paid);
 
+  const installmentsUsed = payments.length;
   const totalInstallments = ledger.totalInstallments || 3;
-  const paidInstallments = payments.length > 0 ? Math.min(totalInstallments, payments.length) : (paid >= finalFee && finalFee > 0 ? totalInstallments : 0);
+  const paidInstallments = installmentsUsed;
   const status: "Paid" | "Partial" | "Pending" = remainingAmount === 0 && finalFee > 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
   const lastPaymentDate = payments.length > 0 ? payments[payments.length - 1].date : ledger.lastPaymentDate || "—";
 
@@ -613,6 +615,7 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     remainingAmount,
     totalInstallments,
     paidInstallments,
+    installmentsUsed,
     status,
     dueDate: ledger.dueDate || "2026-07-15",
     month: ledger.month || "Academic Year 2026-2027",

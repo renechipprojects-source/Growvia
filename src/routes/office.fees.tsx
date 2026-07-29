@@ -317,18 +317,19 @@ function FeeCollection() {
       {/* Main Student Fee Ledger Table Section */}
       <div className="flex-1 min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col overflow-hidden">
 
-        {/* Ledger Table */}
+        {/* Summary Table */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           <table className="w-full text-sm min-w-[1000px]">
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground sticky top-0 z-10 backdrop-blur">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Student Name</th>
+                <th className="text-left px-4 py-3 font-medium">Admission No</th>
                 <th className="text-left px-4 py-3 font-medium">Class</th>
                 <th className="text-left px-4 py-3 font-medium">Total Fee</th>
-                <th className="text-left px-4 py-3 font-medium">Paid Amount</th>
-                <th className="text-left px-4 py-3 font-medium">Pending Amount</th>
-                <th className="text-left px-4 py-3 font-medium">Installments</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
+                <th className="text-left px-4 py-3 font-medium">Total Paid</th>
+                <th className="text-left px-4 py-3 font-medium">Remaining Balance</th>
+                <th className="text-center px-4 py-3 font-medium">Installments Used</th>
+                <th className="text-left px-4 py-3 font-medium">Payment Status</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -337,48 +338,84 @@ function FeeCollection() {
                 const origFee = f.originalFee || f.amount || 8500;
                 const discAmt = f.discountAmount || 0;
                 const finalFee = f.finalFee || origFee - discAmt;
-                const paid = f.paid || 0;
+                const paid = (f.payments && f.payments.length > 0)
+                  ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+                  : (f.paid || 0);
                 const remaining = Math.max(0, finalFee - paid);
+                const installmentsUsed = f.payments?.length || (paid > 0 ? 1 : 0);
 
-                const instTotal = f.totalInstallments || 3;
-                const instPaid = f.status === "Paid" ? instTotal : f.paidInstallments || (f.payments?.length || (paid > 0 ? 1 : 0));
-                const pct = finalFee ? Math.min(100, Math.round((paid / finalFee) * 100)) : 0;
+                let displayStatus = "Unpaid";
+                let statusStyle = "bg-rose-100 text-rose-700 border-rose-200";
+                if (remaining === 0 && finalFee > 0) {
+                  displayStatus = "Paid";
+                  statusStyle = "bg-emerald-100 text-emerald-700 border-emerald-200";
+                } else if (paid > 0) {
+                  displayStatus = "Partially Paid";
+                  statusStyle = "bg-amber-100 text-amber-700 border-amber-200";
+                }
 
                 return (
                   <tr key={f.id} className="hover:bg-white/60 transition">
                     <td className="px-4 py-3 font-semibold text-slate-800">{f.studentName}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</td>
                     <td className="px-4 py-3">{f.className}</td>
                     <td className="px-4 py-3 font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-emerald-700">₹{paid.toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
-                    <td className="px-4 py-3 min-w-[130px]">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] shrink-0 font-medium">
-                          {instPaid}/{instTotal} Inst
-                        </Badge>
-                        <Progress value={pct} className="h-1.5 flex-1" />
-                      </div>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-50">
+                        {installmentsUsed} {installmentsUsed === 1 ? "Txn" : "Txns"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={f.status === "Paid" ? "bg-emerald-100 text-emerald-700" : f.status === "Partial" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}>
-                        {f.status}
+                      <Badge className={cn("text-xs font-semibold border", statusStyle)}>
+                        {displayStatus}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openEditFeeFor(f)}>
-                          <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit Fee
+                          <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit
                         </Button>
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openDetailsFor(f)}>
-                          <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> Details
+                          <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> View Details
                         </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => openRecordPaymentFor(f)}
-                          className="h-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-xs font-medium px-3"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Pay
-                        </Button>
+                        {remaining > 0 ? (
+                          <Button
+                            size="sm"
+                            onClick={() => openRecordPaymentFor(f)}
+                            className="h-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-xs font-medium px-3"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Collect Fee
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const lastPayment = f.payments && f.payments.length > 0 ? f.payments[f.payments.length - 1] : null;
+                              setReceipt({
+                                receiptNo: lastPayment?.receiptNo || `SUN/26-27/${Math.floor(4000 + Math.random() * 6000)}`,
+                                studentName: f.studentName,
+                                admissionNo: f.admissionNo || f.studentId,
+                                className: f.className,
+                                feeType: lastPayment?.feeType || "Tuition Fee",
+                                amountDue: 0,
+                                amountPaid: paid,
+                                balance: 0,
+                                method: lastPayment?.method || "Cash",
+                                reference: lastPayment?.reference || "",
+                                date: lastPayment?.date || new Date().toISOString().slice(0, 10),
+                                remarks: lastPayment?.remarks || "Fully Paid",
+                                status: "Paid",
+                                collectedBy: lastPayment?.collectedBy || "Office Staff",
+                              });
+                            }}
+                            className="h-8 text-xs font-medium px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <Printer className="h-3.5 w-3.5 mr-1" /> Print Receipt
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -386,7 +423,7 @@ function FeeCollection() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground text-sm">
                     No student fee ledger records found matching query.
                   </td>
                 </tr>
@@ -398,84 +435,136 @@ function FeeCollection() {
 
       {/* VIEW DETAILS MODAL */}
       <Dialog open={openDetailModal} onOpenChange={setOpenDetailModal}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Student Fee Ledger & Payment History</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Student Fee Ledger & Payment History</DialogTitle>
           </DialogHeader>
 
-          {activeLedger && (
-            <div className="space-y-4 text-sm mt-2">
-              {/* Cover Info Tile */}
-              <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-4 border border-orange-200/60 flex items-center justify-between">
-                <div>
-                  <div className="text-base font-bold text-slate-900">{activeLedger.studentName}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Admission No: <span className="font-mono">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: {activeLedger.className}
+          {activeLedger && (() => {
+            const finalFee = activeLedger.finalFee || (activeLedger.originalFee || 8500) - (activeLedger.discountAmount || 0);
+            const paymentsList = activeLedger.payments || [];
+            const paid = paymentsList.reduce((acc, p) => acc + Number(p.amount || 0), activeLedger.paid && paymentsList.length === 0 ? activeLedger.paid : 0);
+            const remaining = Math.max(0, finalFee - paid);
+            const instCount = paymentsList.length || (paid > 0 ? 1 : 0);
+
+            let displayStatus = "Unpaid";
+            let statusStyle = "bg-rose-100 text-rose-700";
+            if (remaining === 0 && finalFee > 0) {
+              displayStatus = "Paid";
+              statusStyle = "bg-emerald-100 text-emerald-700";
+            } else if (paid > 0) {
+              displayStatus = "Partially Paid";
+              statusStyle = "bg-amber-100 text-amber-700";
+            }
+
+            // Sorted newest payment first
+            const sortedPayments = [...paymentsList].reverse();
+
+            return (
+              <div className="space-y-4 text-sm mt-2">
+                {/* Cover Info Header */}
+                <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-4 border border-orange-200/60 flex items-center justify-between">
+                  <div>
+                    <div className="text-base font-bold text-slate-900">{activeLedger.studentName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Admission No: <span className="font-mono font-semibold text-slate-800">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || "2026-2027"}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || "2026-2027"}</div>
+                  <div className="text-right">
+                    <Badge className={cn("px-3 py-1 text-xs font-bold", statusStyle)}>
+                      {displayStatus}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <Badge className={activeLedger.status === "Paid" ? "bg-emerald-100 text-emerald-700" : activeLedger.status === "Partial" ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}>
-                    {activeLedger.status}
-                  </Badge>
-                  <Button size="sm" variant="outline" className="mt-2 h-7 text-xs flex items-center" onClick={() => { setOpenDetailModal(false); openEditFeeFor(activeLedger); }}>
-                    <Edit3 className="h-3 w-3 mr-1 text-amber-600" /> Edit Structure
-                  </Button>
+
+                {/* Calculated Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <MetricTile label="Total Fee" value={`₹${finalFee.toLocaleString()}`} color="text-slate-900 font-bold" />
+                  <MetricTile label="Total Paid" value={`₹${paid.toLocaleString()}`} color="text-emerald-700 font-bold" />
+                  <MetricTile label="Remaining Balance" value={`₹${remaining.toLocaleString()}`} color="text-rose-600 font-bold" />
+                  <MetricTile label="Installments Used" value={`${instCount}`} color="text-indigo-700 font-bold" />
                 </div>
+
+                {/* Complete Payment History Table */}
+                <SectionCard title="Complete Payment History">
+                  {sortedPayments.length > 0 ? (
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-100 text-slate-700 font-semibold uppercase text-[11px]">
+                          <tr>
+                            <th className="px-3 py-2">Inst. No</th>
+                            <th className="px-3 py-2">Date</th>
+                            <th className="px-3 py-2">Amount</th>
+                            <th className="px-3 py-2">Payment Method</th>
+                            <th className="px-3 py-2">Receipt No.</th>
+                            <th className="px-3 py-2">Collected By</th>
+                            <th className="px-3 py-2">Notes</th>
+                            <th className="px-3 py-2 text-right">Receipt</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {sortedPayments.map((p, idx) => {
+                            const instNo = p.installmentNo || (sortedPayments.length - idx);
+                            return (
+                              <tr key={p.id || idx} className="hover:bg-slate-50 transition">
+                                <td className="px-3 py-2 font-bold text-slate-900">#{instNo}</td>
+                                <td className="px-3 py-2 text-slate-700">{p.date}</td>
+                                <td className="px-3 py-2 font-bold text-emerald-700">₹{Number(p.amount || 0).toLocaleString()}</td>
+                                <td className="px-3 py-2">
+                                  <Badge variant="outline" className="text-[10px] font-medium bg-white">
+                                    {p.method}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-2 font-mono text-slate-800">{p.receiptNo}</td>
+                                <td className="px-3 py-2 text-slate-700">{p.collectedBy || "Office Staff"}</td>
+                                <td className="px-3 py-2 text-slate-500 italic max-w-[120px] truncate">{p.remarks || "—"}</td>
+                                <td className="px-3 py-2 text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 text-[11px] px-2 text-sky-600 hover:text-sky-700"
+                                    onClick={() => {
+                                      setReceipt({
+                                        receiptNo: p.receiptNo,
+                                        studentName: activeLedger.studentName,
+                                        admissionNo: activeLedger.admissionNo || activeLedger.studentId,
+                                        className: activeLedger.className,
+                                        feeType: p.feeType || "Tuition Fee",
+                                        amountDue: 0,
+                                        amountPaid: p.amount,
+                                        balance: remaining,
+                                        method: p.method,
+                                        reference: p.reference || "",
+                                        date: p.date,
+                                        remarks: p.remarks || "",
+                                        status: displayStatus,
+                                        collectedBy: p.collectedBy || "Office Staff",
+                                      });
+                                    }}
+                                  >
+                                    <Printer className="h-3 w-3 mr-1" /> Print
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-muted-foreground text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No payment transactions recorded yet for this student.
+                    </div>
+                  )}
+                </SectionCard>
               </div>
-
-              {/* Fee Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-                <MetricTile label="Original Fee" value={`₹${(activeLedger.originalFee || activeLedger.amount || 8500).toLocaleString()}`} color="text-slate-800" />
-                <MetricTile label="Discount" value={activeLedger.discountAmount ? `-₹${activeLedger.discountAmount.toLocaleString()}` : "₹0"} color="text-amber-700" />
-                <MetricTile label="Final Fee" value={`₹${(activeLedger.finalFee || activeLedger.amount || 8500).toLocaleString()}`} color="text-slate-900 font-bold" />
-                <MetricTile label="Total Paid" value={`₹${(activeLedger.paid || 0).toLocaleString()}`} color="text-emerald-700 font-bold" />
-                <MetricTile label="Remaining" value={`₹${Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0)).toLocaleString()}`} color="text-rose-600 font-bold" />
-              </div>
-
-              {/* Installment History Breakdown */}
-              <SectionCard title="Installment History Breakdown">
-                <div className="space-y-3">
-                  {Array.from({ length: activeLedger.totalInstallments || 3 }).map((_, instIdx) => {
-                    const instNo = instIdx + 1;
-                    const payment = activeLedger.payments?.find((p) => p.installmentNo === instNo) || activeLedger.payments?.[instIdx];
-                    const expectedInstAmt = Math.round((activeLedger.finalFee || activeLedger.amount || 8500) / (activeLedger.totalInstallments || 3));
-
-                    return (
-                      <div key={instNo} className={cn("rounded-2xl border p-3 text-xs flex items-center justify-between transition", payment ? "bg-emerald-50/50 border-emerald-200" : "bg-slate-50/50 border-slate-200")}>
-                        <div>
-                          <div className="font-bold text-slate-800">
-                            Installment {instNo} {payment ? <Badge className="ml-2 bg-emerald-100 text-emerald-700 text-[10px]">Paid</Badge> : <Badge className="ml-2 bg-rose-100 text-rose-700 text-[10px]">Pending</Badge>}
-                          </div>
-                          {payment ? (
-                            <div className="text-muted-foreground mt-1 space-y-0.5">
-                              <div>Receipt No: <span className="font-mono font-medium text-slate-800">{payment.receiptNo}</span> · Method: <b>{payment.method}</b></div>
-                              <div>Date: <b>{payment.date}</b> · Collected By: <b>{payment.collectedBy || "Office Staff"}</b></div>
-                              {payment.remarks && <div className="italic text-slate-500">Remarks: "{payment.remarks}"</div>}
-                            </div>
-                          ) : (
-                            <div className="text-muted-foreground mt-1">Expected: ₹{expectedInstAmt.toLocaleString()}</div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-base font-bold text-slate-900">{payment ? `₹${payment.amount.toLocaleString()}` : `₹${expectedInstAmt.toLocaleString()}`}</div>
-                          {payment && (
-                            <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-sky-600" onClick={() => window.print()}>
-                              <Printer className="h-3 w-3 mr-1" /> Reprint Receipt
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </SectionCard>
-            </div>
-          )}
+            );
+          })()}
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpenDetailModal(false)}>Close</Button>
-            {activeLedger && activeLedger.status !== "Paid" && (
+            {activeLedger && (
               <Button
                 onClick={() => {
                   setOpenDetailModal(false);
@@ -483,7 +572,7 @@ function FeeCollection() {
                 }}
                 className="bg-gradient-to-r from-orange-500 to-amber-500 text-white"
               >
-                Record Next Installment Payment
+                <Plus className="h-4 w-4 mr-1.5" /> Collect Fee
               </Button>
             )}
           </DialogFooter>

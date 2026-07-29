@@ -40,20 +40,31 @@ function PaymentsPage() {
 
   const handleExportCSV = () => {
     if (filtered.length === 0) return;
-    const headers = ["Student Name", "Adm No", "Class", "Original Fee", "Discount", "Final Fee", "Paid", "Remaining", "Installments", "Status", "Last Payment"];
-    const rows = filtered.map((f) => [
-      f.studentName,
-      f.admissionNo || "ADM-1001",
-      f.className,
-      f.originalFee || f.amount || 8500,
-      f.discountAmount || 0,
-      f.finalFee || f.amount || 8500,
-      f.paid || 0,
-      f.remainingAmount || 0,
-      `${f.paidInstallments || 0}/${f.totalInstallments || 3}`,
-      f.status,
-      f.lastPaymentDate || "—",
-    ]);
+    const headers = ["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Payment Status", "Last Payment"];
+    const rows = filtered.map((f) => {
+      const finalFee = f.finalFee || (f.originalFee || f.amount || 8500) - (f.discountAmount || 0);
+      const paid = (f.payments && f.payments.length > 0)
+        ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        : (f.paid || 0);
+      const remaining = Math.max(0, finalFee - paid);
+      const instCount = f.payments?.length || (paid > 0 ? 1 : 0);
+
+      let status = "Unpaid";
+      if (remaining === 0 && finalFee > 0) status = "Paid";
+      else if (paid > 0) status = "Partially Paid";
+
+      return [
+        f.studentName,
+        f.admissionNo || "ADM-1001",
+        f.className,
+        finalFee,
+        paid,
+        remaining,
+        instCount,
+        status,
+        f.lastPaymentDate || "—",
+      ];
+    });
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -68,7 +79,7 @@ function PaymentsPage() {
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
       <PageHeader
         title="Student Fee Ledger"
-        description="Single-row student fee ledgers, discounts, installment progress, and remaining balances."
+        description="Read-only view of student fee ledgers, total paid amounts, remaining balances, and installment counts."
       />
       <div className="shrink-0">
         <FilterBar
@@ -85,38 +96,37 @@ function PaymentsPage() {
       </div>
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
-          columns={["Student Name", "Adm No", "Class", "Total Fee", "Discount", "Final Fee", "Total Paid", "Remaining", "Installments", "Status", "Last Payment"]}
+          columns={["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Status", "Last Payment"]}
           total={filtered.length}
         >
           {filtered.map((f) => {
             const origFee = f.originalFee || f.amount || 8500;
             const discAmt = f.discountAmount || 0;
             const finalFee = f.finalFee || origFee - discAmt;
-            const paid = f.paid || 0;
+            const paid = (f.payments && f.payments.length > 0)
+              ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+              : (f.paid || 0);
             const remaining = Math.max(0, finalFee - paid);
-            const instTotal = f.totalInstallments || 3;
-            const instPaid = f.status === "Paid" ? instTotal : f.paidInstallments || (f.payments?.length || (paid > 0 ? 1 : 0));
-            const pct = finalFee ? Math.min(100, Math.round((paid / finalFee) * 100)) : 0;
+            const instCount = f.payments?.length || (paid > 0 ? 1 : 0);
+
+            let displayStatus = "Unpaid";
+            if (remaining === 0 && finalFee > 0) displayStatus = "Paid";
+            else if (paid > 0) displayStatus = "Partially Paid";
 
             return (
               <TableRow key={f.id} className="hover:bg-muted/30">
                 <TableCell className="font-semibold text-slate-800">{f.studentName}</TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</TableCell>
                 <TableCell>{f.className}</TableCell>
-                <TableCell className="font-medium text-slate-700">₹{origFee.toLocaleString()}</TableCell>
-                <TableCell className="text-amber-700 font-medium">{discAmt > 0 ? `-₹${discAmt.toLocaleString()}` : "—"}</TableCell>
                 <TableCell className="font-bold text-slate-900">₹{finalFee.toLocaleString()}</TableCell>
                 <TableCell className="font-semibold text-emerald-700">₹{paid.toLocaleString()}</TableCell>
                 <TableCell className="font-semibold text-rose-600">₹{remaining.toLocaleString()}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 min-w-[120px]">
-                    <Badge variant="outline" className="text-[10px] shrink-0 font-medium">
-                      {instPaid}/{instTotal} Inst
-                    </Badge>
-                    <Progress value={pct} className="h-1.5 flex-1" />
-                  </div>
+                <TableCell className="text-center font-semibold text-indigo-700">
+                  <Badge variant="outline" className="text-xs px-2 py-0.5 rounded-full bg-slate-50">
+                    {instCount} Txn{instCount === 1 ? "" : "s"}
+                  </Badge>
                 </TableCell>
-                <TableCell><StatusBadge status={f.status} /></TableCell>
+                <TableCell><StatusBadge status={displayStatus} /></TableCell>
                 <TableCell className="text-xs text-muted-foreground">{f.lastPaymentDate || "—"}</TableCell>
               </TableRow>
             );

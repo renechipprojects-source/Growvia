@@ -48,11 +48,15 @@ function ParentFees() {
   const origFee = feeRecord?.originalFee ?? feeRecord?.amount ?? 8500;
   const discAmt = feeRecord?.discountAmount ?? 0;
   const finalFee = feeRecord?.finalFee ?? (origFee - discAmt);
-  const totalPaid = feeRecord?.paid ?? 0;
+  const totalPaid = (feeRecord?.payments && feeRecord.payments.length > 0)
+    ? feeRecord.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    : (feeRecord?.paid ?? 0);
   const remainingAmount = Math.max(0, finalFee - totalPaid);
-  const totalInst = feeRecord?.totalInstallments || 3;
-  const paidInst = feeRecord?.status === "Paid" ? totalInst : feeRecord?.paidInstallments || (feeRecord?.payments?.length || (totalPaid > 0 ? 1 : 0));
-  const pct = finalFee ? Math.min(100, Math.round((totalPaid / finalFee) * 100)) : 0;
+  const instCount = feeRecord?.payments?.length || (totalPaid > 0 ? 1 : 0);
+
+  let status = "Unpaid";
+  if (remainingAmount === 0 && finalFee > 0) status = "Paid";
+  else if (totalPaid > 0) status = "Partially Paid";
 
   const historyItems = (feeRecord?.payments && feeRecord.payments.length > 0)
     ? feeRecord.payments
@@ -77,26 +81,22 @@ function ParentFees() {
         {/* Main Fee Ledger Card */}
         <div className="rounded-3xl bg-gradient-to-br from-pink-500 via-fuchsia-500 to-purple-500 text-white p-6 shadow-xl lg:col-span-1 space-y-4">
           <div>
-            <div className="text-xs uppercase tracking-widest opacity-80">Remaining Balance</div>
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-widest opacity-80">Remaining Balance</div>
+              <Badge className={status === "Paid" ? "bg-emerald-400 text-emerald-950 font-bold" : status === "Partially Paid" ? "bg-amber-300 text-amber-950 font-bold" : "bg-rose-400 text-rose-950 font-bold"}>
+                {status}
+              </Badge>
+            </div>
             <div className="mt-1 text-4xl font-bold">₹{remainingAmount.toLocaleString()}</div>
-            <div className="mt-2 text-xs opacity-90 space-y-1">
-              <div className="flex justify-between"><span>Original Total Fee:</span> <b>₹{origFee.toLocaleString()}</b></div>
-              {discAmt > 0 && <div className="flex justify-between text-amber-200"><span>Concession / Discount:</span> <b>-₹{discAmt.toLocaleString()}</b></div>}
-              <div className="flex justify-between font-bold text-white border-t border-white/20 pt-1"><span>Final Payable Fee:</span> <b>₹{finalFee.toLocaleString()}</b></div>
-              <div className="flex justify-between text-emerald-200"><span>Total Paid So Far:</span> <b>₹{totalPaid.toLocaleString()}</b></div>
+            <div className="mt-3 text-xs opacity-90 space-y-1.5 bg-black/10 p-3 rounded-2xl">
+              <div className="flex justify-between"><span>Total Fee:</span> <b>₹{finalFee.toLocaleString()}</b></div>
+              <div className="flex justify-between text-emerald-200"><span>Total Paid:</span> <b>₹{totalPaid.toLocaleString()}</b></div>
+              <div className="flex justify-between text-indigo-200"><span>Installments Used:</span> <b>{instCount} Txn{instCount === 1 ? "" : "s"}</b></div>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-white/20 space-y-1.5">
-            <div className="flex justify-between text-xs font-semibold">
-              <span>Installment Plan</span>
-              <span>{paidInst} / {totalInst} Paid</span>
-            </div>
-            <Progress value={pct} className="h-2 bg-white/30" />
-          </div>
-
-          <div className="text-xs opacity-90 flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" /> Please complete remaining installment payments at the Office desk.
+          <div className="text-xs opacity-90 flex items-center gap-1.5 border-t border-white/20 pt-3">
+            <Clock className="h-3.5 w-3.5 shrink-0" /> Fee collection receipts and records are managed by the Office.
           </div>
         </div>
 
