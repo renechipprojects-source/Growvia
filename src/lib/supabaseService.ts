@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { STUDENTS, TEACHERS, ENQUIRIES, FEES, type Student, type Teacher, type Enquiry, type Fee, type Expense } from "./mockData";
+import { initialCirculars } from "./principal-mock-data";
 import { generateParentCredential } from "./credentials";
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -44,9 +45,30 @@ export async function fetchCirculars(): Promise<{ data: any[]; isFromSupabase: b
     if (error || !data || data.length === 0) {
       return { data: localList, isFromSupabase: false };
     }
-    const existingIds = new Set(data.map((d: any) => d.id));
+
+    const mappedSupabase = data.map((d: any) => ({
+      id: d.id,
+      title: d.title,
+      subject: d.subject || d.title,
+      description: d.description || d.content || d.subject || d.title,
+      content: d.content || d.description || d.subject || d.title,
+      target_audience: d.target_audience || (Array.isArray(d.recipients) ? d.recipients.join(",") : "All"),
+      recipients: Array.isArray(d.recipients) ? d.recipients : typeof d.target_audience === "string" ? d.target_audience.split(",") : ["Parents", "Teachers"],
+      priority: d.priority || "Medium",
+      published_date: d.published_date || d.publishDate || new Date().toISOString().split("T")[0],
+      publishDate: d.published_date || d.publishDate || new Date().toISOString().split("T")[0],
+      expiry_date: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+      expiryDate: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+      author: d.author || "Principal Office",
+      status: d.status || "Published",
+      createdAt: d.created_at || d.createdAt || new Date().toISOString(),
+      history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
+      attachment: d.attachment,
+    }));
+
+    const existingIds = new Set(mappedSupabase.map((m: any) => m.id));
     const uniqueLocal = localList.filter((l: any) => !existingIds.has(l.id));
-    return { data: [...uniqueLocal, ...data], isFromSupabase: true };
+    return { data: [...uniqueLocal, ...mappedSupabase], isFromSupabase: true };
   } catch {
     return { data: localList, isFromSupabase: false };
   }
@@ -57,25 +79,51 @@ import { NotificationService } from "./notifications";
 
 export async function createCircular(circular: any) {
   const newId = circular.id || `CIR-${Date.now().toString().slice(-4)}`;
-  const payload = {
+  const formattedCircular = {
     id: newId,
     title: circular.title,
+    subject: circular.subject || circular.title,
+    description: circular.description || circular.content || circular.subject,
     content: circular.content || circular.description || circular.subject,
     target_audience: circular.target_audience || (circular.recipients ? circular.recipients.join(",") : "All"),
-    published_date: circular.published_date || new Date().toISOString().split("T")[0],
-    author: circular.author || "Principal Office",
+    recipients: Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers"],
     priority: circular.priority || "Medium",
-    expiry_date: circular.expiry_date || circular.expiryDate,
-    recipients: circular.recipients,
+    published_date: circular.publishDate || circular.published_date || new Date().toISOString().split("T")[0],
+    publishDate: circular.publishDate || circular.published_date || new Date().toISOString().split("T")[0],
+    expiry_date: circular.expiryDate || circular.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    expiryDate: circular.expiryDate || circular.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    author: circular.author || "Principal Office",
+    status: circular.status || "Published",
+    createdAt: circular.createdAt || new Date().toISOString(),
+    history: circular.history || [{ at: new Date().toISOString(), action: circular.status || "Published" }],
+    attachment: circular.attachment,
   };
-  saveLocalStore<any>("SUNSHINE_CIRCULARS", payload);
+
+  saveLocalStore<any>("SUNSHINE_CIRCULARS", formattedCircular);
+
   try {
-    const { data, error } = await supabase.from("circulars").insert([payload]).select();
-    pushAdminNotification(`New Circular: ${circular.title}`, "circular");
-    NotificationService.circularPublished(circular.title);
-    return { data: data ? data[0] : payload, error };
-  } catch (err) {
-    return { data: payload, error: null };
+    const payloadForSupabase = {
+      id: formattedCircular.id,
+      title: formattedCircular.title,
+      content: formattedCircular.content,
+      target_audience: formattedCircular.target_audience,
+      published_date: formattedCircular.published_date,
+      author: formattedCircular.author,
+      priority: formattedCircular.priority,
+      expiry_date: formattedCircular.expiry_date,
+      recipients: formattedCircular.recipients,
+      status: formattedCircular.status,
+    };
+    const { data, error } = await supabase.from("circulars").upsert([payloadForSupabase]).select();
+    if (error) {
+      console.warn("Supabase circular save notice:", error.message);
+    }
+    pushAdminNotification(`New Circular: ${formattedCircular.title}`, "circular");
+    NotificationService.circularPublished(formattedCircular.title);
+    return { data: data ? data[0] : formattedCircular, error: null };
+  } catch (err: any) {
+    console.warn("Supabase circular fallback notice:", err?.message || err);
+    return { data: formattedCircular, error: null };
   }
 }
 
@@ -134,12 +182,14 @@ function getLocalStore<T>(key: string): T[] {
     if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
     if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
     if (key === "SUNSHINE_FEES") return FEES as any;
+    if (key === "SUNSHINE_CIRCULARS") return initialCirculars as any;
     return [];
   } catch {
     if (key === "SUNSHINE_STUDENTS") return STUDENTS as any;
     if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
     if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
     if (key === "SUNSHINE_FEES") return FEES as any;
+    if (key === "SUNSHINE_CIRCULARS") return initialCirculars as any;
     return [];
   }
 }
@@ -715,6 +765,13 @@ export async function deleteTeacher(id: string) {
 }
 
 export async function deleteCircular(id: string) {
+  if (typeof window !== "undefined") {
+    try {
+      const current = getLocalStore<any>("SUNSHINE_CIRCULARS");
+      const filtered = current.filter((c: any) => c.id !== id);
+      localStorage.setItem("SUNSHINE_CIRCULARS", JSON.stringify(filtered));
+    } catch {}
+  }
   try {
     const { error } = await supabase.from("circulars").delete().eq("id", id);
     return { error };

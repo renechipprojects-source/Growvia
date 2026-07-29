@@ -30,24 +30,28 @@ type Mode = "create" | "edit" | "view" | null;
 function CircularsPage() {
   const [items, setItems] = useState<Circular[]>([]);
 
-  useEffect(() => {
-    fetchCirculars().then(({ data }) => {
-      const source = data && data.length > 0 ? data : [];
-      const mapped: Circular[] = source.map((d: any) => ({
+  const reloadCirculars = async () => {
+    const { data } = await fetchCirculars();
+    if (data && data.length > 0) {
+      const mapped: Circular[] = data.map((d: any) => ({
         id: d.id || `C-${Math.random()}`,
         title: d.title,
-        subject: d.title,
-        description: d.content || d.description,
+        subject: d.subject || d.title,
+        description: d.description || d.content || d.subject,
         priority: d.priority || "Medium",
-        publishDate: d.published_date || d.publishDate || new Date().toISOString().slice(0, 10),
-        expiryDate: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-        recipients: d.recipients || ["Parents", "Teachers"],
+        publishDate: d.publishDate || d.published_date || new Date().toISOString().slice(0, 10),
+        expiryDate: d.expiryDate || d.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        recipients: Array.isArray(d.recipients) ? d.recipients : typeof d.target_audience === "string" ? d.target_audience.split(",") : ["Parents", "Teachers"],
         status: (d.status as any) || "Published",
-        createdAt: d.published_date || d.createdAt || new Date().toISOString(),
+        createdAt: d.createdAt || d.published_date || new Date().toISOString(),
         history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
       }));
-      setItems(mapped.length > 0 ? mapped : initialCirculars);
-    });
+      setItems(mapped);
+    }
+  };
+
+  useEffect(() => {
+    reloadCirculars();
   }, []);
 
   const [q, setQ] = useState("");
@@ -91,15 +95,18 @@ function CircularsPage() {
     });
   };
 
-  const deleteCircular = (c: Circular) => {
+  const deleteCircular = async (c: Circular) => {
     setItems((prev) => prev.filter((x) => x.id !== c.id));
-    Promise.resolve(deleteCircularService(c.id)).catch(() => {});
+    await deleteCircularService(c.id);
+    await reloadCirculars();
     toast.success(`Deleted "${c.title}"`);
     setConfirmDelete(null);
   };
 
-  const archive = (c: Circular) => {
-    upsert({ ...c, status: "Archived" }, "Archived");
+  const archive = async (c: Circular) => {
+    const updated = { ...c, status: "Archived" as const };
+    await createCircular(updated);
+    await reloadCirculars();
     toast.success("Circular archived");
   };
 
@@ -136,21 +143,17 @@ function CircularsPage() {
   };
 
   const publish = async (c: Circular) => {
-    upsert({ ...c, status: "Published" }, "Published");
+    const updated = { ...c, status: "Published" as const };
+    upsert(updated, "Published");
     const targetRoles = mapRecipientsToRoles(c.recipients);
     NotificationService.circularPublished(c.title, targetRoles);
-    syncCircularToAlerts(c);
+    syncCircularToAlerts(updated);
     try {
-      await createCircular({
-        title: c.title,
-        content: c.description || c.subject,
-        target_audience: (c.recipients.includes("Parents") ? "Parents" : c.recipients.includes("Teachers") ? "Teachers" : "All") as any,
-        published_date: new Date().toISOString().split("T")[0],
-        author: "Principal Office",
-      });
+      await createCircular(updated);
+      await reloadCirculars();
       toast.success("Circular published to selected recipients!");
-    } catch {
-      toast.success("Circular published to selected recipients!");
+    } catch (err: any) {
+      toast.success(`Circular published! (${err?.message || "Saved"})`);
     }
   };
 
@@ -254,14 +257,21 @@ function CircularsPage() {
         mode={mode}
         editing={editing}
         onClose={() => setMode(null)}
-        onSave={(c, action) => {
-          upsert(c, action);
+        onSave={async (c, action) => {
+          try {
+            await createCircular(c);
+            toast.success(action);
+          } catch (err: any) {
+            toast.success(`Saved! (${err?.message || "Local"})`);
+          }
+
           if (c.status === "Published" || action.toLowerCase().includes("publish")) {
             const targetRoles = mapRecipientsToRoles(c.recipients);
             NotificationService.circularPublished(c.title, targetRoles);
             syncCircularToAlerts(c);
           }
-          toast.success(action);
+
+          await reloadCirculars();
           setMode(null);
         }}
       />
