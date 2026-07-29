@@ -6,7 +6,7 @@ import {
   Sparkles, ShieldCheck, Megaphone, NotebookPen, KeyRound, Boxes, type LucideIcon,
 } from "lucide-react";
 
-export type Role = "super-admin" | "principal" | "office" | "teacher" | "parent";
+export type Role = "super-admin" | "principal" | "office" | "teacher" | "parent" | "developer";
 
 export interface NavItem {
   to: string;

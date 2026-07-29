@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as DeveloperConsoleRouteImport } from './routes/developer-console'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as OfficeRouteImport } from './routes/office'
 import { Route as ParentRouteImport } from './routes/parent'
@@ -108,6 +109,11 @@ const AdminRoute = AdminRouteImport.update({
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeveloperConsoleRoute = DeveloperConsoleRouteImport.update({
+  id: '/developer-console',
+  path: '/developer-console',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -528,6 +534,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/developer-console': typeof DeveloperConsoleRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/office': typeof OfficeRouteWithChildren
   '/parent': typeof ParentRouteWithChildren
@@ -614,6 +621,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
+  '/developer-console': typeof DeveloperConsoleRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
@@ -698,6 +706,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/developer-console': typeof DeveloperConsoleRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/office': typeof OfficeRouteWithChildren
   '/parent': typeof ParentRouteWithChildren
@@ -787,6 +796,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/change-password'
+    | '/developer-console'
     | '/forgot-password'
     | '/office'
     | '/parent'
@@ -873,6 +883,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/change-password'
+    | '/developer-console'
     | '/forgot-password'
     | '/admin/audit-logs'
     | '/admin/circulars'
@@ -956,6 +967,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/change-password'
+    | '/developer-console'
     | '/forgot-password'
     | '/office'
     | '/parent'
@@ -1044,6 +1056,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
+  DeveloperConsoleRoute: typeof DeveloperConsoleRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   OfficeRoute: typeof OfficeRouteWithChildren
   ParentRoute: typeof ParentRouteWithChildren
@@ -1072,6 +1085,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/change-password'
       preLoaderRoute: typeof ChangePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/developer-console': {
+      id: '/developer-console'
+      path: '/developer-console'
+      fullPath: '/developer-console'
+      preLoaderRoute: typeof DeveloperConsoleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1864,6 +1884,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
+  DeveloperConsoleRoute: DeveloperConsoleRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   OfficeRoute: OfficeRouteWithChildren,
   ParentRoute: ParentRouteWithChildren,

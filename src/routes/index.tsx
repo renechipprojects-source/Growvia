@@ -21,8 +21,11 @@ export const Route = createFileRoute("/")({
   component: Login,
 });
 
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
 function Login() {
   const navigate = useNavigate();
+  const { settings } = useDeveloperSettings();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -88,11 +91,10 @@ function Login() {
             <div className="text-sm text-slate-600">Enterprise Resource Planning</div>
           </div>
           <h1 className="mt-8 text-4xl font-bold tracking-tight text-slate-900">
-            Welcome back to Sunshine ERP
+            {settings.loginPage.title || "Welcome to Sunshine ERP"}
           </h1>
           <p className="mt-3 max-w-md text-slate-600">
-            Sign in with your Login ID and password. We&rsquo;ll take you to the correct dashboard automatically —
-            no role picking required.
+            {settings.loginPage.welcomeMessage || settings.loginPage.description}
           </p>
           <ul className="mt-8 space-y-3 text-sm text-slate-700">
             <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /> Unified login for every role</li>
