@@ -127,12 +127,14 @@ function writeSession(session: Session, remember: boolean) {
   store.setItem(SESSION_KEY, JSON.stringify({ ...session, email: session.loginId }));
 }
 
+import { redirect } from "@tanstack/react-router";
+
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(SESSION_KEY);
   window.sessionStorage.removeItem(SESSION_KEY);
   try {
-    window.history.replaceState(null, "", "/");
+    window.location.href = "/";
   } catch {
     /* ignore */
   }
@@ -144,6 +146,21 @@ export function isAuthed(role?: Role | Role[]): boolean {
   if (!role) return true;
   const roles = Array.isArray(role) ? role : [role];
   return roles.includes(s.role);
+}
+
+export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
+  const s = getSession();
+  if (!s || !s.role) {
+    throw redirect({ to: "/" });
+  }
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+  if (!roles.includes(s.role)) {
+    throw redirect({ to: roleHome(s.role) });
+  }
+  if (s.mustChangePassword) {
+    throw redirect({ to: "/change-password" });
+  }
+  return s;
 }
 
 // ─── Authenticate ───────────────────────────────────────────────────────────

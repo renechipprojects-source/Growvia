@@ -3,15 +3,11 @@ import { RoleShell } from "@/components/RoleShell";
 import { AlertsProvider } from "@/lib/alertsContext";
 import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { LeaveProvider } from "@/lib/leaveContext";
-import { getSession } from "@/lib/auth";
+import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/teacher")({
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const s = getSession();
-    if (!s) throw redirect({ to: "/" });
-    if (s.role !== "teacher") throw redirect({ to: "/" });
-    if (s.mustChangePassword) throw redirect({ to: "/change-password" });
+    requireAuthGuard("teacher");
   },
   head: () => ({
     meta: [

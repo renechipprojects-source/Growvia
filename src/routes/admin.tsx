@@ -3,15 +3,11 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { TopNav } from "@/components/admin/top-nav";
 import { Toaster } from "@/components/ui/sonner";
-import { getSession } from "@/lib/auth";
+import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const s = getSession();
-    if (!s) throw redirect({ to: "/" });
-    if (s.role !== "super-admin") throw redirect({ to: "/" });
-    if (s.mustChangePassword) throw redirect({ to: "/change-password" });
+    requireAuthGuard("super-admin");
   },
   component: AdminLayout,
 });

@@ -35,7 +35,12 @@ import { useLiveAttendance } from "@/lib/attendanceStore";
 
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
+import { requireAuthGuard } from "@/lib/auth";
+
 export const Route = createFileRoute("/principal/dashboard")({
+  beforeLoad: () => {
+    requireAuthGuard("principal");
+  },
   head: () => ({
     meta: [
       { title: "Principal Dashboard | Bright Bloom" },

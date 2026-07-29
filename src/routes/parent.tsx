@@ -5,15 +5,11 @@ import { I18nProvider } from "@/lib/i18n";
 import { AlertsProvider } from "@/lib/alertsContext";
 import { LeaveProvider } from "@/lib/leaveContext";
 import { StudentDocsProvider } from "@/lib/studentDocsContext";
-import { getSession } from "@/lib/auth";
+import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/parent")({
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const s = getSession();
-    if (!s) throw redirect({ to: "/" });
-    if (s.role !== "parent") throw redirect({ to: "/" });
-    if (s.mustChangePassword) throw redirect({ to: "/change-password" });
+    requireAuthGuard("parent");
   },
   head: () => ({
     meta: [

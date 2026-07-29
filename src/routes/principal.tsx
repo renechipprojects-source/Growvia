@@ -18,13 +18,11 @@ const titleMap: Record<string, string> = {
   "/principal/fees": "Fees Overview",
 };
 
+import { requireAuthGuard } from "@/lib/auth";
+
 export const Route = createFileRoute("/principal")({
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const s = getSession();
-    if (!s) throw redirect({ to: "/" });
-    if (s.role !== "principal") throw redirect({ to: "/" });
-    if (s.mustChangePassword) throw redirect({ to: "/change-password" });
+    requireAuthGuard("principal");
   },
   component: PrincipalLayout,
 });

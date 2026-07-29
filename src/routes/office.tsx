@@ -8,15 +8,11 @@ import { AlertsProvider } from "@/lib/alertsContext";
 import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { StudentDocsProvider } from "@/lib/studentDocsContext";
 import { InventoryProvider } from "@/lib/inventoryContext";
-import { getSession } from "@/lib/auth";
+import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/office")({
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    const s = getSession();
-    if (!s) throw redirect({ to: "/" });
-    if (s.role !== "office") throw redirect({ to: "/" });
-    if (s.mustChangePassword) throw redirect({ to: "/change-password" });
+    requireAuthGuard("office");
   },
   head: () => ({
     meta: [
