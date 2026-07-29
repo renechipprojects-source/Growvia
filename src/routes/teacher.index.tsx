@@ -4,8 +4,7 @@ import { UserCheck, BookOpen, NotebookPen, Sparkles, PartyPopper, ChevronRight, 
 import { HOMEWORK, EVENTS, ACTIVITIES, studentsBy, todayAttendanceFor, type ClassName } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext";
-
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { useEffect, useState } from "react";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useLiveActivities } from "@/lib/activitiesStore";
@@ -15,9 +14,15 @@ export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
   const { activities: liveActivities } = useLiveActivities();
-  const classAssignments = getClassAssignments();
-  const subjectAssignments = getSubjectAssignments();
-  const primaryClass = classAssignments[0];
+  const { getClassTeacher, getWorkload, assignments } = useClassAssignments();
+  
+  // Teacher Mrs. Priya (TCH100) assignments
+  const workload = getWorkload("TCH100");
+  const classTeacherOfStr = workload.classTeacherOf || "Nursery-A";
+  const [classNameStr, sectionStr = "A"] = classTeacherOfStr.split("-");
+  const primaryClass = { className: classNameStr, section: sectionStr };
+  const classAssignments = [primaryClass];
+  const subjectAssignments = workload.subjectAssignments;
 
   const [studentsList, setStudentsList] = useState<Student[]>([]);
 
@@ -89,9 +94,9 @@ function Dash() {
             <div className="text-sm text-muted-foreground">Not assigned as class teacher.</div>
           ) : (
             <div className="space-y-2">
-              {classAssignments.map((a) => (
+              {classAssignments.map((a, idx) => (
                 <Link
-                  key={a.id}
+                  key={`${a.className}-${a.section}-${idx}`}
                   to="/teacher/my-class"
                   className="flex items-center justify-between rounded-2xl bg-white/60 p-3 hover:bg-white transition"
                 >
@@ -115,11 +120,10 @@ function Dash() {
             <div className="text-sm text-muted-foreground">No subject assignments.</div>
           ) : (
             <div className="space-y-2">
-              {subjectAssignments.map((a) => (
+              {subjectAssignments.map((a, idx) => (
                 <Link
-                  key={a.id}
-                  to="/teacher/my-subjects"
-                  search={{ a: a.id }}
+                  key={`${a.className}-${a.section}-${a.subject}-${idx}`}
+                  to="/teacher/my-class"
                   className="flex items-center justify-between rounded-2xl bg-white/60 p-3 hover:bg-white transition"
                 >
                   <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, UserCheck, CreditCard, FileText, Download, CheckCircle2 } from "lucide-react";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 
 interface StudentProfileModalProps {
   open: boolean;
@@ -12,6 +13,7 @@ interface StudentProfileModalProps {
 }
 
 export function StudentProfileModal({ open, onClose, student }: StudentProfileModalProps) {
+  const { getClassTeacher, getSubjectTeachers } = useClassAssignments();
   if (!student) return null;
 
   const parentName = typeof student.parent === "object" ? student.parent?.name : student.parent || "Parent / Guardian";
@@ -70,15 +72,37 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
             </div>
           </div>
 
-          {/* 3. Class & Attendance Summary */}
+          {/* 3. Class & Teacher Assignments */}
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
             <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-emerald-600" /> Academic & Attendance Summary
+              <UserCheck className="h-4 w-4 text-emerald-600" /> Academic, Class & Subject Teachers
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
               <div><span className="text-slate-400 block font-medium">Assigned Class</span><span className="font-semibold text-slate-800">{student.className}-{student.section || "A"}</span></div>
+              <div>
+                <span className="text-slate-400 block font-medium">Class Teacher</span>
+                <span className="font-bold text-indigo-700">
+                  {getClassTeacher(student.className || "Nursery", student.section || "A")?.teacherName || "Mrs. Priya"}
+                </span>
+              </div>
               <div><span className="text-slate-400 block font-medium">Attendance Rate</span><span className="font-bold text-emerald-600">96% Present</span></div>
-              <div><span className="text-slate-400 block font-medium">Teacher Remarks</span><span className="font-semibold text-slate-800 truncate block">Active in storytelling & art</span></div>
+            </div>
+            <div className="pt-2 border-t border-slate-200/60">
+              <span className="text-slate-400 block font-medium text-[11px] mb-1">Subject Teachers (Office Managed)</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(getSubjectTeachers(student.className || "Nursery", student.section || "A").length > 0
+                  ? getSubjectTeachers(student.className || "Nursery", student.section || "A")
+                  : [
+                      { subject: "English", teacherName: "Mrs. Priya" },
+                      { subject: "Mathematics", teacherName: "Mr. Rakesh" },
+                      { subject: "Rhymes", teacherName: "Mrs. Priya" },
+                    ]
+                ).map((st, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px]">
+                    <span className="font-semibold text-slate-800">{st.subject}:</span> {st.teacherName}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 

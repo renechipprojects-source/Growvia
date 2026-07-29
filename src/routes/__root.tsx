@@ -125,13 +125,17 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <SonnerToaster position="top-right" richColors />
+      <ClassAssignmentProvider>
+        <Outlet />
+        <SonnerToaster position="top-right" richColors />
+      </ClassAssignmentProvider>
     </QueryClientProvider>
   );
 }
