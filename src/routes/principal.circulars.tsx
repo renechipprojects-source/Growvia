@@ -28,25 +28,32 @@ export const Route = createFileRoute("/principal/circulars")({
 type Mode = "create" | "edit" | "view" | null;
 
 function CircularsPage() {
-  const [items, setItems] = useState<Circular[]>([]);
+  const [items, setItems] = useState<Circular[]>(initialCirculars);
 
   const reloadCirculars = async () => {
-    const { data } = await fetchCirculars();
-    if (data && data.length > 0) {
-      const mapped: Circular[] = data.map((d: any) => ({
+    try {
+      const { data } = await fetchCirculars();
+      const source = data && data.length > 0 ? data : initialCirculars;
+      const mapped: Circular[] = source.map((d: any) => ({
         id: d.id || `C-${Math.random()}`,
-        title: d.title,
-        subject: d.subject || d.title,
-        description: d.description || d.content || d.subject,
+        title: d.title || "Untitled Circular",
+        subject: d.subject || d.title || "General Notice",
+        description: d.description || d.content || d.subject || "No details provided.",
         priority: d.priority || "Medium",
         publishDate: d.publishDate || d.published_date || new Date().toISOString().slice(0, 10),
         expiryDate: d.expiryDate || d.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-        recipients: Array.isArray(d.recipients) ? d.recipients : typeof d.target_audience === "string" ? d.target_audience.split(",") : ["Parents", "Teachers"],
+        recipients: Array.isArray(d.recipients) && d.recipients.length > 0
+          ? d.recipients
+          : typeof d.target_audience === "string" && d.target_audience.length > 0
+          ? d.target_audience.split(",")
+          : ["Parents", "Teachers"],
         status: (d.status as any) || "Published",
         createdAt: d.createdAt || d.published_date || new Date().toISOString(),
         history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
       }));
       setItems(mapped);
+    } catch {
+      setItems(initialCirculars);
     }
   };
 

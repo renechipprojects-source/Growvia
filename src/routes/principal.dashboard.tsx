@@ -95,7 +95,8 @@ function DashboardPage() {
       if (data && data.length > 0) setEventsList(data);
     });
     fetchCirculars().then(({ data }) => {
-      if (data && data.length > 0) setRecentCirculars(data);
+      const source = data && data.length > 0 ? data : initialCirculars;
+      setRecentCirculars(source);
     });
   }, []);
 
