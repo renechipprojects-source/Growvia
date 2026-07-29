@@ -22,6 +22,7 @@ import {
   Bus,
   HeartPulse,
   Megaphone,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -65,6 +66,7 @@ const students: Group = {
   items: [
     { title: "Students", url: "/office/students", icon: Baby },
     { title: "Class Assignment", url: "/office/class-assignment", icon: UserCheck },
+    { title: "Promotion Mapping", url: "/office/promotion-mapping", icon: GraduationCap },
   ],
 };
 

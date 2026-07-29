@@ -45,6 +45,7 @@ import { Route as OfficeMessagesRouteImport } from './routes/office.messages'
 import { Route as OfficeNewEnquiryRouteImport } from './routes/office.new-enquiry'
 import { Route as OfficeParentCredentialsRouteImport } from './routes/office.parent-credentials'
 import { Route as OfficePasswordResetsRouteImport } from './routes/office.password-resets'
+import { Route as OfficePromotionMappingRouteImport } from './routes/office.promotion-mapping'
 import { Route as OfficeReceiptsRouteImport } from './routes/office.receipts'
 import { Route as OfficeReportsRouteImport } from './routes/office.reports'
 import { Route as OfficeStudentsRouteImport } from './routes/office.students'
@@ -272,6 +273,11 @@ const OfficeParentCredentialsRoute = OfficeParentCredentialsRouteImport.update({
 const OfficePasswordResetsRoute = OfficePasswordResetsRouteImport.update({
   id: '/password-resets',
   path: '/password-resets',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficePromotionMappingRoute = OfficePromotionMappingRouteImport.update({
+  id: '/promotion-mapping',
+  path: '/promotion-mapping',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeReceiptsRoute = OfficeReceiptsRouteImport.update({
@@ -553,6 +559,7 @@ export interface FileRoutesByFullPath {
   '/office/new-enquiry': typeof OfficeNewEnquiryRoute
   '/office/parent-credentials': typeof OfficeParentCredentialsRoute
   '/office/password-resets': typeof OfficePasswordResetsRoute
+  '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
@@ -634,6 +641,7 @@ export interface FileRoutesByTo {
   '/office/new-enquiry': typeof OfficeNewEnquiryRoute
   '/office/parent-credentials': typeof OfficeParentCredentialsRoute
   '/office/password-resets': typeof OfficePasswordResetsRoute
+  '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
@@ -721,6 +729,7 @@ export interface FileRoutesById {
   '/office/new-enquiry': typeof OfficeNewEnquiryRoute
   '/office/parent-credentials': typeof OfficeParentCredentialsRoute
   '/office/password-resets': typeof OfficePasswordResetsRoute
+  '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
   '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
@@ -809,6 +818,7 @@ export interface FileRouteTypes {
     | '/office/new-enquiry'
     | '/office/parent-credentials'
     | '/office/password-resets'
+    | '/office/promotion-mapping'
     | '/office/receipts'
     | '/office/reports'
     | '/office/students'
@@ -890,6 +900,7 @@ export interface FileRouteTypes {
     | '/office/new-enquiry'
     | '/office/parent-credentials'
     | '/office/password-resets'
+    | '/office/promotion-mapping'
     | '/office/receipts'
     | '/office/reports'
     | '/office/students'
@@ -976,6 +987,7 @@ export interface FileRouteTypes {
     | '/office/new-enquiry'
     | '/office/parent-credentials'
     | '/office/password-resets'
+    | '/office/promotion-mapping'
     | '/office/receipts'
     | '/office/reports'
     | '/office/students'
@@ -1291,6 +1303,13 @@ declare module '@tanstack/react-router' {
       path: '/password-resets'
       fullPath: '/office/password-resets'
       preLoaderRoute: typeof OfficePasswordResetsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/office/promotion-mapping': {
+      id: '/office/promotion-mapping'
+      path: '/promotion-mapping'
+      fullPath: '/office/promotion-mapping'
+      preLoaderRoute: typeof OfficePromotionMappingRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/office/receipts': {
@@ -1701,6 +1720,7 @@ interface OfficeRouteChildren {
   OfficeNewEnquiryRoute: typeof OfficeNewEnquiryRoute
   OfficeParentCredentialsRoute: typeof OfficeParentCredentialsRoute
   OfficePasswordResetsRoute: typeof OfficePasswordResetsRoute
+  OfficePromotionMappingRoute: typeof OfficePromotionMappingRoute
   OfficeReceiptsRoute: typeof OfficeReceiptsRoute
   OfficeReportsRoute: typeof OfficeReportsRoute
   OfficeStudentsRoute: typeof OfficeStudentsRoute
@@ -1723,6 +1743,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeNewEnquiryRoute: OfficeNewEnquiryRoute,
   OfficeParentCredentialsRoute: OfficeParentCredentialsRoute,
   OfficePasswordResetsRoute: OfficePasswordResetsRoute,
+  OfficePromotionMappingRoute: OfficePromotionMappingRoute,
   OfficeReceiptsRoute: OfficeReceiptsRoute,
   OfficeReportsRoute: OfficeReportsRoute,
   OfficeStudentsRoute: OfficeStudentsRoute,

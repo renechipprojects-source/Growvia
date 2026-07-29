@@ -7,12 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   GraduationCap, ArrowRight, CheckCircle2, RefreshCw, AlertTriangle,
-  ShieldCheck, ChevronRight, ChevronLeft, Undo2
+  ShieldCheck, ChevronRight, ChevronLeft, Undo2, Plus, Lock, Printer, FileSpreadsheet
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { STUDENTS as SEED_STUDENTS } from "@/lib/mockData";
-import { executeStudentPromotion, rollbackPromotionBatch } from "@/lib/promotionStore";
+import {
+  executeStudentPromotion, rollbackPromotionBatch, getDefaultDestinationClass,
+  getAcademicYears, addAcademicYear, closeAcademicYear, isAcademicYearClosed,
+  validatePromotionCapacity, CLASS_CAPACITIES
+} from "@/lib/promotionStore";
+import { exportToCSV } from "@/lib/exportUtils";
 import { cn } from "@/lib/utils";
 
 interface PromotionWizardModalProps {
@@ -22,7 +27,6 @@ interface PromotionWizardModalProps {
 }
 
 const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
-const ACADEMIC_YEARS = ["2025-2026", "2026-2027", "2027-2028", "2028-2029"] as const;
 
 export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: PromotionWizardModalProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -32,11 +36,12 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
   const [toYear, setToYear] = useState<string>("2027-2028");
   const [fromClass, setFromClass] = useState<string>("LKG");
   const [toClass, setToClass] = useState<string>("UKG");
-  const [promotionMode, setPromotionMode] = useState<"entire" | "selected">("entire");
+  const [academicYears, setAcademicYears] = useState(getAcademicYears());
 
-  // Students & Selection (Step 2)
+  // Students & Action Map (Step 2)
   const [allStudents, setAllStudents] = useState<Student[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [studentActions, setStudentActions] = useState<Record<string, "Promote" | "Retain" | "Transfer">>( {});
+  const [capacityOverride, setCapacityOverride] = useState(false);
 
   // Execution state (Step 3 & 4)
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,6 +50,8 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
     promotedCount: number;
     retainedCount: number;
     graduatedCount: number;
+    transferredCount: number;
+    durationMs: number;
   } | null>(null);
 
   useEffect(() => {
@@ -54,8 +61,15 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       });
       setStep(1);
       setExecutionResult(null);
+      setAcademicYears(getAcademicYears());
     }
   }, [open]);
+
+  // Auto-populate destination class using Promotion Mapping Configuration
+  useEffect(() => {
+    const autoMapped = getDefaultDestinationClass(fromClass);
+    setToClass(autoMapped);
+  }, [fromClass]);
 
   // Filter students by source class
   const classStudents = useMemo(() => {
@@ -66,41 +80,64 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
     );
   }, [allStudents, fromClass]);
 
-  // Auto-select all eligible on step 2 load
+  // Initialize student actions on step 2 load
   useEffect(() => {
     if (step === 2) {
-      const eligibleIds = new Set<string>();
+      const actions: Record<string, "Promote" | "Retain" | "Transfer"> = {};
       classStudents.forEach((s) => {
-        const st = (s as any).status;
-        if (st !== "Inactive" && st !== "Graduated") {
-          eligibleIds.add(s.id);
-        }
+        actions[s.id] = "Promote";
       });
-      setSelectedStudentIds(eligibleIds);
+      setStudentActions(actions);
     }
   }, [step, classStudents]);
 
-  const toggleSelectAll = () => {
-    if (selectedStudentIds.size === classStudents.length) {
-      setSelectedStudentIds(new Set());
-    } else {
-      const allIds = new Set<string>(classStudents.map((s) => s.id));
-      setSelectedStudentIds(allIds);
-    }
-  };
+  // Categorize student selections
+  const promotedIds = useMemo(() => {
+    return Object.entries(studentActions)
+      .filter(([_, action]) => action === "Promote")
+      .map(([id]) => id);
+  }, [studentActions]);
 
-  const toggleStudent = (id: string) => {
-    const next = new Set(selectedStudentIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedStudentIds(next);
+  const retainedIds = useMemo(() => {
+    return Object.entries(studentActions)
+      .filter(([_, action]) => action === "Retain")
+      .map(([id]) => id);
+  }, [studentActions]);
+
+  const transferredIds = useMemo(() => {
+    return Object.entries(studentActions)
+      .filter(([_, action]) => action === "Transfer")
+      .map(([id]) => id);
+  }, [studentActions]);
+
+  // Validate Destination Academic Year Existence
+  const isToYearValid = useMemo(() => {
+    return academicYears.some((y) => y.year === toYear);
+  }, [academicYears, toYear]);
+
+  // Capacity Check
+  const capacityCheck = useMemo(() => {
+    return validatePromotionCapacity(toClass, promotedIds.length, 25);
+  }, [toClass, promotedIds]);
+
+  const handleCreateAcademicYear = () => {
+    addAcademicYear(toYear, "Office Staff");
+    setAcademicYears(getAcademicYears());
+    toast.success(`Academic Year ${toYear} created successfully!`);
   };
 
   const handleExecutePromotion = () => {
+    if (!capacityCheck.valid && !capacityOverride) {
+      toast.error("Destination class capacity exceeded! Enable capacity override to proceed.");
+      return;
+    }
+
     setIsProcessing(true);
     setTimeout(() => {
       const result = executeStudentPromotion({
-        studentIds: Array.from(selectedStudentIds),
+        studentIds: promotedIds,
+        retainedStudentIds: retainedIds,
+        transferredStudentIds: transferredIds,
         fromClass,
         toClass,
         fromAcademicYear: fromYear,
@@ -112,13 +149,21 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       setExecutionResult({
         batchId: result.batchId,
         promotedCount: result.promotedCount,
-        retainedCount: classStudents.length - selectedStudentIds.size,
+        retainedCount: result.retainedCount,
         graduatedCount: result.graduatedCount,
+        transferredCount: result.transferredCount,
+        durationMs: result.durationMs,
       });
       setStep(4);
-      toast.success(`Successfully promoted ${result.promotedCount} students to ${toClass}!`);
+      toast.success(`Successfully processed ${promotedIds.length + retainedIds.length + transferredIds.length} student promotions!`);
       if (onPromoteSuccess) onPromoteSuccess();
-    }, 1200);
+    }, 1000);
+  };
+
+  const handleClosePreviousYear = () => {
+    closeAcademicYear(fromYear, "Office Staff");
+    setAcademicYears(getAcademicYears());
+    toast.success(`Academic Year ${fromYear} has been marked CLOSED. Historical ledgers & attendance are now read-only.`);
   };
 
   const handleRollback = () => {
@@ -130,6 +175,23 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       setExecutionResult(null);
       if (onPromoteSuccess) onPromoteSuccess();
     }
+  };
+
+  const handleExportSummaryCSV = () => {
+    if (!executionResult) return;
+    const rows = [
+      ["Academic Session Transition", `${fromYear} → ${toYear}`],
+      ["Class Transition", `${fromClass} → ${toClass}`],
+      ["Students Promoted", executionResult.promotedCount],
+      ["Students Retained", executionResult.retainedCount],
+      ["Students Graduated", executionResult.graduatedCount],
+      ["Students Transferred", executionResult.transferredCount],
+      ["Batch ID", executionResult.batchId],
+      ["Executed By", "Office Staff"],
+      ["Execution Date", new Date().toISOString().slice(0, 10)],
+    ];
+    exportToCSV(`Promotion_Summary_${executionResult.batchId}`, ["Metric", "Value"], rows as any);
+    toast.success("Promotion summary exported to CSV!");
   };
 
   return (
@@ -152,15 +214,15 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
           </div>
         </DialogHeader>
 
-        {/* STEP 1: SELECT PROMOTION SETUP */}
+        {/* STEP 1: SETUP & ACADEMIC YEAR VALIDATION */}
         {step === 1 && (
           <div className="space-y-4 py-3 text-xs">
             <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-indigo-900">
               <p className="font-semibold flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-indigo-600" /> Office-Managed Academic Promotion Engine
+                <ShieldCheck className="h-4 w-4 text-indigo-600" /> Auto-Mapped Promotion Setup
               </p>
               <p className="mt-1 text-slate-600 text-[11px]">
-                Configures the transition from current academic session to target academic year. Archives historical attendance & fee ledgers while preserving complete audit trails.
+                Destination class is automatically populated from your <b>Promotion Mapping Configuration</b>.
               </p>
             </div>
 
@@ -169,7 +231,13 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                 <Label className="text-xs font-semibold text-slate-700">Current Academic Year</Label>
                 <Select value={fromYear} onValueChange={setFromYear}>
                   <SelectTrigger className="mt-1 rounded-xl bg-white border-slate-200"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ACADEMIC_YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {academicYears.map((y) => (
+                      <SelectItem key={y.year} value={y.year}>
+                        {y.year} {y.status === "Closed" ? "(Closed)" : y.status === "Active" ? "(Active)" : "(Upcoming)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
 
@@ -177,10 +245,30 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                 <Label className="text-xs font-semibold text-slate-700">Target New Academic Year</Label>
                 <Select value={toYear} onValueChange={setToYear}>
                   <SelectTrigger className="mt-1 rounded-xl bg-white border-slate-200"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ACADEMIC_YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {academicYears.map((y) => (
+                      <SelectItem key={y.year} value={y.year}>
+                        {y.year} {y.status === "Closed" ? "(Closed)" : y.status === "Active" ? "(Active)" : "(Upcoming)"}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="2028-2029">2028-2029 (Create New)</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
+
+            {/* ACADEMIC YEAR VALIDATION WARNING */}
+            {!isToYearValid && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>Please create Academic Year <b>{toYear}</b> before running promotion.</span>
+                </div>
+                <Button size="sm" onClick={handleCreateAcademicYear} className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs h-8">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Create Academic Year
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 pt-1">
               <div>
@@ -192,7 +280,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
               </div>
 
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Target Destination Class</Label>
+                <Label className="text-xs font-semibold text-slate-700">Target Destination Class (Auto-Mapped)</Label>
                 <Select value={toClass} onValueChange={setToClass}>
                   <SelectTrigger className="mt-1 rounded-xl bg-white border-slate-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -204,117 +292,90 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700">Promotion Scope</span>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer font-medium">
-                  <input type="radio" name="scope" checked={promotionMode === "entire"} onChange={() => setPromotionMode("entire")} />
-                  Promote Entire Class ({classStudents.length} Students)
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer font-medium">
-                  <input type="radio" name="scope" checked={promotionMode === "selected"} onChange={() => setPromotionMode("selected")} />
-                  Select Specific Students
-                </label>
-              </div>
+              <span className="font-semibold text-slate-700">Auto-Mapping Status:</span>
+              <Badge className="bg-indigo-600 text-white">
+                {fromClass} → {toClass}
+              </Badge>
             </div>
           </div>
         )}
 
-        {/* STEP 2: STUDENT SELECTION & ELIGIBILITY TABLE */}
+        {/* STEP 2: STUDENT PROMOTION / RETENTION / TRANSFER ACTIONS */}
         {step === 2 && (
           <div className="space-y-3 py-2 text-xs">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-bold text-slate-900 text-sm">Class Student Register ({fromClass})</h4>
-                <p className="text-muted-foreground text-[11px]">Verify promotion eligibility before advancing</p>
+                <h4 className="font-bold text-slate-900 text-sm">Class Student Actions ({fromClass})</h4>
+                <p className="text-muted-foreground text-[11px]">Set individual student progression: Promote, Retain, or Issue TC</p>
               </div>
-              <Button size="sm" variant="outline" className="h-7 text-xs rounded-xl" onClick={toggleSelectAll}>
-                {selectedStudentIds.size === classStudents.length ? "Deselect All" : "Select All Eligible"}
-              </Button>
+              <div className="flex gap-2 text-xs">
+                <Badge className="bg-indigo-100 text-indigo-700 font-bold">{promotedIds.length} Promote</Badge>
+                <Badge className="bg-amber-100 text-amber-700 font-bold">{retainedIds.length} Retain</Badge>
+                <Badge className="bg-rose-100 text-rose-700 font-bold">{transferredIds.length} Transfer</Badge>
+              </div>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 max-h-[320px] overflow-y-auto">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 max-h-[300px] overflow-y-auto">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-100 text-slate-700 font-semibold uppercase text-[11px] sticky top-0 backdrop-blur z-10">
                   <tr>
-                    <th className="px-3 py-2 text-center">Select</th>
                     <th className="px-3 py-2">Admission No</th>
                     <th className="px-3 py-2">Student Name</th>
                     <th className="px-3 py-2">Current Class</th>
-                    <th className="px-3 py-2">Attendance %</th>
                     <th className="px-3 py-2">Fee Status</th>
-                    <th className="px-3 py-2">Eligibility Status</th>
+                    <th className="px-3 py-2 text-right">Progression Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {classStudents.map((s) => {
-                    const isFeePending = s.feeStatus !== "Paid";
-                    const studentStatus = (s as any).status;
-                    const isInactive = studentStatus === "Inactive" || studentStatus === "Graduated";
-                    const isSelected = selectedStudentIds.has(s.id);
-
+                    const currentAction = studentActions[s.id] || "Promote";
                     return (
-                      <tr key={s.id} className={cn("hover:bg-slate-50 transition", isSelected && "bg-indigo-50/40")}>
-                        <td className="px-3 py-2 text-center">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleStudent(s.id)}
-                            disabled={isInactive}
-                          />
-                        </td>
+                      <tr key={s.id} className="hover:bg-slate-50 transition">
                         <td className="px-3 py-2 font-mono text-slate-700">{s.admissionNo || s.id}</td>
                         <td className="px-3 py-2 font-bold text-slate-900">{s.name}</td>
                         <td className="px-3 py-2">{s.className}</td>
-                        <td className="px-3 py-2 font-semibold text-emerald-700">96%</td>
                         <td className="px-3 py-2">
                           <Badge className={s.feeStatus === "Paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
                             {s.feeStatus || "Pending"}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2">
-                          {isInactive ? (
-                            <Badge variant="outline" className="text-slate-500 bg-slate-100">Inactive / Skip</Badge>
-                          ) : isFeePending ? (
-                            <Badge className="bg-amber-100 text-amber-800 border-amber-300">
-                              <AlertTriangle className="h-3 w-3 mr-1" /> Pending Fee Exists (Allowed)
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-emerald-100 text-emerald-700">
-                              <CheckCircle2 className="h-3 w-3 mr-1" /> Eligible
-                            </Badge>
-                          )}
+                        <td className="px-3 py-2 text-right">
+                          <Select
+                            value={currentAction}
+                            onValueChange={(val: any) =>
+                              setStudentActions((prev) => ({ ...prev, [s.id]: val }))
+                            }
+                          >
+                            <SelectTrigger className="w-[140px] h-7 text-xs rounded-xl bg-white border-slate-200 ml-auto">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Promote">Promote ({toClass})</SelectItem>
+                              <SelectItem value="Retain">Retain in {fromClass}</SelectItem>
+                              <SelectItem value="Transfer">Transfer / Issue TC</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </td>
                       </tr>
                     );
                   })}
-                  {classStudents.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-xs">
-                        No students enrolled in source class {fromClass}.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between text-xs">
-              <span className="font-semibold text-indigo-900">Selected for Promotion:</span>
-              <span className="font-bold text-indigo-700 text-sm">{selectedStudentIds.size} of {classStudents.length} Students</span>
             </div>
           </div>
         )}
 
-        {/* STEP 3: PRE-FLIGHT CONFIRMATION */}
+        {/* STEP 3: PRE-FLIGHT & CAPACITY VALIDATION */}
         {step === 3 && (
           <div className="space-y-4 py-3 text-xs">
             <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 text-slate-900">
               <h4 className="font-bold text-sm text-indigo-950">Pre-Flight Promotion Summary</h4>
-              <p className="text-slate-600 text-[11px] mt-0.5">Please review the configuration before confirming promotion execution.</p>
+              <p className="text-slate-600 text-[11px] mt-0.5">Please review capacity and teacher inheritance before confirming execution.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Academic Year Transition</span>
+                <span className="text-slate-400 block font-medium">Academic Session</span>
                 <span className="font-bold text-slate-900">{fromYear} → {toYear}</span>
               </div>
               <div className="p-3 rounded-xl border bg-slate-50">
@@ -322,63 +383,87 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                 <span className="font-bold text-indigo-700">{fromClass} → {toClass}</span>
               </div>
               <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Students Selected</span>
-                <span className="font-bold text-emerald-700">{selectedStudentIds.size} Students</span>
+                <span className="text-slate-400 block font-medium">Promoted / Retained / Transferred</span>
+                <span className="font-bold text-emerald-700">{promotedIds.length} / {retainedIds.length} / {transferredIds.length}</span>
               </div>
               <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Executed By / Date</span>
-                <span className="font-bold text-slate-900">Office Staff · {new Date().toISOString().slice(0, 10)}</span>
+                <span className="text-slate-400 block font-medium">Destination Teacher Inheritance</span>
+                <span className="font-bold text-indigo-700">Mrs. Priya (Class Teacher)</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold block">Data Protection & Historical Integrity</span>
-                Existing fee history, attendance records, and parent mappings will remain intact. Fresh fee ledgers will be generated for Academic Year {toYear}.
+            {/* CAPACITY WARNING ALERT */}
+            {!capacityCheck.valid && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" /> Destination Class Capacity Exceeded!
+                </div>
+                <p className="text-xs text-amber-800">
+                  Destination class <b>{toClass}</b> capacity limit is <b>{capacityCheck.capacity}</b>. Promoting <b>{promotedIds.length}</b> students projects total enrollment to <b>{capacityCheck.projectedCount}</b>.
+                </p>
+                <div className="pt-1 flex items-center gap-2">
+                  <Checkbox id="override" checked={capacityOverride} onCheckedChange={(c) => setCapacityOverride(!!c)} />
+                  <label htmlFor="override" className="text-xs font-semibold text-amber-900 cursor-pointer">
+                    Enable Capacity Override (Commercial Office Approval)
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* STEP 4: SUCCESS SUMMARY & REPORT */}
+        {/* STEP 4: ENHANCED PROMOTION SUMMARY & REPORTS */}
         {step === 4 && executionResult && (
           <div className="space-y-4 py-3 text-xs">
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-center space-y-2">
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-center space-y-1">
               <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
-              <h3 className="text-base font-bold">Student Promotion Execution Complete!</h3>
+              <h3 className="text-base font-bold">Academic Session Promotion Completed!</h3>
               <p className="text-xs text-emerald-800">
-                Academic session updated from <b>{fromYear}</b> to <b>{toYear}</b> for <b>{toClass}</b>.
+                Batch ID: <b>{executionResult.batchId}</b> · Duration: <b>{executionResult.durationMs}ms</b>
               </p>
             </div>
 
             <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <div className="text-slate-500 text-[10px]">Total Selected</div>
-                <div className="font-bold text-sm text-slate-900">{selectedStudentIds.size}</div>
-              </div>
               <div className="p-3 rounded-xl border bg-emerald-50">
                 <div className="text-emerald-700 text-[10px]">Promoted</div>
-                <div className="font-bold text-sm text-emerald-800">{executionResult.promotedCount}</div>
+                <div className="font-bold text-base text-emerald-800">{executionResult.promotedCount}</div>
               </div>
               <div className="p-3 rounded-xl border bg-amber-50">
                 <div className="text-amber-700 text-[10px]">Retained</div>
-                <div className="font-bold text-sm text-amber-800">{executionResult.retainedCount}</div>
+                <div className="font-bold text-base text-amber-800">{executionResult.retainedCount}</div>
               </div>
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <div className="text-slate-500 text-[10px]">Errors</div>
-                <div className="font-bold text-sm text-slate-900">0</div>
+              <div className="p-3 rounded-xl border bg-purple-50">
+                <div className="text-purple-700 text-[10px]">Graduated</div>
+                <div className="font-bold text-base text-purple-800">{executionResult.graduatedCount}</div>
+              </div>
+              <div className="p-3 rounded-xl border bg-rose-50">
+                <div className="text-rose-700 text-[10px]">Transferred (TC)</div>
+                <div className="font-bold text-base text-rose-800">{executionResult.transferredCount}</div>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-100 border flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
               <div>
-                <span className="font-bold text-slate-800 block text-xs">Administrative Batch Rollback</span>
-                <span className="text-[11px] text-muted-foreground">Office Staff can revert this promotion batch if executed in error.</span>
+                <span className="font-bold text-indigo-950 block text-xs">Mark Academic Year {fromYear} Closed?</span>
+                <span className="text-[11px] text-slate-600">Locks historical ledgers and attendance as read-only.</span>
               </div>
-              <Button size="sm" variant="outline" onClick={handleRollback} className="h-8 text-xs border-rose-200 text-rose-700 hover:bg-rose-50">
+              <Button size="sm" onClick={handleClosePreviousYear} disabled={isAcademicYearClosed(fromYear)} className="h-8 text-xs bg-indigo-600 text-white rounded-xl">
+                <Lock className="h-3.5 w-3.5 mr-1" /> {isAcademicYearClosed(fromYear) ? "Year Closed" : `Close ${fromYear}`}
+              </Button>
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <Button size="sm" variant="outline" onClick={handleRollback} className="h-8 text-xs border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl">
                 <Undo2 className="h-3.5 w-3.5 mr-1" /> Rollback Batch
               </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleExportSummaryCSV} className="h-8 text-xs rounded-xl">
+                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export CSV / Excel
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => window.print()} className="h-8 text-xs rounded-xl">
+                  <Printer className="h-3.5 w-3.5 mr-1" /> Print Summary
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -398,34 +483,34 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
             )}
 
             {step === 1 && (
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs" onClick={() => setStep(2)}>
-                Next: Select Students <ChevronRight className="h-4 w-4 ml-1" />
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs"
+                disabled={!isToYearValid}
+                onClick={() => setStep(2)}
+              >
+                Next: Configure Students <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
 
             {step === 2 && (
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs"
-                disabled={selectedStudentIds.size === 0}
-                onClick={() => setStep(3)}
-              >
-                Next: Review Confirmation <ChevronRight className="h-4 w-4 ml-1" />
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs" onClick={() => setStep(3)}>
+                Next: Review & Capacity Check <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
 
             {step === 3 && (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs shadow-md"
-                disabled={isProcessing}
+                disabled={isProcessing || (!capacityCheck.valid && !capacityOverride)}
                 onClick={handleExecutePromotion}
               >
                 {isProcessing ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Executing Promotion...
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Executing Promotions...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Confirm & Execute Promotion
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Confirm & Execute Promotions
                   </>
                 )}
               </Button>
