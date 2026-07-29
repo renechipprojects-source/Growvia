@@ -205,14 +205,12 @@ function getLocalStore<T>(key: string): T[] {
     if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
     if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
     if (key === "SUNSHINE_FEES") return FEES as any;
-    if (key === "SUNSHINE_CIRCULARS") return initialCirculars as any;
     return [];
   } catch {
     if (key === "SUNSHINE_STUDENTS") return STUDENTS as any;
     if (key === "SUNSHINE_TEACHERS") return TEACHERS as any;
     if (key === "SUNSHINE_ENQUIRIES") return ENQUIRIES as any;
     if (key === "SUNSHINE_FEES") return FEES as any;
-    if (key === "SUNSHINE_CIRCULARS") return initialCirculars as any;
     return [];
   }
 }
@@ -788,18 +786,11 @@ export async function deleteTeacher(id: string) {
 }
 
 export async function deleteCircular(id: string) {
-  if (typeof window !== "undefined") {
-    try {
-      const current = getLocalStore<any>("SUNSHINE_CIRCULARS");
-      const filtered = current.filter((c: any) => c.id !== id);
-      localStorage.setItem("SUNSHINE_CIRCULARS", JSON.stringify(filtered));
-    } catch {}
-  }
   try {
     const { error } = await supabase.from("circulars").delete().eq("id", id);
     return { error };
-  } catch (err) {
-    return { error: err };
+  } catch (err: any) {
+    return { error: err?.message || err };
   }
 }
 

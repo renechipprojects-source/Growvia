@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { initialCirculars, ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
+import { ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
 import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
 import { NotificationService, type Role } from "@/lib/notifications";
 import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
@@ -63,6 +63,13 @@ function CircularsPage() {
 
   useEffect(() => {
     reloadCirculars();
+    const handleFocus = () => reloadCirculars();
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
   }, []);
 
   const [q, setQ] = useState("");

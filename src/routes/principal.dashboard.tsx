@@ -84,7 +84,7 @@ function StatCard({
 function DashboardPage() {
   const [totalStudents, setTotalStudents] = useState(120);
   const [totalTeachers, setTotalTeachers] = useState(18);
-  const [recentCirculars, setRecentCirculars] = useState<any[]>(initialCirculars);
+  const [recentCirculars, setRecentCirculars] = useState<any[]>([]);
   const [eventsList, setEventsList] = useState<any[]>(initialEvents);
   const [liveNotifications, setLiveNotifications] = useState<any[]>(notifications);
 
@@ -102,8 +102,7 @@ function DashboardPage() {
       if (data && data.length > 0) setEventsList(data);
     });
     fetchCirculars().then(({ data }) => {
-      const source = data && data.length > 0 ? data : initialCirculars;
-      setRecentCirculars(source);
+      setRecentCirculars(data || []);
     });
   }, []);
 
@@ -214,7 +213,7 @@ function DashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <MiniStat label="Avg. Attendance" value="94.2%" trend="+1.4%" positive />
             <MiniStat label="Fee Collection" value="87%" trend="+3.1%" positive />
-            <MiniStat label="Active Circulars" value={String(initialCirculars.filter((c) => c.status === "Published").length)} trend="This week" />
+            <MiniStat label="Active Circulars" value={String(recentCirculars.filter((c) => c.status === "Published" || !c.status).length)} trend="This week" />
             <MiniStat label="Open Issues" value="4" trend="-2 today" positive />
           </div>
         </div>

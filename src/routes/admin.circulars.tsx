@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { CircularList } from "@/components/circulars/CircularList";
 import { fetchCirculars } from "@/lib/supabaseService";
-import { initialCirculars } from "@/lib/principal-mock-data";
 
 export const Route = createFileRoute("/admin/circulars")({
   component: AdminCircularsPage,
@@ -13,9 +12,16 @@ function AdminCircularsPage() {
   const [circulars, setCirculars] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchCirculars().then(({ data }) => {
-      setCirculars(data || []);
-    });
+    const load = () => {
+      fetchCirculars().then(({ data }) => setCirculars(data || []));
+    };
+    load();
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", load);
+    };
   }, []);
 
   return (
