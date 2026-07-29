@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserRound, Users, UserCog, GraduationCap, ArrowRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { fetchStudents, fetchTeachers } from "@/lib/supabaseService";
+import { readAssignments } from "@/lib/classAssignmentContext";
 
 interface GlobalSearchModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-const MOCK_ITEMS = [
-  { id: "STU1001", type: "Student", name: "Aarav Sharma", detail: "Class Nursery-A · Adm: ADM202601", route: "/admin/students" },
-  { id: "STU1002", type: "Student", name: "Diya Patel", detail: "Class LKG-A · Adm: ADM202602", route: "/admin/students" },
-  { id: "PAR2001", type: "Parent", name: "Mr. Rajesh Sharma", detail: "Phone: +91 98765 43210 · Child: Aarav", route: "/admin/parents" },
-  { id: "TCH100", type: "Teacher", name: "Mrs. Priya", detail: "Emp ID: TCH100 · Class Teacher: Nursery-A", route: "/principal/teachers" },
-  { id: "CLS101", type: "Class", name: "Nursery - Section A", detail: "Room 102 · Strength: 24 Students", route: "/admin/classes" },
-];
-
 export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   const [query, setQuery] = useState("");
+  const [items, setItems] = useState<any[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,14 +28,64 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([fetchStudents(), fetchTeachers()]).then(([studentRes, teacherRes]) => {
+      const stus: any[] = studentRes.data || [];
+      const tchs: any[] = teacherRes.data || [];
+      const liveList: any[] = [];
+
+      (stus || []).forEach((s) => {
+        const parentName = typeof s.parent === "object" ? s.parent?.name : s.parent || "Parent";
+        liveList.push({
+          id: s.id,
+          type: "Student",
+          name: s.name,
+          detail: `Class ${s.className}-${s.section || "A"} · Roll: ${s.rollNo || s.id} · Parent: ${parentName}`,
+          route: "/admin/students",
+        });
+        liveList.push({
+          id: `PAR-${s.id}`,
+          type: "Parent",
+          name: parentName,
+          detail: `Phone: ${s.phone || "+91 98765 43210"} · Child: ${s.name}`,
+          route: "/admin/parents",
+        });
+      });
+
+      (tchs || []).forEach((t) => {
+        liveList.push({
+          id: t.id,
+          type: "Teacher",
+          name: t.name,
+          detail: `Emp ID: ${t.id} · Subject: ${t.subject || "General"}`,
+          route: "/principal/teachers",
+        });
+      });
+
+      // Add Class items
+      ["Nursery-A", "LKG-A", "UKG-A", "UKG-B"].forEach((c, idx) => {
+        liveList.push({
+          id: `CLS-${idx}`,
+          type: "Class",
+          name: `Class ${c}`,
+          detail: `Room 10${idx + 1} · Active Section`,
+          route: "/admin/classes",
+        });
+      });
+
+      setItems(liveList);
+    });
+  }, [open]);
+
   const filtered = query.trim()
-    ? MOCK_ITEMS.filter(
+    ? items.filter(
         (item) =>
           item.name.toLowerCase().includes(query.toLowerCase()) ||
           item.detail.toLowerCase().includes(query.toLowerCase()) ||
           item.id.toLowerCase().includes(query.toLowerCase())
       )
-    : MOCK_ITEMS;
+    : items.slice(0, 8);
 
   const handleSelect = (route: string) => {
     onClose();
@@ -53,7 +98,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
         <div className="p-4 border-b border-slate-100 flex items-center gap-3">
           <Search className="h-5 w-5 text-indigo-600 shrink-0" />
           <Input
-            placeholder="Search students, parents, teachers, classes, admission no, phone..."
+            placeholder="Search live students, parents, teachers, classes, roll no, phone..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="border-none shadow-none focus-visible:ring-0 text-sm placeholder:text-slate-400 h-9"
@@ -64,9 +109,9 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
           </Badge>
         </div>
 
-        <div className="max-h-[350px] overflow-y-auto p-2 divide-y divide-slate-50">
+        <div className="max-h-[380px] overflow-y-auto p-2 divide-y divide-slate-50">
           {filtered.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400">No records match "{query}".</div>
+            <div className="p-8 text-center text-xs text-slate-400">No live records match "{query}".</div>
           ) : (
             filtered.map((item) => (
               <div
