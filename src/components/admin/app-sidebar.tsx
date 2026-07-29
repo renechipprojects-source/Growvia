@@ -13,6 +13,11 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { adminSignOut } from "@/lib/admin-auth";
 import { listForQueue, subscribeResets } from "@/lib/passwordResets";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
+function getPendingPasswordResetsCount() {
+  return listForQueue("admin").filter((r) => r.status === "Pending").length;
+}
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
 type Group = { title: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
@@ -63,14 +68,14 @@ function isGroup(entry: OperationEntry): entry is Group {
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-
+  const { settings } = useDeveloperSettings();
   const [pendingResets, setPendingResets] = useState(
-    () => listForQueue("admin").filter((r) => r.status === "Pending").length,
+    () => getPendingPasswordResetsCount(),
   );
 
   useEffect(() => {
     const update = () =>
-      setPendingResets(listForQueue("admin").filter((r) => r.status === "Pending").length);
+      setPendingResets(getPendingPasswordResetsCount());
     update();
     return subscribeResets(update);
   }, []);
@@ -82,15 +87,19 @@ export function AppSidebar() {
     <Sidebar className="border-r border-slate-200/90 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
       <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md">
-            <Sparkles className="h-5 w-5 text-white" />
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md overflow-hidden">
+            {settings.theme.sidebarLogoUrl ? (
+              <img src={settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <Sparkles className="h-5 w-5 text-white" />
+            )}
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight text-slate-900">
-              Sunshine ERP
+              {settings.branding.schoolName}
             </div>
             <div className="text-[11px] font-medium text-slate-500">
-              Admin Portal
+              {settings.school.schoolCode}
             </div>
           </div>
         </div>

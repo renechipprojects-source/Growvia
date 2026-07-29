@@ -22,7 +22,10 @@ const REPORT_TYPES = [
   { id: "circular-stats", title: "Circular Delivery & Read Analytics", count: "Delivery Stats" },
 ];
 
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
 function ReportsPage() {
+  const { settings } = useDeveloperSettings();
   const [selectedReport, setSelectedReport] = useState("student-register");
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -132,8 +135,8 @@ function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Enterprise Reports & Data Export Hub"
-        subtitle="Generate, preview and export system-wide registers, ledgers, analytics, and summaries in Excel, PDF, or Print format."
+        title={settings.branding.reportHeader}
+        subtitle={`Generate, preview and export system-wide registers, ledgers, analytics, and summaries for ${settings.branding.schoolName}.`}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

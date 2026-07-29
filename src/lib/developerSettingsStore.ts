@@ -9,6 +9,9 @@ export interface SystemBranding {
   email: string;
   website: string;
   motto: string;
+  footer: string;
+  receiptHeader: string;
+  reportHeader: string;
 }
 
 export interface LoginPageConfig {
@@ -61,6 +64,9 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     email: "info@sunshineplayschool.edu",
     website: "https://sunshineplayschool.edu",
     motto: "Nurturing Little Minds for a Brighter Tomorrow",
+    footer: "© 2026 Sunshine Play School. All Rights Reserved.",
+    receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
+    reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
   },
   loginPage: {
     title: "Sunshine Play School ERP",
@@ -101,7 +107,15 @@ export function getDeveloperSettings(): DeveloperSettings {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_DEV_SETTINGS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_DEV_SETTINGS, ...parsed };
+    return {
+      ...DEFAULT_DEV_SETTINGS,
+      ...parsed,
+      branding: { ...DEFAULT_DEV_SETTINGS.branding, ...parsed.branding },
+      loginPage: { ...DEFAULT_DEV_SETTINGS.loginPage, ...parsed.loginPage },
+      theme: { ...DEFAULT_DEV_SETTINGS.theme, ...parsed.theme },
+      features: { ...DEFAULT_DEV_SETTINGS.features, ...parsed.features },
+      school: { ...DEFAULT_DEV_SETTINGS.school, ...parsed.school },
+    };
   } catch {
     return DEFAULT_DEV_SETTINGS;
   }

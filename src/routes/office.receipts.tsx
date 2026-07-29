@@ -12,8 +12,11 @@ export const Route = createFileRoute("/office/receipts")({
   component: ReceiptsPage,
 });
 
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
 function ReceiptsPage() {
   const [list, setList] = useState(SEED_RECEIPTS);
+  const { settings } = useDeveloperSettings();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -71,7 +74,7 @@ function ReceiptsPage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0">
-        <PageHeader title="Fee Receipts" subtitle="All fee collections and generated payment receipts." />
+        <PageHeader title={settings.branding.receiptHeader} subtitle={`All fee collections and generated payment receipts for ${settings.branding.schoolName}.`} />
       </div>
       <div className="flex-1 min-h-0">
         <DataTable data={list} columns={cols} searchKey="studentName" fillParent />

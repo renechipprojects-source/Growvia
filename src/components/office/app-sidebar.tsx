@@ -98,20 +98,31 @@ const operations: Item[] = [
   { title: "Reports", url: "/office/reports", icon: FileText },
 ];
 
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
 export function OfficeSidebar() {
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const isActive = (url: string) => pathname === url;
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { settings } = useDeveloperSettings();
+
+  const isActive = (url: string) => {
+    if (url === "/office") return pathname === "/office" || pathname === "/office/";
+    return pathname.startsWith(url);
+  };
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <Link to="/office" className="flex items-center gap-2 px-2 py-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Building2 className="h-5 w-5" />
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-slate-950 font-bold overflow-hidden">
+            {settings.theme.sidebarLogoUrl ? (
+              <img src={settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <Building2 className="h-5 w-5" />
+            )}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold">Office Suite</div>
-            <div className="truncate text-xs text-muted-foreground">Administration Hub</div>
+            <div className="truncate text-sm font-semibold">{settings.branding.schoolName}</div>
+            <div className="truncate text-xs text-muted-foreground">Office Suite</div>
           </div>
         </Link>
       </SidebarHeader>
