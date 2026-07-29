@@ -20,6 +20,7 @@ import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCircularsRouteImport } from './routes/admin.circulars'
 import { Route as AdminClassesRouteImport } from './routes/admin.classes'
+import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminFeesRouteImport } from './routes/admin.fees'
 import { Route as AdminHealthRouteImport } from './routes/admin.health'
@@ -144,6 +145,11 @@ const AdminCircularsRoute = AdminCircularsRouteImport.update({
 const AdminClassesRoute = AdminClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
@@ -511,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/teacher': typeof TeacherRouteWithChildren
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
@@ -589,6 +596,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
@@ -673,6 +681,7 @@ export interface FileRoutesById {
   '/teacher': typeof TeacherRouteWithChildren
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
@@ -758,6 +767,7 @@ export interface FileRouteTypes {
     | '/teacher'
     | '/admin/circulars'
     | '/admin/classes'
+    | '/admin/dashboard'
     | '/admin/events'
     | '/admin/fees'
     | '/admin/health'
@@ -836,6 +846,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/admin/circulars'
     | '/admin/classes'
+    | '/admin/dashboard'
     | '/admin/events'
     | '/admin/fees'
     | '/admin/health'
@@ -919,6 +930,7 @@ export interface FileRouteTypes {
     | '/teacher'
     | '/admin/circulars'
     | '/admin/classes'
+    | '/admin/dashboard'
     | '/admin/events'
     | '/admin/fees'
     | '/admin/health'
@@ -1080,6 +1092,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/admin/classes'
       preLoaderRoute: typeof AdminClassesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/events': {
@@ -1590,6 +1609,7 @@ const AdminFeesRouteWithChildren = AdminFeesRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminCircularsRoute: typeof AdminCircularsRoute
   AdminClassesRoute: typeof AdminClassesRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFeesRoute: typeof AdminFeesRouteWithChildren
   AdminHealthRoute: typeof AdminHealthRoute
@@ -1608,6 +1628,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCircularsRoute: AdminCircularsRoute,
   AdminClassesRoute: AdminClassesRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminFeesRoute: AdminFeesRouteWithChildren,
   AdminHealthRoute: AdminHealthRoute,
