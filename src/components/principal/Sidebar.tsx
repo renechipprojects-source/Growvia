@@ -19,13 +19,15 @@ import {
   Boxes,
   X,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/principal-auth";
 import {
   getPrincipalProfile,
   subscribePrincipalProfile,
 } from "@/lib/principal-profile";
+import { fetchCirculars } from "@/lib/supabaseService";
+import { getUnreadCountForRole } from "@/lib/circularReadStore";
 
 type NavItem = {
   label: string;
@@ -67,11 +69,20 @@ export function PrincipalSidebar({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [attendanceOpen, setAttendanceOpen] = useState(pathname.startsWith("/principal/attendance"));
+  const [unreadCirculars, setUnreadCirculars] = useState(0);
   const profile = useSyncExternalStore(
     subscribePrincipalProfile,
     getPrincipalProfile,
     getPrincipalProfile,
   );
+
+  useEffect(() => {
+    fetchCirculars().then(({ data }) => {
+      if (data) {
+        setUnreadCirculars(getUnreadCountForRole(data, "principal"));
+      }
+    });
+  }, [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -199,7 +210,12 @@ export function PrincipalSidebar({
                 )}
               >
                 <Icon className={cn("w-[18px] h-[18px] shrink-0", active ? "text-indigo-600" : "text-slate-600")} />
-                {!isCompact && item.label}
+                {!isCompact && <span className="flex-1 truncate">{item.label}</span>}
+                {!isCompact && item.label === "Circulars" && unreadCirculars > 0 && (
+                  <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold text-[10px]">
+                    {unreadCirculars}
+                  </span>
+                )}
               </Link>
             );
           })}
