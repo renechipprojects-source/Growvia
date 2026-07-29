@@ -4,12 +4,12 @@ import { DataTable } from "@/components/DataTable";
 import { STUDENTS, type Student } from "@/lib/mockData";
 import { fetchStudents } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, GraduationCap, UserCheck, ShieldCheck, CreditCard } from "lucide-react";
+import { Eye, GraduationCap, Sparkles } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
@@ -17,11 +17,16 @@ export const Route = createFileRoute("/office/students")({ component: OfficeStud
 function OfficeStudents() {
   const [data, setData] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [openPromotionModal, setOpenPromotionModal] = useState(false);
 
-  useEffect(() => {
+  const loadStudents = () => {
     fetchStudents().then(({ data: fetched }) => {
       setData(fetched && fetched.length > 0 ? fetched : STUDENTS);
     });
+  };
+
+  useEffect(() => {
+    loadStudents();
   }, []);
 
   const cols: ColumnDef<Student>[] = [
@@ -63,10 +68,22 @@ function OfficeStudents() {
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 space-y-3">
       <div className="shrink-0">
-        <PageHeader title="Students" subtitle="Directory of enrolled students, parents, fee ledgers and submitted records." />
+        <PageHeader
+          title="Students Directory & Promotion Engine"
+          subtitle="Directory of enrolled students, parents, fee ledgers, and academic session promotions."
+          action={
+            <Button
+              onClick={() => setOpenPromotionModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs shadow-md font-semibold px-4 py-2"
+            >
+              <GraduationCap className="mr-2 h-4 w-4" /> Annual Promotion Wizard
+            </Button>
+          }
+        />
       </div>
+
       <div className="flex-1 min-h-0">
         <DataTable data={data} columns={cols} searchKey="name" fillParent />
       </div>
@@ -75,6 +92,12 @@ function OfficeStudents() {
         open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
         student={selectedStudent}
+      />
+
+      <PromotionWizardModal
+        open={openPromotionModal}
+        onClose={() => setOpenPromotionModal(false)}
+        onPromoteSuccess={loadStudents}
       />
     </div>
   );

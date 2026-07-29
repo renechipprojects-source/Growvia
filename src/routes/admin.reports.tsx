@@ -12,6 +12,7 @@ export const Route = createFileRoute("/admin/reports")({ component: ReportsPage 
 
 const REPORT_TYPES = [
   { id: "student-register", title: "Student Master Register", count: "Live Enrolled" },
+  { id: "promotion-report", title: "Student Promotion & Progression", count: "Academic Sessions" },
   { id: "staff-register", title: "Staff & Teacher Register", count: "Live Staff" },
   { id: "attendance-summary", title: "Monthly Attendance Summary", count: "96% Present Avg" },
   { id: "fee-collection", title: "Fee Collection & Outstanding Ledger", count: "Live Collection" },
@@ -34,7 +35,30 @@ function ReportsPage() {
   }, []);
 
   const handleExport = (type: string) => {
-    if (type === "student-register") {
+    if (type === "promotion-report") {
+      const { getPromotionHistory } = require("@/lib/promotionStore");
+      const history = getPromotionHistory();
+      const rows = (history.length > 0 ? history : [
+        { studentId: "STU1001", fromClass: "Nursery A", toClass: "LKG A", fromAcademicYear: "2025-2026", toAcademicYear: "2026-2027", promotedBy: "Office Staff", promotedOn: "2026-04-05", status: "Promoted" },
+        { studentId: "STU1002", fromClass: "LKG B", toClass: "UKG B", fromAcademicYear: "2025-2026", toAcademicYear: "2026-2027", promotedBy: "Office Staff", promotedOn: "2026-04-05", status: "Promoted" }
+      ]).map((p: any) => [
+        p.studentId,
+        p.fromClass,
+        p.toClass,
+        p.fromAcademicYear,
+        p.toAcademicYear,
+        p.promotedBy,
+        p.promotedOn,
+        p.status
+      ]);
+
+      exportToCSV(
+        "Student_Promotion_Progression_Report",
+        ["Student ID", "Source Class", "Target Class", "From Year", "To Year", "Promoted By", "Promotion Date", "Status"],
+        rows
+      );
+      toast.success(`Exported ${rows.length} student promotion history records!`);
+    } else if (type === "student-register") {
       const rows = (students.length > 0 ? students : [
         { id: "STU1001", rollNo: "ADM202601", name: "Aarav Sharma", className: "Nursery", section: "A", gender: "Boy", parent: "Rajesh Sharma", phone: "+91 98765 43210", status: "Active" },
         { id: "STU1002", rollNo: "ADM202602", name: "Diya Patel", className: "LKG", section: "A", gender: "Girl", parent: "Sanjay Patel", phone: "+91 98765 43211", status: "Active" }
@@ -52,10 +76,10 @@ function ReportsPage() {
 
       exportToCSV(
         "Student_Master_Register",
-        ["Student ID", "Admission No", "Student Name", "Class", "Section", "Gender", "Parent Name", "Phone", "Status"],
+        ["ID", "Roll / Adm No", "Student Name", "Class", "Section", "Gender", "Parent Name", "Phone", "Status"],
         rows
       );
-      toast.success(`Exported ${rows.length} live student records to CSV/Excel!`);
+      toast.success(`Exported ${rows.length} student register records!`);
     } else if (type === "staff-register" || type === "workload-report") {
       const rows = (teachers.length > 0 ? teachers : [
         { id: "TCH100", name: "Mrs. Priya", subject: "English", qualification: "B.Ed", phone: "+91 98765 43210" },
