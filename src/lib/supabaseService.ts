@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { STUDENTS, TEACHERS, ENQUIRIES, FEES, type Student, type Teacher, type Enquiry, type Fee, type Expense } from "./mockData";
 import { initialCirculars } from "./principal-mock-data";
 import { generateParentCredential } from "./credentials";
+import { dedupeAndCacheFetch, invalidateCache } from "./cacheService";
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
 export interface Circular {
@@ -228,37 +229,39 @@ function saveLocalStore<T>(key: string, item: T) {
 // ─── STUDENTS ─────────────────────────────────────────────────────────────
 
 export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
-  const localList = getLocalStore<Student>("SUNSHINE_STUDENTS");
-  try {
-    const { data, error } = await supabase.from("students").select("*");
-    if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : STUDENTS, isFromSupabase: true };
-    const mapped: Student[] = data.map((d: any) => ({
-      id: d.id,
-      rollNo: d.roll_no,
-      admissionNo: d.admission_no,
-      name: d.name,
-      age: d.age,
-      dob: d.dob,
-      className: d.class_name,
-      section: d.section,
-      parent: d.parent_name,
-      parentId: d.parent_id,
-      phone: d.phone,
-      gender: d.gender,
-      house: d.house,
-      admissionDate: d.admission_date,
-      feeStatus: d.fee_status,
-      avatar: d.avatar,
-      attendance: d.attendance_pct,
-      branch: d.branch,
-    }));
-    // Merge local additions avoiding duplicate IDs
-    const existingIds = new Set(mapped.map((m) => m.id));
-    const uniqueLocal = localList.filter((l) => !existingIds.has(l.id));
-    return { data: [...uniqueLocal, ...mapped], isFromSupabase: true };
-  } catch {
-    return { data: localList, isFromSupabase: true };
-  }
+  return dedupeAndCacheFetch("students", async () => {
+    const localList = getLocalStore<Student>("SUNSHINE_STUDENTS");
+    try {
+      const { data, error } = await supabase.from("students").select("*");
+      if (error || !data || data.length === 0) return { data: localList.length > 0 ? localList : STUDENTS, isFromSupabase: true };
+      const mapped: Student[] = data.map((d: any) => ({
+        id: d.id,
+        rollNo: d.roll_no,
+        admissionNo: d.admission_no,
+        name: d.name,
+        age: d.age,
+        dob: d.dob,
+        className: d.class_name,
+        section: d.section,
+        parent: d.parent_name,
+        parentId: d.parent_id,
+        phone: d.phone,
+        gender: d.gender,
+        house: d.house,
+        admissionDate: d.admission_date,
+        feeStatus: d.fee_status,
+        avatar: d.avatar,
+        attendance: d.attendance_pct,
+        branch: d.branch,
+      }));
+      // Merge local additions avoiding duplicate IDs
+      const existingIds = new Set(mapped.map((m) => m.id));
+      const uniqueLocal = localList.filter((l) => !existingIds.has(l.id));
+      return { data: [...uniqueLocal, ...mapped], isFromSupabase: true };
+    } catch {
+      return { data: localList, isFromSupabase: true };
+    }
+  });
 }
 
 export async function createInitialFeeForStudent(student: Student) {
@@ -354,6 +357,7 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
 
   // Always save locally first so user never experiences data loss or stuck UI
   saveLocalStore<Student>("SUNSHINE_STUDENTS", formattedStudent);
+  invalidateCache("students");
   try {
     generateParentCredential(formattedStudent.id, { student: formattedStudent });
   } catch {}
