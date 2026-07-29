@@ -28,8 +28,15 @@ interface PromotionWizardModalProps {
 
 const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: PromotionWizardModalProps) {
+  const { setFormEditing, triggerModuleRefresh } = useAutoRefresh();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+
+  useEffect(() => {
+    setFormEditing(open);
+  }, [open, setFormEditing]);
 
   // Setup state (Step 1)
   const [fromYear, setFromYear] = useState<string>("2026-2027");
@@ -166,6 +173,9 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       });
       setStep(4);
       toast.success(`Successfully processed ${promotedIds.length + retainedIds.length + transferredIds.length} student promotions!`);
+      triggerModuleRefresh("promotion");
+      triggerModuleRefresh("students");
+      triggerModuleRefresh("assignments");
       if (onPromoteSuccess) onPromoteSuccess();
     }, 1000);
   };
@@ -173,6 +183,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
   const handleClosePreviousYear = () => {
     closeAcademicYear(fromYear, "Office Staff");
     setAcademicYears(getAcademicYears());
+    triggerModuleRefresh("promotion");
     toast.success(`Academic Year ${fromYear} has been marked CLOSED. Historical ledgers & attendance are now read-only.`);
   };
 
@@ -183,6 +194,8 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       toast.success(res.message);
       setStep(1);
       setExecutionResult(null);
+      triggerModuleRefresh("promotion");
+      triggerModuleRefresh("students");
       if (onPromoteSuccess) onPromoteSuccess();
     } else {
       toast.error(res.message);

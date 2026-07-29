@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
 import {
   Receipt as ReceiptIcon, Printer, Search, Plus, CheckCircle, Clock,
   DollarSign, Wallet, FileText, Eye, Edit3, Tag, Sparkles
 } from "lucide-react";
 import { NotificationService } from "@/lib/notifications";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/fees")({ component: FeeCollection });
 
@@ -70,57 +71,44 @@ function FeeCollection() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   // Load students & fees on mount
-  useEffect(() => {
-    async function loadData() {
-      const { data: stData } = await fetchStudents();
-      const currentStudents = stData && stData.length > 0 ? stData : SEED_STUDENTS;
-      setStudents(currentStudents);
+  const loadData = useCallback(async () => {
+    const { data: stData } = await fetchStudents();
+    const currentStudents = stData && stData.length > 0 ? stData : SEED_STUDENTS;
+    setStudents(currentStudents);
 
-      const { data: feData } = await fetchFees();
-      if (feData && feData.length > 0) {
-        setFeeList(feData);
-      } else {
-        const dynamicFees: FeeLedgerItem[] = currentStudents.map((s, idx) => {
-          const totalFee = s.className === "Playgroup" ? 8500 : s.className === "Nursery" ? 9500 : 10500;
-          const paidAmt = s.feeStatus === "Paid" ? totalFee : s.feeStatus === "Partial" ? Math.round(totalFee / 2) : 0;
-          return recalculateFeeLedger({
-            id: `F-STU-${s.id}`,
-            studentId: s.id,
-            studentName: s.name,
-            admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
-            className: `${s.className} ${s.section || "A"}`,
-            academicYear: "2026-2027",
-            originalFee: totalFee,
-            discountAmount: 0,
-            finalFee: totalFee,
-            amount: totalFee,
-            paid: paidAmt,
-            remainingAmount: Math.max(0, totalFee - paidAmt),
-            dueDate: "2026-07-15",
-            status: paidAmt === totalFee ? "Paid" : paidAmt > 0 ? "Partial" : "Pending",
-            month: "Academic Year 2026-2027",
-            totalInstallments: 3,
-            paidInstallments: paidAmt === totalFee ? 3 : paidAmt > 0 ? 1 : 0,
-            payments: paidAmt > 0 ? [
-              {
-                id: `TXN-INIT-${s.id}`,
-                studentId: s.id,
-                receiptNo: `SUN/26-27/${2000 + idx}`,
-                amount: paidAmt,
-                date: "2026-06-10",
-                method: "Cash",
-                feeType: "Tuition Fee",
-                installmentNo: 1,
-                collectedBy: "Office Staff",
-              }
-            ] : [],
-          });
+    const { data: feData } = await fetchFees();
+    if (feData && feData.length > 0) {
+      setFeeList(feData);
+    } else {
+      const dynamicFees: FeeLedgerItem[] = currentStudents.map((s, idx) => {
+        const totalFee = s.className === "Playgroup" ? 8500 : s.className === "Nursery" ? 9500 : 10500;
+        const paidAmt = s.feeStatus === "Paid" ? totalFee : s.feeStatus === "Partial" ? Math.round(totalFee / 2) : 0;
+        return recalculateFeeLedger({
+          id: `F-STU-${s.id}`,
+          studentId: s.id,
+          studentName: s.name,
+          admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
+          className: `${s.className} ${s.section || "A"}`.trim(),
+          originalFee: totalFee,
+          discountAmount: 0,
+          finalFee: totalFee,
+          amount: totalFee,
+          paid: paidAmt,
+          dueDate: "2026-08-15",
+          status: paidAmt >= totalFee ? "Paid" : paidAmt > 0 ? "Partial" : "Pending",
+          month: "August 2026",
+          payments: paidAmt > 0 ? [{ id: `P-SEED-${idx}`, studentId: s.id, feeType: "Tuition Fee", installmentNo: 1, amount: paidAmt, date: "2026-07-15", method: "Cash", receiptNo: `REC-2026-${100 + idx}`, collectedBy: "Office Staff" }] : [],
         });
-        setFeeList(dynamicFees);
-      }
+      });
+      setFeeList(dynamicFees);
     }
-    loadData();
   }, []);
+
+  const { setFormEditing } = useAutoRefresh("fees", loadData);
+
+  useEffect(() => {
+    setFormEditing(openRecordModal || openEditFeeModal);
+  }, [openRecordModal, openEditFeeModal, setFormEditing]);
 
   // Summary Metrics
   const summary = useMemo(() => {

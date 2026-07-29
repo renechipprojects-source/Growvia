@@ -37,10 +37,18 @@ const EMPTY: Draft = {
   status: "active",
 };
 
+import { useEffect } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 function ClassAssignmentPage() {
   const { assignments, create, update, remove, toggle, getWorkload } = useClassAssignments();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY);
+  const { setFormEditing, triggerModuleRefresh } = useAutoRefresh();
+
+  useEffect(() => {
+    setFormEditing(open);
+  }, [open, setFormEditing]);
 
   const openNew = (role: AssignmentRole = "class") => {
     setDraft({ ...EMPTY, role });
@@ -83,6 +91,8 @@ function ClassAssignmentPage() {
         toast.success(`Assigned ${payload.teacherName} to teach ${payload.subject} in ${payload.className}-${payload.section}.`);
       }
     }
+    triggerModuleRefresh("assignments");
+    triggerModuleRefresh("staff");
     setOpen(false);
   };
 

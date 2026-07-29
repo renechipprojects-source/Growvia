@@ -64,7 +64,10 @@ function autoAdmissionNo() {
   return `SUN/26-${String(Math.floor(1000 + Math.random() * 8999))}`;
 }
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 function Admissions() {
+  const { triggerModuleRefresh } = useAutoRefresh();
   const { enquiryId } = Route.useSearch();
   const navigate = useNavigate();
   const { getEnquiry, isConverted, markConverted } = useEnquiries();
@@ -156,6 +159,8 @@ function Admissions() {
 
     NotificationService.admissionCreated(v.childName, v.admissionNo || "ADM-2026");
     toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
+    triggerModuleRefresh("students");
+    triggerModuleRefresh("admissions");
     reset();
     navigate({ to: "/office/students" });
   };

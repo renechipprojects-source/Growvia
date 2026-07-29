@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { Plus, Search, Edit2, Trash2, Send, Archive, History, Eye, Paperclip, Calendar } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -31,9 +32,9 @@ type Mode = "create" | "edit" | "view" | null;
 function CircularsPage() {
   const [items, setItems] = useState<Circular[]>([]);
 
-  const reloadCirculars = async () => {
+  const reloadCirculars = useCallback(async () => {
     try {
-      const { data, isFromSupabase } = await fetchCirculars();
+      const { data } = await fetchCirculars();
       const source = data || [];
       const mapped: Circular[] = source.map((d: any) => ({
         id: d.id || `C-${Math.random()}`,
@@ -59,18 +60,9 @@ function CircularsPage() {
     } catch {
       setItems([]);
     }
-  };
-
-  useEffect(() => {
-    reloadCirculars();
-    const handleFocus = () => reloadCirculars();
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
   }, []);
+
+  const { setFormEditing, triggerModuleRefresh } = useAutoRefresh("circulars", reloadCirculars);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
@@ -79,6 +71,10 @@ function CircularsPage() {
   const [editing, setEditing] = useState<Circular | null>(null);
   const [historyOf, setHistoryOf] = useState<Circular | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Circular | null>(null);
+
+  useEffect(() => {
+    setFormEditing(mode !== null || historyOf !== null || confirmDelete !== null);
+  }, [mode, historyOf, confirmDelete, setFormEditing]);
 
   const filtered = useMemo(
     () =>

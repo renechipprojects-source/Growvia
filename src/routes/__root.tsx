@@ -127,18 +127,21 @@ function RootShell({ children }: { children: ReactNode }) {
 
 import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { AcademicYearProvider } from "@/lib/academicYearContext";
+import { AutoRefreshProvider } from "@/lib/autoRefreshContext";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AcademicYearProvider>
-        <ClassAssignmentProvider>
-          <Outlet />
-          <SonnerToaster position="top-right" richColors />
-        </ClassAssignmentProvider>
-      </AcademicYearProvider>
+      <AutoRefreshProvider>
+        <AcademicYearProvider>
+          <ClassAssignmentProvider>
+            <Outlet />
+            <SonnerToaster position="top-right" richColors />
+          </ClassAssignmentProvider>
+        </AcademicYearProvider>
+      </AutoRefreshProvider>
     </QueryClientProvider>
   );
 }

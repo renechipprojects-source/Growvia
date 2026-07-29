@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { CircularList } from "@/components/circulars/CircularList";
 import { fetchCirculars } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/circulars")({
   component: OfficeCircularsPage,
@@ -11,18 +12,11 @@ export const Route = createFileRoute("/office/circulars")({
 function OfficeCircularsPage() {
   const [circulars, setCirculars] = useState<any[]>([]);
 
-  useEffect(() => {
-    const load = () => {
-      fetchCirculars().then(({ data }) => setCirculars(data || []));
-    };
-    load();
-    window.addEventListener("focus", load);
-    document.addEventListener("visibilitychange", load);
-    return () => {
-      window.removeEventListener("focus", load);
-      document.removeEventListener("visibilitychange", load);
-    };
+  const loadCirculars = useCallback(() => {
+    return fetchCirculars().then(({ data }) => setCirculars(data || []));
   }, []);
+
+  useAutoRefresh("circulars", loadCirculars);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none p-6 space-y-6">

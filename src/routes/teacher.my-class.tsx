@@ -24,6 +24,9 @@ import { useEffect } from "react";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { STUDENTS } from "@/lib/mockData";
 
+import { useCallback } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 function MyClass() {
   const assignments = getClassAssignments();
   const active = assignments[0];
@@ -33,9 +36,12 @@ function MyClass() {
   const [localSearch, setLocalSearch] = useState("");
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
-  useEffect(() => {
-    fetchStudents().then(({ data }) => setAllStudents(data));
+  const loadData = useCallback(() => {
+    return fetchStudents().then(({ data }) => setAllStudents(data));
   }, []);
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("attendance", loadData);
 
   const q = headerQuery || localSearch;
 

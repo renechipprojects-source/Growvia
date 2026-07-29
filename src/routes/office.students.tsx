@@ -5,7 +5,7 @@ import { STUDENTS, type Student } from "@/lib/mockData";
 import { fetchStudents } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,20 +14,20 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 function OfficeStudents() {
   const [data, setData] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [openPromotionModal, setOpenPromotionModal] = useState(false);
 
-  const loadStudents = () => {
-    fetchStudents().then(({ data: fetched }) => {
+  const loadStudents = useCallback(() => {
+    return fetchStudents().then(({ data: fetched }) => {
       setData(fetched && fetched.length > 0 ? fetched : STUDENTS);
     });
-  };
-
-  useEffect(() => {
-    loadStudents();
   }, []);
+
+  useAutoRefresh("students", loadStudents);
 
   const cols: ColumnDef<Student>[] = [
     { header: "ID", accessorKey: "id" },
