@@ -29,12 +29,12 @@ export const Route = createFileRoute("/principal/circulars")({
 type Mode = "create" | "edit" | "view" | null;
 
 function CircularsPage() {
-  const [items, setItems] = useState<Circular[]>(initialCirculars);
+  const [items, setItems] = useState<Circular[]>([]);
 
   const reloadCirculars = async () => {
     try {
-      const { data } = await fetchCirculars();
-      const source = data && data.length > 0 ? data : initialCirculars;
+      const { data, isFromSupabase } = await fetchCirculars();
+      const source = data || [];
       const mapped: Circular[] = source.map((d: any) => ({
         id: d.id || `C-${Math.random()}`,
         title: d.title || "Untitled Circular",
@@ -51,10 +51,13 @@ function CircularsPage() {
         status: (d.status as any) || "Published",
         createdAt: d.createdAt || d.published_date || new Date().toISOString(),
         history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
+        attachment: d.attachment || d.attachmentName,
+        attachmentName: d.attachmentName || d.attachment,
+        attachmentUrl: d.attachmentUrl,
       }));
       setItems(mapped);
     } catch {
-      setItems(initialCirculars);
+      setItems([]);
     }
   };
 
@@ -273,12 +276,13 @@ function CircularsPage() {
         editing={editing}
         onClose={() => setMode(null)}
         onSave={async (c, action) => {
-          try {
-            await createCircular(c);
-            toast.success(action);
-          } catch (err: any) {
-            toast.success(`Saved! (${err?.message || "Local"})`);
+          const res = await createCircular(c);
+          if (res.error) {
+            toast.error(`Publish failed: ${res.error}`);
+            return;
           }
+
+          toast.success(action);
 
           if (c.status === "Published" || action.toLowerCase().includes("publish")) {
             const targetRoles = mapRecipientsToRoles(c.recipients);
@@ -483,7 +487,24 @@ function CircularEditor({
               {isView ? (
                 <div className="text-sm text-muted-foreground">{form.attachment ?? "No attachment"}</div>
               ) : (
-                <Input type="file" onChange={(e) => setForm({ ...form, attachment: e.target.files?.[0]?.name })} />
+                <Input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setForm((f) => ({
+                          ...f,
+                          attachment: file.name,
+                          attachmentName: file.name,
+                          attachmentUrl: ev.target?.result as string,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
               )}
             </div>
           </div>

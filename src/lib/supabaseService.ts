@@ -39,91 +39,114 @@ export interface LeaveRequest {
 // ─── CIRCULARS & NOTICES ──────────────────────────────────────────────────
 
 export async function fetchCirculars(): Promise<{ data: any[]; isFromSupabase: boolean }> {
-  const localList = getLocalStore<any>("SUNSHINE_CIRCULARS");
   try {
-    const { data, error } = await supabase.from("circulars").select("*").order("published_date", { ascending: false });
-    if (error || !data || data.length === 0) {
-      return { data: localList, isFromSupabase: false };
+    const { data, error } = await supabase
+      .from("circulars")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("Supabase fetchCirculars error:", error.message);
+      return { data: [], isFromSupabase: false };
     }
 
-    const mappedSupabase = data.map((d: any) => ({
-      id: d.id,
-      title: d.title,
-      subject: d.subject || d.title,
-      description: d.description || d.content || d.subject || d.title,
-      content: d.content || d.description || d.subject || d.title,
-      target_audience: d.target_audience || (Array.isArray(d.recipients) ? d.recipients.join(",") : "All"),
-      recipients: Array.isArray(d.recipients) ? d.recipients : typeof d.target_audience === "string" ? d.target_audience.split(",") : ["Parents", "Teachers"],
-      priority: d.priority || "Medium",
-      published_date: d.published_date || d.publishDate || new Date().toISOString().split("T")[0],
-      publishDate: d.published_date || d.publishDate || new Date().toISOString().split("T")[0],
-      expiry_date: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-      expiryDate: d.expiry_date || d.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-      author: d.author || "Principal Office",
-      status: d.status || "Published",
-      createdAt: d.created_at || d.createdAt || new Date().toISOString(),
-      history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
-      attachment: d.attachment,
-    }));
+    const mappedSupabase = (data || []).map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
+          meta = JSON.parse(d.content);
+        }
+      } catch {
+        meta = {};
+      }
 
-    const existingIds = new Set(mappedSupabase.map((m: any) => m.id));
-    const uniqueLocal = localList.filter((l: any) => !existingIds.has(l.id));
-    return { data: [...uniqueLocal, ...mappedSupabase], isFromSupabase: true };
-  } catch {
-    return { data: localList, isFromSupabase: false };
+      const title = d.title || meta.title || "Notice";
+      const subject = meta.subject || d.title || title;
+      const description = meta.description || d.content || title;
+      const priority = meta.priority || d.priority || "Medium";
+      const recipients = Array.isArray(meta.recipients) && meta.recipients.length > 0
+        ? meta.recipients
+        : typeof d.target_audience === "string" && d.target_audience.length > 0
+        ? d.target_audience.split(",")
+        : ["Parents", "Teachers"];
+
+      return {
+        id: d.id,
+        title,
+        subject,
+        description,
+        content: description,
+        target_audience: d.target_audience || recipients.join(","),
+        recipients,
+        priority,
+        published_date: d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        publishDate: d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        expiry_date: meta.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        expiryDate: meta.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        author: d.author || meta.author || "Principal Office",
+        status: meta.status || "Published",
+        attachment: meta.attachmentName || meta.attachment,
+        attachmentName: meta.attachmentName || meta.attachment,
+        attachmentUrl: meta.attachmentUrl,
+        createdAt: d.created_at || new Date().toISOString(),
+        history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
+      };
+    });
+
+    return { data: mappedSupabase, isFromSupabase: true };
+  } catch (err: any) {
+    console.warn("fetchCirculars exception:", err?.message || err);
+    return { data: [], isFromSupabase: false };
   }
 }
 
 import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
 
-export async function createCircular(circular: any) {
-  const newId = circular.id || `CIR-${Date.now().toString().slice(-4)}`;
-  const formattedCircular = {
-    id: newId,
-    title: circular.title,
-    subject: circular.subject || circular.title,
-    description: circular.description || circular.content || circular.subject,
-    content: circular.content || circular.description || circular.subject,
-    target_audience: circular.target_audience || (circular.recipients ? circular.recipients.join(",") : "All"),
-    recipients: Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers"],
-    priority: circular.priority || "Medium",
-    published_date: circular.publishDate || circular.published_date || new Date().toISOString().split("T")[0],
-    publishDate: circular.publishDate || circular.published_date || new Date().toISOString().split("T")[0],
-    expiry_date: circular.expiryDate || circular.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-    expiryDate: circular.expiryDate || circular.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-    author: circular.author || "Principal Office",
-    status: circular.status || "Published",
-    createdAt: circular.createdAt || new Date().toISOString(),
-    history: circular.history || [{ at: new Date().toISOString(), action: circular.status || "Published" }],
-    attachment: circular.attachment,
-  };
-
-  saveLocalStore<any>("SUNSHINE_CIRCULARS", formattedCircular);
-
+export async function createCircular(circular: any): Promise<{ data: any | null; error: string | null }> {
   try {
-    const payloadForSupabase = {
-      id: formattedCircular.id,
-      title: formattedCircular.title,
-      content: formattedCircular.content,
-      target_audience: formattedCircular.target_audience,
-      published_date: formattedCircular.published_date,
-      author: formattedCircular.author,
-      priority: formattedCircular.priority,
-      expiry_date: formattedCircular.expiry_date,
-      recipients: formattedCircular.recipients,
-      status: formattedCircular.status,
+    const meta = {
+      subject: circular.subject || circular.title,
+      description: circular.description || circular.content || circular.title,
+      priority: circular.priority || "Medium",
+      recipients: Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers"],
+      attachmentName: circular.attachmentName || circular.attachment,
+      attachmentUrl: circular.attachmentUrl,
+      status: circular.status || "Published",
     };
-    const { data, error } = await supabase.from("circulars").upsert([payloadForSupabase]).select();
+
+    const payload = {
+      title: circular.title,
+      content: JSON.stringify(meta),
+      target_audience: meta.recipients.join(","),
+      published_date: circular.publishDate || circular.published_date || new Date().toISOString().slice(0, 10),
+      author: circular.author || "Principal Office",
+    };
+
+    const { data, error } = await supabase.from("circulars").insert([payload]).select();
     if (error) {
-      console.warn("Supabase circular save notice:", error.message);
+      console.error("Supabase createCircular error:", error.message);
+      return { data: null, error: error.message };
     }
-    pushAdminNotification(`New Circular: ${formattedCircular.title}`, "circular");
-    NotificationService.circularPublished(formattedCircular.title);
-    return { data: data ? data[0] : formattedCircular, error: null };
+
+    pushAdminNotification(`New Circular: ${circular.title}`, "circular");
+    NotificationService.circularPublished(circular.title);
+
+    const saved = data && data[0] ? data[0] : payload;
+    return {
+      data: {
+        id: saved.id,
+        title: saved.title,
+        ...meta,
+        published_date: saved.published_date,
+        publishDate: saved.published_date,
+        author: saved.author,
+      },
+      error: null,
+    };
   } catch (err: any) {
-    console.warn("Supabase circular fallback notice:", err?.message || err);
-    return { data: formattedCircular, error: null };
+    console.error("createCircular exception:", err?.message || err);
+    return { data: null, error: err?.message || "Failed to save circular in Supabase." };
   }
 }
 

@@ -10,13 +10,11 @@ export const Route = createFileRoute("/parent/circulars")({
 });
 
 function ParentCircularsPage() {
-  const [circulars, setCirculars] = useState<any[]>(initialCirculars);
+  const [circulars, setCirculars] = useState<any[]>([]);
 
   useEffect(() => {
     fetchCirculars().then(({ data }) => {
-      if (data && data.length > 0) {
-        setCirculars(data);
-      }
+      setCirculars(data || []);
     });
   }, []);
 

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, User, Bell, CheckCircle2, ShieldCheck, Eye, EyeOff, ThumbsUp } from "lucide-react";
 import { AttachmentViewer } from "./AttachmentViewer";
-import { markCircularAsRead, acknowledgeCircular, isCircularAcknowledged, getDeliveryStats } from "@/lib/circularReadStore";
+import { markCircularAsRead, acknowledgeCircular, isCircularAcknowledged, getDeliveryStats, syncReadStoreFromSupabase } from "@/lib/circularReadStore";
 import { toast } from "sonner";
 
 interface CircularDetailsModalProps {
@@ -19,8 +19,10 @@ export function CircularDetailsModal({ open, onClose, circular, role }: Circular
 
   useEffect(() => {
     if (open && circular?.id && role) {
-      markCircularAsRead(circular.id, role);
-      setAcknowledged(isCircularAcknowledged(circular.id, role));
+      syncReadStoreFromSupabase().then(() => {
+        markCircularAsRead(circular.id, role);
+        setAcknowledged(isCircularAcknowledged(circular.id, role));
+      });
     }
   }, [open, circular?.id, role]);
 

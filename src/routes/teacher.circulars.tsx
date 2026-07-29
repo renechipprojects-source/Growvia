@@ -10,13 +10,11 @@ export const Route = createFileRoute("/teacher/circulars")({
 });
 
 function TeacherCircularsPage() {
-  const [circulars, setCirculars] = useState<any[]>(initialCirculars);
+  const [circulars, setCirculars] = useState<any[]>([]);
 
   useEffect(() => {
     fetchCirculars().then(({ data }) => {
-      if (data && data.length > 0) {
-        setCirculars(data);
-      }
+      setCirculars(data || []);
     });
   }, []);
 
