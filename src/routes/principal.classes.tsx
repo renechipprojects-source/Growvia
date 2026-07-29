@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { classesList } from "@/lib/principal-mock-data";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
+import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 
 export const Route = createFileRoute("/principal/classes")({
   head: () => ({
@@ -114,124 +115,13 @@ function ClassesPage() {
       </div>
 
       {selectedClass && (
-        <ClassDetailsModal classItem={selectedClass} onClose={() => setSelectedClass(null)} />
+        <ClassDetailsModal
+          open={!!selectedClass}
+          onClose={() => setSelectedClass(null)}
+          classInfo={selectedClass}
+          studentsList={studentsList}
+        />
       )}
     </div>
-  );
-}
-
-function ClassDetailsModal({
-  classItem,
-  onClose,
-}: {
-  classItem: any;
-  onClose: () => void;
-}) {
-  const subjectTeachers = [
-    { subject: "English & Literacy", teacher: classItem.teacher || "Priya Sharma" },
-    { subject: "Mathematics & Logic", teacher: "Rajesh Verma" },
-    { subject: "Environmental Studies", teacher: "Anita Sen" },
-    { subject: "Art & Physical Ed", teacher: "Sunil Kumar" },
-  ];
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-4">
-            <span>Class Details — {classItem.name} ({classItem.section})</span>
-            <Badge variant="secondary" className="bg-primary/10 text-primary font-bold">
-              Section {classItem.section}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 text-xs mt-2">
-          {/* Header Summary */}
-          <div className="rounded-2xl bg-gradient-to-r from-sky-50 to-indigo-50 p-4 border border-sky-200/60 flex items-center justify-between">
-            <div>
-              <div className="text-base font-bold text-slate-900">{classItem.name} — Section {classItem.section}</div>
-              <div className="text-muted-foreground mt-0.5">
-                Class Teacher: <b>{classItem.teacher}</b> · Room: <b>{classItem.room || "101"}</b>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-sky-700">{classItem.count || classItem.students?.length || 0}</div>
-              <div className="text-[11px] text-muted-foreground font-medium">Enrolled Students</div>
-            </div>
-          </div>
-
-          {/* Key Metrics */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl border p-2.5 bg-card">
-              <div className="text-muted-foreground text-[10px]">Average Attendance</div>
-              <div className="font-bold text-sm text-emerald-700 mt-0.5">96% Present</div>
-            </div>
-            <div className="rounded-xl border p-2.5 bg-card">
-              <div className="text-muted-foreground text-[10px]">Today's Present</div>
-              <div className="font-bold text-sm text-slate-900 mt-0.5">{Math.max(0, (classItem.count || 20) - 1)} Students</div>
-            </div>
-            <div className="rounded-xl border p-2.5 bg-card">
-              <div className="text-muted-foreground text-[10px]">Absent / On Leave</div>
-              <div className="font-bold text-sm text-rose-600 mt-0.5">1 Absent</div>
-            </div>
-          </div>
-
-          {/* Subject Teachers */}
-          <div className="rounded-xl border p-3 bg-card space-y-2">
-            <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-indigo-600" /> Subject Teachers Roster
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {subjectTeachers.map((st, i) => (
-                <div key={i} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 border">
-                  <span className="font-medium text-slate-700">{st.subject}</span>
-                  <span className="font-bold text-slate-900">{st.teacher}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Student Roster List */}
-          <div className="rounded-xl border p-3 bg-card space-y-2">
-            <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px] flex items-center justify-between">
-              <span className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5 text-sky-600" /> Enrolled Student Roster</span>
-              <span>Total: {classItem.students?.length || classItem.count || 0}</span>
-            </div>
-            <div className="max-h-48 overflow-y-auto rounded-lg border">
-              <table className="w-full text-xs">
-                <thead className="bg-muted/60 uppercase text-muted-foreground sticky top-0">
-                  <tr>
-                    <th className="text-left px-3 py-2">Student Name</th>
-                    <th className="text-left px-3 py-2">Adm No</th>
-                    <th className="text-left px-3 py-2">Roll No</th>
-                    <th className="text-right px-3 py-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-muted/30">
-                  {(classItem.students && classItem.students.length > 0
-                    ? classItem.students
-                    : [
-                        { name: "Aarav Sharma", admissionNo: "ADM-1001", rollNo: 1, status: "Active" },
-                        { name: "Vivaan Gupta", admissionNo: "ADM-1002", rollNo: 2, status: "Active" },
-                        { name: "Diya Patel", admissionNo: "ADM-1003", rollNo: 3, status: "Active" },
-                      ]
-                  ).map((s: any, idx: number) => (
-                    <tr key={s.id || idx} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-medium">{s.name}</td>
-                      <td className="px-3 py-2 font-mono text-muted-foreground">{s.admissionNo || `ADM-100${idx + 1}`}</td>
-                      <td className="px-3 py-2">{s.rollNo || idx + 1}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Active</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

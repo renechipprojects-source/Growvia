@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { students as seedStudents, type Student } from "@/lib/principal-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
@@ -183,7 +184,11 @@ function StudentsPage() {
           </div>
         </div>
         <div className="mt-3 text-xs text-muted-foreground">Showing {filtered.length} of {items.length} students</div>
-      <StudentDialog student={selected} onClose={() => setSelected(null)} />
+      <StudentProfileModal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        student={selected}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { fetchTeachers } from "@/lib/supabaseService";
 import { type Teacher } from "@/lib/principal-mock-data";
 import { TEACHERS as SEED_TEACHERS } from "@/lib/mockData";
+import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
 
 export const Route = createFileRoute("/principal/teachers")({
   head: () => ({
@@ -139,153 +140,11 @@ function TeachersPage() {
         )}
       </div>
 
-      {selectedTeacher && (
-        <StaffDetailsDialog teacher={selectedTeacher} onClose={() => setSelectedTeacher(null)} />
-      )}
+      <StaffProfileModal
+        open={!!selectedTeacher}
+        onClose={() => setSelectedTeacher(null)}
+        staff={selectedTeacher}
+      />
     </div>
-  );
-}
-
-function StaffDetailsDialog({
-  teacher,
-  onClose,
-}: {
-  teacher: Teacher | null;
-  onClose: () => void;
-}) {
-  if (!teacher) return null;
-
-  const attendancePct = 96;
-  const leaveBalance = { casual: "8 / 12", medical: "10 / 10", earned: "5 / 5" };
-  const recentLeaves = [
-    { date: "14 Jul 2026", type: "Casual Leave", status: "Approved", days: "1 Day" },
-    { date: "02 May 2026", type: "Sick Leave", status: "Approved", days: "2 Days" },
-  ];
-  const transportDuty = teacher.subject === "Mathematics" || teacher.name.includes("Priya")
-    ? "Route 2 - Bus Coordinator"
-    : "No Transport Duty Assigned";
-
-  return (
-    <Dialog open={!!teacher} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-4">
-            <span>Staff Profile & Operational Details</span>
-            <Badge variant={teacher.status === "Active" ? "secondary" : "outline"} className={teacher.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
-              {teacher.status || "Active"}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 text-sm mt-2">
-          {/* Main Info Tile */}
-          <div className="rounded-2xl bg-gradient-to-r from-sky-50 to-indigo-50 p-4 border border-sky-200/60 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <Avatar className="h-14 w-14 border-2 border-sky-300 shadow-sm">
-                <AvatarImage src={(teacher as any).avatar} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">
-                  {teacher.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="text-lg font-bold text-slate-900">{teacher.name}</div>
-                <div className="text-xs text-muted-foreground font-medium">
-                  Emp ID: <span className="font-mono text-slate-800">{teacher.empId || teacher.id}</span> · {teacher.subject || "General Educator"}
-                </div>
-                <div className="text-xs text-slate-600 mt-0.5 flex items-center gap-2">
-                  <span>Department: <b>Academics</b></span>
-                  <span>·</span>
-                  <span>Designation: <b>Senior Teacher</b></span>
-                </div>
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-2xl font-bold text-sky-700">{attendancePct}%</div>
-              <div className="text-[11px] text-muted-foreground font-medium">Attendance Summary</div>
-            </div>
-          </div>
-
-          {/* Contact & Professional Info Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="rounded-xl border p-3 bg-card space-y-2">
-              <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Contact Information</div>
-              <div className="flex items-center gap-2 text-slate-600"><Mail className="h-3.5 w-3.5 text-sky-600" /> {teacher.email || "staff@sunshine.edu"}</div>
-              <div className="flex items-center gap-2 text-slate-600"><Phone className="h-3.5 w-3.5 text-emerald-600" /> {teacher.phone || "+91 98765 43210"}</div>
-            </div>
-
-            <div className="rounded-xl border p-3 bg-card space-y-2">
-              <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Academic Profile</div>
-              <div className="flex items-center gap-2 text-slate-600"><GraduationCap className="h-3.5 w-3.5 text-indigo-600" /> Qualification: <b>{teacher.qualification || "M.Ed, B.Ed"}</b></div>
-              <div className="flex items-center gap-2 text-slate-600"><Briefcase className="h-3.5 w-3.5 text-amber-600" /> Experience: <b>{teacher.experience || 3} Years</b></div>
-              <div className="flex items-center gap-2 text-slate-600"><Calendar className="h-3.5 w-3.5 text-purple-600" /> Joining Date: <b>12 Jun 2022</b></div>
-            </div>
-          </div>
-
-          {/* Assigned Classes & Subjects */}
-          <div className="rounded-xl border p-3 bg-card space-y-2">
-            <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Assigned Classes & Subjects</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-600">Assigned Classes:</span>
-              {(teacher.classesAssigned || ["Nursery A"]).map((c) => (
-                <Badge key={c} variant="secondary" className="bg-primary/10 text-primary font-medium text-xs">{c}</Badge>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-600">Assigned Subjects:</span>
-              <Badge variant="outline" className="text-xs font-medium">{teacher.subject || "Early Childhood Education"}</Badge>
-            </div>
-          </div>
-
-          {/* Leave & Transport Duty */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="rounded-xl border p-3 bg-card space-y-1.5">
-              <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Leave Balance (Annual)</div>
-              <div className="flex justify-between"><span>Casual Leave:</span> <b>{leaveBalance.casual}</b></div>
-              <div className="flex justify-between"><span>Medical Leave:</span> <b>{leaveBalance.medical}</b></div>
-              <div className="flex justify-between"><span>Earned Leave:</span> <b>{leaveBalance.earned}</b></div>
-            </div>
-
-            <div className="rounded-xl border p-3 bg-card space-y-1.5">
-              <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Transport Duty</div>
-              <div className="flex items-center gap-2 text-slate-700 mt-1">
-                <Bus className="h-4 w-4 text-orange-500" />
-                <span className="font-medium">{transportDuty}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Leave History */}
-          <div className="rounded-xl border p-3 bg-card space-y-2">
-            <div className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">Recent Leave History</div>
-            <div className="space-y-1.5">
-              {recentLeaves.map((l, i) => (
-                <div key={i} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border">
-                  <div>
-                    <span className="font-semibold text-slate-800">{l.type}</span> · <span className="text-muted-foreground">{l.date} ({l.days})</span>
-                  </div>
-                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">{l.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="pt-2 border-t flex flex-wrap items-center justify-end gap-2">
-            <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.info(`Viewing attendance record for ${teacher.name}`)}>
-              <UserCheck className="h-3.5 w-3.5 mr-1 text-sky-600" /> View Attendance
-            </Button>
-            <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.info(`Viewing leave history for ${teacher.name}`)}>
-              <FileText className="h-3.5 w-3.5 mr-1 text-purple-600" /> View Leave History
-            </Button>
-            <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.info(`Classes assigned: ${teacher.classesAssigned.join(", ")}`)}>
-              <BookOpen className="h-3.5 w-3.5 mr-1 text-indigo-600" /> View Assigned Classes
-            </Button>
-            <Button size="sm" className="text-xs bg-primary text-primary-foreground" onClick={() => toast.success(`Message prompt initiated for ${teacher.name}`)}>
-              <MessageSquare className="h-3.5 w-3.5 mr-1" /> Send Message
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

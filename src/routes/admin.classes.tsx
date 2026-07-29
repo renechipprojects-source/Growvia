@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { classes, staff } from "@/lib/admin-mock-data";
 import { fetchStudents, fetchTeachers, type Student } from "@/lib/supabaseService";
 
+import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
+import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
+
 const classNames = ["Nursery", "LKG", "UKG", "Grade 1", "Grade 2"];
 const sectionsList = ["A", "B", "C"];
 const allClassesList = classNames.flatMap((name, ci) =>
@@ -28,6 +32,7 @@ function ClassesPage() {
   const [teachersList, setTeachersList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
@@ -65,7 +70,7 @@ function ClassesPage() {
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
-          columns={["Class Name", "Section", "Live Student Count", "Class Teacher"]}
+          columns={["Class Name", "Section", "Live Student Count", "Class Teacher", "Action"]}
           total={filtered.length}
         >
           {filtered.map((c, idx) => {
@@ -75,8 +80,9 @@ function ClassesPage() {
                 (s.section?.toUpperCase() === c.section || !s.section)
             ).length;
             const teacher = teachersList[idx % teachersList.length] ?? teachersList[0] ?? { name: "Assigned Teacher", avatar: "/avatars/teacher.svg" };
+            const fullClassInfo = { ...c, strength: count, classTeacher: teacher.name || "Ananya Sen" };
             return (
-              <TableRow key={c.id} className="hover:bg-muted/30">
+              <TableRow key={c.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedClass(fullClassInfo)}>
                 <TableCell className="font-semibold text-foreground py-4">{c.name}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 font-semibold">
@@ -97,11 +103,23 @@ function ClassesPage() {
                     <span className="text-sm font-medium">{teacher?.name ?? "Assigned Teacher"}</span>
                   </div>
                 </TableCell>
+                <TableCell>
+                  <Button size="sm" variant="ghost" className="text-indigo-600 font-medium">
+                    <Eye className="w-4 h-4 mr-1" /> View Class
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
         </DataTable>
       </div>
+
+      <ClassDetailsModal
+        open={!!selectedClass}
+        onClose={() => setSelectedClass(null)}
+        classInfo={selectedClass}
+        studentsList={studentsList}
+      />
     </div>
   );
 }

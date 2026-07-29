@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { STUDENTS } from "@/lib/mockData";
 import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -166,54 +167,11 @@ function StudentsPage() {
         </DataTable>
       </div>
 
-      {/* View Profile Dialog */}
-      <Dialog open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
-        <DialogContent className="max-w-md rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
-          {selectedStudent && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedStudent.avatar} />
-                    <AvatarFallback>{selectedStudent.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <DialogTitle>{selectedStudent.name}</DialogTitle>
-                    <p className="text-xs text-muted-foreground">{selectedStudent.admissionNo} · {selectedStudent.className} ({selectedStudent.section})</p>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="grid grid-cols-2 gap-4 py-3 text-sm">
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Gender & Age</div>
-                  <div className="mt-0.5">{selectedStudent.gender}, {selectedStudent.age} yrs</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Parent / Guardian</div>
-                  <div className="mt-0.5">{selectedStudent.parent}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Phone</div>
-                  <div className="mt-0.5">{selectedStudent.phone}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Fees Status</div>
-                  <div className="mt-0.5"><StatusBadge status={selectedStudent.feesStatus} /></div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Joined On</div>
-                  <div className="mt-0.5">{selectedStudent.joinedOn}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase font-medium">Status</div>
-                  <div className="mt-0.5"><StatusBadge status={selectedStudent.status} /></div>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <StudentProfileModal
+        open={!!selectedStudent}
+        onClose={() => setSelectedStudent(null)}
+        student={selectedStudent}
+      />
     </div>
   );
 }
