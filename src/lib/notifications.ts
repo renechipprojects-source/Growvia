@@ -105,7 +105,21 @@ function emit() {
   for (const l of listeners) l();
 }
 
-// Automatically sync live database notifications from Supabase
+const ALLOWED_MODULES_BY_ROLE: Record<Role, NotificationModule[]> = {
+  "super-admin": ["announcement"],
+  principal: ["announcement"],
+  office: ["announcement"],
+  teacher: ["announcement", "leave", "messages"],
+  parent: ["announcement", "messages", "leave"],
+};
+
+export function isNotificationAllowedForRole(n: AppNotification, role: Role): boolean {
+  if (!n || !n.roles || !n.roles.includes(role)) return false;
+  const allowed = ALLOWED_MODULES_BY_ROLE[role] || ["announcement"];
+  return allowed.includes(n.module);
+}
+
+// Automatically sync live database notifications from Supabase (Only Circulars & Leave/Message events)
 export function syncLiveDatabaseNotifications() {
   if (typeof window === "undefined") return;
 
@@ -116,7 +130,7 @@ export function syncLiveDatabaseNotifications() {
   } catch {}
 
   import("./supabaseService")
-    .then(({ fetchCirculars, fetchLeaveRequests, fetchEnquiries }) => {
+    .then(({ fetchCirculars, fetchLeaveRequests }) => {
       fetchCirculars().then(({ data }) => {
         if (data && data.length > 0) {
           let updated = false;
@@ -146,38 +160,16 @@ export function syncLiveDatabaseNotifications() {
           data.forEach((l) => {
             const notifId = `n-lv-${l.id || l.applicant_name}`;
             if (!store.some((n) => n.id === notifId)) {
+              const isPending = l.status === "Pending";
               store.unshift({
                 id: notifId,
                 title: `Leave Request: ${l.applicant_name}`,
-                description: `${l.applicant_name} (${l.applicant_role}) requested leave: ${l.reason} (${l.status})`,
+                description: `${l.applicant_name} requested leave: ${l.reason} (${l.status})`,
                 module: "leave",
                 timestamp: l.applied_on ? new Date(l.applied_on).getTime() : Date.now(),
                 read: false,
-                priority: l.status === "Pending" ? "high" : "medium",
-                roles: ["teacher", "principal", "super-admin", "office"],
-              });
-              updated = true;
-            }
-          });
-          if (updated) saveStore([...store]);
-        }
-      });
-
-      fetchEnquiries().then(({ data }) => {
-        if (data && data.length > 0) {
-          let updated = false;
-          data.forEach((e) => {
-            const notifId = `n-enq-${e.id}`;
-            if (!store.some((n) => n.id === notifId)) {
-              store.unshift({
-                id: notifId,
-                title: `Admission Enquiry: ${e.childName}`,
-                description: `${e.parentName} enquired for ${e.interestedClass} (${e.status})`,
-                module: "admissions",
-                timestamp: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
-                read: false,
-                priority: "medium",
-                roles: ["office", "principal", "super-admin"],
+                priority: isPending ? "high" : "medium",
+                roles: isPending ? ["teacher"] : ["parent"],
               });
               updated = true;
             }
@@ -217,7 +209,7 @@ export function listForRole(role: Role): AppNotification[] {
   const cached = listCache.get(role);
   if (cached) return cached;
   const next = store
-    .filter((n) => n && n.roles && n.roles.includes(role) && !n.id.startsWith("n-seed-"))
+    .filter((n) => isNotificationAllowedForRole(n, role))
     .sort((a, b) => b.timestamp - a.timestamp);
   listCache.set(role, next);
   return next;
@@ -226,7 +218,7 @@ export function listForRole(role: Role): AppNotification[] {
 export function unreadCountForRole(role: Role): number {
   const cached = unreadCache.get(role);
   if (cached !== undefined) return cached;
-  const n = store.filter((x) => x && x.roles && x.roles.includes(role) && !x.read && !x.id.startsWith("n-seed-")).length;
+  const n = store.filter((x) => isNotificationAllowedForRole(x, role) && !x.read).length;
   unreadCache.set(role, n);
   return n;
 }
@@ -237,7 +229,7 @@ export function markRead(id: string) {
 }
 
 export function markAllRead(role: Role) {
-  const next = store.map((n) => (n.roles.includes(role) ? { ...n, read: true } : n));
+  const next = store.map((n) => (isNotificationAllowedForRole(n, role) ? { ...n, read: true } : n));
   saveStore(next);
 }
 
@@ -247,7 +239,7 @@ export function removeNotification(id: string) {
 }
 
 export function clearAllNotifications(role: Role) {
-  const next = store.filter((n) => !n.roles.includes(role));
+  const next = store.filter((n) => !isNotificationAllowedForRole(n, role));
   saveStore(next);
 }
 
@@ -279,42 +271,12 @@ export function notify(input: NotifyInput) {
   return n;
 }
 
-// Convenience business-rule helpers
+// Convenience business-rule helpers (Only Actionable Communication)
 export const NotificationService = {
-  homeworkAssigned(title: string, teacher: string) {
-    notify({
-      title: "New homework assigned",
-      description: `${teacher} assigned: ${title}`,
-      module: "homework",
-      roles: ["parent", "teacher", "principal"],
-    });
-  },
-  attendanceMarked(className: string) {
-    notify({
-      title: "Attendance updated",
-      description: `Attendance has been updated for ${className} today.`,
-      module: "attendance",
-      roles: ["parent", "teacher", "principal", "office"],
-      priority: "low",
-    });
-  },
-  remarkAdded(student: string) {
-    notify({
-      title: "New remark added",
-      description: `Teacher added a new remark about ${student}.`,
-      module: "remarks",
-      roles: ["parent", "principal", "teacher"],
-    });
-  },
-  diaryPublished(student: string) {
-    notify({
-      title: "Daily diary updated",
-      description: `A new diary entry is available for ${student}.`,
-      module: "diary",
-      roles: ["parent", "teacher"],
-      priority: "low",
-    });
-  },
+  homeworkAssigned(..._args: any[]) {},
+  attendanceMarked(..._args: any[]) {},
+  remarkAdded(..._args: any[]) {},
+  diaryPublished(..._args: any[]) {},
   announcement(text: string, roles: Role[] = ["parent", "teacher", "office", "principal", "super-admin"]) {
     notify({
       title: "New announcement",
@@ -328,7 +290,7 @@ export const NotificationService = {
       title: "New leave request",
       description: `${parent} requested leave for ${student}.`,
       module: "leave",
-      roles: ["teacher", "principal", "super-admin", "office"],
+      roles: ["teacher"],
       priority: "high",
     });
   },
@@ -337,74 +299,26 @@ export const NotificationService = {
       title: `Leave ${status.toLowerCase()}`,
       description: `Your leave request for ${student} has been ${status.toLowerCase()}.`,
       module: "leave",
-      roles: ["parent", "teacher", "principal"],
+      roles: ["parent"],
       priority: status === "Rejected" ? "high" : "medium",
     });
   },
-  feePayment(amount: string, from: string) {
+  messageReceived(senderName: string, text: string, targetRole: "teacher" | "parent") {
     notify({
-      title: "Fee payment recorded",
-      description: `${amount} received from ${from}.`,
-      module: "fees",
-      roles: ["office", "principal", "super-admin", "parent"],
-    });
-  },
-  admission(student: string) {
-    notify({
-      title: "New admission enquiry",
-      description: `${student} submitted an admission enquiry.`,
-      module: "admissions",
-      roles: ["office", "principal", "super-admin"],
-    });
-  },
-  admissionCreated(student: string, admissionNo: string) {
-    notify({
-      title: "New admission completed",
-      description: `${student} has been admitted (${admissionNo}).`,
-      module: "admissions",
-      roles: ["office", "principal", "super-admin"],
-      priority: "high",
-      link: "/office/students",
-    });
-  },
-  enquiryCreated(name: string, className: string) {
-    notify({
-      title: "New enquiry received",
-      description: `New enquiry for ${name} (${className}).`,
-      module: "admissions",
-      roles: ["office", "principal", "super-admin"],
-      priority: "medium",
-      link: "/office/enquiries",
-    });
-  },
-  healthAlert(student: string, detail: string) {
-    notify({
-      title: "Health & Medical Alert",
-      description: `Medical update for ${student}: ${detail}`,
-      module: "system",
-      roles: ["office", "principal", "super-admin", "teacher"],
-      priority: "high",
-    });
-  },
-  transportAlert(title: string, detail: string) {
-    notify({
-      title: `Transport: ${title}`,
-      description: detail,
-      module: "system",
-      roles: ["office", "principal", "super-admin", "parent"],
+      title: `New Message from ${senderName}`,
+      description: text,
+      module: "messages",
+      roles: [targetRole],
       priority: "medium",
     });
   },
-  passwordResetRequested(name: string, role: string) {
-    notify({
-      title: "Password reset request",
-      description: `${name} (${role}) requested a password reset.`,
-      module: "staff",
-      roles: ["office", "super-admin"],
-      priority: "high",
-      link: "/office/password-resets",
-    });
-  },
+  feePayment(..._args: any[]) {},
+  admission(..._args: any[]) {},
+  admissionCreated(..._args: any[]) {},
+  enquiryCreated(..._args: any[]) {},
+  healthAlert(..._args: any[]) {},
+  transportAlert(..._args: any[]) {},
+  passwordResetRequested(..._args: any[]) {},
   circularPublished(title: string, roles?: Role[]) {
     const defaultRoles: Role[] = ["parent", "teacher", "office", "principal", "super-admin"];
     const targetRoles: Role[] = roles && roles.length > 0 ? roles : defaultRoles;

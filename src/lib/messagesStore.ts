@@ -69,10 +69,9 @@ export function dispatchMessage(input: {
 
   const targetRoles = rolesMap[input.recipientRole] || ["parent", "teacher", "office"];
 
-  NotificationService.announcement(
-    `Message from ${input.fromName}: "${input.subject}"`,
-    targetRoles
-  );
+  if (input.recipientRole === "teacher" || input.recipientRole === "parent") {
+    NotificationService.messageReceived(input.fromName, input.subject, input.recipientRole);
+  }
 
   // Sync to Supabase in background
   Promise.resolve(
