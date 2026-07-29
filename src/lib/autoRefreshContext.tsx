@@ -1,5 +1,6 @@
-// Centralized Automatic Refresh Engine for Sunshine Play School ERP
+// Centralized Automatic Refresh & Supabase Realtime Engine for Sunshine Play School ERP
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import { subscribeToRealtimeTable, TABLE_TO_MODULE_MAP } from "./realtimeService";
 
 export type ERPModule =
   | "students"
@@ -94,6 +95,35 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [triggerAllRefreshes]);
+
+  // Supabase Realtime Table Subscriptions for Instant Cross-Device Sync
+  useEffect(() => {
+    const tablesToSubscribe = [
+      "circulars",
+      "messages",
+      "leave_requests",
+      "students",
+      "fees",
+      "enquiries",
+      "notifications",
+    ];
+
+    const unsubs = tablesToSubscribe.map((table) => {
+      return subscribeToRealtimeTable({
+        table,
+        onPayload: () => {
+          const targetModule = TABLE_TO_MODULE_MAP[table];
+          if (targetModule) {
+            triggerModuleRefresh(targetModule);
+          }
+        },
+      });
+    });
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [triggerModuleRefresh]);
 
   return (
     <AutoRefreshContext.Provider

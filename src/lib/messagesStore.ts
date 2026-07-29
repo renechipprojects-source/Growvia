@@ -3,6 +3,7 @@ import type { Message } from "@/lib/mockData";
 import { MESSAGES as SEED_MESSAGES } from "@/lib/mockData";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { subscribeToRealtimeTable } from "./realtimeService";
 
 const KEY = "sunshine.messages.v2";
 
@@ -55,19 +56,11 @@ export function dispatchMessage(input: {
   };
 
   const current = readMessages();
-  const next = [newMsg, ...current];
-  writeMessages(next);
-
-  // Determine target notification roles
-  const rolesMap: Record<string, any[]> = {
-    parent: ["parent"],
-    teacher: ["teacher"],
-    office: ["office"],
-    principal: ["principal", "super-admin"],
-    all: ["parent", "teacher", "office", "principal", "super-admin"],
-  };
-
-  const targetRoles = rolesMap[input.recipientRole] || ["parent", "teacher", "office"];
+  const existingIds = new Set(current.map((m) => m.id));
+  if (!existingIds.has(newMsg.id)) {
+    const next = [newMsg, ...current];
+    writeMessages(next);
+  }
 
   if (input.recipientRole === "teacher" || input.recipientRole === "parent") {
     NotificationService.messageReceived(input.fromName, input.subject, input.recipientRole);
@@ -75,15 +68,17 @@ export function dispatchMessage(input: {
 
   // Sync to Supabase in background
   Promise.resolve(
-    supabase.from("messages").insert([{
-      id: newMsg.id,
-      sender_id: input.fromId,
-      sender_name: input.fromName,
-      receiver_role: input.recipientRole,
-      subject: input.subject,
-      body: input.body,
-      created_at: new Date().toISOString(),
-    }])
+    supabase.from("messages").insert([
+      {
+        id: newMsg.id,
+        sender_id: input.fromId,
+        sender_name: input.fromName,
+        receiver_role: input.recipientRole,
+        subject: input.subject,
+        body: input.body,
+        created_at: new Date().toISOString(),
+      },
+    ])
   ).catch(() => {});
 
   return newMsg;
@@ -102,9 +97,38 @@ export function useLiveMessages() {
     const handleUpdate = () => setMsgs(readMessages());
     window.addEventListener("sunshine-message", handleUpdate);
     window.addEventListener("storage", handleUpdate);
+
+    // Supabase Realtime subscription for instant message updates across devices
+    const unsubscribeRealtime = subscribeToRealtimeTable({
+      table: "messages",
+      onPayload: ({ eventType, new: newRecord }) => {
+        if (eventType === "INSERT" && newRecord) {
+          const current = readMessages();
+          const exists = current.some((m) => m.id === newRecord.id);
+          if (!exists) {
+            const mappedMsg: Message = {
+              id: newRecord.id || `MSG-${Date.now()}`,
+              fromId: newRecord.sender_id || "USER",
+              fromName: newRecord.sender_name || "School Member",
+              studentId: "STD-ALL",
+              toParentId: "PRT-ALL",
+              subject: newRecord.subject || "New Message",
+              body: newRecord.body || "",
+              time: "Just now",
+              priority: "Normal",
+              read: false,
+              direction: "incoming",
+            };
+            writeMessages([mappedMsg, ...current]);
+          }
+        }
+      },
+    });
+
     return () => {
       window.removeEventListener("sunshine-message", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
+      unsubscribeRealtime();
     };
   }, []);
 
