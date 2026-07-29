@@ -30,7 +30,7 @@ function DeveloperConsolePage() {
 
   // Local editable draft state initialized from current settings
   const [draft, setDraft] = useState(settings);
-  const [logs] = useState(getAuditLogs());
+  const [logs] = useState(readAuditLogs());
   const [isHealthChecking, setIsHealthChecking] = useState(false);
 
   const handleSave = () => {
@@ -444,10 +444,10 @@ function DeveloperConsolePage() {
             <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-300 max-h-80 overflow-y-auto space-y-2">
               <div className="text-emerald-400">[SYSTEM BUILD] Production release {draft.systemVersion} initialized cleanly.</div>
               <div className="text-slate-400">[SECURITY GUARD] Developer Console route /developer-console protected by DEV001 guard.</div>
-              {logs.slice(0, 10).map((l, idx) => (
+              {logs.slice(0, 10).map((l: any, idx: number) => (
                 <div key={idx} className="flex justify-between border-b border-slate-900/50 pb-1">
-                  <span>[{l.timestamp}] {l.action}: {l.details}</span>
-                  <span className="text-amber-400">{l.actorName} ({l.role})</span>
+                  <span>[{l.timestamp?.slice(0, 19)}] {l.module}: {l.action} {l.newValue ? `(${l.newValue})` : ""}</span>
+                  <span className="text-amber-400">{l.user} ({l.role})</span>
                 </div>
               ))}
             </div>

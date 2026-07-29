@@ -111,6 +111,7 @@ const ALLOWED_MODULES_BY_ROLE: Record<Role, NotificationModule[]> = {
   office: ["announcement"],
   teacher: ["announcement", "leave", "messages"],
   parent: ["announcement", "messages", "leave"],
+  developer: [],
 };
 
 export function isNotificationAllowedForRole(n: AppNotification, role: Role): boolean {

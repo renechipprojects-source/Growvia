@@ -170,6 +170,19 @@ export const ROLES: Record<Role, RoleTheme> = {
       { to: "/parent/leave", label: "Leave Request", icon: Plane },
     ],
   },
+  developer: {
+    role: "developer",
+    name: "Developer",
+    title: "System Developer Console",
+    subtitle: "Hidden Architecture Command Center",
+    gradient: "from-amber-600 to-yellow-600",
+    softBg: "from-amber-50 to-yellow-50",
+    ring: "ring-amber-500/30",
+    accent: "text-amber-600",
+    chip: "bg-amber-100 text-amber-700",
+    icon: Code2,
+    nav: [], // Never appear in sidebar
+  },
 };
 
 export const ROLE_LIST: Role[] = [
