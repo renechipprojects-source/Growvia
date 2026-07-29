@@ -130,6 +130,42 @@ function DashboardPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 auto-rows-fr">
+        {/* Read-Only Academic Promotion Statistics */}
+        <div className="xl:col-span-3 min-w-0">
+          <div className="card-elevated p-5 space-y-3 bg-white/80">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+                <GraduationCap className="h-4.5 w-4.5 text-indigo-600" /> Read-Only Academic Session Promotion Statistics
+              </div>
+              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 text-xs">
+                Academic Year 2026-2027 (Active)
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 border">
+                <div className="text-slate-500 font-medium">Students Promoted</div>
+                <div className="text-lg font-bold text-emerald-700 mt-0.5">27</div>
+                <div className="text-[10px] text-slate-400">Progression Logged</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border">
+                <div className="text-slate-500 font-medium">Students Retained</div>
+                <div className="text-lg font-bold text-amber-700 mt-0.5">2</div>
+                <div className="text-[10px] text-slate-400">Same Class Repeat</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border">
+                <div className="text-slate-500 font-medium">Students Graduated</div>
+                <div className="text-lg font-bold text-purple-700 mt-0.5">5</div>
+                <div className="text-[10px] text-slate-400">Alumni Directory</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border">
+                <div className="text-slate-500 font-medium">Transferred (TC)</div>
+                <div className="text-lg font-bold text-rose-700 mt-0.5">1</div>
+                <div className="text-[10px] text-slate-400">History Preserved</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Circulars */}
         <div className="xl:col-span-2 min-w-0">
           <RecentCircularWidget role="principal" viewAllLink="/principal/circulars" />

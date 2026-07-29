@@ -7,15 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   GraduationCap, ArrowRight, CheckCircle2, RefreshCw, AlertTriangle,
-  ShieldCheck, ChevronRight, ChevronLeft, Undo2, Plus, Lock, Printer, FileSpreadsheet
+  ShieldCheck, ChevronRight, ChevronLeft, Undo2, Plus, Lock, Printer, FileSpreadsheet, Users, UserCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { STUDENTS as SEED_STUDENTS } from "@/lib/mockData";
 import {
-  executeStudentPromotion, rollbackPromotionBatch, getDefaultDestinationClass,
-  getAcademicYears, addAcademicYear, closeAcademicYear, isAcademicYearClosed,
-  validatePromotionCapacity, CLASS_CAPACITIES
+  executeStudentPromotion, rollbackPromotionBatch, canRollbackPromotionBatch,
+  getDefaultDestinationClass, getAcademicYears, addAcademicYear, closeAcademicYear,
+  isAcademicYearClosed, validatePromotionCapacity
 } from "@/lib/promotionStore";
 import { exportToCSV } from "@/lib/exportUtils";
 import { cn } from "@/lib/utils";
@@ -110,6 +110,21 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
       .map(([id]) => id);
   }, [studentActions]);
 
+  // Preview Analytics Metrics (Requirement 2)
+  const previewMetrics = useMemo(() => {
+    const pendingFeesCount = classStudents.filter((s) => s.feeStatus !== "Paid").length;
+    const inactiveCount = classStudents.filter((s) => (s as any).status === "Inactive").length;
+    const tcCount = transferredIds.length;
+    const alreadyPromotedCount = classStudents.filter((s) => (s as any).status === "Promoted" || (s as any).status === "Graduated").length;
+    return {
+      total: classStudents.length,
+      pendingFeesCount,
+      inactiveCount,
+      tcCount,
+      alreadyPromotedCount,
+    };
+  }, [classStudents, transferredIds]);
+
   // Validate Destination Academic Year Existence
   const isToYearValid = useMemo(() => {
     return academicYears.some((y) => y.year === toYear);
@@ -127,11 +142,6 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
   };
 
   const handleExecutePromotion = () => {
-    if (!capacityCheck.valid && !capacityOverride) {
-      toast.error("Destination class capacity exceeded! Enable capacity override to proceed.");
-      return;
-    }
-
     setIsProcessing(true);
     setTimeout(() => {
       const result = executeStudentPromotion({
@@ -168,14 +178,20 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
 
   const handleRollback = () => {
     if (!executionResult) return;
-    const ok = rollbackPromotionBatch(executionResult.batchId, "Office Staff");
-    if (ok) {
-      toast.success("Promotion batch rolled back successfully!");
+    const res = rollbackPromotionBatch(executionResult.batchId, "Office Staff");
+    if (res.success) {
+      toast.success(res.message);
       setStep(1);
       setExecutionResult(null);
       if (onPromoteSuccess) onPromoteSuccess();
+    } else {
+      toast.error(res.message);
     }
   };
+
+  const rollbackCheck = useMemo(() => {
+    return executionResult ? canRollbackPromotionBatch(executionResult.batchId) : { canRollback: false };
+  }, [executionResult]);
 
   const handleExportSummaryCSV = () => {
     if (!executionResult) return;
@@ -205,9 +221,9 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               <span className={cn("px-2.5 py-1 rounded-full", step === 1 ? "bg-indigo-600 text-white" : "bg-slate-100")}>1. Setup</span>
               <span>→</span>
-              <span className={cn("px-2.5 py-1 rounded-full", step === 2 ? "bg-indigo-600 text-white" : "bg-slate-100")}>2. Students</span>
+              <span className={cn("px-2.5 py-1 rounded-full", step === 2 ? "bg-indigo-600 text-white" : "bg-slate-100")}>2. Actions</span>
               <span>→</span>
-              <span className={cn("px-2.5 py-1 rounded-full", step === 3 ? "bg-indigo-600 text-white" : "bg-slate-100")}>3. Confirm</span>
+              <span className={cn("px-2.5 py-1 rounded-full", step === 3 ? "bg-indigo-600 text-white" : "bg-slate-100")}>3. Preview</span>
               <span>→</span>
               <span className={cn("px-2.5 py-1 rounded-full", step === 4 ? "bg-emerald-600 text-white" : "bg-slate-100")}>4. Summary</span>
             </div>
@@ -292,7 +308,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700">Auto-Mapping Status:</span>
+              <span className="font-semibold text-slate-700">Auto-Mapping Configuration:</span>
               <Badge className="bg-indigo-600 text-white">
                 {fromClass} → {toClass}
               </Badge>
@@ -300,7 +316,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
           </div>
         )}
 
-        {/* STEP 2: STUDENT PROMOTION / RETENTION / TRANSFER ACTIONS */}
+        {/* STEP 2: INDIVIDUAL STUDENT ACTIONS (PROMOTE / RETAIN / TRANSFER / GRADUATE) */}
         {step === 2 && (
           <div className="space-y-3 py-2 text-xs">
             <div className="flex items-center justify-between">
@@ -346,13 +362,13 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                               setStudentActions((prev) => ({ ...prev, [s.id]: val }))
                             }
                           >
-                            <SelectTrigger className="w-[140px] h-7 text-xs rounded-xl bg-white border-slate-200 ml-auto">
+                            <SelectTrigger className="w-[150px] h-7 text-xs rounded-xl bg-white border-slate-200 ml-auto">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Promote">Promote ({toClass})</SelectItem>
                               <SelectItem value="Retain">Retain in {fromClass}</SelectItem>
-                              <SelectItem value="Transfer">Transfer / Issue TC</SelectItem>
+                              <SelectItem value="Transfer">Transfer (Issue TC)</SelectItem>
                             </SelectContent>
                           </Select>
                         </td>
@@ -365,50 +381,72 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
           </div>
         )}
 
-        {/* STEP 3: PRE-FLIGHT & CAPACITY VALIDATION */}
+        {/* STEP 3: PROMOTION PREVIEW SCREEN (REQUIREMENT 2 & 5) */}
         {step === 3 && (
           <div className="space-y-4 py-3 text-xs">
             <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 text-slate-900">
-              <h4 className="font-bold text-sm text-indigo-950">Pre-Flight Promotion Summary</h4>
-              <p className="text-slate-600 text-[11px] mt-0.5">Please review capacity and teacher inheritance before confirming execution.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Academic Session</span>
-                <span className="font-bold text-slate-900">{fromYear} → {toYear}</span>
-              </div>
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Class Transition</span>
-                <span className="font-bold text-indigo-700">{fromClass} → {toClass}</span>
-              </div>
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Promoted / Retained / Transferred</span>
-                <span className="font-bold text-emerald-700">{promotedIds.length} / {retainedIds.length} / {transferredIds.length}</span>
-              </div>
-              <div className="p-3 rounded-xl border bg-slate-50">
-                <span className="text-slate-400 block font-medium">Destination Teacher Inheritance</span>
-                <span className="font-bold text-indigo-700">Mrs. Priya (Class Teacher)</span>
-              </div>
-            </div>
-
-            {/* CAPACITY WARNING ALERT */}
-            {!capacityCheck.valid && (
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" /> Destination Class Capacity Exceeded!
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-indigo-950">Promotion Batch Pre-Flight Preview</h4>
+                  <p className="text-slate-600 text-[11px] mt-0.5">Comprehensive audit of progression metrics before execution</p>
                 </div>
-                <p className="text-xs text-amber-800">
-                  Destination class <b>{toClass}</b> capacity limit is <b>{capacityCheck.capacity}</b>. Promoting <b>{promotedIds.length}</b> students projects total enrollment to <b>{capacityCheck.projectedCount}</b>.
+                <Badge className="bg-indigo-600 text-white font-bold text-xs">{fromClass} → {toClass}</Badge>
+              </div>
+            </div>
+
+            {/* PREVIEW ANALYTICS GRID */}
+            <div className="grid grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 rounded-xl border bg-slate-50">
+                <span className="text-slate-500 text-[10px] font-medium block">Total Students in Source</span>
+                <span className="font-bold text-slate-900 text-sm">{previewMetrics.total} Students</span>
+              </div>
+              <div className="p-3 rounded-xl border bg-amber-50">
+                <span className="text-amber-800 text-[10px] font-medium block">Pending Fees Exists</span>
+                <span className="font-bold text-amber-900 text-sm">{previewMetrics.pendingFeesCount} Students</span>
+              </div>
+              <div className="p-3 rounded-xl border bg-slate-50">
+                <span className="text-slate-500 text-[10px] font-medium block">In-Active Students</span>
+                <span className="font-bold text-slate-900 text-sm">{previewMetrics.inactiveCount} Students</span>
+              </div>
+              <div className="p-3 rounded-xl border bg-rose-50">
+                <span className="text-rose-800 text-[10px] font-medium block">Students with TC (Transferred)</span>
+                <span className="font-bold text-rose-900 text-sm">{previewMetrics.tcCount} Students</span>
+              </div>
+              <div className="p-3 rounded-xl border bg-emerald-50">
+                <span className="text-emerald-800 text-[10px] font-medium block">Already Promoted</span>
+                <span className="font-bold text-emerald-900 text-sm">{previewMetrics.alreadyPromotedCount} Students</span>
+              </div>
+              <div className="p-3 rounded-xl border bg-indigo-50">
+                <span className="text-indigo-800 text-[10px] font-medium block">Destination Class Strength / Capacity</span>
+                <span className="font-bold text-indigo-900 text-sm">{capacityCheck.projectedCount} / {capacityCheck.capacity}</span>
+              </div>
+            </div>
+
+            {/* CAPACITY WARNING (CAN OVERRIDE) */}
+            {!capacityCheck.valid && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-xs text-amber-900">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" /> Destination Class Capacity Exceeded ({capacityCheck.projectedCount} / {capacityCheck.capacity})
+                </div>
+                <p className="text-[11px] text-amber-800">
+                  Destination class capacity limit is <b>{capacityCheck.capacity}</b>. Promotion can still proceed if Office Staff approves capacity override.
                 </p>
-                <div className="pt-1 flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-1">
                   <Checkbox id="override" checked={capacityOverride} onCheckedChange={(c) => setCapacityOverride(!!c)} />
                   <label htmlFor="override" className="text-xs font-semibold text-amber-900 cursor-pointer">
-                    Enable Capacity Override (Commercial Office Approval)
+                    Enable Capacity Override (Commercial Approval)
                   </label>
                 </div>
               </div>
             )}
+
+            <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-indigo-600" />
+                <span className="font-semibold text-indigo-950">Auto Teacher Assignment Inheritance:</span>
+              </div>
+              <span className="font-bold text-indigo-700 text-xs">Mrs. Priya (Class Teacher) & Subject Teachers</span>
+            </div>
           </div>
         )}
 
@@ -442,6 +480,17 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
               </div>
             </div>
 
+            <div className="p-3 rounded-2xl bg-slate-50 border space-y-1.5">
+              <div className="flex items-center justify-between text-slate-700">
+                <span className="font-semibold">Sequential Roll Numbers:</span>
+                <span className="font-bold text-indigo-700">Auto-Generated (1, 2, 3...) No Gaps</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-700">
+                <span className="font-semibold">Teacher Assignments:</span>
+                <span className="font-bold text-emerald-700">Auto-Inherited from Destination Class</span>
+              </div>
+            </div>
+
             <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
               <div>
                 <span className="font-bold text-indigo-950 block text-xs">Mark Academic Year {fromYear} Closed?</span>
@@ -453,9 +502,16 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
             </div>
 
             <div className="flex justify-between items-center pt-2">
-              <Button size="sm" variant="outline" onClick={handleRollback} className="h-8 text-xs border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl">
-                <Undo2 className="h-3.5 w-3.5 mr-1" /> Rollback Batch
-              </Button>
+              {rollbackCheck.canRollback ? (
+                <Button size="sm" variant="outline" onClick={handleRollback} className="h-8 text-xs border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl">
+                  <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo Promotion Batch
+                </Button>
+              ) : (
+                <Badge variant="outline" className="text-[10px] bg-slate-100 text-slate-500">
+                  <Lock className="h-3 w-3 mr-1" /> Rollback Locked (Activity Started)
+                </Badge>
+              )}
+
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={handleExportSummaryCSV} className="h-8 text-xs rounded-xl">
                   <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export CSV / Excel
@@ -488,20 +544,20 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                 disabled={!isToYearValid}
                 onClick={() => setStep(2)}
               >
-                Next: Configure Students <ChevronRight className="h-4 w-4 ml-1" />
+                Next: Set Actions <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
 
             {step === 2 && (
               <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs" onClick={() => setStep(3)}>
-                Next: Review & Capacity Check <ChevronRight className="h-4 w-4 ml-1" />
+                Next: Promotion Preview <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
 
             {step === 3 && (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs shadow-md"
-                disabled={isProcessing || (!capacityCheck.valid && !capacityOverride)}
+                disabled={isProcessing}
                 onClick={handleExecutePromotion}
               >
                 {isProcessing ? (
@@ -510,7 +566,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Confirm & Execute Promotions
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Confirm & Execute Batch
                   </>
                 )}
               </Button>

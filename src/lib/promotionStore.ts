@@ -12,6 +12,7 @@ export interface PromotionHistoryRecord {
   promotedBy: string;
   promotedOn: string;
   status: "Promoted" | "Retained" | "Graduated" | "Transferred" | "Withdrawn";
+  rollNo?: number;
   notes?: string;
 }
 
@@ -36,6 +37,7 @@ const PROMOTION_HISTORY_KEY = "sunshine.promotion_history.v1";
 const ACTIVITY_TIMELINE_KEY = "sunshine.activity_timeline.v1";
 const PROMOTION_MAPPING_KEY = "sunshine.promotion_mapping.v1";
 const ACADEMIC_YEARS_KEY = "sunshine.academic_years.v1";
+const BATCH_ACTIVITY_LOCK_KEY = "sunshine.batch_activity_locks.v1";
 
 // ─── 1. PROMOTION MAPPING ENGINE ──────────────────────────────────────────────
 
@@ -76,7 +78,6 @@ export function savePromotionMapping(mapping: Record<string, string>, updatedBy:
 
 export function getDefaultDestinationClass(sourceClass: string): string {
   const mapping = getPromotionMapping();
-  // Strip section if provided (e.g. "LKG A" -> "LKG")
   const baseClass = sourceClass.split(" ")[0].trim();
   const matched = mapping[baseClass] || mapping[sourceClass];
   if (matched) return matched;
@@ -210,16 +211,6 @@ export function saveActivityTimeline(records: ActivityTimelineRecord[]) {
   localStorage.setItem(ACTIVITY_TIMELINE_KEY, JSON.stringify(records));
 }
 
-export function logActivityTimeline(entry: Omit<ActivityTimelineRecord, "id" | "timestamp">) {
-  const current = getActivityTimeline();
-  const record: ActivityTimelineRecord = {
-    ...entry,
-    id: `ACT-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    timestamp: new Date().toISOString(),
-  };
-  saveActivityTimeline([record, ...current]);
-}
-
 function getSeedPromotionHistory(): PromotionHistoryRecord[] {
   return [
     {
@@ -232,6 +223,7 @@ function getSeedPromotionHistory(): PromotionHistoryRecord[] {
       promotedBy: "Office Staff",
       promotedOn: "2026-04-05",
       status: "Promoted",
+      rollNo: 1,
       notes: "Annual academic progression completed successfully.",
     },
     {
@@ -244,6 +236,7 @@ function getSeedPromotionHistory(): PromotionHistoryRecord[] {
       promotedBy: "Office Staff",
       promotedOn: "2026-04-05",
       status: "Promoted",
+      rollNo: 2,
       notes: "Annual academic progression completed successfully.",
     },
   ];
@@ -290,7 +283,7 @@ function getSeedTimeline(): ActivityTimelineRecord[] {
   ];
 }
 
-// ─── 5. EXECUTION & ROLLBACK LOGIC ────────────────────────────────────────────
+// ─── 5. EXECUTION, ROLL NUMBERS & CONDITIONAL ROLLBACK ────────────────────────
 
 export interface PerformPromotionInput {
   studentIds: string[];
@@ -343,10 +336,14 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
   const newHistoryRecords: PromotionHistoryRecord[] = [];
   const newTimelineRecords: ActivityTimelineRecord[] = [];
 
+  // Sequential Roll Number Generator for Destination Class (1, 2, 3...)
+  let destinationRollCounter = 1;
+
   // 1. Process Promoted & Graduated Students
   studentIds.forEach((sId) => {
     const isGraduating = toClass === "Alumni / Graduated" || toClass === "Graduated";
     const status = isGraduating ? "Graduated" : "Promoted";
+    const assignedRollNo = isGraduating ? undefined : destinationRollCounter++;
 
     if (isGraduating) graduatedCount++;
     else promotedCount++;
@@ -361,23 +358,34 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
       promotedBy,
       promotedOn: now,
       status,
-      notes: notes || `Batch promotion from ${fromClass} to ${toClass}`,
+      rollNo: assignedRollNo,
+      notes: notes || `Batch promotion from ${fromClass} to ${toClass}. Auto Roll #${assignedRollNo || "N/A"}.`,
     });
 
     newTimelineRecords.push({
       id: `ACT-${Date.now()}-${sId}`,
       studentId: sId,
-      title: isGraduating ? `Graduated from ${fromClass}` : `Promoted to ${toClass}`,
+      title: isGraduating ? `Graduated from ${fromClass}` : `Promoted to ${toClass} (Roll #${assignedRollNo})`,
       description: `Academic session transition: ${fromClass} (${fromAcademicYear}) → ${toClass} (${toAcademicYear})`,
       timestamp: new Date().toISOString(),
       category: "Promotion",
       performedBy: promotedBy,
+    });
+
+    logAuditEvent({
+      user: promotedBy,
+      role: "office",
+      module: "Student Promotion",
+      action: isGraduating ? "Student Graduated" : "Student Promoted",
+      previousValue: `${fromClass} (${fromAcademicYear})`,
+      newValue: `${toClass} (${toAcademicYear}) - Roll #${assignedRollNo || "N/A"}`,
     });
   });
 
   // 2. Process Retained Students
   retainedStudentIds.forEach((sId) => {
     retainedCount++;
+    const assignedRollNo = destinationRollCounter++;
     newHistoryRecords.push({
       id: `PROM-RET-${batchId}-${sId}`,
       studentId: sId,
@@ -388,17 +396,27 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
       promotedBy,
       promotedOn: now,
       status: "Retained",
-      notes: `Retained in ${fromClass} for Academic Year ${toAcademicYear}`,
+      rollNo: assignedRollNo,
+      notes: `Retained in ${fromClass} for Academic Year ${toAcademicYear}. Auto Roll #${assignedRollNo}.`,
     });
 
     newTimelineRecords.push({
       id: `ACT-RET-${Date.now()}-${sId}`,
       studentId: sId,
-      title: `Retained in ${fromClass}`,
+      title: `Retained in ${fromClass} (Roll #${assignedRollNo})`,
       description: `Retained in ${fromClass} for Academic Year ${toAcademicYear}`,
       timestamp: new Date().toISOString(),
       category: "Promotion",
       performedBy: promotedBy,
+    });
+
+    logAuditEvent({
+      user: promotedBy,
+      role: "office",
+      module: "Student Promotion",
+      action: "Student Retained",
+      previousValue: `${fromClass} (${fromAcademicYear})`,
+      newValue: `Retained in ${fromClass} (${toAcademicYear}) - Roll #${assignedRollNo}`,
     });
   });
 
@@ -427,19 +445,19 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
       category: "Transfer",
       performedBy: promotedBy,
     });
+
+    logAuditEvent({
+      user: promotedBy,
+      role: "office",
+      module: "Student Promotion",
+      action: "Student Transferred (TC Issued)",
+      previousValue: `${fromClass} (${fromAcademicYear})`,
+      newValue: `Transferred - History Preserved`,
+    });
   });
 
   savePromotionHistory([...newHistoryRecords, ...history]);
   saveActivityTimeline([...newTimelineRecords, ...timeline]);
-
-  logAuditEvent({
-    user: promotedBy,
-    role: "office",
-    module: "Student Promotion",
-    action: "Batch Promotion Executed",
-    previousValue: `${fromClass} (${fromAcademicYear})`,
-    newValue: `Promoted: ${promotedCount}, Retained: ${retainedCount}, Graduated: ${graduatedCount}, Transferred: ${transferredCount}`,
-  });
 
   return {
     success: true,
@@ -453,11 +471,44 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
   };
 }
 
-export function rollbackPromotionBatch(batchId: string, performedBy: string = "Office Staff") {
+export function canRollbackPromotionBatch(batchId: string): { canRollback: boolean; reason?: string } {
+  if (typeof window === "undefined") return { canRollback: true };
+  try {
+    const rawLocks = localStorage.getItem(BATCH_ACTIVITY_LOCK_KEY);
+    const lockedBatches: string[] = rawLocks ? JSON.parse(rawLocks) : [];
+    if (lockedBatches.includes(batchId)) {
+      return {
+        canRollback: false,
+        reason: "Rollback Locked: Attendance, Fee collection, or Teacher activity has started for this batch.",
+      };
+    }
+  } catch {}
+  return { canRollback: true };
+}
+
+export function lockBatchRollback(batchId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const rawLocks = localStorage.getItem(BATCH_ACTIVITY_LOCK_KEY);
+    const lockedBatches: string[] = rawLocks ? JSON.parse(rawLocks) : [];
+    if (!lockedBatches.includes(batchId)) {
+      localStorage.setItem(BATCH_ACTIVITY_LOCK_KEY, JSON.stringify([...lockedBatches, batchId]));
+    }
+  } catch {}
+}
+
+export function rollbackPromotionBatch(batchId: string, performedBy: string = "Office Staff"): { success: boolean; message: string } {
+  const check = canRollbackPromotionBatch(batchId);
+  if (!check.canRollback) {
+    return { success: false, message: check.reason || "Rollback is locked." };
+  }
+
   const history = getPromotionHistory();
   const targetRecords = history.filter((h) => h.id.includes(batchId));
 
-  if (targetRecords.length === 0) return false;
+  if (targetRecords.length === 0) {
+    return { success: false, message: "Promotion batch record not found." };
+  }
 
   const remainingHistory = history.filter((h) => !h.id.includes(batchId));
   savePromotionHistory(remainingHistory);
@@ -471,5 +522,5 @@ export function rollbackPromotionBatch(batchId: string, performedBy: string = "O
     newValue: "Restored to Previous Academic Session",
   });
 
-  return true;
+  return { success: true, message: "Promotion batch rolled back successfully!" };
 }
