@@ -131,7 +131,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
   },
   branding: {
-    headerLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    headerLogoUrl: "/renechip-logo.png",
     sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     faviconUrl: "/favicon.ico",
     projectName: "Growvia",
