@@ -9,6 +9,7 @@ export interface SystemBranding {
   email: string;
   website: string;
   motto: string;
+  officeHours: string;
   footer: string;
   receiptHeader: string;
   reportHeader: string;
@@ -57,13 +58,14 @@ export interface DeveloperSettings {
 
 export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   branding: {
-    schoolName: "Sunshine Play School",
+    schoolName: "Sunshine Play School ERP",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     address: "123 Sunshine Lane, Education City, TN 600001",
     phone: "+91 98765 43210",
     email: "info@sunshineplayschool.edu",
     website: "https://sunshineplayschool.edu",
     motto: "Nurturing Little Minds for a Brighter Tomorrow",
+    officeHours: "8:30 AM - 4:30 PM (Mon - Sat)",
     footer: "© 2026 Sunshine Play School. All Rights Reserved.",
     receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
     reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
@@ -71,7 +73,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   loginPage: {
     title: "Sunshine Play School ERP",
     description: "Enterprise Academic & Administrative Management Portal",
-    welcomeMessage: "Welcome back! Please login with your institutional credentials.",
+    welcomeMessage: "Welcome to Sunshine Play School ERP portal. Please log in with your credentials to access your dashboard.",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     bgImageUrl: "",
   },
@@ -132,6 +134,22 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
       supabase.from("system_settings").upsert({
         id: "PRIMARY",
         content: JSON.stringify(settings),
+        school_name: settings.branding.schoolName,
+        school_logo: settings.branding.logoUrl,
+        school_address: settings.branding.address,
+        phone: settings.branding.phone,
+        email: settings.branding.email,
+        website: settings.branding.website,
+        motto: settings.branding.motto,
+        office_hours: settings.branding.officeHours,
+        login_title: settings.loginPage.title,
+        login_subtitle: settings.loginPage.description,
+        footer_text: settings.branding.footer,
+        theme_color: settings.theme.primaryColor,
+        favicon: settings.theme.faviconUrl,
+        report_header: settings.branding.reportHeader,
+        receipt_header: settings.branding.receiptHeader,
+        academic_year: settings.school.academicYear,
         updated_at: new Date().toISOString(),
       })
     ).catch(() => {});

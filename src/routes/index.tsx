@@ -3,11 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Sparkles, LogIn, User, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import {
+  Sparkles, LogIn, User, Lock, Eye, EyeOff, ShieldCheck, MapPin, Phone,
+  Mail, Globe, Calendar, Clock, GraduationCap
+} from "lucide-react";
 import { getSession, roleHome, authenticate } from "@/lib/auth";
 import { login } from "@/lib/supabaseAuth";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,8 +24,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Login,
 });
-
-import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 function Login() {
   const navigate = useNavigate();
@@ -42,7 +44,7 @@ function Login() {
     }
   }, [navigate]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!loginId.trim()) nextErrors.loginId = "Please enter your Login ID.";
@@ -51,10 +53,23 @@ function Login() {
       setErrors(nextErrors);
       return;
     }
-    setErrors({});
+
     setSubmitting(true);
+    setErrors({});
 
     try {
+      // First try Supabase auth
+      const supaResult = await login(loginId.trim(), password);
+      if (supaResult.ok) {
+        toast.success(`Welcome, ${supaResult.session.name}`);
+        setTimeout(() => {
+          if (supaResult.session.mustChangePassword) navigate({ to: "/change-password" });
+          else navigate({ to: roleHome(supaResult.session.role) });
+        }, 200);
+        return;
+      }
+
+      // Fallback to local system auth
       const result = authenticate(loginId, password, remember);
       if (!result.ok) {
         setSubmitting(false);
@@ -76,125 +91,167 @@ function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-white to-indigo-50 relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-gradient-to-br from-indigo-200 to-sky-200 opacity-40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-gradient-to-br from-fuchsia-200 to-pink-200 opacity-40 blur-3xl" />
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-slate-100 relative overflow-hidden flex items-center justify-center p-4">
+      {/* Background Orbs */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-amber-500/10 opacity-50 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 opacity-50 blur-3xl" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-10 px-4 py-10 lg:grid-cols-2">
-        {/* Brand / marketing */}
-        <div className="hidden lg:block">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Secure role-based access
-          </div>
-          <div className="mt-6">
-            <div className="text-2xl font-bold tracking-tight text-slate-900">Sunshine Play School</div>
-            <div className="text-sm text-slate-600">Enterprise Resource Planning</div>
-          </div>
-          <h1 className="mt-8 text-4xl font-bold tracking-tight text-slate-900">
-            {settings.loginPage.title || "Welcome to Sunshine ERP"}
-          </h1>
-          <p className="mt-3 max-w-md text-slate-600">
-            {settings.loginPage.welcomeMessage || settings.loginPage.description}
-          </p>
-          <ul className="mt-8 space-y-3 text-sm text-slate-700">
-            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /> Unified login for every role</li>
-            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" /> Automatic role detection & redirect</li>
-            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Secure password recovery workflow</li>
-          </ul>
-        </div>
-
-        {/* Login form */}
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-6 flex items-center justify-center lg:hidden">
-            <div className="text-lg font-bold tracking-tight text-slate-900">Sunshine ERP</div>
-          </div>
-          <Card className="rounded-3xl border-white/60 bg-white/90 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl sm:p-8">
-            <div className="text-xl font-bold text-slate-900">Sign in</div>
-            <div className="mt-1 text-sm text-slate-600">
-              Enter your Login ID and password to continue.
+      <div className="relative mx-auto grid w-full max-w-5xl grid-cols-1 items-stretch rounded-3xl border border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-2xl lg:grid-cols-12 overflow-hidden">
+        {/* Left Side — School Branding & Info */}
+        <div className="p-8 lg:p-10 lg:col-span-7 bg-gradient-to-b from-slate-900/80 to-slate-950/90 border-r border-slate-800/80 flex flex-col justify-between space-y-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 p-2 flex items-center justify-center text-amber-400 overflow-hidden shrink-0">
+                {settings.branding.logoUrl ? (
+                  <img src={settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                ) : (
+                  <GraduationCap className="h-7 w-7" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-white">{settings.branding.schoolName}</h1>
+                <div className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
+                  Academic Session {settings.school.academicYear}
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
-              <div>
-                <Label htmlFor="loginId">Login ID</Label>
-                <div className="relative mt-1.5">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    id="loginId"
-                    type="text"
-                    autoComplete="username"
-                    autoFocus
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="e.g. ADMIN001"
-                    className="pl-9"
-                    aria-invalid={!!errors.loginId}
-                  />
-                </div>
-                {errors.loginId && <p className="mt-1 text-xs text-red-600">{errors.loginId}</p>}
-              </div>
+            <div className="mt-6 space-y-3 text-sm text-slate-300">
+              <p className="text-base text-slate-200 leading-relaxed font-medium">
+                {settings.loginPage.welcomeMessage}
+              </p>
 
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative mt-1.5">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    id="password"
-                    type={showPwd ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="pl-9 pr-10"
-                    aria-invalid={!!errors.password}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
-                    aria-label={showPwd ? "Hide password" : "Show password"}
-                  >
-                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <label className="inline-flex items-center gap-2 text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  Remember me
-                </label>
-                <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-800">
-                  Forgot password?
-                </Link>
-              </div>
-
-              {errors.form && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {errors.form}
+              {settings.branding.motto && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium">
+                  <Sparkles className="h-3.5 w-3.5" /> &ldquo;{settings.branding.motto}&rdquo;
                 </div>
               )}
-
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="h-11 w-full rounded-xl bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-pink-500 text-white shadow-lg"
-              >
-                <LogIn className="mr-2 h-4 w-4" />
-                {submitting ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center text-[11px] text-slate-500">
-              By signing in you agree to Sunshine&rsquo;s terms and privacy policy.
             </div>
-          </Card>
+
+            {/* School Details Metadata */}
+            <div className="mt-8 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>{settings.branding.address}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>{settings.branding.phone}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="h-4 w-4 text-sky-400 shrink-0" />
+                <span>{settings.branding.email}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Globe className="h-4 w-4 text-indigo-400 shrink-0" />
+                <span>{settings.branding.website}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 text-purple-400 shrink-0" />
+                <span>Office Hours: {settings.branding.officeHours}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Calendar className="h-4 w-4 text-pink-400 shrink-0" />
+                <span>Code: {settings.school.schoolCode}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-slate-500 pt-4 border-t border-slate-800/50">
+            {settings.branding.footer}
+          </div>
+        </div>
+
+        {/* Right Side — Login Form */}
+        <div className="p-8 lg:p-10 lg:col-span-5 flex flex-col justify-center bg-slate-900/60">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Institutional Sign In</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Enter your assigned Login ID and password to access your role dashboard.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <div>
+              <Label htmlFor="loginId" className="text-xs text-slate-300">Login ID</Label>
+              <div className="relative mt-1.5">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="loginId"
+                  type="text"
+                  autoComplete="username"
+                  autoFocus
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="e.g. ADMIN001 / OFFICE001"
+                  className="pl-9 bg-slate-950 border-slate-800 text-white text-sm"
+                  aria-invalid={!!errors.loginId}
+                />
+              </div>
+              {errors.loginId && <p className="mt-1 text-xs text-red-400">{errors.loginId}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="password" className="text-xs text-slate-300">Password</Label>
+              <div className="relative mt-1.5">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPwd ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="pl-9 pr-10 bg-slate-950 border-slate-800 text-white text-sm"
+                  aria-invalid={!!errors.password}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-slate-800"
+                  aria-label={showPwd ? "Hide password" : "Show password"}
+                >
+                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password}</p>}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-950 text-amber-500"
+                />
+                Remember me
+              </label>
+              <Link to="/forgot-password" className="font-medium text-amber-400 hover:text-amber-300">
+                Forgot password?
+              </Link>
+            </div>
+
+            {errors.form && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+                {errors.form}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20"
+            >
+              {submitting ? (
+                "Authenticating..."
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <LogIn className="h-4 w-4" /> Sign In to ERP
+                </span>
+              )}
+            </Button>
+          </form>
         </div>
       </div>
     </div>
