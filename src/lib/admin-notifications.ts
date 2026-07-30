@@ -1,5 +1,4 @@
 // Admin notifications store with per-user unread + delete support.
-import { notifications as seed } from "./admin-mock-data";
 
 export type AdminNotification = {
   id: string;
@@ -11,7 +10,7 @@ export type AdminNotification = {
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-let store: AdminNotification[] = seed.map((n) => ({ ...n, read: false }));
+let store: AdminNotification[] = [];
 let snapshot: AdminNotification[] = store;
 
 function emit() {

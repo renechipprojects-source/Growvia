@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
-import type { Message } from "@/lib/mockData";
+import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,6 @@ import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { NotificationService } from "@/lib/notifications";
-
-import { useMessages, markMessageRead } from "@/lib/messagesStore";
 
 export const Route = createFileRoute("/office/messages")({ component: Messages });
 

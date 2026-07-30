@@ -7,9 +7,28 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+
+export interface AdminStudent {
+  id: string;
+  admissionNo: string;
+  name: string;
+  gender: "Male" | "Female";
+  dob: string;
+  age: number;
+  className: string;
+  section: string;
+  parent: string;
+  phone: string;
+  address: string;
+  status: string;
+  feesStatus: string;
+  joinedOn: string;
+  bloodGroup: string;
+  allergies: string[];
+  avatar: string;
+}
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
@@ -17,15 +36,15 @@ export const Route = createFileRoute("/admin/students")({
 });
 
 function StudentsPage() {
-  const [itemList, setItemList] = useState<Student[]>([]);
+  const [itemList, setItemList] = useState<AdminStudent[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
       const sourceList = data || [];
-      const mapped: Student[] = sourceList.map((s: any) => ({
+      const mapped: AdminStudent[] = sourceList.map((s: any) => ({
         id: s.id,
         admissionNo: s.admissionNo || s.id,
         name: s.name,

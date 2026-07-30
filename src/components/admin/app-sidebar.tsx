@@ -35,9 +35,6 @@ const operations: OperationEntry[] = [
   },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
   { title: "Transport", url: "/admin/transport", icon: Bus },
-  { title: "Audit Logs", url: "/admin/audit-logs", icon: Sparkles },
-  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "Settings", url: "/admin/settings", icon: UserCog },
 ];
 
 const groups: Group[] = [

@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { fetchStudents } from "@/lib/supabaseService";
-import { STUDENTS, type Student } from "@/lib/mockData";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
 import {
   listParentCredentials,
   getParentCredential,

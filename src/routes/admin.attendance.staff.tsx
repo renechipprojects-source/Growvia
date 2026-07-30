@@ -1,29 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { CalendarCheck, UserCheck, UserX, Clock, Download } from "lucide-react";
 import { PageHeader, StatCard } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { staff } from "@/lib/admin-mock-data";
+import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/attendance/staff")({
   component: StaffAttendancePage,
   head: () => ({
     meta: [
-      { title: "Staff Attendance — TinySteps ERP" },
-      {
-        name: "description",
-        content:
-          "View staff attendance records captured by the office/admin attendance system. Read-only.",
-      },
-      { property: "og:title", content: "Staff Attendance — TinySteps ERP" },
-      {
-        property: "og:description",
-        content:
-          "View staff attendance records captured by the office/admin attendance system. Read-only.",
-      },
+      { title: "Staff Attendance — Sunshine ERP" },
+      { name: "description", content: "View staff attendance records captured by the office/admin attendance system." },
     ],
   }),
 });
@@ -50,85 +40,29 @@ const DEPARTMENTS: Record<string, string> = {
   Admin: "Administration",
 };
 
-function buildStaffAttendance(): StaffAttendanceRow[] {
-  return staff.map((s, i) => {
-    const status: StaffStatus =
-      s.status === "On Leave"
-        ? "Absent"
-        : i % 7 === 0
-          ? "Late"
-          : i % 11 === 0
-            ? "Absent"
-            : "Present";
-
-    if (status === "Absent") {
-      return {
-        id: s.id,
-        name: s.name,
-        employeeId: s.id,
-        department: DEPARTMENTS[s.role] ?? s.role,
-        designation: s.role,
-        checkIn: null,
-        checkOut: null,
-        workingHours: "—",
-        status,
-        avatar: s.avatar,
-      };
-    }
-
-    const inMin = (status === "Late" ? 30 : 0) + (i % 20);
-    const inHour = status === "Late" ? 9 : 8;
-    const checkIn = `${String(inHour).padStart(2, "0")}:${String(inMin % 60).padStart(2, "0")}`;
-    const outHour = 17;
-    const outMin = (i * 7) % 55;
-    const checkOut = `${String(outHour).padStart(2, "0")}:${String(outMin).padStart(2, "0")}`;
-    const totalMinutes = outHour * 60 + outMin - (inHour * 60 + (inMin % 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    return {
-      id: s.id,
-      name: s.name,
-      employeeId: s.id,
-      department: DEPARTMENTS[s.role] ?? s.role,
-      designation: s.role,
-      checkIn,
-      checkOut,
-      workingHours: `${hours}h ${String(mins).padStart(2, "0")}m`,
-      status,
-      avatar: s.avatar,
-    };
-  });
-}
-
-import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
-import { useEffect } from "react";
-
 function StaffAttendancePage() {
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchTeachers().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setTeachersList(data);
-      }
+    fetchTeachers().then(({ data }) => {
+      setTeachersList(data || []);
     });
   }, []);
 
   const rows: StaffAttendanceRow[] = useMemo(() => {
-    const list = teachersList.length > 0 ? teachersList : staff;
-    return list.map((s, i) => {
-      const status: StaffStatus = i % 7 === 0 ? "Late" : i % 11 === 0 ? "Absent" : "Present";
+    return teachersList.map((s, i) => {
+      const status: StaffStatus = "Present";
       return {
         id: s.id,
         name: s.name,
         employeeId: s.id,
         department: DEPARTMENTS[(s as any).role || "Teacher"] ?? "Academics",
         designation: (s as any).role || "Teacher",
-        checkIn: status === "Absent" ? null : status === "Late" ? "09:30 AM" : "08:45 AM",
-        checkOut: status === "Absent" ? null : "05:00 PM",
-        workingHours: status === "Absent" ? "—" : "8h 15m",
+        checkIn: "08:45 AM",
+        checkOut: "05:00 PM",
+        workingHours: "8h 15m",
         status,
         avatar: s.avatar || "/avatars/teacher.svg",
       };

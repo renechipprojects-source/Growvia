@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { UserCheck, BookOpen, NotebookPen, Sparkles, PartyPopper, ChevronRight, Baby, Users, UserX, Clock, Plane, ClipboardCheck } from "lucide-react";
-import { type ClassName } from "@/lib/mockData";
+type ClassName = string;
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useClassAssignments } from "@/lib/classAssignmentContext";

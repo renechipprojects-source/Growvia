@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { students as mockStudents } from "@/lib/admin-mock-data";
 import { cn } from "@/lib/utils";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance, getStudentAttendanceDetails, type StudentAttendanceEntry } from "@/lib/attendanceStore";
@@ -37,15 +36,13 @@ function StudentAttendancePage() {
   const { attendance: liveAttendanceRecords } = useLiveAttendance();
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setStudentsList(data);
-      }
+    fetchStudents().then(({ data }) => {
+      setStudentsList(data || []);
     });
   }, []);
 
   const activeStudents = useMemo(() => {
-    return studentsList.length > 0 ? studentsList : (mockStudents as any);
+    return studentsList;
   }, [studentsList]);
 
   const filteredStudents = useMemo(() => {

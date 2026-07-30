@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { classes, staff } from "@/lib/admin-mock-data";
 import { fetchStudents, fetchTeachers, type Student } from "@/lib/supabaseService";
 
 import { Button } from "@/components/ui/button";

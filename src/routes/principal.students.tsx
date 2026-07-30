@@ -8,15 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { students as seedStudents, type Student } from "@/lib/principal-mock-data";
-import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { fetchStudents, allocateRollNumbersAlphabetically, type Student } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
     meta: [
-      { title: "Students | Principal Portal" },
-      { name: "description", content: "View, search and filter student records." },
+      { title: "Student Directory — Sunshine ERP" },
+      { name: "description", content: "Directory of enrolled students across all grades." },
     ],
   }),
   component: StudentsPage,
@@ -30,7 +29,7 @@ function StudentsPage() {
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
-      const sourceList = data && data.length > 0 ? data : (seedStudents as any);
+      const sourceList = data || [];
       const mapped: Student[] = sourceList.map((s: any) => ({
         id: s.id,
         admissionNo: s.admissionNo || s.id,

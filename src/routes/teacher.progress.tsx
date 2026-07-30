@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { type ClassName, type Section, type Student } from "@/lib/mockData";
-import { fetchStudents } from "@/lib/supabaseService";
+type ClassName = string;
+type Section = string;
+import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";

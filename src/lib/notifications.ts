@@ -106,17 +106,17 @@ function emit() {
 }
 
 const ALLOWED_MODULES_BY_ROLE: Record<Role, NotificationModule[]> = {
-  "super-admin": ["announcement"],
-  principal: ["announcement"],
-  office: ["announcement"],
-  teacher: ["announcement", "leave"],
-  parent: ["announcement", "messages"],
-  developer: [],
+  office: ["admissions", "fees", "leave", "messages", "announcement"],
+  principal: ["leave", "announcement", "staff"],
+  teacher: ["homework", "leave", "messages", "announcement"],
+  parent: ["fees", "announcement", "homework", "attendance", "messages", "leave"],
+  "super-admin": ["system", "announcement", "staff", "admissions", "fees"],
+  developer: ["system"],
 };
 
 export function isNotificationAllowedForRole(n: AppNotification, role: Role): boolean {
   if (!n || !n.roles || !n.roles.includes(role)) return false;
-  const allowed = ALLOWED_MODULES_BY_ROLE[role] || ["announcement"];
+  const allowed = ALLOWED_MODULES_BY_ROLE[role] || [];
   return allowed.includes(n.module);
 }
 

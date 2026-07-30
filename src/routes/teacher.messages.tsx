@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import type { ClassName, Section, Message } from "@/lib/mockData";
+import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
+type ClassName = string;
+type Section = string;
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,6 @@ import { Send, Search, Plus, Inbox, ArrowUpRight, FileText, Paperclip, User, Use
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { useMessages } from "@/lib/messagesStore";
 
 export const Route = createFileRoute("/teacher/messages")({ component: TeacherMessages });
 

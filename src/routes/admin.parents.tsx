@@ -4,8 +4,19 @@ import { PageHeader } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { type Parent } from "@/lib/admin-mock-data";
 import { fetchStudents } from "@/lib/supabaseService";
+
+export interface Parent {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  occupation: string;
+  children: string[];
+  preferredChannel: string;
+  emergencyContact: string;
+  avatar: string;
+}
 
 export const Route = createFileRoute("/admin/parents")({
   component: ParentsPage,

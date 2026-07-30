@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { useParent } from "@/lib/parentContext";
-import { useMessages } from "@/lib/messagesStore";
-import type { Message } from "@/lib/mockData";
+import { useMessages, type Message } from "@/lib/messagesStore";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
