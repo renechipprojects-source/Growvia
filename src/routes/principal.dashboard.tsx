@@ -37,6 +37,9 @@ import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidge
 
 import { requireAuthGuard } from "@/lib/auth";
 
+import { getPrincipalDashboardStats } from "@/lib/dashboardStatsService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export const Route = createFileRoute("/principal/dashboard")({
   beforeLoad: () => {
     requireAuthGuard("principal");
@@ -82,44 +85,51 @@ function StatCard({
 }
 
 function DashboardPage() {
-  const [totalStudents, setTotalStudents] = useState(120);
-  const [totalTeachers, setTotalTeachers] = useState(18);
-  const [recentCirculars, setRecentCirculars] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalTeachers: 0,
+    todayAttendancePercent: 95.8,
+    totalCirculars: 0,
+    classStrengthBreakdown: [] as any[],
+    recentCirculars: [] as any[],
+  });
   const [eventsList, setEventsList] = useState<any[]>(initialEvents);
   const [liveNotifications, setLiveNotifications] = useState<any[]>(notifications);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const { attendance: liveToday } = useLiveAttendance(undefined, todayStr);
 
-  useEffect(() => {
-    fetchStudents().then(({ data }) => {
-      if (data && data.length > 0) setTotalStudents(data.length);
-    });
-    fetchTeachers().then(({ data }) => {
-      if (data && data.length > 0) setTotalTeachers(data.length);
+  const loadData = () => {
+    getPrincipalDashboardStats().then((data) => {
+      setStats(data);
     });
     fetchEvents().then(({ data }) => {
       if (data && data.length > 0) setEventsList(data);
     });
-    fetchCirculars().then(({ data }) => {
-      setRecentCirculars(data || []);
-    });
+  };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("staff", loadData);
+  useAutoRefresh("circulars", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const totalClasses = 15;
   const presentFromLive = liveToday.filter((r) => r.status === "P" || r.status === "L").length;
-  const studentPresentCount = liveToday.length > 0 ? presentFromLive : Math.round(totalStudents * 0.95);
-  const staffPresentCount = Math.round(totalTeachers * 0.95);
-  const studentAttendancePct = Math.round((studentPresentCount / (totalStudents || 1)) * 100);
-  const staffAttendancePct = Math.round((staffPresentCount / (totalTeachers || 1)) * 100);
+  const studentPresentCount = liveToday.length > 0 ? presentFromLive : Math.round(stats.totalStudents * 0.95);
+  const staffPresentCount = Math.round(stats.totalTeachers * 0.95);
+  const studentAttendancePct = stats.totalStudents > 0 ? Math.round((studentPresentCount / stats.totalStudents) * 100) : 95;
+  const staffAttendancePct = stats.totalTeachers > 0 ? Math.round((staffPresentCount / stats.totalTeachers) * 100) : 98;
   const upcoming = eventsList.slice(0, 4);
 
   return (
     <div className="w-full max-w-none flex flex-1 min-h-0 flex-col overflow-y-auto space-y-6 pr-1">
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 auto-rows-fr">
-        <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub="Enrolled" gradient="from-blue-500 to-sky-500" />
-        <StatCard icon={Users} label="Total Teachers" value={totalTeachers} sub="Active staff" gradient="from-purple-500 to-indigo-500" />
+        <StatCard icon={GraduationCap} label="Total Students" value={stats.totalStudents} sub="Enrolled" gradient="from-blue-500 to-sky-500" />
+        <StatCard icon={Users} label="Total Teachers" value={stats.totalTeachers} sub="Active staff" gradient="from-purple-500 to-indigo-500" />
         <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" gradient="from-emerald-500 to-teal-500" />
         <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} gradient="from-amber-500 to-orange-500" />
         <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} gradient="from-sky-500 to-cyan-500" />
@@ -249,7 +259,7 @@ function DashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <MiniStat label="Avg. Attendance" value="94.2%" trend="+1.4%" positive />
             <MiniStat label="Fee Collection" value="87%" trend="+3.1%" positive />
-            <MiniStat label="Active Circulars" value={String(recentCirculars.filter((c) => c.status === "Published" || !c.status).length)} trend="This week" />
+            <MiniStat label="Active Circulars" value={String(stats.totalCirculars || stats.recentCirculars.length)} trend="This week" />
             <MiniStat label="Open Issues" value="4" trend="-2 today" positive />
           </div>
         </div>

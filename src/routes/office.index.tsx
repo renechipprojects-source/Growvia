@@ -7,6 +7,9 @@ import { Users, ClipboardCheck, Bell, CreditCard } from "lucide-react";
 import { useAlerts } from "@/lib/alertsContext";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
+import { getOfficeDashboardStats } from "@/lib/dashboardStatsService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export const Route = createFileRoute("/office/")({ component: Dash });
 
 const priorityChip: Record<string, string> = {
@@ -19,20 +22,27 @@ const priorityChip: Record<string, string> = {
 function Dash() {
   const { liveFor } = useAlerts();
   const alerts = liveFor("office");
-  const [totalStudents, setTotalStudents] = useState(0);
-  const [totalEnquiries, setTotalEnquiries] = useState(0);
-  const [totalFees, setTotalFees] = useState(0);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalEnquiries: 0,
+    totalFeeCollected: 0,
+    pendingFeeBalance: 0,
+    recentAdmissions: [] as any[],
+    recentFeeCollections: [] as any[],
+  });
+
+  const loadData = () => {
+    getOfficeDashboardStats().then((data) => {
+      setStats(data);
+    });
+  };
+
+  useAutoRefresh("admissions", loadData);
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("fees", loadData);
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTotalStudents(data.length);
-    });
-    fetchEnquiries().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTotalEnquiries(data.length);
-    });
-    fetchFees().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase) setTotalFees(data.length);
-    });
+    loadData();
   }, []);
 
   return (
@@ -44,24 +54,24 @@ function Dash() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Students"
-          value={totalStudents}
+          value={stats.totalStudents}
           icon={Users}
           gradient="from-blue-500 to-cyan-500"
           sub="Enrolled in database"
         />
         <StatCard
           label="Active Enquiries"
-          value={totalEnquiries}
+          value={stats.totalEnquiries}
           icon={ClipboardCheck}
           gradient="from-orange-500 to-amber-500"
           sub="In admission pipeline"
         />
         <StatCard
-          label="Fee Ledgers"
-          value={totalFees}
+          label="Fee Collection"
+          value={`₹${stats.totalFeeCollected.toLocaleString()}`}
           icon={CreditCard}
           gradient="from-emerald-500 to-teal-500"
-          sub="Active fee records"
+          sub="Active fee payments"
         />
         <StatCard
           label="Active alerts"

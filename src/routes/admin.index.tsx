@@ -14,6 +14,8 @@ import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidge
 
 import { DashboardHealthCards } from "@/components/admin/DashboardHealthCards";
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
   head: () => ({ meta: [{ title: "Dashboard — Sunshine ERP" }] }),
@@ -28,11 +30,19 @@ function Dashboard() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const { attendance: liveTodayRecords } = useLiveAttendance(undefined, todayStr);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data }) => setStudentsList(data));
     fetchTeachers().then(({ data }) => setTeachersCount(data.length));
     fetchFees().then(({ data }) => setPaymentsList(data));
     fetchEvents().then(({ data }) => setEventsList(data));
+  };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("staff", loadData);
+  useAutoRefresh("fees", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const totalStudents = studentsList.length;
