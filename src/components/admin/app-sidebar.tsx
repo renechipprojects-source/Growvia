@@ -85,15 +85,15 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md overflow-hidden">
-            {settings.theme.sidebarLogoUrl ? (
-              <img src={settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl ? (
+              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
             ) : (
               <Sparkles className="h-5 w-5 text-white" />
             )}
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight text-slate-900">
-              {settings.branding.schoolName}
+              {settings.school.schoolName || settings.branding.schoolName}
             </div>
             <div className="text-[11px] font-medium text-slate-500">
               {settings.school.schoolCode}

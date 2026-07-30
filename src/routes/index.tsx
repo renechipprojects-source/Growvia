@@ -113,13 +113,13 @@ function Login() {
               {/* Top Left: School Logo, School Name & Academic Session */}
               <div className="flex flex-col items-start">
                 <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-sm">
-                  {settings.branding.logoUrl ? (
-                    <img src={settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                  {settings.loginPage.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl ? (
+                    <img src={settings.loginPage.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
                   ) : (
                     <GraduationCap className="h-8 w-8" />
                   )}
                 </div>
-                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{settings.branding.schoolName}</h1>
+                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{settings.school.schoolName || settings.branding.schoolName}</h1>
                 <div className="mt-1 text-xs text-amber-600 font-bold uppercase tracking-wider">
                   ACADEMIC SESSION {settings.school.academicYear}
                 </div>

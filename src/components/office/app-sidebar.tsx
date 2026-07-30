@@ -113,14 +113,14 @@ export function OfficeSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <Link to="/office" className="flex items-center gap-2 px-2 py-2">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-slate-950 font-bold overflow-hidden">
-            {settings.theme.sidebarLogoUrl ? (
-              <img src={settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl ? (
+              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
             ) : (
               <Building2 className="h-5 w-5" />
             )}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold">{settings.branding.schoolName}</div>
+            <div className="truncate text-sm font-semibold">{settings.school.schoolName || settings.branding.schoolName}</div>
             <div className="truncate text-xs text-muted-foreground">Office Suite</div>
           </div>
         </Link>

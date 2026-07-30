@@ -187,24 +187,235 @@ function DeveloperConsolePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">School Name</Label>
-                <Input
-                  value={draft.branding.schoolName}
+                <Label className="text-xs text-slate-300">Login Page Logo URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.loginPage.logoUrl}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        loginPage: { ...draft.loginPage, logoUrl: e.target.value },
+                      })
+                    }
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Login Logo" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              loginPage: { ...draft.loginPage, logoUrl: url },
+                            }),
+                          "Login Logo"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-300">Login Page Background Image URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.loginPage.backgroundImage || draft.loginPage.bgImageUrl || ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        loginPage: { ...draft.loginPage, backgroundImage: e.target.value, bgImageUrl: e.target.value },
+                      })
+                    }
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Login Background" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              loginPage: { ...draft.loginPage, backgroundImage: url, bgImageUrl: url },
+                            }),
+                          "Login Background"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-xs text-slate-300">Welcome Message</Label>
+                <Textarea
+                  value={draft.loginPage.welcomeMessage}
                   onChange={(e) =>
                     setDraft({
                       ...draft,
-                      branding: { ...draft.branding, schoolName: e.target.value },
-                      system: { ...draft.system, schoolName: e.target.value },
+                      loginPage: { ...draft.loginPage, welcomeMessage: e.target.value },
+                    })
+                  }
+                  className="bg-slate-950 border-slate-800 text-white h-20"
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-xs text-slate-300">Login Page Subtitle</Label>
+                <Input
+                  value={draft.loginPage.subtitle || draft.loginPage.description || ""}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      loginPage: { ...draft.loginPage, subtitle: e.target.value, description: e.target.value },
                     })
                   }
                   className="bg-slate-950 border-slate-800 text-white"
                 />
               </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* 2. BRANDING & HEAD */}
+        <TabsContent value="branding" className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Palette className="h-5 w-5 text-amber-400" /> Application & Head Branding
+              </h2>
+              <span className="text-xs text-slate-400">Independent header, sidebar, favicon & project assets</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-300">Application Header Logo URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.branding.headerLogoUrl}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        branding: { ...draft.branding, headerLogoUrl: e.target.value },
+                      })
+                    }
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Header Logo" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              branding: { ...draft.branding, headerLogoUrl: url },
+                            }),
+                          "Header Logo"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Project / Developer Name (e.g. Growvia)</Label>
+                <Label className="text-xs text-slate-300">Sidebar Logo URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.branding.sidebarLogoUrl}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        branding: { ...draft.branding, sidebarLogoUrl: e.target.value },
+                        theme: { ...draft.theme, sidebarLogoUrl: e.target.value },
+                      })
+                    }
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Sidebar Logo" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              branding: { ...draft.branding, sidebarLogoUrl: url },
+                              theme: { ...draft.theme, sidebarLogoUrl: url },
+                            }),
+                          "Sidebar Logo"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-300">Browser Favicon URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.branding.faviconUrl || draft.theme.faviconUrl}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        branding: { ...draft.branding, faviconUrl: e.target.value },
+                        theme: { ...draft.theme, faviconUrl: e.target.value },
+                      })
+                    }
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Favicon" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*,.ico"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              branding: { ...draft.branding, faviconUrl: url },
+                              theme: { ...draft.theme, faviconUrl: url },
+                            }),
+                          "Favicon"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-300">Project / Developer Name (Growvia)</Label>
                 <Input
-                  value={draft.branding.projectName || draft.branding.project_name || "Growvia"}
+                  value={draft.branding.projectName || "Growvia"}
                   onChange={(e) =>
                     setDraft({
                       ...draft,
@@ -223,7 +434,7 @@ function DeveloperConsolePage() {
                 <Label className="text-xs text-slate-300">Project Logo URL (Growvia Logo)</Label>
                 <div className="flex gap-2">
                   <Input
-                    value={draft.branding.projectLogo || draft.branding.project_logo || ""}
+                    value={draft.branding.projectLogo || "/growvia-logo.png"}
                     onChange={(e) =>
                       setDraft({
                         ...draft,
@@ -264,219 +475,17 @@ function DeveloperConsolePage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">School Logo URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={draft.branding.logoUrl}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        branding: { ...draft.branding, logoUrl: e.target.value },
-                        loginPage: { ...draft.loginPage, schoolLogoUrl: e.target.value },
-                      })
-                    }
-                    className="bg-slate-950 border-slate-800 text-white"
-                  />
-                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
-                    <Upload className="h-3.5 w-3.5 mr-1" />
-                    {uploadingField === "School Logo" ? "..." : "Upload"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) =>
-                        handleFileUpload(
-                          e,
-                          (url) =>
-                            setDraft({
-                              ...draft,
-                              branding: { ...draft.branding, logoUrl: url },
-                              loginPage: { ...draft.loginPage, schoolLogoUrl: url },
-                            }),
-                          "School Logo"
-                        )
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-xs text-slate-300">Welcome Message</Label>
-                <Textarea
-                  value={draft.loginPage.welcomeMessage}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      loginPage: { ...draft.loginPage, welcomeMessage: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white h-20"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">School Motto</Label>
-                <Input
-                  value={draft.branding.motto}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, motto: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Academic Year</Label>
-                <Input
-                  value={draft.school.academicYear}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      school: { ...draft.school, academicYear: e.target.value },
-                      system: { ...draft.system, academicYear: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Address</Label>
-                <Input
-                  value={draft.branding.address}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, address: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Phone</Label>
-                <Input
-                  value={draft.branding.phone}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, phone: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Email</Label>
-                <Input
-                  value={draft.branding.email}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, email: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Website</Label>
-                <Input
-                  value={draft.branding.website}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, website: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-xs text-slate-300">Footer Text</Label>
-                <Textarea
-                  value={draft.branding.footer}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      branding: { ...draft.branding, footer: e.target.value },
-                    })
-                  }
-                  className="bg-slate-950 border-slate-800 text-white h-16"
-                />
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* 2. BRANDING & HEAD */}
-        <TabsContent value="branding" className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Palette className="h-5 w-5 text-amber-400" /> Branding, Head & Document Tokens
-              </h2>
-              <span className="text-xs text-slate-400">Controls favicon, document title, sidebars & receipts</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Browser Window Title</Label>
                 <Input
-                  value={draft.branding.browserTitle || draft.loginPage.title}
+                  value={draft.branding.browserTitle}
                   onChange={(e) =>
                     setDraft({
                       ...draft,
                       branding: { ...draft.branding, browserTitle: e.target.value },
-                      loginPage: { ...draft.loginPage, title: e.target.value },
                     })
                   }
                   className="bg-slate-950 border-slate-800 text-white"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Browser Favicon URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={draft.theme.faviconUrl}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        theme: { ...draft.theme, faviconUrl: e.target.value },
-                      })
-                    }
-                    className="bg-slate-950 border-slate-800 text-white"
-                  />
-                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
-                    <Upload className="h-3.5 w-3.5 mr-1" />
-                    {uploadingField === "Favicon" ? "..." : "Upload"}
-                    <input
-                      type="file"
-                      accept="image/*,.ico"
-                      className="hidden"
-                      onChange={(e) =>
-                        handleFileUpload(
-                          e,
-                          (url) =>
-                            setDraft({
-                              ...draft,
-                              theme: { ...draft.theme, faviconUrl: url },
-                            }),
-                          "Favicon"
-                        )
-                      }
-                    />
-                  </label>
-                </div>
               </div>
 
               <div className="space-y-2">

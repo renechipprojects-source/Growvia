@@ -2,36 +2,54 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
 export interface SystemBranding {
-  schoolName: string;
+  headerLogoUrl: string;
+  sidebarLogoUrl: string;
+  faviconUrl: string;
+  projectName: string;
+  projectLogo?: string;
+  project_name?: string;
+  project_logo?: string;
+  browserTitle: string;
+  sidebarTitle?: string;
+  erpName?: string;
+  reportHeader: string;
+  receiptHeader: string;
+  printFooter?: string;
+  footer?: string;
+  copyright?: string;
+  // Legacy aliases
+  schoolName?: string;
+  logoUrl?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  motto?: string;
+  officeHours?: string;
+}
+
+export interface LoginPageConfig {
   logoUrl: string;
+  backgroundImage: string;
+  welcomeMessage: string;
+  subtitle: string;
+  title: string;
+  description?: string;
+  bgImageUrl?: string;
+  schoolLogoUrl?: string;
+}
+
+export interface SchoolBranding {
+  schoolName: string;
   address: string;
   phone: string;
   email: string;
   website: string;
   motto: string;
+  academicYear: string;
+  receiptPrefix: string;
+  schoolCode: string;
   officeHours: string;
-  footer: string;
-  receiptHeader: string;
-  reportHeader: string;
-  projectName?: string;
-  projectLogo?: string;
-  project_name?: string;
-  project_logo?: string;
-  sidebarLogoUrl?: string;
-  sidebarTitle?: string;
-  erpName?: string;
-  printFooter?: string;
-  browserTitle?: string;
-  copyright?: string;
-}
-
-export interface LoginPageConfig {
-  title: string;
-  description: string;
-  welcomeMessage: string;
-  logoUrl: string;
-  bgImageUrl: string;
-  schoolLogoUrl?: string;
 }
 
 export interface SystemThemeConfig {
@@ -88,27 +106,46 @@ export interface FeatureToggles {
   notifications: boolean;
 }
 
-export interface SchoolSystemSettings {
-  academicYear: string;
-  receiptPrefix: string;
-  schoolCode: string;
-}
-
 export interface DeveloperSettings {
   branding: SystemBranding;
   loginPage: LoginPageConfig;
+  school: SchoolBranding;
   theme: SystemThemeConfig;
   dashboards: DashboardControls;
   system: SystemSettingsConfig;
   notifications: NotificationControls;
   roles: RoleControls;
   features: FeatureToggles;
-  school: SchoolSystemSettings;
   systemVersion: string;
 }
 
 export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
+  loginPage: {
+    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    backgroundImage: "",
+    bgImageUrl: "",
+    welcomeMessage: "Welcome to Sunshine Play School ERP portal. Please log in with your credentials to access your dashboard.",
+    subtitle: "Enterprise Academic & Administrative Management Portal",
+    title: "Sunshine Play School ERP",
+    description: "Enterprise Academic & Administrative Management Portal",
+    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+  },
   branding: {
+    headerLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    faviconUrl: "/favicon.ico",
+    projectName: "Growvia",
+    projectLogo: "/growvia-logo.png",
+    project_name: "Growvia",
+    project_logo: "/growvia-logo.png",
+    browserTitle: "Sunshine Play School ERP — Sign in",
+    sidebarTitle: "Sunshine Play School",
+    erpName: "Sunshine Play School ERP",
+    reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
+    receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
+    printFooter: "Powered by Growvia ERP System",
+    footer: "Renechip Private Limited\n© 2026 All Rights Reserved.",
+    copyright: "© 2026 Sunshine Play School. All Rights Reserved.",
     schoolName: "Sunshine Play School ERP",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     address: "123 Sunshine Lane, Education City, TN 600001",
@@ -117,27 +154,18 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     website: "https://sunshineplayschool.edu",
     motto: "Nurturing Little Minds for a Brighter Tomorrow",
     officeHours: "8:30 AM - 4:30 PM (Mon - Sat)",
-    footer: "Renechip Private Limited\n© 2026 All Rights Reserved.",
-    receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
-    reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
-    projectName: "Growvia",
-    projectLogo: "/growvia-logo.png",
-    project_name: "Growvia",
-    project_logo: "/growvia-logo.png",
-    sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
-    sidebarTitle: "Sunshine Play School",
-    erpName: "Sunshine Play School ERP",
-    printFooter: "Powered by Growvia ERP System",
-    browserTitle: "Sunshine Play School ERP — Sign in",
-    copyright: "© 2026 Sunshine Play School. All Rights Reserved.",
   },
-  loginPage: {
-    title: "Sunshine Play School ERP",
-    description: "Enterprise Academic & Administrative Management Portal",
-    welcomeMessage: "Welcome to Sunshine Play School ERP portal. Please log in with your credentials to access your dashboard.",
-    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
-    bgImageUrl: "",
-    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+  school: {
+    schoolName: "Sunshine Play School ERP",
+    address: "123 Sunshine Lane, Education City, TN 600001",
+    phone: "+91 98765 43210",
+    email: "info@sunshineplayschool.edu",
+    website: "https://sunshineplayschool.edu",
+    motto: "Nurturing Little Minds for a Brighter Tomorrow",
+    academicYear: "2026-2027",
+    receiptPrefix: "SUN/26-27/",
+    schoolCode: "SUN-ERP-2026",
+    officeHours: "8:30 AM - 4:30 PM (Mon - Sat)",
   },
   theme: {
     primaryColor: "#f59e0b",
@@ -205,27 +233,22 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     attendance: true,
     notifications: true,
   },
-  school: {
-    academicYear: "2026-2027",
-    receiptPrefix: "SUN/26-27/",
-    schoolCode: "SUN-ERP-2026",
-  },
   systemVersion: "v2.8.4-PROD",
 };
 
-const KEY = "sunshine.dev_settings.v3";
+const KEY = "sunshine.dev_settings.v4";
 
 export function applyDynamicHeadAndTheme(settings: DeveloperSettings) {
   if (typeof window === "undefined") return;
   try {
-    // Dynamic Browser Title
+    // Dynamic Browser Window Title
     const bTitle = settings.branding.browserTitle || settings.loginPage.title || "Sunshine Play School ERP";
     if (bTitle) {
       document.title = bTitle;
     }
 
-    // Dynamic Favicon Update
-    const favUrl = settings.theme.faviconUrl || "/favicon.ico";
+    // Dynamic Browser Tab Favicon
+    const favUrl = settings.branding.faviconUrl || settings.theme.faviconUrl || "/favicon.ico";
     let iconElem = document.querySelector<HTMLLinkElement>("link[rel='icon']");
     if (!iconElem) {
       iconElem = document.createElement("link");
@@ -234,7 +257,7 @@ export function applyDynamicHeadAndTheme(settings: DeveloperSettings) {
     }
     iconElem.href = favUrl.includes("?") ? favUrl : `${favUrl}?v=${Date.now()}`;
 
-    // Dynamic Theme Color Injection
+    // Dynamic Theme Color Accent
     if (settings.theme.primaryColor) {
       document.documentElement.style.setProperty("--primary-color", settings.theme.primaryColor);
     }
@@ -247,28 +270,34 @@ export function getDeveloperSettings(): DeveloperSettings {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_DEV_SETTINGS;
     const parsed = JSON.parse(raw);
-    const mergedBranding = { ...DEFAULT_DEV_SETTINGS.branding, ...parsed.branding };
 
-    // Keep project aliases synchronized
-    const projName = mergedBranding.projectName || mergedBranding.project_name || "Growvia";
-    const projLogo = mergedBranding.projectLogo || mergedBranding.project_logo || "/growvia-logo.png";
-    mergedBranding.projectName = projName;
-    mergedBranding.project_name = projName;
-    mergedBranding.projectLogo = projLogo;
-    mergedBranding.project_logo = projLogo;
+    const mergedBranding: SystemBranding = {
+      ...DEFAULT_DEV_SETTINGS.branding,
+      ...(parsed.branding || {}),
+    };
+
+    const mergedLoginPage: LoginPageConfig = {
+      ...DEFAULT_DEV_SETTINGS.loginPage,
+      ...(parsed.loginPage || {}),
+    };
+
+    const mergedSchool: SchoolBranding = {
+      ...DEFAULT_DEV_SETTINGS.school,
+      ...(parsed.school || {}),
+    };
 
     const merged: DeveloperSettings = {
       ...DEFAULT_DEV_SETTINGS,
       ...parsed,
       branding: mergedBranding,
-      loginPage: { ...DEFAULT_DEV_SETTINGS.loginPage, ...parsed.loginPage },
-      theme: { ...DEFAULT_DEV_SETTINGS.theme, ...parsed.theme },
-      dashboards: { ...DEFAULT_DEV_SETTINGS.dashboards, ...parsed.dashboards },
-      system: { ...DEFAULT_DEV_SETTINGS.system, ...parsed.system },
-      notifications: { ...DEFAULT_DEV_SETTINGS.notifications, ...parsed.notifications },
-      roles: { ...DEFAULT_DEV_SETTINGS.roles, ...parsed.roles },
-      features: { ...DEFAULT_DEV_SETTINGS.features, ...parsed.features },
-      school: { ...DEFAULT_DEV_SETTINGS.school, ...parsed.school },
+      loginPage: mergedLoginPage,
+      school: mergedSchool,
+      theme: { ...DEFAULT_DEV_SETTINGS.theme, ...(parsed.theme || {}) },
+      dashboards: { ...DEFAULT_DEV_SETTINGS.dashboards, ...(parsed.dashboards || {}) },
+      system: { ...DEFAULT_DEV_SETTINGS.system, ...(parsed.system || {}) },
+      notifications: { ...DEFAULT_DEV_SETTINGS.notifications, ...(parsed.notifications || {}) },
+      roles: { ...DEFAULT_DEV_SETTINGS.roles, ...(parsed.roles || {}) },
+      features: { ...DEFAULT_DEV_SETTINGS.features, ...(parsed.features || {}) },
     };
 
     applyDynamicHeadAndTheme(merged);
@@ -281,41 +310,36 @@ export function getDeveloperSettings(): DeveloperSettings {
 export function saveDeveloperSettings(settings: DeveloperSettings) {
   if (typeof window === "undefined") return;
   try {
-    const projName = settings.branding.projectName || settings.branding.project_name || "Growvia";
-    const projLogo = settings.branding.projectLogo !== undefined ? settings.branding.projectLogo : (settings.branding.project_logo !== undefined ? settings.branding.project_logo : "/growvia-logo.png");
-
-    settings.branding.projectName = projName;
-    settings.branding.project_name = projName;
-    settings.branding.projectLogo = projLogo;
-    settings.branding.project_logo = projLogo;
-
     localStorage.setItem(KEY, JSON.stringify(settings));
     applyDynamicHeadAndTheme(settings);
     window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: settings }));
 
-    // Async save to Supabase system_settings table
+    // Async save to Supabase system_settings table with independent keys
     Promise.resolve(
       supabase.from("system_settings").upsert({
         id: "PRIMARY",
         content: JSON.stringify(settings),
-        school_name: settings.branding.schoolName,
-        school_logo: settings.branding.logoUrl,
-        school_address: settings.branding.address,
-        phone: settings.branding.phone,
-        email: settings.branding.email,
-        website: settings.branding.website,
-        motto: settings.branding.motto,
-        office_hours: settings.branding.officeHours,
+        school_name: settings.school.schoolName,
+        header_logo: settings.branding.headerLogoUrl,
+        sidebar_logo: settings.branding.sidebarLogoUrl,
+        login_logo: settings.loginPage.logoUrl,
+        login_bg: settings.loginPage.backgroundImage || settings.loginPage.bgImageUrl,
+        favicon: settings.branding.faviconUrl,
+        school_address: settings.school.address,
+        phone: settings.school.phone,
+        email: settings.school.email,
+        website: settings.school.website,
+        motto: settings.school.motto,
+        office_hours: settings.school.officeHours,
         login_title: settings.loginPage.title,
-        login_subtitle: settings.loginPage.description,
+        login_subtitle: settings.loginPage.subtitle || settings.loginPage.description,
         footer_text: settings.branding.footer,
         theme_color: settings.theme.primaryColor,
-        favicon: settings.theme.faviconUrl,
         report_header: settings.branding.reportHeader,
         receipt_header: settings.branding.receiptHeader,
         academic_year: settings.school.academicYear,
-        project_name: projName,
-        project_logo: projLogo,
+        project_name: settings.branding.projectName,
+        project_logo: settings.branding.projectLogo,
         updated_at: new Date().toISOString(),
       })
     ).catch(() => {});
@@ -415,18 +439,18 @@ export function useDeveloperSettings() {
   return {
     settings,
     updateSettings: (newSettings: Partial<DeveloperSettings>) => {
-      const merged = {
+      const merged: DeveloperSettings = {
         ...settings,
         ...newSettings,
         branding: { ...settings.branding, ...(newSettings.branding || {}) },
         loginPage: { ...settings.loginPage, ...(newSettings.loginPage || {}) },
+        school: { ...settings.school, ...(newSettings.school || {}) },
         theme: { ...settings.theme, ...(newSettings.theme || {}) },
         dashboards: { ...settings.dashboards, ...(newSettings.dashboards || {}) },
         system: { ...settings.system, ...(newSettings.system || {}) },
         notifications: { ...settings.notifications, ...(newSettings.notifications || {}) },
         roles: { ...settings.roles, ...(newSettings.roles || {}) },
         features: { ...settings.features, ...(newSettings.features || {}) },
-        school: { ...settings.school, ...(newSettings.school || {}) },
       };
       saveDeveloperSettings(merged);
       setSettings(merged);

@@ -29,7 +29,10 @@ const labels: Record<string, string> = {
   inventory: "Inventory", reports: "Reports", users: "User Management", settings: "Settings",
 };
 
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+
 export function TopNav() {
+  const { settings } = useDeveloperSettings();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const parts = pathname.split("/").filter(Boolean);
@@ -53,6 +56,9 @@ export function TopNav() {
       <div className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
         <div className="flex items-center gap-2">
           <SidebarTrigger />
+          {settings.branding.headerLogoUrl && (
+            <img src={settings.branding.headerLogoUrl} alt="Header Logo" className="h-8 w-8 object-contain rounded-lg shrink-0" />
+          )}
         </div>
         <div className="flex-1" />
         
