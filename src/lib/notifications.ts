@@ -109,8 +109,8 @@ const ALLOWED_MODULES_BY_ROLE: Record<Role, NotificationModule[]> = {
   "super-admin": ["announcement"],
   principal: ["announcement"],
   office: ["announcement"],
-  teacher: ["announcement", "leave", "messages"],
-  parent: ["announcement", "messages", "leave"],
+  teacher: ["announcement", "leave"],
+  parent: ["announcement", "messages"],
   developer: [],
 };
 

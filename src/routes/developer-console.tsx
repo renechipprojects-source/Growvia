@@ -436,9 +436,17 @@ function DeveloperConsolePage() {
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <FileCode2 className="h-5 w-5 text-amber-400" /> Central System & Audit Trajectory Logs
               </h3>
-              <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-xs">
-                Version: {draft.systemVersion}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-xs">
+                  Version: {draft.systemVersion}
+                </Badge>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">
+                  Build: BUILD-2026.07.30
+                </Badge>
+                <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-xs">
+                  Env: Production
+                </Badge>
+              </div>
             </div>
 
             <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-300 max-h-80 overflow-y-auto space-y-2">
