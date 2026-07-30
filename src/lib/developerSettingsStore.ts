@@ -133,7 +133,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   branding: {
     headerLogoUrl: "/renechip-logo.png",
     sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
-    faviconUrl: "/favicon.ico",
+    faviconUrl: "/favicon.png",
     projectName: "Growvia",
     projectLogo: "/growvia-logo.png",
     project_name: "Growvia",
