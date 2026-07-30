@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { fetchStudents, allocateRollNumbersAlphabetically, type Student } from "@/lib/supabaseService";
+import { type Student } from "@/lib/principal-mock-data";
+import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export const Route = createFileRoute("/principal/students")({
