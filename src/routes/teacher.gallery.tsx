@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { GALLERY } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useState, useRef } from "react";
@@ -9,7 +8,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/teacher/gallery")({ component: TeacherGallery });
 
 function TeacherGallery() {
-  const [images, setImages] = useState<string[]>(GALLERY);
+  const [images, setImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

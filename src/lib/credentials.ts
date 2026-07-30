@@ -2,7 +2,7 @@
 // Persisted in localStorage so Office-issued credentials survive reloads
 // and can be used from the shared /login page.
 
-import { STUDENTS, TEACHERS, getHousehold, type Student, type Teacher } from "@/lib/mockData";
+import type { Student, Teacher } from "@/lib/mockData";
 import type { Role } from "@/lib/roleConfig";
 import { supabase } from "@/lib/supabase";
 
@@ -107,7 +107,7 @@ export function generateParentCredential(
   studentId: string,
   opts?: { loginIdBasis?: "admission" | "mobile"; customLoginId?: string; password?: string; student?: Student },
 ): ParentCredential {
-  const student = opts?.student || STUDENTS.find((s) => s.id === studentId) || {
+  const student = opts?.student || {
     id: studentId,
     admissionNo: `ADM-${studentId}`,
     parent: "Parent User",
@@ -190,7 +190,7 @@ export function generateTeacherCredential(
   teacherId: string,
   opts?: { customLoginId?: string; password?: string; teacher?: Teacher },
 ): TeacherCredential {
-  const teacher = opts?.teacher || TEACHERS.find((t) => t.id === teacherId) || {
+  const teacher = opts?.teacher || {
     id: teacherId,
     name: "Teacher User",
     email: `teacher.${teacherId}@sunshineschool.edu`,
@@ -272,11 +272,9 @@ export function authenticateGenerated(loginId: string, password: string): AuthRe
   if (parent) {
     if (parent.status !== "Active") return null;
     if (parent.password !== password) return null;
-    const student = STUDENTS.find((s) => s.id === parent.studentId);
-    const household = student ? getHousehold(student.parentId) : undefined;
     return {
       role: "parent",
-      name: household?.primaryContact ?? student?.parent ?? "Parent User",
+      name: "Parent User",
       loginId: parent.loginId,
       linkId: parent.studentId,
     };
@@ -286,10 +284,9 @@ export function authenticateGenerated(loginId: string, password: string): AuthRe
   if (teacher) {
     if (teacher.status !== "Active") return null;
     if (teacher.password !== password) return null;
-    const t = TEACHERS.find((x) => x.id === teacher.teacherId);
     return {
       role: "teacher",
-      name: t?.name ?? "Teacher User",
+      name: "Teacher User",
       loginId: teacher.loginId,
       linkId: teacher.teacherId,
     };

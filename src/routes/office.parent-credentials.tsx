@@ -40,12 +40,12 @@ export const Route = createFileRoute("/office/parent-credentials")({
 
 function ParentCredentialsPage() {
   const [, setTick] = useState(0);
-  const [studentsList, setStudentsList] = useState<Student[]>(STUDENTS);
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
 
   useEffect(() => {
     subscribeCredentials(() => setTick((n) => n + 1));
     fetchStudents().then(({ data }) => {
-      setStudentsList(data && data.length > 0 ? data : STUDENTS);
+      setStudentsList(data || []);
     });
   }, []);
 

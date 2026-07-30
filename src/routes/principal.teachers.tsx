@@ -11,7 +11,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { fetchTeachers } from "@/lib/supabaseService";
 import { type Teacher } from "@/lib/principal-mock-data";
-import { TEACHERS as SEED_TEACHERS } from "@/lib/mockData";
 import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
 
 export const Route = createFileRoute("/principal/teachers")({
@@ -24,29 +23,16 @@ export const Route = createFileRoute("/principal/teachers")({
   component: TeachersPage,
 });
 
-const DEFAULT_TEACHERS: Teacher[] = SEED_TEACHERS.map((t) => ({
-  id: t.id,
-  empId: t.id,
-  name: t.name,
-  subject: t.subject || "General",
-  qualification: "B.Ed",
-  phone: t.phone || "",
-  email: t.email || "",
-  experience: 3,
-  classesAssigned: [t.className || "Nursery A"],
-  status: "Active",
-}));
-
 function TeachersPage() {
-  const [items, setItems] = useState<Teacher[]>(DEFAULT_TEACHERS);
+  const [items, setItems] = useState<Teacher[]>([]);
   const [q, setQ] = useState("");
   const [subject, setSubject] = useState("all");
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
   useEffect(() => {
     fetchTeachers().then(({ data }) => {
-      if (data && data.length > 0) {
-        const mapped: Teacher[] = data.map((t) => ({
+      const source = data || [];
+      const mapped: Teacher[] = source.map((t) => ({
           id: t.id,
           empId: t.id,
           name: t.name,
@@ -59,7 +45,6 @@ function TeachersPage() {
           status: "Active",
         }));
         setItems(mapped);
-      }
     });
   }, []);
 

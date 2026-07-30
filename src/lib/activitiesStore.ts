@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { ACTIVITIES as SEED_ACTIVITIES } from "@/lib/mockData";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
@@ -14,14 +13,14 @@ export interface Activity {
 const KEY = "sunshine.activities.v2";
 
 function readActivities(): Activity[] {
-  if (typeof window === "undefined") return SEED_ACTIVITIES;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return SEED_ACTIVITIES;
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_ACTIVITIES;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return SEED_ACTIVITIES;
+    return [];
   }
 }
 
@@ -42,57 +41,38 @@ export function createActivity(input: {
     id: `ACT-${Date.now().toString().slice(-4)}`,
     title: input.title,
     className: input.className,
-    cover: input.cover || "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&w=600&q=80",
-    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    cover: input.cover || "/placeholder.svg",
+    date: new Date().toLocaleDateString(),
   };
 
-  const current = readActivities();
-  const next = [newAct, ...current];
-  writeActivities(next);
+  const list = readActivities();
+  writeActivities([newAct, ...list]);
 
-  // Broadcast live notification
-  NotificationService.announcement(
-    `New Activity: "${newAct.title}" for ${newAct.className}`,
-    ["parent", "teacher", "principal", "office", "super-admin"]
-  );
 
-  // Sync to Supabase in background
-  Promise.resolve(
-    supabase.from("activities").insert([{
-      id: newAct.id,
-      title: newAct.title,
-      class_name: newAct.className,
-      cover_url: newAct.cover,
-      created_at: new Date().toISOString(),
-    }])
-  ).catch(() => {});
+
+  try {
+    supabase.from("events").insert([{
+      title: input.title,
+      type: "Activity",
+      date: new Date().toISOString().split("T")[0],
+    }]);
+  } catch {}
 
   return newAct;
 }
 
-export function deleteActivity(id: string | number) {
-  const current = readActivities();
-  const next = current.filter((a) => a.id !== id);
-  writeActivities(next);
-  Promise.resolve(supabase.from("activities").delete().eq("id", id)).catch(() => {});
-}
-
-export function useLiveActivities() {
+export function useActivities() {
   const [activities, setActivities] = useState<Activity[]>(readActivities);
 
   useEffect(() => {
-    const handleUpdate = () => setActivities(readActivities());
-    window.addEventListener("sunshine-activities", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
+    const sync = () => setActivities(readActivities());
+    window.addEventListener("sunshine-activities", sync);
+    window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("sunshine-activities", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("sunshine-activities", sync);
+      window.removeEventListener("storage", sync);
     };
   }, []);
 
-  return {
-    activities,
-    addActivity: createActivity,
-    removeActivity: deleteActivity,
-  };
+  return { activities, createActivity };
 }

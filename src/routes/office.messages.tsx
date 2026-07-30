@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
-import { MESSAGES as SEED_MESSAGES, type Message } from "@/lib/mockData";
+import type { Message } from "@/lib/mockData";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { NotificationService } from "@/lib/notifications";
 
-import { useLiveMessages } from "@/lib/messagesStore";
+import { useMessages, markMessageRead } from "@/lib/messagesStore";
 
 export const Route = createFileRoute("/office/messages")({ component: Messages });
 
 function Messages() {
-  const { messages, sendMessage, markRead } = useLiveMessages();
+  const { messages, dispatchMessage } = useMessages();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [selectedId, setSelectedId] = useState<string | null>(messages[0]?.id ?? null);
@@ -53,7 +53,7 @@ function Messages() {
       return;
     }
 
-    const created = sendMessage({
+    const created = dispatchMessage({
       fromId: "USR-OFFICE",
       fromName: "Office Staff",
       recipientRole: recipient,
@@ -72,7 +72,7 @@ function Messages() {
   const handleSendReply = () => {
     if (!replyText.trim() || !selected) return;
 
-    const reply = sendMessage({
+    const reply = dispatchMessage({
       fromId: "USR-OFFICE",
       fromName: "Office Staff",
       recipientRole: "all",
@@ -124,7 +124,7 @@ function Messages() {
                 <button
                   onClick={() => {
                     setSelectedId(m.id);
-                    markRead(m.id);
+                    markMessageRead(m.id);
                     setDialog(true);
                   }}
                   className={`w-full text-left px-3 py-3 rounded-2xl transition ${selected?.id === m.id ? "bg-orange-50" : "hover:bg-white/70"}`}

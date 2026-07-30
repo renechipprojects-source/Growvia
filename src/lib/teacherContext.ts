@@ -1,4 +1,4 @@
-import { STUDENTS } from "./mockData";
+import type { Student } from "./mockData";
 import { readAssignments, type ClassAssignment } from "./classAssignmentContext";
 
 export type AssignmentType = "class" | "subject";
@@ -11,7 +11,7 @@ export interface TeacherAssignment {
   subject?: string;
 }
 
-// Current signed-in teacher (mock). In a real system this would come from auth.
+// Current signed-in teacher context
 export const CURRENT_TEACHER = {
   id: "TCH100",
   name: "Mrs. Priya",
@@ -40,22 +40,6 @@ export function getAssignment(id: string): TeacherAssignment | undefined {
   return found ? toTeacherAssignment(found) : undefined;
 }
 
-export function getStudentsForAssignment(a: TeacherAssignment) {
-  return STUDENTS.filter((s) => s.className === a.className);
-}
-
-// Tabs visible on a student profile based on active role context.
-export const CLASS_TEACHER_TABS = [
-  "Overview", "Attendance", "Academics", "Homework", "Activities",
-  "Behaviour", "Achievements", "Documents", "Parent Details", "Health",
-  "Progress Report", "Remarks",
-] as const;
-
-export const SUBJECT_TEACHER_TABS = [
-  "Overview", "Subject Marks", "Subject Homework",
-  "Subject Assignments", "Subject Attendance", "Subject Remarks",
-] as const;
-
-export function tabsForAssignment(a: TeacherAssignment): readonly string[] {
-  return a.type === "class" ? CLASS_TEACHER_TABS : SUBJECT_TEACHER_TABS;
+export function getStudentsForAssignment(a: TeacherAssignment): Student[] {
+  return [];
 }

@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
-import { STUDENTS as SEED_STUDENTS } from "@/lib/mockData";
 import {
   executeStudentPromotion, rollbackPromotionBatch, canRollbackPromotionBatch,
   getDefaultDestinationClass, getAcademicYears, addAcademicYear, closeAcademicYear,
@@ -64,7 +63,7 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
   useEffect(() => {
     if (open) {
       fetchStudents().then(({ data }) => {
-        setAllStudents(data && data.length > 0 ? data : SEED_STUDENTS);
+        setAllStudents(data || []);
       });
       setStep(1);
       setExecutionResult(null);

@@ -1,14 +1,41 @@
 // Parent-portal state: which household is signed in, and which child is
 // currently being viewed. Supports 1..N children per parent.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { PARENT_HOUSEHOLDS, STUDENTS, type Household, type Student } from "./mockData";
+import type { Household, Student } from "./mockData";
 import { fetchStudents } from "./supabaseService";
+import { getSession } from "./auth";
 
-// Pick a demo household that has multiple children if possible, else fallback.
-function pickDemoHousehold(): Household {
-  const multi = PARENT_HOUSEHOLDS.find((h) => h.childrenIds.length >= 2);
-  return multi ?? PARENT_HOUSEHOLDS[0];
-}
+const emptyHousehold: Household = {
+  id: "HH-000",
+  fatherName: "Parent",
+  motherName: "Parent",
+  primaryContact: "Parent",
+  phone: "N/A",
+  email: "N/A",
+  address: "N/A",
+  childrenIds: [],
+};
+
+const emptyStudent: Student = {
+  id: "STU-NONE",
+  rollNo: 0,
+  admissionNo: "N/A",
+  name: "No Enrolled Child Found",
+  age: 0,
+  dob: "N/A",
+  className: "Nursery",
+  section: "A",
+  parent: "N/A",
+  parentId: "N/A",
+  phone: "N/A",
+  gender: "Boy",
+  house: "Red",
+  admissionDate: "N/A",
+  feeStatus: "Paid",
+  avatar: "/avatars/student.svg",
+  attendance: 0,
+  branch: "Main",
+};
 
 interface ParentState {
   household: Household;
@@ -21,25 +48,19 @@ const Ctx = createContext<ParentState | null>(null);
 
 const STORAGE_KEY = "sunshine.parent.activeChildId";
 
-import { getSession } from "./auth";
-
 export function ParentProvider({ children }: { children: ReactNode }) {
   const session = getSession();
-  const household = useMemo(() => pickDemoHousehold(), []);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setAllStudents(data as any);
-      }
+    fetchStudents().then(({ data }) => {
+      setAllStudents((data as any) || []);
     });
   }, []);
 
   const kids = useMemo(() => {
-    const source = allStudents.length > 0 ? allStudents : STUDENTS;
     if (session?.role === "parent") {
-      const matching = source.filter(
+      const matching = allStudents.filter(
         (s) =>
           s.id === session.linkId ||
           s.parentId === session.linkId ||
@@ -48,9 +69,8 @@ export function ParentProvider({ children }: { children: ReactNode }) {
       );
       if (matching.length > 0) return matching;
     }
-    const fallbackList = household.childrenIds.map((id) => source.find((s) => s.id === id)!).filter(Boolean);
-    return fallbackList.length > 0 ? fallbackList : [source[0]];
-  }, [allStudents, session, household]);
+    return allStudents.length > 0 ? allStudents : [emptyStudent];
+  }, [allStudents, session]);
 
   const [activeId, setActiveId] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -66,10 +86,10 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     }
   }, [activeId]);
 
-  const active = kids.find((k) => k.id === activeId) ?? kids[0];
+  const active = kids.find((k) => k.id === activeId) ?? kids[0] ?? emptyStudent;
 
   const value: ParentState = {
-    household,
+    household: emptyHousehold,
     children: kids,
     activeChild: active,
     setActiveChildId: setActiveId,

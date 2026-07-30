@@ -88,13 +88,13 @@ function DashboardPage() {
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalTeachers: 0,
-    todayAttendancePercent: 95.8,
+    todayAttendancePercent: 0,
     totalCirculars: 0,
     classStrengthBreakdown: [] as any[],
     recentCirculars: [] as any[],
   });
-  const [eventsList, setEventsList] = useState<any[]>(initialEvents);
-  const [liveNotifications, setLiveNotifications] = useState<any[]>(notifications);
+  const [eventsList, setEventsList] = useState<any[]>([]);
+  const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const { attendance: liveToday } = useLiveAttendance(undefined, todayStr);
@@ -104,7 +104,7 @@ function DashboardPage() {
       setStats(data);
     });
     fetchEvents().then(({ data }) => {
-      if (data && data.length > 0) setEventsList(data);
+      setEventsList(data || []);
     });
   };
 
@@ -116,12 +116,12 @@ function DashboardPage() {
     loadData();
   }, []);
 
-  const totalClasses = 15;
+  const totalClasses = 0;
   const presentFromLive = liveToday.filter((r) => r.status === "P" || r.status === "L").length;
-  const studentPresentCount = liveToday.length > 0 ? presentFromLive : Math.round(stats.totalStudents * 0.95);
-  const staffPresentCount = Math.round(stats.totalTeachers * 0.95);
-  const studentAttendancePct = stats.totalStudents > 0 ? Math.round((studentPresentCount / stats.totalStudents) * 100) : 95;
-  const staffAttendancePct = stats.totalTeachers > 0 ? Math.round((staffPresentCount / stats.totalTeachers) * 100) : 98;
+  const studentPresentCount = presentFromLive;
+  const staffPresentCount = 0;
+  const studentAttendancePct = stats.totalStudents > 0 ? Math.round((studentPresentCount / stats.totalStudents) * 100) : 0;
+  const staffAttendancePct = stats.totalTeachers > 0 ? Math.round((staffPresentCount / stats.totalTeachers) * 100) : 0;
   const upcoming = eventsList.slice(0, 4);
 
   return (

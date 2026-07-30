@@ -1,19 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { UserCheck, BookOpen, NotebookPen, Sparkles, PartyPopper, ChevronRight, Baby, Users, UserX, Clock, Plane, ClipboardCheck } from "lucide-react";
-import { HOMEWORK, EVENTS, ACTIVITIES, studentsBy, todayAttendanceFor, type ClassName } from "@/lib/mockData";
+import { type ClassName } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useClassAssignments } from "@/lib/classAssignmentContext";
-import { useEffect, useState } from "react";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
-import { useLiveActivities } from "@/lib/activitiesStore";
+import { useActivities } from "@/lib/activitiesStore";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
-  const { activities: liveActivities } = useLiveActivities();
+  const { activities: liveActivities } = useActivities();
   const { getClassTeacher, getWorkload, assignments } = useClassAssignments();
   
   // Teacher Mrs. Priya (TCH100) assignments
@@ -27,22 +27,13 @@ function Dash() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
 
   useEffect(() => {
-    fetchStudents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setStudentsList(data);
-      }
+    fetchStudents().then(({ data }) => {
+      setStudentsList(data || []);
     });
   }, []);
 
-  const fallbackClass = primaryClass
-    ? studentsBy(primaryClass.className as ClassName, primaryClass.section as "A" | "B" | undefined)
-    : [];
-
-  const myClass = studentsList.length > 0 ? studentsList : fallbackClass;
-  const { recs } = primaryClass
-    ? todayAttendanceFor(primaryClass.className as ClassName, primaryClass.section as "A" | "B" | undefined)
-    : { recs: [] };
-  const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
+  const myClass = studentsList;
+  const recMap = new Map();
 
   const total = myClass.length;
   const boys = myClass.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
@@ -51,11 +42,9 @@ function Dash() {
   const absentCount = myClass.filter((s) => recMap.get(s.id) === "Absent").length;
   const lateCount = myClass.filter((s) => recMap.get(s.id) === "Late").length;
   const leaveCount = myClass.filter((s) => recMap.get(s.id) === "Leave").length;
-  const classHomework = primaryClass
-    ? HOMEWORK.filter((h) => h.className === primaryClass.className && (!h.section || h.section === primaryClass.section))
-    : [];
-  const hwPending = classHomework.filter((h) => h.status === "Pending").length;
-  const hwSubmitted = classHomework.reduce((n, h) => n + h.submitted, 0);
+  const classHomework: any[] = [];
+  const hwPending = 0;
+  const hwSubmitted = 0;
 
   return (
     <div>
@@ -106,7 +95,7 @@ function Dash() {
                     </div>
                     <div>
                       <div className="font-semibold">{a.className}-{a.section}</div>
-                      <div className="text-xs text-muted-foreground">{studentsBy(a.className as ClassName, a.section as "A" | "B").length} students · Full access</div>
+                      <div className="text-xs text-muted-foreground">{studentsList.length} students · Full access</div>
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -202,7 +191,7 @@ function Dash() {
       <div className="mt-6 grid lg:grid-cols-2 gap-4">
         <SectionCard title="Recent activities">
           <div className="grid grid-cols-2 gap-3">
-            {liveActivities.slice(0, 4).map((a) => (
+            {liveActivities.slice(0, 4).map((a: any) => (
               <div key={a.id} className="rounded-2xl overflow-hidden bg-white shadow-sm">
                 <img src={a.cover} className="h-24 w-full object-cover" alt="" />
                 <div className="p-2 text-sm font-medium truncate">{a.title}</div>
@@ -212,13 +201,7 @@ function Dash() {
         </SectionCard>
         <SectionCard title="Upcoming events">
           <div className="grid grid-cols-2 gap-3">
-            {EVENTS.map((e) => (
-              <div key={e.id} className="rounded-2xl bg-white/60 p-3">
-                <div className="text-xs text-muted-foreground">{e.date}</div>
-                <div className="font-semibold">{e.title}</div>
-                <div className={`inline-block mt-2 text-[10px] rounded-full px-2 py-0.5 ${e.color}`}>{e.type}</div>
-              </div>
-            ))}
+            <div className="text-sm text-muted-foreground col-span-2 py-6 text-center">No upcoming events scheduled.</div>
           </div>
         </SectionCard>
       </div>

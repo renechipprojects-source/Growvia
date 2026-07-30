@@ -9,14 +9,14 @@ import {
   getSubjectAssignments,
   getAssignment,
   getStudentsForAssignment,
-  SUBJECT_TEACHER_TABS,
 } from "@/lib/teacherContext";
-import { HOMEWORK } from "@/lib/mockData";
+import { useHomework, type Homework } from "@/lib/homeworkStore";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 
 const searchSchema = z.object({ a: z.string().optional() });
+const TABS = ["Overview", "Students", "Homework", "Marks"];
 
 export const Route = createFileRoute("/teacher/my-subjects")({
   validateSearch: searchSchema,
@@ -28,10 +28,11 @@ function MySubjects() {
   const { a } = Route.useSearch();
   const navigate = Route.useNavigate();
   const active = (a && getAssignment(a)) || assignments[0];
-  const [tab, setTab] = useState<string>(SUBJECT_TEACHER_TABS[0]);
+  const [tab, setTab] = useState<string>(TABS[0]);
   const [localSearch, setLocalSearch] = useState("");
   const headerQ = useSearchQuery();
   const q = headerQ || localSearch;
+  const { homework } = useHomework();
 
   if (!active) {
     return (
@@ -42,11 +43,11 @@ function MySubjects() {
   }
 
   const students = getStudentsForAssignment(active);
-  const homework = HOMEWORK.filter(
-    (h) => h.className === active.className && h.subject === active.subject,
+  const subjectHomework = homework.filter(
+    (h: Homework) => h.className === active.className && h.subject === active.subject,
   );
   const filteredStudents = useMemo(
-    () => students.filter((s) => matchesSearch(q, s.name, s.rollNo, s.admissionNo, s.parent)),
+    () => students.filter((s: any) => matchesSearch(q, s.name, s.rollNo, s.admissionNo, s.parent)),
     [q, students],
   );
 
@@ -95,7 +96,7 @@ function MySubjects() {
       </div>
 
       <div className="shrink-0 flex items-center gap-2 mb-3 overflow-x-auto pb-1">
-        {SUBJECT_TEACHER_TABS.map((t) => (
+        {TABS.map((t: string) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -136,7 +137,7 @@ function MySubjects() {
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">
           {tab === "Overview" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filteredStudents.map((s) => (
+              {filteredStudents.map((s: any) => (
                 <Card key={s.id} className="rounded-2xl p-4 border-white/60 bg-white/70">
                   <div className="flex items-center gap-3">
                     <img src={s.avatar} className="h-12 w-12 rounded-2xl" alt="" />
@@ -154,7 +155,7 @@ function MySubjects() {
 
           {tab === "Subject Marks" && (
             <ul className="space-y-2">
-              {filteredStudents.map((s, i) => (
+              {filteredStudents.map((s: any, i: number) => (
                 <li key={s.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3">
                   <div className="flex items-center gap-3">
                     <img src={s.avatar} className="h-9 w-9 rounded-xl" alt="" />
@@ -171,11 +172,11 @@ function MySubjects() {
 
           {tab === "Subject Homework" && (
             <div>
-              {homework.length === 0 ? (
+              {subjectHomework.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No homework assigned yet.</div>
               ) : (
                 <ul className="space-y-2">
-                  {homework.map((h) => (
+                  {subjectHomework.map((h: Homework) => (
                     <li key={h.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3">
                       <div>
                         <div className="font-medium">{h.title}</div>
@@ -204,7 +205,7 @@ function MySubjects() {
 
           {tab === "Subject Attendance" && (
             <ul className="space-y-2">
-              {filteredStudents.map((s, i) => (
+              {filteredStudents.map((s: any, i: number) => (
                 <li key={s.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3">
                   <div className="flex items-center gap-3">
                     <img src={s.avatar} className="h-9 w-9 rounded-xl" alt="" />
@@ -224,7 +225,7 @@ function MySubjects() {
                 Only remarks for {active.subject} are visible here. Behaviour and other-subject remarks are restricted to the class teacher.
               </div>
               <ul className="space-y-2">
-                {filteredStudents.slice(0, 8).map((s) => (
+                {filteredStudents.slice(0, 8).map((s: any) => (
                   <li key={s.id} className="rounded-2xl bg-white/60 p-3">
                     <div className="text-sm font-medium">{s.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">

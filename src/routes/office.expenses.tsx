@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { EXPENSES, type Expense } from "@/lib/mockData";
+import type { Expense } from "@/lib/mockData";
 import { fetchExpenses } from "@/lib/supabaseService";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";

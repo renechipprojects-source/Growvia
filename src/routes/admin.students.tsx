@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { STUDENTS } from "@/lib/mockData";
 import { type Student } from "@/lib/admin-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
@@ -25,7 +24,7 @@ function StudentsPage() {
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
-      const sourceList = data && data.length > 0 ? data : (STUDENTS as any);
+      const sourceList = data || [];
       const mapped: Student[] = sourceList.map((s: any) => ({
         id: s.id,
         admissionNo: s.admissionNo || s.id,

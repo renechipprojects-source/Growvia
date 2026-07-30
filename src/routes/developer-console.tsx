@@ -174,11 +174,43 @@ function DeveloperConsolePage() {
                 />
               </div>
               <div>
-                <Label className="text-xs text-slate-300">Official Website URL</Label>
+                <Label className="text-xs text-slate-300">ERP Developer / Company Name (project_name)</Label>
                 <Input
-                  value={draft.branding.website}
-                  onChange={(e) => setDraft({ ...draft, branding: { ...draft.branding, website: e.target.value } })}
+                  value={draft.branding.projectName || draft.branding.project_name || ""}
+                  placeholder="e.g. Growvia"
+                  onChange={(e) => setDraft({
+                    ...draft,
+                    branding: {
+                      ...draft.branding,
+                      projectName: e.target.value,
+                      project_name: e.target.value
+                    }
+                  })}
                   className="bg-slate-950 border-slate-800 text-white mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-300">ERP Developer / Company Logo URL (project_logo)</Label>
+                <Input
+                  value={draft.branding.projectLogo !== undefined ? draft.branding.projectLogo : (draft.branding.project_logo || "")}
+                  placeholder="e.g. /growvia-logo.png"
+                  onChange={(e) => setDraft({
+                    ...draft,
+                    branding: {
+                      ...draft.branding,
+                      projectLogo: e.target.value,
+                      project_logo: e.target.value
+                    }
+                  })}
+                  className="bg-slate-950 border-slate-800 text-white mt-1"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="text-xs text-slate-300">Login Page Footer Text</Label>
+                <Textarea
+                  value={draft.branding.footer}
+                  onChange={(e) => setDraft({ ...draft, branding: { ...draft.branding, footer: e.target.value } })}
+                  className="bg-slate-950 border-slate-800 text-white mt-1 h-16"
                 />
               </div>
               <div>

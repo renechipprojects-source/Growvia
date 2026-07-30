@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ENQUIRIES, type Enquiry } from "@/lib/mockData";
+import type { Enquiry } from "@/lib/mockData";
 import { fetchEnquiries } from "@/lib/supabaseService";
 import { supabase } from "@/lib/supabase";
 

@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { UserCheck, BookOpen, NotebookPen, DollarSign, ImageIcon, ArrowRight, Users } from "lucide-react";
-import { DIARY, GALLERY, HOMEWORK } from "@/lib/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useParent } from "@/lib/parentContext";
@@ -25,11 +24,12 @@ function Dash() {
     fetchFees().then(({ data }) => {
       const match = data.find((f) => f.studentId === child.id || f.studentName === child.name);
       if (match) setFeeRecord(match);
+      else setFeeRecord(null);
     });
   }, [child]);
 
-  const dueAmount = feeRecord ? Math.max(0, (feeRecord.amount ?? 8500) - (feeRecord.paid ?? 0)) : 8500;
-  const childHW = HOMEWORK.filter((h) => h.className === child.className && (!h.section || h.section === child.section));
+  const dueAmount = feeRecord ? Math.max(0, (feeRecord.finalFee || feeRecord.amount || 0) - (feeRecord.paid || 0)) : 0;
+  const childHW: any[] = [];
   const className = t(`className.${child.className}`, child.className);
 
   return (
@@ -82,21 +82,16 @@ function Dash() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard label={t("dash.attendance")} value={`${child.attendance}%`} icon={UserCheck} gradient="from-pink-500 to-fuchsia-500" />
         <StatCard label={t("dash.homework")} value={childHW.length} icon={BookOpen} gradient="from-fuchsia-500 to-purple-500" sub={t("dash.homeworkActive")} />
-        <StatCard label={t("dash.todaysDiary")} value="1" icon={NotebookPen} gradient="from-purple-500 to-pink-500" sub={t("dash.todaysDiaryJustNow")} />
+        <StatCard label={t("dash.todaysDiary")} value="0" icon={NotebookPen} gradient="from-purple-500 to-pink-500" sub="No notes today" />
         <StatCard label={t("dash.feeDue")} value={`₹${dueAmount.toLocaleString()}`} icon={DollarSign} gradient="from-rose-500 to-pink-500" sub={t("dash.feeDueSub")} />
-        <StatCard label={t("dash.recentPhotos")} value={GALLERY.length} icon={ImageIcon} gradient="from-pink-400 to-purple-400" />
+        <StatCard label={t("dash.recentPhotos")} value={0} icon={ImageIcon} gradient="from-pink-400 to-purple-400" />
       </div>
 
       <div className="mt-6 grid lg:grid-cols-3 gap-4">
         <SectionCard title={t("dash.todaysDiary")} className="lg:col-span-2">
           <div className="rounded-2xl bg-pink-50/70 p-4">
-            <div className="text-xs text-muted-foreground">{DIARY[0].date} {DIARY[0].mood}</div>
-            <div className="mt-1">{DIARY[0].note}</div>
-          </div>
-          <div className="mt-3 grid grid-cols-4 gap-2">
-            {GALLERY.slice(0, 4).map((g, i) => (
-              <img key={i} src={g} className="h-20 w-full object-cover rounded-2xl" alt="" />
-            ))}
+            <div className="text-xs text-muted-foreground">Today</div>
+            <div className="mt-1 text-sm text-muted-foreground">No diary entries recorded for today.</div>
           </div>
         </SectionCard>
         <SectionCard

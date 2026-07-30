@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { useParent } from "@/lib/parentContext";
-import { useLiveMessages } from "@/lib/messagesStore";
+import { useMessages } from "@/lib/messagesStore";
+import type { Message } from "@/lib/mockData";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/parent/messages")({ component: ParentMess
 function ParentMessages() {
   const { t } = useT();
   const { activeChild } = useParent();
-  const { messages, sendMessage } = useLiveMessages();
+  const { messages, dispatchMessage } = useMessages();
   const [search, setSearch] = useState("");
   const firstName = activeChild.name.split(" ")[0];
 
@@ -28,7 +29,7 @@ function ParentMessages() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
-  const inbox = messages.filter((m) => {
+  const inbox = messages.filter((m: Message) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return [m.fromName, m.subject, m.body].some((v) => v.toLowerCase().includes(q));
@@ -39,7 +40,7 @@ function ParentMessages() {
       return toast.error("Please fill in subject and body");
     }
 
-    sendMessage({
+    dispatchMessage({
       fromId: activeChild.id,
       fromName: `${activeChild.name}'s Parent`,
       recipientRole: recipient,

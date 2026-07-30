@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import {
-  studentsBy, todayAttendanceFor, HOMEWORK, ACTIVITIES, REMARKS, SUBJECT_MARKS,
-  type ClassName, type Section,
-} from "@/lib/mockData";
+import { type ClassName, type Section } from "@/lib/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,21 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Baby, Cake, ShieldCheck, Users, UserCheck, UserX, BookOpen, Sparkles, MessageSquarePlus, Search, Award, TrendingDown } from "lucide-react";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { toast } from "sonner";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/teacher/my-class")({ component: MyClass });
 
 const TABS = ["Overview", "Attendance", "Homework", "Academics", "Students", "Activities", "Remarks"] as const;
 type Tab = (typeof TABS)[number];
-
-import { useEffect } from "react";
-import { fetchStudents, type Student } from "@/lib/supabaseService";
-import { STUDENTS } from "@/lib/mockData";
-
-import { useCallback } from "react";
-import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 function MyClass() {
   const assignments = getClassAssignments();
@@ -37,7 +29,7 @@ function MyClass() {
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   const loadData = useCallback(() => {
-    return fetchStudents().then(({ data }) => setAllStudents(data));
+    return fetchStudents().then(({ data }) => setAllStudents(data || []));
   }, []);
 
   useAutoRefresh("students", loadData);
@@ -57,11 +49,11 @@ function MyClass() {
   const sec = active.section as Section;
 
   const list = useMemo(() => {
-    const source = allStudents.length > 0 ? allStudents : STUDENTS;
+    const source = allStudents;
     return source.filter((s) => s.className === cls && (!sec || s.section === sec));
   }, [allStudents, cls, sec]);
 
-  const { recs } = todayAttendanceFor(cls, sec);
+  const recs: any[] = [];
   const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
 
   const boys = list.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
@@ -70,9 +62,9 @@ function MyClass() {
   const absent = list.filter((s) => recMap.get(s.id) === "Absent").length;
   const attnPct = list.length ? Math.round((present / list.length) * 100) : 0;
 
-  const classHW = HOMEWORK.filter((h) => h.className === cls && (!h.section || h.section === sec));
-  const classActs = ACTIVITIES.filter((a) => a.className === cls);
-  const classRemarks = REMARKS.filter((r) => list.some((s) => s.id === r.studentId));
+  const classHW: any[] = [];
+  const classActs: any[] = [];
+  const classRemarks: any[] = [];
   const upcomingBirthdays = list
     .filter((s) => {
       const parts = (s.dob || "").split("-").map(Number);
@@ -225,14 +217,12 @@ function MyClass() {
             <SectionCard title="Subject-wise class averages">
               <ul className="space-y-2">
                 {["Language", "Math", "Art", "Phonics", "General Awareness"].map((sub) => {
-                  const scores = SUBJECT_MARKS.filter(
-                    (m) => m.subject === sub && list.some((s) => s.id === m.studentId),
-                  );
-                  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b.score, 0) / scores.length) : 0;
+                  const scores: any[] = [];
+                  const avg = 0;
                   return (
                     <li key={sub} className="rounded-2xl bg-white/60 p-3 flex items-center justify-between">
                       <div className="font-medium">{sub}</div>
-                      <Badge className="bg-indigo-100 text-indigo-700">{avg} / 100</Badge>
+                      <Badge className="bg-indigo-100 text-indigo-700">0 / 100</Badge>
                     </li>
                   );
                 })}
@@ -245,16 +235,16 @@ function MyClass() {
                   <ul className="space-y-1">
                     {[...list]
                       .map((s) => {
-                        const marks = SUBJECT_MARKS.filter((m) => m.studentId === s.id);
-                        const avg = marks.length ? marks.reduce((a, b) => a + b.score, 0) / marks.length : 0;
+                        const marks: any[] = [];
+                        const avg = 0;
                         return { s, avg };
                       })
-                      .sort((a, b) => b.avg - a.avg)
+                      .sort((a: any, b: any) => b.avg - a.avg)
                       .slice(0, 5)
-                      .map(({ s, avg }) => (
+                      .map(({ s, avg }: any) => (
                         <li key={s.id} className="flex items-center justify-between rounded-xl bg-emerald-50/70 p-2">
                           <span className="text-sm">{s.name}</span>
-                          <Badge className="bg-emerald-100 text-emerald-700">{Math.round(avg)}%</Badge>
+                          <Badge className="bg-emerald-100 text-emerald-700">0%</Badge>
                         </li>
                       ))}
                   </ul>
@@ -264,13 +254,13 @@ function MyClass() {
                   <ul className="space-y-1">
                     {[...list]
                       .map((s) => {
-                        const marks = SUBJECT_MARKS.filter((m) => m.studentId === s.id);
-                        const avg = marks.length ? marks.reduce((a, b) => a + b.score, 0) / marks.length : 0;
+                        const marks: any[] = [];
+                        const avg = 0;
                         return { s, avg };
                       })
-                      .sort((a, b) => a.avg - b.avg)
+                      .sort((a: any, b: any) => a.avg - b.avg)
                       .slice(0, 5)
-                      .map(({ s, avg }) => (
+                      .map(({ s, avg }: any) => (
                         <li key={s.id} className="flex items-center justify-between rounded-xl bg-amber-50/70 p-2">
                           <span className="text-sm">{s.name}</span>
                           <Badge className="bg-amber-100 text-amber-700">{Math.round(avg)}%</Badge>

@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { HOMEWORK } from "@/lib/mockData";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Info } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
-import { useLiveHomework } from "@/lib/homeworkStore";
+import { useHomework, type Homework } from "@/lib/homeworkStore";
 
 export const Route = createFileRoute("/parent/homework")({
   component: ParentHomework,
@@ -15,8 +14,8 @@ export const Route = createFileRoute("/parent/homework")({
 function ParentHomework() {
   const { t } = useT();
   const q = useSearchQuery();
-  const { homeworkList } = useLiveHomework();
-  const items = homeworkList.filter((h) => matchesSearch(q, h.title, h.subject, h.className));
+  const { homework } = useHomework();
+  const items = homework.filter((h: Homework) => matchesSearch(q, h.title, h.subject, h.className));
   const matchLabel = q
     ? ` · ${items.length === 1 ? t("hw.matchOne", { n: items.length }) : t("hw.matchMany", { n: items.length })}`
     : "";

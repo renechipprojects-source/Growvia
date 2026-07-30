@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import type { Message } from "@/lib/mockData";
-import { MESSAGES as SEED_MESSAGES } from "@/lib/mockData";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { subscribeToRealtimeTable } from "./realtimeService";
@@ -8,14 +7,14 @@ import { subscribeToRealtimeTable } from "./realtimeService";
 const KEY = "sunshine.messages.v2";
 
 function readMessages(): Message[] {
-  if (typeof window === "undefined") return SEED_MESSAGES;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return SEED_MESSAGES;
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_MESSAGES;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return SEED_MESSAGES;
+    return [];
   }
 }
 
@@ -45,96 +44,65 @@ export function dispatchMessage(input: {
     id: `MSG-${Date.now().toString().slice(-4)}`,
     fromId: input.fromId,
     fromName: input.fromName,
-    studentId: input.studentId || "STD-ALL",
-    toParentId: input.toParentId || "PRT-ALL",
+    studentId: input.studentId || "GENERAL",
+    toParentId: input.toParentId || "ALL",
     subject: input.subject,
     body: input.body,
-    time: "Just now",
+    time: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
     priority: input.priority || "Normal",
     read: false,
     direction: "outgoing",
   };
 
-  const current = readMessages();
-  const existingIds = new Set(current.map((m) => m.id));
-  if (!existingIds.has(newMsg.id)) {
-    const next = [newMsg, ...current];
-    writeMessages(next);
-  }
+  const list = readMessages();
+  const updated = [newMsg, ...list];
+  writeMessages(updated);
 
-  if (input.recipientRole === "teacher" || input.recipientRole === "parent") {
-    NotificationService.messageReceived(input.fromName, input.subject, input.recipientRole);
-  }
+  try {
+    (NotificationService as any).messageReceived?.(input.fromName, input.subject);
+  } catch {}
 
-  // Sync to Supabase in background
-  Promise.resolve(
-    supabase.from("messages").insert([
-      {
-        id: newMsg.id,
-        sender_id: input.fromId,
-        sender_name: input.fromName,
-        receiver_role: input.recipientRole,
-        subject: input.subject,
-        body: input.body,
-        created_at: new Date().toISOString(),
-      },
-    ])
-  ).catch(() => {});
+  try {
+    supabase.from("messages").insert([{
+      id: newMsg.id,
+      sender_id: input.fromId,
+      sender_name: input.fromName,
+      sender_role: input.fromName.includes("Teacher") ? "teacher" : "office",
+      receiver_id: input.toParentId || "ALL",
+      receiver_role: input.recipientRole,
+      message_text: `${input.subject}: ${input.body}`,
+      sent_at: new Date().toISOString(),
+      read_status: false,
+    }]);
+  } catch {}
 
   return newMsg;
 }
 
-export function markMessageAsRead(id: string) {
-  const current = readMessages();
-  const next = current.map((m) => (m.id === id ? { ...m, read: true } : m));
-  writeMessages(next);
+export function markMessageRead(id: string) {
+  const list = readMessages().map((m) => (m.id === id ? { ...m, read: true } : m));
+  writeMessages(list);
 }
 
-export function useLiveMessages() {
-  const [msgs, setMsgs] = useState<Message[]>(readMessages);
+export function useMessages() {
+  const [messages, setMessages] = useState<Message[]>(readMessages);
 
   useEffect(() => {
-    const handleUpdate = () => setMsgs(readMessages());
-    window.addEventListener("sunshine-message", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
+    const sync = () => setMessages(readMessages());
+    window.addEventListener("sunshine-message", sync);
+    window.addEventListener("storage", sync);
 
-    // Supabase Realtime subscription for instant message updates across devices
-    const unsubscribeRealtime = subscribeToRealtimeTable({
+    const unsub = subscribeToRealtimeTable({
       table: "messages",
-      onPayload: ({ eventType, new: newRecord }) => {
-        if (eventType === "INSERT" && newRecord) {
-          const current = readMessages();
-          const exists = current.some((m) => m.id === newRecord.id);
-          if (!exists) {
-            const mappedMsg: Message = {
-              id: newRecord.id || `MSG-${Date.now()}`,
-              fromId: newRecord.sender_id || "USER",
-              fromName: newRecord.sender_name || "School Member",
-              studentId: "STD-ALL",
-              toParentId: "PRT-ALL",
-              subject: newRecord.subject || "New Message",
-              body: newRecord.body || "",
-              time: "Just now",
-              priority: "Normal",
-              read: false,
-              direction: "incoming",
-            };
-            writeMessages([mappedMsg, ...current]);
-          }
-        }
-      },
+      onPayload: () => sync(),
     });
 
     return () => {
-      window.removeEventListener("sunshine-message", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-      unsubscribeRealtime();
+      window.removeEventListener("sunshine-message", sync);
+      window.removeEventListener("storage", sync);
+      unsub();
     };
   }, []);
 
-  return {
-    messages: msgs,
-    sendMessage: dispatchMessage,
-    markRead: markMessageAsRead,
-  };
+  return { messages, dispatchMessage, markMessageRead };
 }

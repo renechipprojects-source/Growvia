@@ -41,10 +41,10 @@ function TeacherCredentialsPage() {
   const [, setTick] = useState(0);
   useEffect(() => subscribeCredentials(() => setTick((n) => n + 1)), []);
 
-  const [teachers, setTeachers] = useState<Teacher[]>(TEACHERS);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   useEffect(() => {
     fetchTeachers().then(({ data }) => {
-      setTeachers(data && data.length > 0 ? data : TEACHERS);
+      setTeachers(data || []);
     });
   }, []);
 

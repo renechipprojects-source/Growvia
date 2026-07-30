@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { MESSAGES, STUDENTS, studentsBy, type ClassName, type Section, type Message } from "@/lib/mockData";
+import type { ClassName, Section, Message } from "@/lib/mockData";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { Send, Search, Plus, Inbox, ArrowUpRight, FileText, Paperclip, User, Use
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { useLiveMessages } from "@/lib/messagesStore";
+import { useMessages } from "@/lib/messagesStore";
 
 export const Route = createFileRoute("/teacher/messages")({ component: TeacherMessages });
 
@@ -27,7 +27,7 @@ function TeacherMessages() {
   const defaultCls = (primary?.className as ClassName) ?? "Nursery";
   const defaultSec = (primary?.section as Section) ?? "A";
 
-  const { messages, sendMessage: dispatchLiveMessage } = useLiveMessages();
+  const { messages, dispatchMessage } = useMessages();
   const [folder, setFolder] = useState<Folder>("Inbox");
   const [search, setSearch] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
@@ -101,8 +101,8 @@ function TeacherMessages() {
             <div className="text-sm text-muted-foreground py-8 text-center">No messages in {folder}.</div>
           ) : (
             <ul className="divide-y divide-white/60 max-h-[60vh] sm:max-h-[560px] overflow-y-auto pr-1">
-              {filtered.map((m) => {
-                const student = STUDENTS.find((s) => s.id === m.studentId);
+              {filtered.map((m: any) => {
+                const student = null;
                 return (
                   <li key={m.id} className="py-3 flex items-start gap-3">
                     <span className={`mt-1 h-2 w-2 rounded-full ${!m.read ? "bg-sky-500" : "bg-slate-300"}`} />
@@ -115,7 +115,7 @@ function TeacherMessages() {
                       <div className="text-xs text-muted-foreground truncate">{m.body}</div>
                       {student && (
                         <div className="text-[11px] text-slate-500 mt-1">
-                          Re: {student.name} · {student.className}-{student.section} · {m.priority === "High" && <Badge className="bg-rose-100 text-rose-700 ml-1">High</Badge>}
+                          Re: {(student as any).name} · {(student as any).className}-{(student as any).section} · {m.priority === "High" && <Badge className="bg-rose-100 text-rose-700 ml-1">High</Badge>}
                         </div>
                       )}
                     </div>
@@ -132,7 +132,7 @@ function TeacherMessages() {
         onClose={() => setComposeOpen(false)}
         defaultClass={defaultCls}
         defaultSection={defaultSec}
-        onSend={(input) => dispatchLiveMessage(input)}
+        onSend={(input) => dispatchMessage(input)}
       />
     </div>
   );
@@ -159,7 +159,7 @@ function ComposeDialog({
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<"Normal" | "High">("Normal");
 
-  const classList = useMemo(() => studentsBy(cls, sec), [cls, sec]);
+  const classList: any[] = [];
   const searched = classList.filter((s) => {
     if (!studentSearch.trim()) return true;
     const q = studentSearch.toLowerCase();

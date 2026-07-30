@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { DIARY } from "@/lib/mockData";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +29,7 @@ function Diary() {
         </SectionCard>
         <SectionCard title="Recent entries" className="lg:col-span-2">
           <ul className="space-y-3">
-            {DIARY.map((d) => (
+            {[].map((d: any) => (
               <li key={d.id} className="rounded-2xl bg-white/60 p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-muted-foreground">{d.date}</div>

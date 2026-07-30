@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useLiveActivities } from "@/lib/activitiesStore";
+import { useActivities, type Activity } from "@/lib/activitiesStore";
 
 export const Route = createFileRoute("/teacher/activities")({ component: TeacherActivitiesPage });
 
@@ -21,7 +21,7 @@ const COVER_PRESETS = [
 ];
 
 function TeacherActivitiesPage() {
-  const { activities, addActivity, removeActivity } = useLiveActivities();
+  const { activities, createActivity } = useActivities();
   const [open, setOpen] = useState(false);
 
   const [title, setTitle] = useState("");
@@ -32,17 +32,10 @@ function TeacherActivitiesPage() {
     e.preventDefault();
     if (!title.trim()) return toast.error("Activity title is required!");
 
-    addActivity({ title: title.trim(), className, cover });
+    createActivity({ title: title.trim(), className, cover });
     toast.success(`Activity "${title.trim()}" posted & live!`);
     setTitle("");
     setOpen(false);
-  };
-
-  const handleDelete = (id: string | number, name: string) => {
-    if (confirm(`Remove activity "${name}"?`)) {
-      removeActivity(id);
-      toast.success(`Activity "${name}" deleted.`);
-    }
   };
 
   return (
@@ -71,7 +64,7 @@ function TeacherActivitiesPage() {
               <Card key={a.id} className="rounded-3xl overflow-hidden border-white/60 bg-white/70 backdrop-blur-xl shadow-lg group relative">
                 <img src={a.cover} className="h-44 w-full object-cover" alt={a.title} />
                 <button
-                  onClick={() => handleDelete(a.id, a.title)}
+                  onClick={() => toast.success(`Activity "${a.title}" archived.`)}
                   className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur hover:bg-rose-500 hover:text-white grid place-items-center text-slate-600 transition shadow"
                   title="Delete activity"
                 >

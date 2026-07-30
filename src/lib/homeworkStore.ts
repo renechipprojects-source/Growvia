@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { HOMEWORK as SEED_HOMEWORK } from "@/lib/mockData";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
@@ -14,14 +13,14 @@ export interface Homework {
 const KEY = "sunshine.homework.v2";
 
 function readHomework(): Homework[] {
-  if (typeof window === "undefined") return SEED_HOMEWORK;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return SEED_HOMEWORK;
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_HOMEWORK;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return SEED_HOMEWORK;
+    return [];
   }
 }
 
@@ -45,55 +44,42 @@ export function createHomework(input: {
     title: input.title,
     className: input.className,
     subject: input.subject,
-    due: input.due || new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    due: input.due,
   };
 
-  const current = readHomework();
-  const next = [newHW, ...current];
-  writeHomework(next);
+  const list = readHomework();
+  writeHomework([newHW, ...list]);
 
-  // Broadcast notification
-  NotificationService.homeworkAssigned(newHW.title, `${newHW.subject} (${newHW.className})`);
+  try {
+    NotificationService.homeworkAssigned(input.subject, input.className);
+  } catch {}
 
-  // Sync to Supabase in background
-  Promise.resolve(
+  try {
     supabase.from("homework").insert([{
       id: newHW.id,
-      title: newHW.title,
-      class_name: newHW.className,
-      subject: newHW.subject,
-      due_date: newHW.due,
-      details: input.details,
+      title: input.title,
+      class_name: input.className,
+      subject: input.subject,
+      due_date: input.due,
       created_at: new Date().toISOString(),
-    }])
-  ).catch(() => {});
+    }]);
+  } catch {}
 
   return newHW;
 }
 
-export function deleteHomework(id: string | number) {
-  const current = readHomework();
-  const next = current.filter((h) => h.id !== id);
-  writeHomework(next);
-  Promise.resolve(supabase.from("homework").delete().eq("id", id)).catch(() => {});
-}
-
-export function useLiveHomework() {
-  const [homeworkList, setHomeworkList] = useState<Homework[]>(readHomework);
+export function useHomework() {
+  const [homework, setHomework] = useState<Homework[]>(readHomework);
 
   useEffect(() => {
-    const handleUpdate = () => setHomeworkList(readHomework());
-    window.addEventListener("sunshine-homework", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
+    const sync = () => setHomework(readHomework());
+    window.addEventListener("sunshine-homework", sync);
+    window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("sunshine-homework", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("sunshine-homework", sync);
+      window.removeEventListener("storage", sync);
     };
   }, []);
 
-  return {
-    homeworkList,
-    addHomework: createHomework,
-    removeHomework: deleteHomework,
-  };
+  return { homework, createHomework };
 }

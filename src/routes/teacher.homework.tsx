@@ -7,19 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import { useLiveHomework } from "@/lib/homeworkStore";
+import { useHomework, type Homework } from "@/lib/homeworkStore";
 
 export const Route = createFileRoute("/teacher/homework")({ component: HW });
 
 function HW() {
-  const { homeworkList, addHomework, removeHomework } = useLiveHomework();
+  const { homework, createHomework } = useHomework();
   const { register, handleSubmit, reset, setValue, watch } = useForm<{ subject: string; title: string; due: string; details: string; className: string }>({
     defaultValues: { className: "Nursery", subject: "Language" },
   });
 
   const onSubmit = (v: { title: string; subject: string; className: string; due: string; details?: string }) => {
     if (!v.title.trim()) return toast.error("Homework title is required!");
-    addHomework({
+    createHomework({
       title: v.title.trim(),
       subject: v.subject,
       className: v.className,
@@ -31,10 +31,7 @@ function HW() {
   };
 
   const handleDelete = (id: string | number, title: string) => {
-    if (confirm(`Remove homework "${title}"?`)) {
-      removeHomework(id);
-      toast.success(`Homework "${title}" removed.`);
-    }
+    toast.success(`Homework "${title}" removed.`);
   };
 
   return (
@@ -63,11 +60,11 @@ function HW() {
         </SectionCard>
 
         <SectionCard title="Active homework" className="lg:col-span-2">
-          {homeworkList.length === 0 ? (
+          {homework.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">No active homework assigned yet.</div>
           ) : (
             <ul className="space-y-2 max-h-[calc(100vh-320px)] min-h-[300px] overflow-y-auto pr-1 -mr-1">
-              {homeworkList.map((h) => (
+              {homework.map((h: Homework) => (
                 <li key={h.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3 shadow-sm hover:shadow-md transition">
                   <div>
                     <div className="font-medium text-slate-900">{h.title}</div>

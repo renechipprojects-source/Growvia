@@ -91,89 +91,109 @@ function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-slate-100 relative overflow-hidden flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-100 via-blue-50/50 to-indigo-50/30 text-slate-800 relative overflow-hidden flex items-center justify-center p-4 lg:p-8">
       {/* Background Orbs */}
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-amber-500/10 opacity-50 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-indigo-500/10 opacity-50 blur-3xl" />
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-amber-400/15 opacity-60 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-blue-500/15 opacity-60 blur-3xl" />
 
-      <div className="relative mx-auto grid w-full max-w-5xl grid-cols-1 items-stretch rounded-3xl border border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-2xl lg:grid-cols-12 overflow-hidden">
+      <div className="relative mx-auto grid w-full max-w-5xl grid-cols-1 items-stretch rounded-3xl border border-slate-200/80 bg-white/80 shadow-2xl shadow-slate-300/60 backdrop-blur-xl lg:grid-cols-12 overflow-hidden">
         {/* Left Side — School Branding & Info */}
-        <div className="p-8 lg:p-10 lg:col-span-7 bg-gradient-to-b from-slate-900/80 to-slate-950/90 border-r border-slate-800/80 flex flex-col justify-between space-y-6">
+        <div className="p-8 lg:p-10 lg:col-span-7 bg-gradient-to-br from-white/90 via-slate-50/70 to-blue-50/40 border-b lg:border-b-0 lg:border-r border-slate-200/80 flex flex-col justify-between space-y-6">
           <div>
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 p-2 flex items-center justify-center text-amber-400 overflow-hidden shrink-0">
-                {settings.branding.logoUrl ? (
-                  <img src={settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
-                ) : (
-                  <GraduationCap className="h-7 w-7" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">{settings.branding.schoolName}</h1>
-                <div className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
-                  Academic Session {settings.school.academicYear}
+            <div className="flex items-start justify-between gap-4">
+              {/* Top Left: School Logo, School Name & Academic Session */}
+              <div className="flex flex-col items-start">
+                <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-sm">
+                  {settings.branding.logoUrl ? (
+                    <img src={settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                  ) : (
+                    <GraduationCap className="h-8 w-8" />
+                  )}
+                </div>
+                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{settings.branding.schoolName}</h1>
+                <div className="mt-1 text-xs text-amber-600 font-bold uppercase tracking-wider">
+                  ACADEMIC SESSION {settings.school.academicYear}
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 space-y-3 text-sm text-slate-300">
-              <p className="text-base text-slate-200 leading-relaxed font-medium">
-                {settings.loginPage.welcomeMessage}
-              </p>
-
-              {settings.branding.motto && (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium">
-                  <Sparkles className="h-3.5 w-3.5" /> &ldquo;{settings.branding.motto}&rdquo;
+              {/* Top Right: Growvia ERP Developer Branding */}
+              {Boolean(settings.branding.projectLogo || settings.branding.project_logo) && (
+                <div className="flex flex-col items-end text-right shrink-0">
+                  <div className="h-9 w-9 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shadow-xs overflow-hidden">
+                    <img
+                      src={settings.branding.projectLogo || settings.branding.project_logo}
+                      alt={settings.branding.projectName || settings.branding.project_name || "Growvia"}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  <span className="mt-1 text-xs font-semibold text-slate-600 tracking-tight">
+                    {settings.branding.projectName || settings.branding.project_name || "Growvia"}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* School Details Metadata */}
-            <div className="mt-8 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+            <div className="mt-6 space-y-3 text-sm text-slate-600">
+              <p className="text-base text-slate-700 leading-relaxed font-medium">
+                {settings.loginPage.welcomeMessage}
+              </p>
+
+              {settings.branding.motto && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-semibold shadow-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" /> &ldquo;{settings.branding.motto}&rdquo;
+                </div>
+              )}
+            </div>
+
+            {/* School Details Metadata (Website & School Code removed as required) */}
+            <div className="mt-8 pt-6 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
               <div className="flex items-start gap-2.5">
-                <MapPin className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>{settings.branding.address}</span>
+                <MapPin className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <span className="font-medium text-slate-700">{settings.branding.address}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>{settings.branding.phone}</span>
+                <Phone className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span className="font-medium text-slate-700">{settings.branding.phone}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Mail className="h-4 w-4 text-sky-400 shrink-0" />
-                <span>{settings.branding.email}</span>
+                <Mail className="h-4 w-4 text-sky-600 shrink-0" />
+                <span className="font-medium text-slate-700">{settings.branding.email}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Globe className="h-4 w-4 text-indigo-400 shrink-0" />
-                <span>{settings.branding.website}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Clock className="h-4 w-4 text-purple-400 shrink-0" />
-                <span>Office Hours: {settings.branding.officeHours}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Calendar className="h-4 w-4 text-pink-400 shrink-0" />
-                <span>Code: {settings.school.schoolCode}</span>
+                <Clock className="h-4 w-4 text-purple-600 shrink-0" />
+                <span className="font-medium text-slate-700">Office Hours: {settings.branding.officeHours}</span>
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-500 pt-4 border-t border-slate-800/50">
-            {settings.branding.footer}
+          <div className="pt-6 border-t border-slate-200/80 text-center space-y-0.5">
+            {settings.branding.footer ? (
+              settings.branding.footer.split("\n").map((line, idx) => (
+                <p key={idx} className={idx === 0 ? "text-xs font-semibold text-slate-700" : "text-[11px] text-slate-500"}>
+                  {line}
+                </p>
+              ))
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-slate-700">Renechip Private Limited</p>
+                <p className="text-[11px] text-slate-500">© 2026 All Rights Reserved.</p>
+              </>
+            )}
           </div>
         </div>
 
         {/* Right Side — Login Form */}
-        <div className="p-8 lg:p-10 lg:col-span-5 flex flex-col justify-center bg-slate-900/60">
+        <div className="p-8 lg:p-10 lg:col-span-5 flex flex-col justify-center bg-white/70 backdrop-blur-md">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Institutional Sign In</h2>
-            <p className="text-xs text-slate-400 mt-1">
+            <h2 className="text-xl font-bold text-slate-900">Institutional Sign In</h2>
+            <p className="text-xs text-slate-500 mt-1">
               Enter your assigned Login ID and password to access your role dashboard.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
-              <Label htmlFor="loginId" className="text-xs text-slate-300">Login ID</Label>
+              <Label htmlFor="loginId" className="text-xs font-semibold text-slate-700">Login ID</Label>
               <div className="relative mt-1.5">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -184,15 +204,15 @@ function Login() {
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
                   placeholder="e.g. ADMIN001 / OFFICE001"
-                  className="pl-9 bg-slate-950 border-slate-800 text-white text-sm"
+                  className="pl-9 bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:ring-amber-500/20 text-sm rounded-xl"
                   aria-invalid={!!errors.loginId}
                 />
               </div>
-              {errors.loginId && <p className="mt-1 text-xs text-red-400">{errors.loginId}</p>}
+              {errors.loginId && <p className="mt-1 text-xs text-red-500 font-medium">{errors.loginId}</p>}
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-xs text-slate-300">Password</Label>
+              <Label htmlFor="password" className="text-xs font-semibold text-slate-700">Password</Label>
               <div className="relative mt-1.5">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -202,38 +222,38 @@ function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="pl-9 pr-10 bg-slate-950 border-slate-800 text-white text-sm"
+                  className="pl-9 pr-10 bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:ring-amber-500/20 text-sm rounded-xl"
                   aria-invalid={!!errors.password}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-slate-800"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-slate-100"
                   aria-label={showPwd ? "Hide password" : "Show password"}
                 >
                   {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password}</p>}
+              {errors.password && <p className="mt-1 text-xs text-red-500 font-medium">{errors.password}</p>}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between text-xs text-slate-600">
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-950 text-amber-500"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                 />
                 Remember me
               </label>
-              <Link to="/forgot-password" className="font-medium text-amber-400 hover:text-amber-300">
+              <Link to="/forgot-password" className="font-semibold text-amber-600 hover:text-amber-700">
                 Forgot password?
               </Link>
             </div>
 
             {errors.form && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-600 font-medium">
                 {errors.form}
               </div>
             )}

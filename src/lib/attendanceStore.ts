@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { STUDENTS } from "@/lib/mockData";
+import type { Student } from "@/lib/mockData";
 
 export interface StudentAttendanceEntry {
   id?: string;
@@ -23,55 +23,8 @@ const EVENT_NAME = "sunshine-attendance-update";
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// Seed realistic historical attendance for 30 days if empty
 function generateInitialHistoricalAttendance(): StudentAttendanceEntry[] {
-  let localStudents: any[] = [];
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem("SUNSHINE_STUDENTS");
-      if (raw) localStudents = JSON.parse(raw);
-    } catch {}
-  }
-  const studentList = localStudents.length > 0 ? localStudents : STUDENTS;
-  const entries: StudentAttendanceEntry[] = [];
-  const today = new Date();
-
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dayOfWeek = d.getDay();
-    if (dayOfWeek === 0) continue; // Skip Sundays
-
-    const dateStr = d.toISOString().slice(0, 10);
-    const dayName = DAYS_OF_WEEK[dayOfWeek];
-
-    studentList.forEach((s, idx) => {
-      // Deterministic realistic seed
-      const hash = (s.id.charCodeAt(s.id.length - 1) + i * 7 + idx * 13) % 20;
-      let status: "P" | "A" | "L" | "Lv" = "P";
-      if (hash === 1) status = "A";
-      else if (hash === 2) status = "L";
-      else if (hash === 3) status = "Lv";
-
-      entries.push({
-        id: `ATT-HIST-${s.id}-${dateStr}`,
-        studentId: s.id,
-        studentName: s.name,
-        className: s.className || "Playgroup",
-        section: s.section || "A",
-        admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
-        rollNo: s.rollNo || idx + 1,
-        parentName: s.parent || "Parent",
-        date: dateStr,
-        day: dayName,
-        status,
-        markedBy: "Meenakshi Sundaram (Class Teacher)",
-        updatedAt: new Date(d.setHours(8, 45, 0)).toISOString(),
-      });
-    });
-  }
-
-  return entries;
+  return [];
 }
 
 export function getStoredAttendance(): StudentAttendanceEntry[] {
@@ -119,9 +72,8 @@ export function saveAttendance(
 
   Object.entries(records).forEach(([studentId, status]) => {
     const student =
-      (studentList && studentList.find((s) => s.id === studentId)) ||
-      localStudents.find((s) => s.id === studentId) ||
-      STUDENTS.find((s) => s.id === studentId);
+      (studentList && studentList.find((s: any) => s.id === studentId)) ||
+      localStudents.find((s: any) => s.id === studentId);
 
     const entry: StudentAttendanceEntry = {
       id: `ATT-${studentId}-${date}`,

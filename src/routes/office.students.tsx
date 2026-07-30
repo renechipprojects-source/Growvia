@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
 import { DataTable } from "@/components/DataTable";
-import { STUDENTS, type Student } from "@/lib/mockData";
+import { type Student } from "@/lib/mockData";
 import { fetchStudents } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
@@ -23,7 +23,7 @@ function OfficeStudents() {
 
   const loadStudents = useCallback(() => {
     return fetchStudents().then(({ data: fetched }) => {
-      setData(fetched && fetched.length > 0 ? fetched : STUDENTS);
+      setData(fetched || []);
     });
   }, []);
 

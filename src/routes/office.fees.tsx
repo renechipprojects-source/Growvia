@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
-import { FEES as SEED_FEES, STUDENTS as SEED_STUDENTS } from "@/lib/mockData";
 import { fetchStudents, fetchFees, saveFeeRecord, saveReceipt, recalculateFeeLedger, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +44,7 @@ type Receipt = {
 
 function FeeCollection() {
   const [feeList, setFeeList] = useState<FeeLedgerItem[]>([]);
-  const [students, setStudents] = useState<any[]>(SEED_STUDENTS);
+  const [students, setStudents] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
@@ -73,35 +72,11 @@ function FeeCollection() {
   // Load students & fees on mount
   const loadData = useCallback(async () => {
     const { data: stData } = await fetchStudents();
-    const currentStudents = stData && stData.length > 0 ? stData : SEED_STUDENTS;
+    const currentStudents = stData || [];
     setStudents(currentStudents);
 
     const { data: feData } = await fetchFees();
-    if (feData && feData.length > 0) {
-      setFeeList(feData);
-    } else {
-      const dynamicFees: FeeLedgerItem[] = currentStudents.map((s, idx) => {
-        const totalFee = s.className === "Playgroup" ? 8500 : s.className === "Nursery" ? 9500 : 10500;
-        const paidAmt = s.feeStatus === "Paid" ? totalFee : s.feeStatus === "Partial" ? Math.round(totalFee / 2) : 0;
-        return recalculateFeeLedger({
-          id: `F-STU-${s.id}`,
-          studentId: s.id,
-          studentName: s.name,
-          admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
-          className: `${s.className} ${s.section || "A"}`.trim(),
-          originalFee: totalFee,
-          discountAmount: 0,
-          finalFee: totalFee,
-          amount: totalFee,
-          paid: paidAmt,
-          dueDate: "2026-08-15",
-          status: paidAmt >= totalFee ? "Paid" : paidAmt > 0 ? "Partial" : "Pending",
-          month: "August 2026",
-          payments: paidAmt > 0 ? [{ id: `P-SEED-${idx}`, studentId: s.id, feeType: "Tuition Fee", installmentNo: 1, amount: paidAmt, date: "2026-07-15", method: "Cash", receiptNo: `REC-2026-${100 + idx}`, collectedBy: "Office Staff" }] : [],
-        });
-      });
-      setFeeList(dynamicFees);
-    }
+    setFeeList(feData || []);
   }, []);
 
   const { setFormEditing } = useAutoRefresh("fees", loadData);

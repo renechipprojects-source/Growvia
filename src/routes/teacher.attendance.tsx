@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { studentsBy, ATTENDANCE_RECORDS, type ClassName, type Section } from "@/lib/mockData";
+import { type ClassName, type Section } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Badge } from "@/components/ui/badge";
 import { saveAttendance } from "@/lib/attendanceStore";
 import { z } from "zod";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
 
 const searchSchema = z.object({ a: z.string().optional() });
 
@@ -35,9 +36,6 @@ function assignmentLabel(a: TeacherAssignment) {
     ? `${a.className}-${a.section} · Class Teacher`
     : `${a.subject} · ${a.className}-${a.section}`;
 }
-
-import { fetchStudents, type Student } from "@/lib/supabaseService";
-import { STUDENTS } from "@/lib/mockData";
 
 function Att() {
   const { a: activeId } = Route.useSearch();
@@ -63,7 +61,7 @@ function Att() {
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   useEffect(() => {
-    fetchStudents().then(({ data }) => setAllStudents(data));
+    fetchStudents().then(({ data }) => setAllStudents(data || []));
   }, []);
 
   const headerQuery = useSearchQuery();
@@ -73,12 +71,12 @@ function Att() {
   const sec = active.section as Section;
 
   const list = useMemo(() => {
-    const source = allStudents.length > 0 ? allStudents : STUDENTS;
+    const source = allStudents;
     return source.filter((s) => s.className === cls && (!sec || s.section === sec));
   }, [allStudents, cls, sec]);
 
   const seed = useMemo(() => {
-    const recs = ATTENDANCE_RECORDS.filter((r) => r.date === date);
+    const recs: any[] = [];
     const map = new Map(recs.map((r) => [r.studentId, r.status]));
     const out: Record<string, Status> = {};
     for (const s of list) {

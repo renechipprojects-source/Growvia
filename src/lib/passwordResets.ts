@@ -7,7 +7,6 @@
 import type { Role } from "@/lib/roleConfig";
 import { findSystemUserByLoginId } from "@/lib/auth";
 import { listParentCredentials, listTeacherCredentials } from "@/lib/credentials";
-import { STUDENTS, TEACHERS } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase";
 
 const KEY = "sunshine.passwordResets.v1";
@@ -100,20 +99,17 @@ export function requestTeacherReset(identifier: string): CreateResult | CreateEr
   const id = identifier.trim();
   if (!id) return { ok: false, error: "Enter your Login ID or Employee ID." };
   const creds = listTeacherCredentials();
-  // Match on loginId OR teacherId (employee id)
   const cred = creds.find(
     (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.teacherId.toLowerCase() === id.toLowerCase(),
   );
   if (!cred) return { ok: false, error: "No teacher account found for that identifier." };
-  const teacher = TEACHERS.find((t) => t.id === cred.teacherId);
   const req: ResetRequest = {
     id: makeId(),
     role: "teacher",
-    name: teacher?.name ?? "Teacher",
+    name: "Teacher",
     loginId: cred.loginId,
     identifier: id,
     employeeId: cred.teacherId,
-    mobile: teacher?.phone,
     requestedAt: new Date().toISOString(),
     status: "Pending",
   };
@@ -127,33 +123,15 @@ export function requestParentReset(identifier: string): CreateResult | CreateErr
   const id = identifier.trim();
   if (!id) return { ok: false, error: "Enter your Admission Number or registered Mobile Number." };
   const creds = listParentCredentials();
-  const digits = id.replace(/\D/g, "");
-  // Try admission match (by student), then mobile match.
-  let cred = creds.find((c) => {
-    const s = STUDENTS.find((st) => st.id === c.studentId);
-    return s?.admissionNo?.toLowerCase() === id.toLowerCase();
-  });
-  if (!cred && digits.length >= 6) {
-    cred = creds.find((c) => {
-      const s = STUDENTS.find((st) => st.id === c.studentId);
-      const p = (s?.phone ?? "").replace(/\D/g, "");
-      return p.endsWith(digits.slice(-10));
-    });
-  }
-  if (!cred) {
-    // Fall back: match on loginId directly
-    cred = creds.find((c) => c.loginId.toLowerCase() === id.toLowerCase());
-  }
+  const cred = creds.find((c) => c.loginId.toLowerCase() === id.toLowerCase() || c.studentId.toLowerCase() === id.toLowerCase());
   if (!cred) return { ok: false, error: "No parent account found for that identifier." };
-  const student = STUDENTS.find((s) => s.id === cred.studentId);
   const req: ResetRequest = {
     id: makeId(),
     role: "parent",
-    name: student?.parent ?? "Parent",
+    name: "Parent",
     loginId: cred.loginId,
     identifier: id,
-    admissionNo: student?.admissionNo,
-    mobile: student?.phone,
+    admissionNo: cred.studentId,
     requestedAt: new Date().toISOString(),
     status: "Pending",
   };

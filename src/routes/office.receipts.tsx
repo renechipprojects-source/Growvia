@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
 import { DataTable } from "@/components/DataTable";
-import { RECEIPTS as SEED_RECEIPTS } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -15,7 +14,7 @@ export const Route = createFileRoute("/office/receipts")({
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 function ReceiptsPage() {
-  const [list, setList] = useState(SEED_RECEIPTS);
+  const [list, setList] = useState<any[]>([]);
   const { settings } = useDeveloperSettings();
 
   useEffect(() => {
@@ -24,7 +23,7 @@ function ReceiptsPage() {
         const raw = localStorage.getItem("SUNSHINE_RECEIPTS");
         if (raw) {
           const stored = JSON.parse(raw);
-          if (Array.isArray(stored) && stored.length > 0) {
+          if (Array.isArray(stored)) {
             const mapped = stored.map((s: any) => ({
               id: s.receiptNo || s.id,
               receiptNo: s.receiptNo,
@@ -34,9 +33,7 @@ function ReceiptsPage() {
               date: s.date,
               collectedBy: s.collectedBy || "Office",
             }));
-            const existingNos = new Set(mapped.map((m: any) => m.receiptNo));
-            const uniqueSeed = SEED_RECEIPTS.filter((sr) => !existingNos.has(sr.receiptNo));
-            setList([...mapped, ...uniqueSeed]);
+            setList(mapped);
           }
         }
       } catch (err) {

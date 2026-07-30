@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { STUDENTS, SUBJECT_MARKS, type ClassName, type Section } from "@/lib/mockData";
+import { type ClassName, type Section, type Student } from "@/lib/mockData";
+import { fetchStudents } from "@/lib/supabaseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,14 @@ interface MarkRow {
   score: number;
   remarks: string;
   dirty: boolean;
+}
+
+function useClassStudents(className: ClassName, section: Section) {
+  const [all, setAll] = useState<Student[]>([]);
+  useEffect(() => {
+    fetchStudents().then(({ data }) => setAll((data as any) || []));
+  }, []);
+  return useMemo(() => all.filter((s) => s.className === className && (!section || s.section === section)), [all, className, section]);
 }
 
 function Progression() {
@@ -107,19 +116,13 @@ function Filters({ className, section, subject, assessment, onClass, onSection, 
   );
 }
 
-function useClassStudents(className: ClassName, section: Section) {
-  return useMemo(() => STUDENTS.filter((s) => s.className === className && s.section === section), [className, section]);
-}
-
 /* ─── Overview (read-only) ─── */
 function OverviewTab({ className, section, subject, onClass, onSection, onSubject }: {
   className: ClassName; section: Section; subject: string;
   onClass: (c: ClassName) => void; onSection: (s: Section) => void; onSubject: (v: string) => void;
 }) {
   const students = useClassStudents(className, section);
-  const classMarks = useMemo(() =>
-    SUBJECT_MARKS.filter((m) => students.some((s) => s.id === m.studentId)),
-  [students]);
+  const classMarks: any[] = [];
 
   const subjectAvgs = SUBJECTS.map((sub) => {
     const rows = classMarks.filter((m) => m.subject === sub);
@@ -229,13 +232,12 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   useEffect(() => {
     const next: Record<string, MarkRow> = {};
     students.forEach((s) => {
-      const existing = SUBJECT_MARKS.find((m) => m.studentId === s.id && m.subject === subject);
       next[s.id] = {
         studentId: s.id,
         rollNo: s.rollNo,
         name: s.name,
-        outOf: existing?.outOf ?? 100,
-        score: existing?.score ?? 0,
+        outOf: 100,
+        score: 0,
         remarks: "",
         dirty: false,
       };
@@ -376,11 +378,8 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
             </TableHeader>
             <TableBody>
               {students.map((st) => {
-                const marks = SUBJECTS.map((sub) => {
-                  const m = SUBJECT_MARKS.find((r) => r.studentId === st.id && r.subject === sub);
-                  return m ? Math.round((m.score / m.outOf) * 100) : 0;
-                });
-                const avg = Math.round(marks.reduce((a, b) => a + b, 0) / marks.length);
+                const marks = SUBJECTS.map(() => 0);
+                const avg = 0;
                 return (
                   <TableRow key={st.id}>
                     <TableCell className="font-medium">{st.name}</TableCell>
@@ -401,13 +400,8 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
 function AnalysisTab({ className, section }: { className: ClassName; section: Section }) {
   const students = useClassStudents(className, section);
   const buckets = { excellent: 0, good: 0, average: 0, needs: 0 };
-  students.forEach((s) => {
-    const marks = SUBJECT_MARKS.filter((m) => m.studentId === s.id);
-    const pct = marks.length ? marks.reduce((n, m) => n + (m.score / m.outOf) * 100, 0) / marks.length : 0;
-    if (pct >= 85) buckets.excellent++;
-    else if (pct >= 70) buckets.good++;
-    else if (pct >= 55) buckets.average++;
-    else buckets.needs++;
+  students.forEach(() => {
+    buckets.needs++;
   });
   const total = students.length || 1;
   const bar = (label: string, count: number, tone: string) => (
@@ -438,8 +432,7 @@ function AnalysisTab({ className, section }: { className: ClassName; section: Se
           </div>
           <ul className="space-y-2 overflow-y-auto pr-1 -mr-1">
             {students.map((s) => {
-              const marks = SUBJECT_MARKS.filter((m) => m.studentId === s.id);
-              const pct = marks.length ? Math.round(marks.reduce((n, m) => n + (m.score / m.outOf) * 100, 0) / marks.length) : 0;
+              const pct = 0;
               return (
                 <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-white/60 p-2.5">
                   <img src={s.avatar} className="h-8 w-8 rounded-full" alt="" />

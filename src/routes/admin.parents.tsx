@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { type Parent } from "@/lib/admin-mock-data";
 import { fetchStudents } from "@/lib/supabaseService";
-import { STUDENTS } from "@/lib/mockData";
 
 export const Route = createFileRoute("/admin/parents")({
   component: ParentsPage,
@@ -20,7 +19,7 @@ function ParentsPage() {
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
-      const source = data && data.length > 0 ? data : STUDENTS;
+      const source = data || [];
       const mapped: Parent[] = source.map((s) => {
         const parentName = typeof s.parent === "string" ? s.parent : (s.parent as any)?.name || "Parent";
         return {

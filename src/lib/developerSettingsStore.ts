@@ -13,6 +13,10 @@ export interface SystemBranding {
   footer: string;
   receiptHeader: string;
   reportHeader: string;
+  projectName?: string;
+  projectLogo?: string;
+  project_name?: string;
+  project_logo?: string;
 }
 
 export interface LoginPageConfig {
@@ -66,9 +70,13 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     website: "https://sunshineplayschool.edu",
     motto: "Nurturing Little Minds for a Brighter Tomorrow",
     officeHours: "8:30 AM - 4:30 PM (Mon - Sat)",
-    footer: "© 2026 Sunshine Play School. All Rights Reserved.",
+    footer: "Renechip Private Limited\n© 2026 All Rights Reserved.",
     receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
     reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
+    projectName: "Growvia",
+    projectLogo: "/growvia-logo.png",
+    project_name: "Growvia",
+    project_logo: "/growvia-logo.png",
   },
   loginPage: {
     title: "Sunshine Play School ERP",
@@ -109,10 +117,17 @@ export function getDeveloperSettings(): DeveloperSettings {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_DEV_SETTINGS;
     const parsed = JSON.parse(raw);
+    const mergedBranding = { ...DEFAULT_DEV_SETTINGS.branding, ...parsed.branding };
+    // Ensure aliases stay in sync
+    if (mergedBranding.project_name && !mergedBranding.projectName) mergedBranding.projectName = mergedBranding.project_name;
+    if (mergedBranding.project_logo && !mergedBranding.projectLogo) mergedBranding.projectLogo = mergedBranding.project_logo;
+    if (mergedBranding.projectName && !mergedBranding.project_name) mergedBranding.project_name = mergedBranding.projectName;
+    if (mergedBranding.projectLogo && !mergedBranding.project_logo) mergedBranding.project_logo = mergedBranding.projectLogo;
+
     return {
       ...DEFAULT_DEV_SETTINGS,
       ...parsed,
-      branding: { ...DEFAULT_DEV_SETTINGS.branding, ...parsed.branding },
+      branding: mergedBranding,
       loginPage: { ...DEFAULT_DEV_SETTINGS.loginPage, ...parsed.loginPage },
       theme: { ...DEFAULT_DEV_SETTINGS.theme, ...parsed.theme },
       features: { ...DEFAULT_DEV_SETTINGS.features, ...parsed.features },
@@ -126,6 +141,15 @@ export function getDeveloperSettings(): DeveloperSettings {
 export function saveDeveloperSettings(settings: DeveloperSettings) {
   if (typeof window === "undefined") return;
   try {
+    // Keep aliases synced
+    const projName = settings.branding.projectName || settings.branding.project_name || "Growvia";
+    const projLogo = settings.branding.projectLogo !== undefined ? settings.branding.projectLogo : (settings.branding.project_logo !== undefined ? settings.branding.project_logo : "/growvia-logo.png");
+
+    settings.branding.projectName = projName;
+    settings.branding.project_name = projName;
+    settings.branding.projectLogo = projLogo;
+    settings.branding.project_logo = projLogo;
+
     localStorage.setItem(KEY, JSON.stringify(settings));
     window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: settings }));
 
@@ -150,6 +174,8 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
         report_header: settings.branding.reportHeader,
         receipt_header: settings.branding.receiptHeader,
         academic_year: settings.school.academicYear,
+        project_name: projName,
+        project_logo: projLogo,
         updated_at: new Date().toISOString(),
       })
     ).catch(() => {});
