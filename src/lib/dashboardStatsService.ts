@@ -320,3 +320,132 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
     }
   }, { ttlMs: 2000 });
 }
+
+export interface AnnualPromotionLifecycleStats {
+  academicYear: string;
+  // Annual Promotion Section Cards
+  studentsEligible: number;
+  studentsPromoted: number;
+  promotionPending: number;
+  promotionCompleted: number;
+  promotionFailed: number;
+  promotionPercentage: number;
+  studentsWaitingReview: number;
+  studentsRequiringManualAction: number;
+
+  // Lifecycle Summary Cards
+  totalAdmissions: number;
+  activeStudents: number;
+  graduatedStudents: number;
+  tcIssued: number;
+  studentsLeftSchool: number;
+  rejoinedStudents: number;
+  inactiveStudents: number;
+  archivedStudents: number;
+}
+
+/**
+ * Single aggregated provider for Annual Promotion & Lifecycle Summary metrics
+ */
+export async function getAnnualPromotionAndLifecycleStats(academicYear: string = "2026-2027"): Promise<AnnualPromotionLifecycleStats> {
+  return dedupeAndCacheFetch(`annual_promotion_lifecycle_stats_${academicYear}`, async () => {
+    try {
+      const [studentsRes, historyRes, enquiriesRes] = await Promise.all([
+        supabase.from("students").select("id, status, class_name, fee_status, attendance_pct, admission_date"),
+        supabase.from("promotion_history").select("id, student_id, from_academic_year, to_academic_year, status"),
+        supabase.from("enquiries").select("id", { count: "exact", head: true }),
+      ]);
+
+      const students = studentsRes.data || [];
+      const history = historyRes.data || [];
+
+      // Filter history records relevant to current selected academic year
+      const yearHistory = history.filter(
+        (h: any) => h.to_academic_year === academicYear || h.from_academic_year === academicYear
+      );
+
+      const promotedCount = yearHistory.filter((h: any) => h.status === "Promoted").length;
+      const graduatedCountInYear = yearHistory.filter((h: any) => h.status === "Graduated").length;
+      const failedCount = yearHistory.filter((h: any) => h.status === "Retained" || h.status === "Failed").length;
+      const transferredCountInYear = yearHistory.filter((h: any) => h.status === "Transferred" || h.status === "TC Issued").length;
+
+      const activeStudentsList = students.filter((s: any) => !s.status || s.status === "Active" || s.status === "Enrolled");
+      const studentsEligible = activeStudentsList.length;
+
+      const promotionCompleted = promotedCount + graduatedCountInYear;
+      const promotionPending = Math.max(0, studentsEligible - (promotionCompleted + failedCount + transferredCountInYear));
+      const promotionPercentage = studentsEligible > 0 ? Math.round((promotedCount / studentsEligible) * 100) : 0;
+
+      const studentsWaitingReview = students.filter((s: any) => s.status === "Pending" || s.status === "Review").length;
+      const studentsRequiringManualAction = students.filter(
+        (s: any) => (s.fee_status === "Due" || (s.attendance_pct !== undefined && s.attendance_pct < 75)) && (!s.status || s.status === "Active")
+      ).length;
+
+      // Lifecycle Summary Calculations
+      const totalAdmissions = students.length || (enquiriesRes.count || 0);
+      const activeStudents = activeStudentsList.length;
+      const graduatedStudents = students.filter((s: any) => s.status === "Graduated" || s.status === "Alumni").length + graduatedCountInYear;
+      const tcIssued = students.filter((s: any) => s.status === "TC Issued" || s.status === "Transferred").length + transferredCountInYear;
+      const studentsLeftSchool = students.filter((s: any) => s.status === "Left" || s.status === "Withdrawn").length;
+      const rejoinedStudents = students.filter((s: any) => s.status === "Rejoined").length;
+      const inactiveStudents = students.filter((s: any) => s.status === "Inactive").length;
+      const archivedStudents = students.filter((s: any) => s.status === "Archived").length;
+
+      return {
+        academicYear,
+        studentsEligible,
+        studentsPromoted: promotedCount,
+        promotionPending,
+        promotionCompleted,
+        promotionFailed: failedCount,
+        promotionPercentage,
+        studentsWaitingReview,
+        studentsRequiringManualAction,
+
+        totalAdmissions,
+        activeStudents,
+        graduatedStudents,
+        tcIssued,
+        studentsLeftSchool,
+        rejoinedStudents,
+        inactiveStudents,
+        archivedStudents,
+      };
+    } catch {
+      return {
+        academicYear,
+        studentsEligible: 0,
+        studentsPromoted: 0,
+        promotionPending: 0,
+        promotionCompleted: 0,
+        promotionFailed: 0,
+        promotionPercentage: 0,
+        studentsWaitingReview: 0,
+        studentsRequiringManualAction: 0,
+
+        totalAdmissions: 0,
+        activeStudents: 0,
+        graduatedStudents: 0,
+        tcIssued: 0,
+        studentsLeftSchool: 0,
+        rejoinedStudents: 0,
+        inactiveStudents: 0,
+        archivedStudents: 0,
+      };
+    }
+  }, { ttlMs: 1000 });
+}
+
+export function subscribeToPromotionAndLifecycleUpdates(onChange: () => void): () => void {
+  const channel = supabase
+    .channel("promotion_lifecycle_realtime_channel")
+    .on("postgres_changes", { event: "*", schema: "public", table: "students" }, () => onChange())
+    .on("postgres_changes", { event: "*", schema: "public", table: "promotion_history" }, () => onChange())
+    .on("postgres_changes", { event: "*", schema: "public", table: "tc_records" }, () => onChange())
+    .on("postgres_changes", { event: "*", schema: "public", table: "enquiries" }, () => onChange())
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

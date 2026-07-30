@@ -1,4 +1,5 @@
 // Centralized Student Promotion & Lifecycle Engine for Sunshine Play School ERP
+import { supabase } from "./supabase";
 import { fetchStudents, saveFeeRecord, recalculateFeeLedger, type Student, type FeeLedgerItem } from "./supabaseService";
 import { logAuditEvent } from "./auditLogStore";
 
@@ -458,6 +459,36 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
 
   savePromotionHistory([...newHistoryRecords, ...history]);
   saveActivityTimeline([...newTimelineRecords, ...timeline]);
+
+  try {
+    const supabasePayload = newHistoryRecords.map((r) => ({
+      id: r.id,
+      student_id: r.studentId,
+      from_class: r.fromClass,
+      to_class: r.toClass,
+      from_academic_year: r.fromAcademicYear,
+      to_academic_year: r.toAcademicYear,
+      promoted_by: r.promotedBy,
+      promoted_on: r.promotedOn,
+      status: r.status,
+      notes: r.notes,
+    }));
+    Promise.resolve(supabase.from("promotion_history").upsert(supabasePayload)).catch(() => {});
+
+    // Update students table in Supabase
+    const activePromotedIds = studentIds.filter((sId) => toClass !== "Alumni / Graduated" && toClass !== "Graduated");
+    const graduatedIds = studentIds.filter((sId) => toClass === "Alumni / Graduated" || toClass === "Graduated");
+
+    if (activePromotedIds.length > 0) {
+      Promise.resolve(supabase.from("students").update({ class_name: toClass, status: "Active" }).in("id", activePromotedIds)).catch(() => {});
+    }
+    if (graduatedIds.length > 0) {
+      Promise.resolve(supabase.from("students").update({ status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
+    }
+    if (transferredStudentIds.length > 0) {
+      Promise.resolve(supabase.from("students").update({ status: "TC Issued" }).in("id", transferredStudentIds)).catch(() => {});
+    }
+  } catch {}
 
   return {
     success: true,
