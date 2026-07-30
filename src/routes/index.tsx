@@ -127,15 +127,15 @@ function Login() {
 
               {/* Top Right: Growvia ERP Developer Branding */}
               {Boolean(settings.branding.projectLogo || settings.branding.project_logo) && (
-                <div className="flex flex-col items-end text-right shrink-0">
-                  <div className="h-[68px] w-[68px] flex items-center justify-center bg-transparent border-none p-0 shadow-none">
+                <div className="flex items-center gap-3 shrink-0 bg-transparent">
+                  <div className="h-14 w-14 flex items-center justify-center bg-transparent border-none p-0 shadow-none shrink-0">
                     <img
-                      src={settings.branding.projectLogo || settings.branding.project_logo}
+                      src={settings.branding.projectLogo || settings.branding.project_logo || "/growvia-logo.png"}
                       alt={settings.branding.projectName || settings.branding.project_name || "Growvia"}
                       className="h-full w-full object-contain filter-none opacity-100 shadow-none [image-rendering:auto]"
                     />
                   </div>
-                  <span className="mt-1 text-xs font-semibold text-slate-600 tracking-tight">
+                  <span className="text-base font-bold text-slate-900 tracking-tight">
                     {settings.branding.projectName || settings.branding.project_name || "Growvia"}
                   </span>
                 </div>
