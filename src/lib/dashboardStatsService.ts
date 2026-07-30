@@ -1,4 +1,4 @@
-// Centralized Dashboard Data Providers for Sunshine Play School ERP
+// Centralized Dashboard Data Providers for Sunshine Play School ERP — 100% Live Supabase Aggregates
 import { supabase } from "./supabase";
 import { dedupeAndCacheFetch } from "./cacheService";
 
@@ -52,29 +52,34 @@ export interface ParentDashboardStats {
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   return dedupeAndCacheFetch("admin_dashboard_stats", async () => {
     try {
-      const [studentsRes, teachersRes, enquiriesRes, feesRes] = await Promise.all([
+      const [studentsRes, teachersRes, enquiriesRes, feesRes, circularsRes] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("teachers").select("id", { count: "exact", head: true }),
         supabase.from("enquiries").select("id", { count: "exact", head: true }),
-        supabase.from("fees").select("amount_paid"),
+        supabase.from("fees").select("paid, final_fee, amount"),
+        supabase.from("circulars").select("id, title, created_at").order("created_at", { ascending: false }).limit(3),
       ]);
 
       const totalStudents = studentsRes.count || 0;
       const totalTeachers = teachersRes.count || 0;
       const totalEnquiries = enquiriesRes.count || 0;
 
-      const totalFeesCollected = (feesRes.data || []).reduce((acc: number, f: any) => acc + (f.amount_paid || 0), 0);
+      const totalFeesCollected = (feesRes.data || []).reduce((acc: number, f: any) => acc + (f.paid || 0), 0);
+
+      const recentActivities = (circularsRes.data || []).map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        subtitle: "Published Circular",
+        time: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Recent",
+        type: "circular",
+      }));
 
       return {
         totalStudents,
         totalTeachers,
         totalEnquiries,
         totalFeesCollected,
-        recentActivities: [
-          { id: "ACT-1", title: "System Settings Updated", subtitle: "Developer Console dynamic branding configured", time: "Just now", type: "system" },
-          { id: "ACT-2", title: "Fee Ledger Validated", subtitle: "Realtime Supabase synchronization active", time: "10 mins ago", type: "fees" },
-          { id: "ACT-3", title: "Circular Broadcast Sent", subtitle: "Published for All Parents & Teachers", time: "1 hour ago", type: "circular" },
-        ],
+        recentActivities,
         systemHealth: "100% Operational",
       };
     } catch {
@@ -96,10 +101,12 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardStats> {
   return dedupeAndCacheFetch("principal_dashboard_stats", async () => {
     try {
-      const [studentsRes, teachersRes, circularsRes] = await Promise.all([
+      const todayStr = new Date().toISOString().split("T")[0];
+      const [studentsRes, teachersRes, circularsRes, attendanceRes] = await Promise.all([
         supabase.from("students").select("id, class_name"),
         supabase.from("teachers").select("id", { count: "exact", head: true }),
         supabase.from("circulars").select("id, title, category, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("attendance").select("status").eq("date", todayStr),
       ]);
 
       const students = studentsRes.data || [];
@@ -121,10 +128,18 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
         capacity: 30,
       }));
 
+      // Calculate real attendance percentage from Supabase
+      const attendanceRecords = attendanceRes.data || [];
+      let todayAttendancePercent = 0;
+      if (attendanceRecords.length > 0) {
+        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
+        todayAttendancePercent = Number(((presentCount / attendanceRecords.length) * 100).toFixed(1));
+      }
+
       return {
         totalStudents,
         totalTeachers,
-        todayAttendancePercent: totalStudents > 0 ? 95.8 : 0,
+        todayAttendancePercent,
         totalCirculars,
         classStrengthBreakdown,
         recentCirculars: (circularsRes.data || []).map((c: any) => ({
@@ -154,9 +169,9 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   return dedupeAndCacheFetch("office_dashboard_stats", async () => {
     try {
       const [enquiriesRes, studentsRes, feesRes] = await Promise.all([
-        supabase.from("enquiries").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("enquiries").select("id, child_name, created_at").order("created_at", { ascending: false }).limit(5),
         supabase.from("students").select("id, name, class_name, admission_no, created_at").order("created_at", { ascending: false }).limit(5),
-        supabase.from("fees").select("id, student_name, amount_paid, total_fee").order("created_at", { ascending: false }).limit(5),
+        supabase.from("fees").select("id, student_name, paid, final_fee, amount, remaining_amount, created_at").order("created_at", { ascending: false }).limit(5),
       ]);
 
       const totalEnquiries = (enquiriesRes.data || []).length;
@@ -168,10 +183,11 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
       let pendingFeeBalance = 0;
 
       fees.forEach((f: any) => {
-        const paid = f.amount_paid || 0;
-        const total = f.total_fee || 10000;
+        const paid = Number(f.paid || 0);
+        const finalFee = Number(f.final_fee || f.amount || 0);
+        const remaining = f.remaining_amount !== undefined ? Number(f.remaining_amount) : Math.max(0, finalFee - paid);
         totalFeeCollected += paid;
-        pendingFeeBalance += Math.max(0, total - paid);
+        pendingFeeBalance += remaining;
       });
 
       return {
@@ -182,14 +198,14 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
         recentAdmissions: students.map((s: any) => ({
           id: s.id,
           name: s.name,
-          className: s.class_name || "LKG-A",
+          className: s.class_name || "Nursery",
           date: s.created_at ? new Date(s.created_at).toLocaleDateString() : "Today",
         })),
-        recentFeeCollections: fees.map((f: any) => ({
+        recentFeeCollections: fees.filter((f: any) => (f.paid || 0) > 0).map((f: any) => ({
           id: f.id,
           studentName: f.student_name || "Student",
-          amount: f.amount_paid || 0,
-          date: new Date().toLocaleDateString(),
+          amount: f.paid || 0,
+          date: f.created_at ? new Date(f.created_at).toLocaleDateString() : "Today",
         })),
       };
     } catch {
@@ -211,25 +227,33 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
 export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats> {
   return dedupeAndCacheFetch("teacher_dashboard_stats", async () => {
     try {
-      const [studentsRes, leaveRes] = await Promise.all([
+      const todayStr = new Date().toISOString().split("T")[0];
+      const [studentsRes, leaveRes, attendanceRes, homeworkRes] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "Pending"),
+        supabase.from("attendance").select("status").eq("date", todayStr),
+        supabase.from("homework").select("id, title, created_at").order("created_at", { ascending: false }).limit(3),
       ]);
 
       const assignedStudents = studentsRes.count || 0;
       const pendingLeaveRequests = leaveRes.count || 0;
-      const presentToday = Math.round(assignedStudents * 0.95);
-      const absentToday = assignedStudents - presentToday;
+      
+      const attendanceRecords = attendanceRes.data || [];
+      const presentToday = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
+      const absentToday = attendanceRecords.filter((a: any) => a.status === "A" || a.status === "Lv").length;
+
+      const recentClassNotes = (homeworkRes.data || []).map((h: any) => ({
+        id: h.id,
+        title: h.title,
+        date: h.created_at ? new Date(h.created_at).toLocaleDateString() : "Today",
+      }));
 
       return {
         assignedStudents,
         presentToday,
         absentToday,
         pendingLeaveRequests,
-        recentClassNotes: [
-          { id: "NOTE-1", title: "Phonics & Rhymes Practice Completed", date: "Today" },
-          { id: "NOTE-2", title: "Color Identification Activity", date: "Yesterday" },
-        ],
+        recentClassNotes,
       };
     } catch {
       return {
@@ -249,20 +273,34 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
 export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
   return dedupeAndCacheFetch("parent_dashboard_stats", async () => {
     try {
-      const [studentsRes, messagesRes] = await Promise.all([
-        supabase.from("students").select("name, class_name").limit(1).single(),
+      const [studentsRes, messagesRes, feesRes, attendanceRes] = await Promise.all([
+        supabase.from("students").select("id, name, class_name").limit(1).maybeSingle(),
         supabase.from("messages").select("id, sender_name, message, created_at").order("created_at", { ascending: false }).limit(3),
+        supabase.from("fees").select("paid, final_fee, remaining_amount, amount").limit(1).maybeSingle(),
+        supabase.from("attendance").select("status"),
       ]);
 
       const child = studentsRes.data;
       const messages = messagesRes.data || [];
+      const feeData = feesRes.data;
+      const attendanceRecords = attendanceRes.data || [];
+
+      let attendancePercent = 0;
+      if (attendanceRecords.length > 0) {
+        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
+        attendancePercent = Number(((presentCount / attendanceRecords.length) * 100).toFixed(1));
+      }
+
+      const totalFeePaid = Number(feeData?.paid || 0);
+      const finalFee = Number(feeData?.final_fee || feeData?.amount || 0);
+      const remainingBalance = feeData?.remaining_amount !== undefined ? Number(feeData.remaining_amount) : Math.max(0, finalFee - totalFeePaid);
 
       return {
-        childName: child?.name || "Child",
-        className: child?.class_name || "LKG-A",
-        attendancePercent: 96.5,
-        totalFeePaid: 7500,
-        remainingBalance: 2500,
+        childName: child?.name || "No Enrolled Child",
+        className: child?.class_name || "N/A",
+        attendancePercent,
+        totalFeePaid,
+        remainingBalance,
         recentMessages: messages.map((m: any) => ({
           id: m.id,
           sender: m.sender_name || "Class Teacher",
@@ -272,8 +310,8 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
       };
     } catch {
       return {
-        childName: "Child",
-        className: "LKG-A",
+        childName: "No Enrolled Child",
+        className: "N/A",
         attendancePercent: 0,
         totalFeePaid: 0,
         remainingBalance: 0,
