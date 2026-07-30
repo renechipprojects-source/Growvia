@@ -40,13 +40,20 @@ function readSystemUsers(): SystemUser[] {
   if (typeof window === "undefined") return DEFAULT_USERS;
   try {
     const raw = window.localStorage.getItem(SYS_KEY);
-    if (!raw) {
-      window.localStorage.setItem(SYS_KEY, JSON.stringify(DEFAULT_USERS));
-      return DEFAULT_USERS;
+    let users: SystemUser[] = [...DEFAULT_USERS];
+    if (raw) {
+      const parsed = JSON.parse(raw) as SystemUser[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        users = parsed;
+      }
     }
-    const parsed = JSON.parse(raw) as SystemUser[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_USERS;
-    return parsed;
+    // Always guarantee all DEFAULT_USERS exist
+    DEFAULT_USERS.forEach((defUser) => {
+      if (!users.some((u) => u.loginId.toLowerCase() === defUser.loginId.toLowerCase())) {
+        users.push(defUser);
+      }
+    });
+    return users;
   } catch {
     return DEFAULT_USERS;
   }
