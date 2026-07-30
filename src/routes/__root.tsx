@@ -128,9 +128,11 @@ function RootShell({ children }: { children: ReactNode }) {
 import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { AcademicYearProvider } from "@/lib/academicYearContext";
 import { AutoRefreshProvider } from "@/lib/autoRefreshContext";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useDeveloperSettings();
 
   return (
     <QueryClientProvider client={queryClient}>
