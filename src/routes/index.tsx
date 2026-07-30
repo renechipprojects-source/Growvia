@@ -7,7 +7,7 @@ import {
   Sparkles, LogIn, User, Lock, Eye, EyeOff, ShieldCheck, MapPin, Phone,
   Mail, Globe, Calendar, Clock, GraduationCap
 } from "lucide-react";
-import { getSession, roleHome, authenticate } from "@/lib/auth";
+import { getSession, roleHome, authenticate, writeSession } from "@/lib/auth";
 import { login } from "@/lib/supabaseAuth";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +61,15 @@ function Login() {
       // First try Supabase auth
       const supaResult = await login(loginId.trim(), password);
       if (supaResult.success && supaResult.profile) {
+        writeSession(
+          {
+            loginId: supaResult.profile.login_id,
+            role: supaResult.profile.role as any,
+            name: supaResult.profile.full_name,
+            mustChangePassword: supaResult.profile.must_change_password,
+          },
+          remember
+        );
         toast.success(`Welcome, ${supaResult.profile.full_name}`);
         setTimeout(() => {
           if (supaResult.profile.must_change_password) navigate({ to: "/change-password" });
