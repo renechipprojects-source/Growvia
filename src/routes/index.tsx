@@ -60,11 +60,11 @@ function Login() {
     try {
       // First try Supabase auth
       const supaResult = await login(loginId.trim(), password);
-      if (supaResult.ok) {
-        toast.success(`Welcome, ${supaResult.session.name}`);
+      if (supaResult.success && supaResult.profile) {
+        toast.success(`Welcome, ${supaResult.profile.full_name}`);
         setTimeout(() => {
-          if (supaResult.session.mustChangePassword) navigate({ to: "/change-password" });
-          else navigate({ to: roleHome(supaResult.session.role) });
+          if (supaResult.profile.must_change_password) navigate({ to: "/change-password" });
+          else navigate({ to: roleHome(supaResult.profile.role as any) });
         }, 200);
         return;
       }
