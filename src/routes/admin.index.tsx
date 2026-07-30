@@ -11,9 +11,6 @@ import { fetchStudents, fetchTeachers, fetchExpenses, fetchFees, fetchEvents, ty
 import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState } from "react";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
-
-import { DashboardHealthCards } from "@/components/admin/DashboardHealthCards";
-
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/admin/")({
@@ -76,7 +73,6 @@ function Dashboard() {
       />
 
       <div className="mt-4 space-y-6 pb-6">
-        <DashboardHealthCards />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub={`${totalStudents} Enrolled`} />
           <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub={`${attendancePct}% Attendance`} />
