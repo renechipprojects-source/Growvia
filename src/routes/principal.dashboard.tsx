@@ -221,19 +221,23 @@ function DashboardPage() {
         {/* Recent activities */}
         <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
           <SectionHeading icon={Activity} title="Recent Student Activities" />
-          <ul className="mt-4 space-y-3">
-            {recentActivities.map((a) => (
-              <li key={a.id} className="flex gap-3">
-                <div className="w-9 h-9 rounded-full gradient-primary text-primary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
-                  {a.student.split(" ").map((s) => s[0]).join("")}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm"><span className="font-medium">{a.student}</span> — {a.activity}</div>
-                  <div className="text-xs text-muted-foreground">{a.time}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {recentActivities.length === 0 ? (
+            <div className="py-6 text-center text-xs text-slate-400 font-medium">No recent student activities recorded.</div>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {recentActivities.map((a: any) => (
+                <li key={a.id} className="flex gap-3">
+                  <div className="w-9 h-9 rounded-full gradient-primary text-primary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
+                    {(a.student || "S").split(" ").map((s: string) => s[0]).join("")}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm"><span className="font-medium">{a.student}</span> — {a.activity}</div>
+                    <div className="text-xs text-muted-foreground">{a.time}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Leaves */}
