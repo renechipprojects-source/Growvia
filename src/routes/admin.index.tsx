@@ -48,8 +48,9 @@ function Dashboard() {
   const totalStudents = studentsList.length;
   const presentFromLive = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
   const absentFromLive = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
-  const presentToday = liveTodayRecords.length > 0 ? presentFromLive : Math.round(totalStudents * 0.95);
+  const presentToday = liveTodayRecords.length > 0 ? presentFromLive : (totalStudents > 0 ? Math.round(totalStudents * 0.95) : 0);
   const absentToday = liveTodayRecords.length > 0 ? absentFromLive : (totalStudents - presentToday);
+  const attendancePct = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
 
   // Compute upcoming birthdays (Today & Tomorrow)
   const today = new Date();
@@ -77,10 +78,10 @@ function Dashboard() {
       <div className="mt-4 space-y-6 pb-6">
         <DashboardHealthCards />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub="Enrolled" />
-          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub="96% Attendance" />
-          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} sub="Action required" />
-          <StatCard label="Total Staff" value={teachersCount} tone="purple" icon={<GraduationCap className="h-5 w-5" />} sub="Active staff" />
+          <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub={`${totalStudents} Enrolled`} />
+          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub={`${attendancePct}% Attendance`} />
+          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} sub={totalStudents > 0 ? "Action required" : "No absences"} />
+          <StatCard label="Total Staff" value={teachersCount} tone="purple" icon={<GraduationCap className="h-5 w-5" />} sub={`${teachersCount} Active staff`} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
