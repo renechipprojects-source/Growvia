@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { authenticateGenerated } from "./credentials";
 
 export async function ensureDeveloperAccount() {
   try {
@@ -45,13 +46,13 @@ export async function login(loginId: string, password: string) {
   try {
     const id = loginId.trim();
 
-    // Auto-ensure developer account exists in Supabase Auth & profiles table if DEV001 or developer login is requested
-    const isDev = id.toUpperCase() === "DEV001" || id.toLowerCase().includes("developer") || id.toLowerCase() === "developer@growvia.local";
+    // Developer account check — exact match only (never substring Dev/developer to avoid blocking legitimate teachers like 'Devi')
+    const isDev = id.toUpperCase() === "DEV001" || id.toLowerCase() === "developer@growvia.local" || id.toLowerCase() === "developer@growvia.com";
     if (isDev) {
       await ensureDeveloperAccount();
     }
 
-    // Find the user's email using their Login ID or Email
+    // Find the user's profile using their Login ID or Email
     let { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select(`
@@ -92,6 +93,14 @@ export async function login(loginId: string, password: string) {
       }
     }
 
+    // Verify account status
+    if (profile.status === "inactive" || profile.status === "disabled") {
+      return {
+        success: false,
+        error: "Your account is inactive. Please contact the administrator.",
+      };
+    }
+
     const emailToAuth = (isDev && (profile.email === "developer@growvia.local" || !profile.email))
       ? "developer@growvia.com"
       : profile.email;
@@ -103,7 +112,7 @@ export async function login(loginId: string, password: string) {
     });
 
     if ((error || !data.user) && isDev) {
-      // Retry with fallback email if needed
+      // Retry with fallback email for developer
       const retry = await supabase.auth.signInWithPassword({
         email: "developer@growvia.com",
         password,
@@ -134,13 +143,47 @@ export async function login(loginId: string, password: string) {
         };
       }
 
+      // Check generated credentials fallback (Teacher / Parent generated logins)
+      const generatedCred = authenticateGenerated(id, password);
+      if (generatedCred && profile) {
+        // Auto-provision Auth user in Supabase Auth so future signInWithPassword succeeds natively
+        try {
+          const { data: signUpData } = await supabase.auth.signUp({
+            email: emailToAuth,
+            password: password,
+            options: {
+              data: {
+                full_name: profile.full_name,
+                role: profile.role,
+                login_id: profile.login_id,
+              },
+            },
+          });
+          if (signUpData?.user?.id) {
+            await supabase.from("profiles").update({
+              id: signUpData.user.id,
+              auth_user_id: signUpData.user.id,
+            }).eq("login_id", profile.login_id);
+          }
+        } catch {}
+
+        return {
+          success: true,
+          user: { id: profile.auth_user_id || profile.id, email: emailToAuth } as any,
+          profile: {
+            ...profile,
+            role: profile.role || generatedCred.role,
+          },
+        };
+      }
+
       return {
         success: false,
-        error: error?.message ?? "Invalid Login ID or password.",
+        error: "Invalid Login ID or password.",
       };
     }
 
-    // Explicitly enforce developer role for DEV001
+    // Determine final role (Developer role strictly preserved)
     const finalRole = (isDev || profile.login_id?.toUpperCase() === "DEV001") ? "developer" : profile.role;
 
     return {
@@ -154,7 +197,7 @@ export async function login(loginId: string, password: string) {
   } catch {
     return {
       success: false,
-      error: "Authentication error.",
+      error: "Authentication error. Please check your credentials.",
     };
   }
 }

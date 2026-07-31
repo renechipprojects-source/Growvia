@@ -186,6 +186,80 @@ export function getTeacherCredential(teacherId: string): TeacherCredential | und
   return read().teachers[teacherId];
 }
 
+export async function createTeacherAuthAccount(params: {
+  teacherId: string;
+  loginId: string;
+  password: string;
+  name: string;
+  email: string;
+  mobile?: string;
+}) {
+  const { loginId, password, name, email, mobile } = params;
+  const teacherEmail = (email && email.includes("@")) ? email.trim() : `${loginId.toLowerCase()}@sunshine.edu`;
+
+  let authUserId: string | null = null;
+
+  try {
+    const { data: authData } = await supabase.auth.signUp({
+      email: teacherEmail,
+      password: password,
+      options: {
+        data: {
+          full_name: name,
+          role: "teacher",
+          login_id: loginId,
+        },
+      },
+    });
+
+    if (authData?.user?.id) {
+      authUserId = authData.user.id;
+    }
+  } catch (e) {
+    console.warn("Supabase Auth teacher signUp notice:", e);
+  }
+
+  const profilePayload: any = {
+    login_id: loginId,
+    role: "teacher",
+    full_name: name || "Teacher",
+    email: teacherEmail,
+    mobile: mobile || "9876543210",
+    status: "active",
+    must_change_password: false,
+  };
+
+  if (authUserId) {
+    profilePayload.id = authUserId;
+    profilePayload.auth_user_id = authUserId;
+  }
+
+  try {
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id, auth_user_id")
+      .eq("login_id", loginId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      await supabase
+        .from("profiles")
+        .update(profilePayload)
+        .eq("login_id", loginId);
+    } else {
+      await supabase.from("profiles").upsert([profilePayload]);
+    }
+  } catch (err) {
+    console.warn("Supabase profile upsert notice:", err);
+  }
+
+  return {
+    loginId,
+    email: teacherEmail,
+    authUserId,
+  };
+}
+
 export function generateTeacherCredential(
   teacherId: string,
   opts?: { customLoginId?: string; password?: string; teacher?: Teacher },
@@ -201,11 +275,12 @@ export function generateTeacherCredential(
   const store = read();
   const existing = store.teachers[teacherId];
   const loginId = opts?.customLoginId?.trim() || suggestTeacherLoginId(teacher);
+  const password = opts?.password ?? generatePassword();
   const cred: TeacherCredential = {
     kind: "teacher",
     teacherId,
     loginId,
-    password: opts?.password ?? generatePassword(),
+    password,
     status: "Active",
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
@@ -215,14 +290,14 @@ export function generateTeacherCredential(
   write(store);
 
   Promise.resolve(
-    supabase.from("profiles").upsert([{
-      login_id: cred.loginId,
-      role: "teacher",
-      full_name: teacher.name || "Teacher",
-      email: teacher.email || `${cred.loginId.toLowerCase()}@sunshine.edu`,
-      mobile: teacher.phone || "9876543210",
-      status: "active",
-    }])
+    createTeacherAuthAccount({
+      teacherId,
+      loginId,
+      password,
+      name: teacher.name || "Teacher",
+      email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
+      mobile: teacher.phone,
+    })
   ).catch(() => {});
 
   return cred;
@@ -234,14 +309,26 @@ export function resetTeacherPassword(teacherId: string): TeacherCredential {
   if (!existing) {
     return generateTeacherCredential(teacherId);
   }
+  const newPassword = generatePassword();
   const updated: TeacherCredential = {
     ...existing,
-    password: generatePassword(),
+    password: newPassword,
     status: "Active",
     updatedAt: new Date().toISOString(),
   };
   store.teachers[teacherId] = updated;
   write(store);
+
+  Promise.resolve(
+    createTeacherAuthAccount({
+      teacherId,
+      loginId: updated.loginId,
+      password: newPassword,
+      name: "Teacher",
+      email: `${updated.loginId.toLowerCase()}@sunshine.edu`,
+    })
+  ).catch(() => {});
+
   return updated;
 }
 
