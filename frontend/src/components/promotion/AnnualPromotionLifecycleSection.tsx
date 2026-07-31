@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useAcademicYear } from "@/lib/academicYearContext";
 import { SectionCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,10 +20,11 @@ interface AnnualPromotionLifecycleSectionProps {
 }
 
 export function AnnualPromotionLifecycleSection({ readOnly = false, className }: AnnualPromotionLifecycleSectionProps) {
-  const [selectedYear, setSelectedYear] = useState<string>("2026-2027");
+  const { activeYear, availableYears } = useAcademicYear();
+  const [selectedYear, setSelectedYear] = useState<string>(activeYear);
   const [loading, setLoading] = useState<boolean>(true);
   const [stats, setStats] = useState<AnnualPromotionLifecycleStats>({
-    academicYear: "2026-2027",
+    academicYear: activeYear,
     studentsEligible: 0,
     studentsPromoted: 0,
     promotionPending: 0,
@@ -41,6 +43,10 @@ export function AnnualPromotionLifecycleSection({ readOnly = false, className }:
     inactiveStudents: 0,
     archivedStudents: 0,
   });
+
+  useEffect(() => {
+    setSelectedYear(activeYear);
+  }, [activeYear]);
 
   const loadStats = useCallback((year: string) => {
     setLoading(true);
@@ -78,9 +84,11 @@ export function AnnualPromotionLifecycleSection({ readOnly = false, className }:
                 <SelectValue placeholder="Select Year" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2025-2026">2025-2026</SelectItem>
-                <SelectItem value="2026-2027">2026-2027 (Active)</SelectItem>
-                <SelectItem value="2027-2028">2027-2028</SelectItem>
+                {availableYears.map((yr) => (
+                  <SelectItem key={yr} value={yr}>
+                    {yr} {yr === activeYear ? "(Active)" : ""}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {loading && <RefreshCw className="h-3.5 w-3.5 text-indigo-600 animate-spin" />}

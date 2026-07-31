@@ -406,7 +406,10 @@ export interface AnnualPromotionLifecycleStats {
   archivedStudents: number;
 }
 
-export async function getAnnualPromotionAndLifecycleStats(year: string = "2024-2025"): Promise<AnnualPromotionLifecycleStats> {
+import { getDeveloperSettings } from "./developerSettingsStore";
+
+export async function getAnnualPromotionAndLifecycleStats(targetYear?: string): Promise<AnnualPromotionLifecycleStats> {
+  const year = targetYear || getDeveloperSettings().school?.academicYear || "2026-2027";
   try {
     const { data: students } = await supabase.from("GV_users").select("id, status").eq("role", "student");
     const list = students || [];

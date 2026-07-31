@@ -18,6 +18,7 @@ import {
 import { NotificationService } from "@/lib/notifications";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useAcademicYear } from "@/lib/academicYearContext";
 
 export const Route = createFileRoute("/office/fees")({ component: FeeCollection });
 
@@ -43,6 +44,7 @@ type Receipt = {
 };
 
 function FeeCollection() {
+  const { activeYear } = useAcademicYear();
   const [feeList, setFeeList] = useState<FeeLedgerItem[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [q, setQ] = useState("");
@@ -432,7 +434,7 @@ function FeeCollection() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       Admission No: <span className="font-mono font-semibold text-slate-800">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || "2026-2027"}</div>
+                    <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || activeYear}</div>
                   </div>
                   <div className="text-right">
                     <Badge className={cn("px-3 py-1 text-xs font-bold", statusStyle)}>

@@ -28,34 +28,34 @@ export interface ReceiptRecord {
 
 // ─── FEES & PAYMENTS SERVICE (Module 3: GV_fees_payments) ───────────────────────
 
-export async function fetchFeesFromModule(): Promise<{ data: FeeRecord[]; isFromSupabase: boolean }> {
+import { getDeveloperSettings } from "./developerSettingsStore";
+
+export async function fetchFees(studentId?: string): Promise<{ data: FeeRecord[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
-      .from("GV_fees_payments")
-      .select("*")
-      .eq("record_type", "fee_schedule");
+    const devSettings = getDeveloperSettings();
+    const activeYear = devSettings.school?.academicYear || "2026-2027";
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("fees_payments").select("*").eq("record_type", "fee_schedule");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
+    let query = supabase.from("GV_fees_payments").select("*").eq("record_type", "fee_schedule");
+    if (studentId) {
+      query = query.eq("student_id", studentId);
     }
-
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy fees table
-      const { data: legacy } = await supabase.from("fees").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: FeeRecord[] = legacy.map((d: any) => ({
+    const { data, error } = await query;
+    if (error || !data) {
+      const fallbackQuery = supabase.from("fees_payments").select("*").eq("record_type", "fee_schedule");
+      if (studentId) {
+        fallbackQuery.eq("student_id", studentId);
+      }
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+      if (!fallbackError && fallbackData) {
+        const mapped: FeeRecord[] = fallbackData.map((d: any) => ({
           id: d.id,
           studentId: d.student_id,
           feeType: d.fee_type,
-          academicYear: d.academic_year,
-          amountDue: Number(d.amount_due),
-          amountPaid: Number(d.amount_paid),
-          balance: Number(d.balance),
-          status: d.status,
+          academicYear: d.academic_year || activeYear,
+          amountDue: Number(d.amount_due || 0),
+          amountPaid: Number(d.amount_paid || 0),
+          balance: Number(d.balance || 0),
+          status: d.status as any,
         }));
         return { data: mapped, isFromSupabase: true };
       }
@@ -66,7 +66,7 @@ export async function fetchFeesFromModule(): Promise<{ data: FeeRecord[]; isFrom
       id: d.id,
       studentId: d.student_id,
       feeType: d.fee_type,
-      academicYear: d.academic_year || "2024-2025",
+      academicYear: d.academic_year || activeYear,
       amountDue: Number(d.amount_due || 0),
       amountPaid: Number(d.amount_paid || 0),
       balance: Number(d.balance || 0),

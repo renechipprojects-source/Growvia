@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, UserCheck, CreditCard, FileText, CheckCircle2, History, Clock, ArrowRight } from "lucide-react";
 import { useClassAssignments } from "@/lib/classAssignmentContext";
+import { useAcademicYear } from "@/lib/academicYearContext";
 import { getPromotionHistory, getActivityTimeline } from "@/lib/promotionStore";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ interface StudentProfileModalProps {
 }
 
 export function StudentProfileModal({ open, onClose, student }: StudentProfileModalProps) {
+  const { activeYear } = useAcademicYear();
   const { getClassTeacher, getSubjectTeachers } = useClassAssignments();
   const [activeTab, setActiveTab] = useState<"profile" | "promotion" | "timeline">("profile");
 
@@ -84,7 +86,7 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
                 <div><span className="text-slate-400 block font-medium">Gender</span><span className="font-semibold text-slate-800">{student.gender || "Male"}</span></div>
                 <div><span className="text-slate-400 block font-medium">Blood Group</span><span className="font-semibold text-slate-800">{student.bloodGroup || "O+"}</span></div>
                 <div><span className="text-slate-400 block font-medium">Admission Date</span><span className="font-semibold text-slate-800">{student.joinedOn || student.admissionDate || "2024-06-01"}</span></div>
-                <div><span className="text-slate-400 block font-medium">Academic Year</span><span className="font-semibold text-slate-800">{student.academicYear || "2026-2027"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Academic Year</span><span className="font-semibold text-slate-800">{student.academicYear || activeYear}</span></div>
                 <div><span className="text-slate-400 block font-medium">Status</span><span className="font-semibold text-emerald-600">{student.status || "Enrolled"}</span></div>
               </div>
             </div>

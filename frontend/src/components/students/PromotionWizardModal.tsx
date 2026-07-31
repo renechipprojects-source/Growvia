@@ -28,8 +28,10 @@ interface PromotionWizardModalProps {
 const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
 
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useAcademicYear } from "@/lib/academicYearContext";
 
 export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: PromotionWizardModalProps) {
+  const { activeYear } = useAcademicYear();
   const { setFormEditing, triggerModuleRefresh } = useAutoRefresh();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -37,9 +39,24 @@ export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: Promot
     setFormEditing(open);
   }, [open, setFormEditing]);
 
+  const computeNextYear = (yr: string) => {
+    const match = yr.match(/^(\d{4})[-–](\d{4})$/);
+    if (match) {
+      const start = parseInt(match[1], 10);
+      return `${start + 1}-${start + 2}`;
+    }
+    return "2027-2028";
+  };
+
   // Setup state (Step 1)
-  const [fromYear, setFromYear] = useState<string>("2026-2027");
-  const [toYear, setToYear] = useState<string>("2027-2028");
+  const [fromYear, setFromYear] = useState<string>(activeYear);
+  const [toYear, setToYear] = useState<string>(() => computeNextYear(activeYear));
+
+  useEffect(() => {
+    setFromYear(activeYear);
+    setToYear(computeNextYear(activeYear));
+  }, [activeYear]);
+
   const [fromClass, setFromClass] = useState<string>("LKG");
   const [toClass, setToClass] = useState<string>("UKG");
   const [academicYears, setAcademicYears] = useState(getAcademicYears());
