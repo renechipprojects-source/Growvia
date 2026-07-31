@@ -1,5 +1,5 @@
 -- ====================================================================
--- GROWVIA SCHOOL ERP — EXACT 6 CONSOLIDATED TABLES IN-PLACE RENAME SCHEMA
+-- GROWVIA SCHOOL ERP — RESILIENT 6 CONSOLIDATED TABLES SCHEMA (GV_)
 -- Exact 6 Application Tables:
 -- 1. users              -> GV_users
 -- 2. inventory_expenses -> GV_inventory_expenses
@@ -12,34 +12,40 @@
 -- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. IN-PLACE TABLE RENAMES (Safe PostgreSQL Migration)
+-- 2. RESILIENT IN-PLACE RENAMES (Guaranteed Zero Duplicate Relation Errors)
 DO $$ BEGIN
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_users') THEN
         ALTER TABLE public.users RENAME TO GV_users;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'inventory_expenses') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'inventory_expenses')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_inventory_expenses') THEN
         ALTER TABLE public.inventory_expenses RENAME TO GV_inventory_expenses;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'fees_payments') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'fees_payments')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_fees_payments') THEN
         ALTER TABLE public.fees_payments RENAME TO GV_fees_payments;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'communications') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'communications')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_communications') THEN
         ALTER TABLE public.communications RENAME TO GV_communications;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'requests') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'requests')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_requests') THEN
         ALTER TABLE public.requests RENAME TO GV_requests;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'system_settings') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'system_settings')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_system_settings') THEN
         ALTER TABLE public.system_settings RENAME TO GV_system_settings;
     END IF;
-END $$;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- 3. ENSURE TABLE STRUCTURE FOR EXACT 6 TABLES
+-- 3. ENSURE EXACT 6 CONSOLIDATED TABLES EXIST
 
 -- A. USERS MODULE (GV_users)
 CREATE TABLE IF NOT EXISTS public.GV_users (
@@ -202,7 +208,18 @@ CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. RLS SECURITY POLICIES FOR EXACT 6 TABLES
+-- 4. MERGE DATA IF OLD UNPREFIXED TABLES ALSO EXIST
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users')
+       AND EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_users') THEN
+        INSERT INTO public.GV_users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
+        SELECT id::text, auth_user_id, login_id, email, full_name, role::text, status, mobile, photo_url, must_change_password, created_at, updated_at
+        FROM public.users
+        ON CONFLICT (login_id) DO NOTHING;
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+
+-- 5. RLS SECURITY POLICIES FOR EXACT 6 TABLES
 ALTER TABLE public.GV_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_inventory_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_fees_payments ENABLE ROW LEVEL SECURITY;

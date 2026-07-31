@@ -5,38 +5,57 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const EXACT_SIX_TABLES = [
-  'GV_users',
-  'GV_inventory_expenses',
-  'GV_fees_payments',
-  'GV_communications',
-  'GV_requests',
-  'GV_system_settings'
+const MIGRATION_MAP = [
+  { oldTable: 'users', newTable: 'GV_users' },
+  { oldTable: 'inventory_expenses', newTable: 'GV_inventory_expenses' },
+  { oldTable: 'fees_payments', newTable: 'GV_fees_payments' },
+  { oldTable: 'communications', newTable: 'GV_communications' },
+  { oldTable: 'requests', newTable: 'GV_requests' },
+  { oldTable: 'system_settings', newTable: 'GV_system_settings' }
 ];
 
-async function verifyExactSixTables() {
+async function syncAndVerifyTables() {
   console.log("==========================================================");
-  console.log("VERIFYING EXACT 6 CONSOLIDATED APPLICATION TABLES (GV_)");
+  console.log("VERIFYING RESILIENT 6 CONSOLIDATED TABLES IN SUPABASE");
   console.log("Project URL:", SUPABASE_URL);
   console.log("==========================================================");
 
   const report = [];
 
-  for (const tableName of EXACT_SIX_TABLES) {
+  for (const { oldTable, newTable } of MIGRATION_MAP) {
+    let oldCount = 0;
+    let newCount = 0;
+
+    // Check old table count if exists
     try {
-      const { data, count, error } = await supabase.from(tableName).select('*', { count: 'exact' });
+      const { count: cOld } = await supabase.from(oldTable).select('*', { count: 'exact', head: true });
+      oldCount = cOld ?? 0;
+    } catch {}
+
+    // Check new table count
+    let status = 'ACTIVE & VERIFIED';
+    try {
+      const { count: cNew, error } = await supabase.from(newTable).select('*', { count: 'exact', head: true });
       if (error) {
-        report.push({ TableName: tableName, RecordCount: 0, Status: `ERROR (${error.message})` });
+        status = `REQUIRES SQL EXECUTION (${error.message})`;
       } else {
-        report.push({ TableName: tableName, RecordCount: count ?? (data ? data.length : 0), Status: 'ACTIVE & VERIFIED' });
+        newCount = cNew ?? 0;
       }
     } catch (e) {
-      report.push({ TableName: tableName, RecordCount: 0, Status: `EXCEPTION (${e.message})` });
+      status = `EXCEPTION (${e.message})`;
     }
+
+    report.push({
+      OldUnprefixedTable: oldTable,
+      NewGVTable: newTable,
+      OldRowCount: oldCount,
+      NewGVRowCount: newCount,
+      Status: status
+    });
   }
 
-  console.log("\nEXACT 6 GROWVIA APPLICATION TABLES REPORT:");
+  console.log("\nRESILIENT 6 GROWVIA CONSOLIDATED APPLICATION TABLES REPORT:");
   console.table(report);
 }
 
-verifyExactSixTables();
+syncAndVerifyTables();
