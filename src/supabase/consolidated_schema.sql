@@ -240,7 +240,10 @@ CREATE POLICY "gv_communications_all" ON public.GV_communications FOR ALL USING 
 CREATE POLICY "gv_requests_all" ON public.GV_requests FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "gv_system_settings_all" ON public.GV_system_settings FOR ALL USING (true) WITH CHECK (true);
 
--- 6. DROP ALL OLD UNPREFIXED / UNCONSOLIDATED TABLES SO ONLY EXACTLY 6 TABLES REMAIN
+-- 6. DROP ALL EXTRA & OLD UNPREFIXED TABLES SO ONLY EXACTLY THE 6 CORE TABLES REMAIN
+DROP TABLE IF EXISTS public.gv_promotion_history CASCADE;
+DROP TABLE IF EXISTS public.gv_student_attendance CASCADE;
+
 DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.students CASCADE;
