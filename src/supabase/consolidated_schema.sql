@@ -6,6 +6,7 @@
 -- 3. fees_payments      (fees, receipts)
 -- 4. communications     (circulars, messages)
 -- 5. requests           (leave_requests, enquiries)
+-- 6. system_settings    (developer console & branding settings)
 -- ====================================================================
 
 -- 1. EXTENSIONS & ENUMS
@@ -150,6 +151,37 @@ CREATE TABLE IF NOT EXISTS public.requests (
 CREATE INDEX IF NOT EXISTS idx_requests_type ON public.requests(request_type);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON public.requests(status);
 
+-- F. SYSTEM SETTINGS MODULE (Developer Console & Branding)
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    id VARCHAR(50) PRIMARY KEY DEFAULT 'PRIMARY',
+    content TEXT,
+    school_name VARCHAR(150),
+    school_logo_url TEXT,
+    header_logo TEXT,
+    sidebar_logo TEXT,
+    sidebar_logo_url TEXT,
+    sidebar_school_name VARCHAR(150),
+    login_logo TEXT,
+    login_bg TEXT,
+    favicon TEXT,
+    school_address TEXT,
+    phone VARCHAR(50),
+    email VARCHAR(150),
+    website VARCHAR(150),
+    motto TEXT,
+    office_hours VARCHAR(100),
+    login_title VARCHAR(150),
+    login_subtitle TEXT,
+    footer_text TEXT,
+    theme_color VARCHAR(50),
+    report_header TEXT,
+    receipt_header TEXT,
+    academic_year VARCHAR(50),
+    project_name VARCHAR(100),
+    project_logo TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 3. RESILIENT PL/PGSQL MIGRATION BLOCKS (Guaranteed Zero Execution Errors)
 
 -- Populate users from profiles
@@ -257,18 +289,21 @@ ALTER TABLE public.inventory_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fees_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "users_all" ON public.users;
 DROP POLICY IF EXISTS "inventory_expenses_all" ON public.inventory_expenses;
 DROP POLICY IF EXISTS "fees_payments_all" ON public.fees_payments;
 DROP POLICY IF EXISTS "communications_all" ON public.communications;
 DROP POLICY IF EXISTS "requests_all" ON public.requests;
+DROP POLICY IF EXISTS "system_settings_all" ON public.system_settings;
 
 CREATE POLICY "users_all" ON public.users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "inventory_expenses_all" ON public.inventory_expenses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "fees_payments_all" ON public.fees_payments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "communications_all" ON public.communications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "requests_all" ON public.requests FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "system_settings_all" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- 5. CLEANUP / DROP OLD UNCONSOLIDATED TABLES AFTER DATA MERGE
 DROP TABLE IF EXISTS public.profiles CASCADE;
