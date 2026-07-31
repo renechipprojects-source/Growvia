@@ -156,7 +156,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_status ON public.requests(status);
 INSERT INTO public.users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
 SELECT id::text, auth_user_id, login_id, email, full_name, role::text, status, mobile, photo_url, must_change_password, created_at, updated_at
 FROM public.profiles
-ON CONFLICT (id) DO UPDATE SET
+ON CONFLICT (login_id) DO UPDATE SET
   auth_user_id = EXCLUDED.auth_user_id,
   full_name = EXCLUDED.full_name,
   role = EXCLUDED.role,
@@ -166,7 +166,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.users (id, login_id, email, full_name, role, status, admission_no, class_name, section, parent_name, parent_id, mobile, gender, house, joining_date, fee_status, photo_url, attendance_pct, branch, created_at)
 SELECT id, id, COALESCE(id || '@sunshine.edu'), name, 'student', 'active', admission_no, class_name, section, parent_name, parent_id, phone, gender::text, house::text, admission_date, fee_status::text, avatar, attendance_pct, branch, created_at
 FROM public.students
-ON CONFLICT (id) DO UPDATE SET
+ON CONFLICT (login_id) DO UPDATE SET
   class_name = EXCLUDED.class_name,
   section = EXCLUDED.section,
   parent_name = EXCLUDED.parent_name,
@@ -176,7 +176,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.users (id, login_id, email, full_name, role, status, employee_id, class_name, subject, mobile, experience, joining_date, photo_url, branch, created_at)
 SELECT id, id, email, name, 'teacher', 'active', id, class_name, subject, phone, experience, joined_date, avatar, branch, created_at
 FROM public.teachers
-ON CONFLICT (id) DO UPDATE SET
+ON CONFLICT (login_id) DO UPDATE SET
   class_name = EXCLUDED.class_name,
   subject = EXCLUDED.subject,
   mobile = EXCLUDED.mobile;
@@ -188,7 +188,7 @@ FROM public.inventory_items
 ON CONFLICT (id) DO NOTHING;
 
 -- Populate inventory_expenses from expenses
-INSERT INTO public.expenses (id, record_type, title, category, amount_or_unit_cost, payment_method, transaction_date, receipt_ref, notes, created_by, created_at)
+INSERT INTO public.inventory_expenses (id, record_type, title, category, amount_or_unit_cost, payment_method, transaction_date, receipt_ref, notes, created_by, created_at)
 SELECT id, 'expense', category, category, amount, payment_method, expense_date, receipt_ref, notes, created_by, created_at
 FROM public.expenses
 ON CONFLICT (id) DO NOTHING;
@@ -235,6 +235,12 @@ ALTER TABLE public.inventory_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fees_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "users_all" ON public.users;
+DROP POLICY IF EXISTS "inventory_expenses_all" ON public.inventory_expenses;
+DROP POLICY IF EXISTS "fees_payments_all" ON public.fees_payments;
+DROP POLICY IF EXISTS "communications_all" ON public.communications;
+DROP POLICY IF EXISTS "requests_all" ON public.requests;
 
 CREATE POLICY "users_all" ON public.users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "inventory_expenses_all" ON public.inventory_expenses FOR ALL USING (true) WITH CHECK (true);
