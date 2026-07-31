@@ -1,32 +1,27 @@
-# Logs
-logs
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build and Transpilation Outputs
+dist/
+.output/
+.tanstack/
+.wrangler/
+.lovable/
+build/
+
+# Environment Variables & Secrets (NEVER COMMIT REAL KEYS)
+.env
+.env.local
+.env.development
+.env.production
+.env.*
+!.env.example
+
+# Logs and OS files
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
-
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db

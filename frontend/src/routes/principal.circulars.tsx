@@ -1,0 +1,561 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { Plus, Search, Edit2, Trash2, Send, Archive, History, Eye, Paperclip, Calendar } from "lucide-react";
+import { PageHeader } from "@/components/principal/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
+import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
+import { NotificationService, type Role } from "@/lib/notifications";
+import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
+
+export const Route = createFileRoute("/principal/circulars")({
+  head: () => ({
+    meta: [
+      { title: "Circular Management | Principal Portal" },
+      { name: "description", content: "Create, publish, schedule and manage circulars for Admin, Teachers, Office Staff and Parents." },
+    ],
+  }),
+  component: CircularsPage,
+});
+
+type Mode = "create" | "edit" | "view" | null;
+
+function CircularsPage() {
+  const [items, setItems] = useState<Circular[]>([]);
+
+  const reloadCirculars = useCallback(async () => {
+    try {
+      const { data } = await fetchCirculars();
+      const source = data || [];
+      const mapped: Circular[] = source.map((d: any) => ({
+        id: d.id || `C-${Math.random()}`,
+        title: d.title || "Untitled Circular",
+        subject: d.subject || d.title || "General Notice",
+        description: d.description || d.content || d.subject || "No details provided.",
+        priority: d.priority || "Medium",
+        publishDate: d.publishDate || d.published_date || new Date().toISOString().slice(0, 10),
+        expiryDate: d.expiryDate || d.expiry_date || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        recipients: Array.isArray(d.recipients) && d.recipients.length > 0
+          ? d.recipients
+          : typeof d.target_audience === "string" && d.target_audience.length > 0
+          ? d.target_audience.split(",")
+          : ["Parents", "Teachers"],
+        status: (d.status as any) || "Published",
+        createdAt: d.createdAt || d.published_date || new Date().toISOString(),
+        history: d.history || [{ at: new Date().toISOString(), action: "Published" }],
+        attachment: d.attachment || d.attachmentName,
+        attachmentName: d.attachmentName || d.attachment,
+        attachmentUrl: d.attachmentUrl,
+      }));
+      setItems(mapped);
+    } catch {
+      setItems([]);
+    }
+  }, []);
+
+  const { setFormEditing, triggerModuleRefresh } = useAutoRefresh("circulars", reloadCirculars);
+
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("all");
+  const [priority, setPriority] = useState("all");
+  const [mode, setMode] = useState<Mode>(null);
+  const [editing, setEditing] = useState<Circular | null>(null);
+  const [historyOf, setHistoryOf] = useState<Circular | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Circular | null>(null);
+
+  useEffect(() => {
+    setFormEditing(mode !== null || historyOf !== null || confirmDelete !== null);
+  }, [mode, historyOf, confirmDelete, setFormEditing]);
+
+  const filtered = useMemo(
+    () =>
+      items.filter((c) => {
+        const matchQ = !q || c.title.toLowerCase().includes(q.toLowerCase()) || c.subject.toLowerCase().includes(q.toLowerCase());
+        const matchS = status === "all" || c.status === status;
+        const matchP = priority === "all" || c.priority === priority;
+        return matchQ && matchS && matchP;
+      }),
+    [items, q, status, priority],
+  );
+
+  const openCreate = () => {
+    setEditing(null);
+    setMode("create");
+  };
+  const openEdit = (c: Circular) => {
+    setEditing(c);
+    setMode("edit");
+  };
+  const openView = (c: Circular) => {
+    setEditing(c);
+    setMode("view");
+  };
+
+  const upsert = (c: Circular, action: string) => {
+    setItems((prev) => {
+      const exists = prev.some((x) => x.id === c.id);
+      const withHistory = { ...c, history: [...c.history, { at: new Date().toISOString(), action }] };
+      if (exists) return prev.map((x) => (x.id === c.id ? withHistory : x));
+      return [withHistory, ...prev];
+    });
+  };
+
+  const deleteCircular = async (c: Circular) => {
+    setItems((prev) => prev.filter((x) => x.id !== c.id));
+    await deleteCircularService(c.id);
+    await reloadCirculars();
+    toast.success(`Deleted "${c.title}"`);
+    setConfirmDelete(null);
+  };
+
+  const archive = async (c: Circular) => {
+    const updated = { ...c, status: "Archived" as const };
+    await createCircular(updated);
+    await reloadCirculars();
+    toast.success("Circular archived");
+  };
+
+  const mapRecipientsToRoles = (recipients: string[]): Role[] => {
+    const roles: Role[] = [];
+    if (recipients.includes("Parents") || recipients.includes("Students & Parents")) roles.push("parent");
+    if (recipients.includes("Teachers")) roles.push("teacher");
+    if (recipients.includes("Office Staff") || recipients.includes("Office")) roles.push("office");
+    if (recipients.includes("Admin") || recipients.includes("Principal")) roles.push("principal", "super-admin");
+    return roles.length > 0 ? roles : ["parent", "teacher", "office", "principal", "super-admin"];
+  };
+
+  const syncCircularToAlerts = (c: Circular) => {
+    try {
+      const KEY = "sunshine.alerts.v1";
+      const raw = localStorage.getItem(KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      const newAlert = {
+        id: `AL-${c.id}`,
+        title: c.title,
+        description: c.description || c.subject,
+        priority: c.priority === "High" ? "Urgent" : c.priority,
+        publishDate: c.publishDate || new Date().toISOString().slice(0, 10),
+        expiryDate: c.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        audience: c.recipients.includes("Parents") && c.recipients.includes("Teachers") ? "both" : c.recipients.includes("Teachers") ? "teachers" : "office",
+        createdAt: new Date().toISOString(),
+        readBy: [],
+      };
+      if (!list.some((x: any) => x.id === newAlert.id)) {
+        list.unshift(newAlert);
+        localStorage.setItem(KEY, JSON.stringify(list));
+      }
+    } catch {}
+  };
+
+  const publish = async (c: Circular) => {
+    const updated = { ...c, status: "Published" as const };
+    upsert(updated, "Published");
+    const targetRoles = mapRecipientsToRoles(c.recipients);
+    NotificationService.circularPublished(c.title, targetRoles);
+    syncCircularToAlerts(updated);
+    try {
+      await createCircular(updated);
+      await reloadCirculars();
+      toast.success("Circular published to selected recipients!");
+    } catch (err: any) {
+      toast.success(`Circular published! (${err?.message || "Saved"})`);
+    }
+  };
+
+  return (
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
+      <PageHeader
+        title="Circular Management"
+        description="Create, schedule and publish circulars. Recipients see them in their own portal — they cannot reply or edit."
+        actions={
+          <Button onClick={openCreate} className="gradient-primary text-primary-foreground">
+            <Plus className="w-4 h-4 mr-1.5" /> New Circular
+          </Button>
+        }
+      />
+
+      <div className="rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-3 shrink-0">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Search by title or subject" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          </div>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="md:w-44"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="Draft">Draft</SelectItem>
+              <SelectItem value="Scheduled">Scheduled</SelectItem>
+              <SelectItem value="Published">Published</SelectItem>
+              <SelectItem value="Archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger className="md:w-40"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priorities</SelectItem>
+              <SelectItem value="High">High</SelectItem>
+              <SelectItem value="Medium">Medium</SelectItem>
+              <SelectItem value="Low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Title</th>
+                  <th className="text-left px-4 py-3 font-medium">Recipients</th>
+                  <th className="text-left px-4 py-3 font-medium">Priority</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Publish</th>
+                  <th className="text-left px-4 py-3 font-medium">Expiry</th>
+                  <th className="text-right px-4 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id} className="border-t hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{c.title}</div>
+                      <div className="text-xs text-muted-foreground">{c.subject}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1 max-w-[220px]">
+                        {c.recipients.length === ALL_RECIPIENTS.length ? (
+                          <Badge className="bg-primary/10 text-primary border-primary/30" variant="outline">Everyone</Badge>
+                        ) : c.recipients.map((r) => <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><PriorityBadge p={c.priority} /></td>
+                    <td className="px-4 py-3"><StatusBadge s={c.status} /></td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{c.publishDate}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{c.expiryDate}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <IconBtn title="View" onClick={() => openView(c)}><Eye className="w-4 h-4" /></IconBtn>
+                        <IconBtn title="History" onClick={() => setHistoryOf(c)}><History className="w-4 h-4" /></IconBtn>
+                        {c.status !== "Archived" && (
+                          <IconBtn title="Edit" onClick={() => openEdit(c)}><Edit2 className="w-4 h-4" /></IconBtn>
+                        )}
+                        {(c.status === "Draft" || c.status === "Scheduled") && (
+                          <IconBtn title="Publish" onClick={() => publish(c)}><Send className="w-4 h-4 text-primary" /></IconBtn>
+                        )}
+                        {c.status === "Published" && (
+                          <IconBtn title="Archive" onClick={() => archive(c)}><Archive className="w-4 h-4" /></IconBtn>
+                        )}
+                        <IconBtn title="Delete" onClick={() => setConfirmDelete(c)}><Trash2 className="w-4 h-4 text-destructive" /></IconBtn>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">No circulars found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+      </div>
+
+      <CircularDetailsModal
+        open={mode === "view"}
+        onClose={() => setMode(null)}
+        circular={editing}
+        role="principal"
+      />
+
+      <CircularEditor
+        mode={mode}
+        editing={editing}
+        onClose={() => setMode(null)}
+        onSave={async (c, action) => {
+          const res = await createCircular(c);
+          if (res.error) {
+            toast.error(`Publish failed: ${res.error}`);
+            return;
+          }
+
+          toast.success(action);
+
+          if (c.status === "Published" || action.toLowerCase().includes("publish")) {
+            const targetRoles = mapRecipientsToRoles(c.recipients);
+            NotificationService.circularPublished(c.title, targetRoles);
+            syncCircularToAlerts(c);
+          }
+
+          await reloadCirculars();
+          setMode(null);
+        }}
+      />
+
+      <Dialog open={!!historyOf} onOpenChange={(o) => !o && setHistoryOf(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>History — {historyOf?.title}</DialogTitle></DialogHeader>
+          <ul className="space-y-2 mt-2">
+            {historyOf?.history.map((h, i) => (
+              <li key={i} className="text-sm flex justify-between border-b pb-2 last:border-0">
+                <span>{h.action}</span>
+                <span className="text-xs text-muted-foreground">{new Date(h.at).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Circular?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This will permanently remove "{confirmDelete?.title}".</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && deleteCircular(confirmDelete)}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function IconBtn({ children, title, onClick }: { children: React.ReactNode; title: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="p-2 rounded-md hover:bg-muted transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
+function PriorityBadge({ p }: { p: "Low" | "Medium" | "High" }) {
+  const cls = {
+    High: "bg-destructive/10 text-destructive border-destructive/30",
+    Medium: "bg-warning/15 text-warning-foreground border-warning/40",
+    Low: "bg-muted text-muted-foreground border-border",
+  }[p];
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`}>{p}</span>;
+}
+function StatusBadge({ s }: { s: Circular["status"] }) {
+  const cls = {
+    Draft: "bg-muted text-muted-foreground border-border",
+    Scheduled: "bg-info/10 text-info border-info/30",
+    Published: "bg-success/15 text-success border-success/30",
+    Archived: "bg-secondary text-secondary-foreground border-border",
+  }[s];
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`}>{s}</span>;
+}
+
+function CircularEditor({
+  mode,
+  editing,
+  onClose,
+  onSave,
+}: {
+  mode: Mode;
+  editing: Circular | null;
+  onClose: () => void;
+  onSave: (c: Circular, action: string) => void;
+}) {
+  const isView = mode === "view";
+  const open = mode !== null;
+
+  const [form, setForm] = useState<Circular>(
+    editing ?? {
+      id: `C${Math.floor(Math.random() * 9000) + 1000}`,
+      title: "",
+      subject: "",
+      description: "",
+      priority: "Medium",
+      publishDate: new Date().toISOString().slice(0, 10),
+      expiryDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10),
+      recipients: [],
+      status: "Draft",
+      createdAt: new Date().toISOString(),
+      history: [],
+      attachment: undefined,
+    },
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(
+      editing ?? {
+        id: `C${Math.floor(Math.random() * 9000) + 1000}`,
+        title: "",
+        subject: "",
+        description: "",
+        priority: "Medium",
+        publishDate: new Date().toISOString().slice(0, 10),
+        expiryDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10),
+        recipients: [],
+        status: "Draft",
+        createdAt: new Date().toISOString(),
+        history: [],
+        attachment: undefined,
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, editing?.id]);
+
+
+  const toggleRecipient = (r: RecipientRole) => {
+    setForm((f) => ({
+      ...f,
+      recipients: f.recipients.includes(r) ? f.recipients.filter((x) => x !== r) : [...f.recipients, r],
+    }));
+  };
+  const toggleAll = () => {
+    setForm((f) => ({
+      ...f,
+      recipients: f.recipients.length === ALL_RECIPIENTS.length ? [] : [...ALL_RECIPIENTS],
+    }));
+  };
+
+  const validate = (): string | null => {
+    if (!form.title.trim()) return "Title is required";
+    if (!form.subject.trim()) return "Subject is required";
+    if (!form.description.trim()) return "Description is required";
+    if (form.recipients.length === 0) return "Select at least one recipient";
+    if (form.expiryDate < form.publishDate) return "Expiry must be on or after publish date";
+    return null;
+  };
+
+  const handle = (action: "draft" | "schedule" | "publish") => {
+    const err = validate();
+    if (err) return toast.error(err);
+    const today = new Date().toISOString().slice(0, 10);
+    let status: Circular["status"] = form.status;
+    let label = "";
+    if (action === "draft") { status = "Draft"; label = "Draft saved"; }
+    if (action === "schedule") { status = form.publishDate > today ? "Scheduled" : "Published"; label = status === "Scheduled" ? "Circular scheduled" : "Circular published"; }
+    if (action === "publish") { status = "Published"; label = "Circular published"; }
+    onSave({ ...form, status }, label);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border-white/60 bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/10 p-6">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "create" ? "New Circular" : mode === "edit" ? "Edit Circular" : "Circular Details"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Title</Label>
+              <Input disabled={isView} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. PTM Schedule for August" />
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input disabled={isView} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Parent-Teacher Meeting" />
+            </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as Circular["priority"] })} disabled={isView}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Description</Label>
+              <Textarea disabled={isView} rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Write the circular contents..." />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Publish Date</Label>
+              <Input disabled={isView} type="date" value={form.publishDate} onChange={(e) => setForm({ ...form, publishDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Expiry Date</Label>
+              <Input disabled={isView} type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label className="flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Attachment</Label>
+              {isView ? (
+                <div className="text-sm text-muted-foreground">{form.attachment ?? "No attachment"}</div>
+              ) : (
+                <Input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setForm((f) => ({
+                          ...f,
+                          attachment: file.name,
+                          attachmentName: file.name,
+                          attachmentUrl: ev.target?.result as string,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <Label>Recipients</Label>
+              {!isView && (
+                <button type="button" onClick={toggleAll} className="text-xs text-primary hover:underline">
+                  {form.recipients.length === ALL_RECIPIENTS.length ? "Clear all" : "Select everyone"}
+                </button>
+              )}
+            </div>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {ALL_RECIPIENTS.map((r) => {
+                const checked = form.recipients.includes(r);
+                return (
+                  <label
+                    key={r}
+                    className={`flex items-center gap-2 border rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                      checked ? "border-primary bg-primary/5" : "hover:bg-muted/40"
+                    } ${isView ? "cursor-default opacity-90" : ""}`}
+                  >
+                    <Checkbox disabled={isView} checked={checked} onCheckedChange={() => toggleRecipient(r)} />
+                    <span>{r}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Selected combination: {form.recipients.length === 0 ? "None" : form.recipients.length === ALL_RECIPIENTS.length ? "Everyone" : form.recipients.join(", ")}
+            </p>
+          </div>
+        </div>
+
+        {!isView && (
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="secondary" onClick={() => handle("draft")}>Save Draft</Button>
+            <Button variant="outline" onClick={() => handle("schedule")}>
+              <Calendar className="w-4 h-4 mr-1.5" /> Schedule
+            </Button>
+            <Button onClick={() => handle("publish")} className="gradient-primary text-primary-foreground">
+              <Send className="w-4 h-4 mr-1.5" /> Publish
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

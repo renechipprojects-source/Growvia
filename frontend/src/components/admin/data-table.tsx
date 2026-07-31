@@ -1,0 +1,169 @@
+import { useState, type ReactNode } from "react";
+import { Search, Filter, Download, Plus } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink,
+  PaginationNext, PaginationPrevious,
+} from "@/components/ui/pagination";
+
+export function FilterBar({
+  searchPlaceholder = "Search...",
+  filters,
+  onAdd,
+  addLabel = "Add New",
+  search,
+  onSearchChange,
+  filterValues,
+  onFilterChange,
+  onExport,
+  hideExport = false,
+}: {
+  searchPlaceholder?: string;
+  filters?: { label: string; options: string[] }[];
+  onAdd?: () => void;
+  addLabel?: string;
+  search?: string;
+  onSearchChange?: (v: string) => void;
+  filterValues?: Record<string, string>;
+  onFilterChange?: (label: string, value: string) => void;
+  onExport?: () => void;
+  hideExport?: boolean;
+}) {
+  return (
+    <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5 w-full max-w-none shrink-0">
+      <CardContent className="flex flex-wrap items-center gap-3 p-4">
+        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder={searchPlaceholder}
+            className="pl-9 rounded-xl border-slate-200/80 bg-white/80 backdrop-blur-md focus:ring-2 focus:ring-indigo-500/20"
+            value={search ?? ""}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+          />
+        </div>
+        {filters?.map((f) => (
+          <Select
+            key={f.label}
+            value={filterValues?.[f.label] ?? "all"}
+            onValueChange={(v) => onFilterChange?.(f.label, v)}
+          >
+            <SelectTrigger className="w-[160px] rounded-xl border-slate-200/80 bg-white/80">
+              <SelectValue placeholder={f.label} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All {f.label}</SelectItem>
+              {f.options.map((o) => (
+                <SelectItem key={o} value={o}>{o}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
+          {!hideExport && (
+            <Button variant="outline" size="sm" className="rounded-xl border-slate-200/80 bg-white/80" onClick={onExport} aria-label="Export Data">
+              <Download className="mr-2 h-4 w-4" />Export
+            </Button>
+          )}
+          {onAdd !== undefined && (
+            <Button size="sm" className="rounded-xl bg-slate-900 text-white shadow-md hover:bg-slate-800" onClick={onAdd}><Plus className="mr-2 h-4 w-4" />{addLabel}</Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function DataTable({
+  columns,
+  children,
+  total,
+  pageSize = 8,
+  hidePagination = false,
+}: {
+  columns: string[];
+  children: ReactNode;
+  total?: number;
+  pageSize?: number;
+  hidePagination?: boolean;
+}) {
+  const [page, setPage] = useState(1);
+  const childrenArray = Array.isArray(children) ? children.flat() : children ? [children] : [];
+  const realTotal = total ?? childrenArray.length;
+  const totalPages = Math.ceil(childrenArray.length / pageSize) || 1;
+  const paginatedChildren = hidePagination
+    ? childrenArray
+    : childrenArray.slice((page - 1) * pageSize, page * pageSize);
+
+  return (
+    <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-320px)] w-full max-w-none">
+          <Table className="w-full min-w-full">
+            <TableHeader className="sticky top-0 z-20 bg-slate-100/90 backdrop-blur-md border-b">
+              <TableRow className="border-b border-slate-200/60 hover:bg-transparent">
+                {columns.map((c) => (
+                  <TableHead key={c} className="whitespace-nowrap py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {c}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100">
+              {paginatedChildren.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="py-10 text-center text-sm text-muted-foreground">
+                    No matching records found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedChildren
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {!hidePagination && (
+          <div className="shrink-0 border-t px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs font-medium text-muted-foreground">
+              Showing {childrenArray.length} {childrenArray.length === 1 ? "entry" : "entries"} total
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="h-8 text-xs"
+                >
+                  Previous
+                </Button>
+                <span className="text-xs font-medium text-muted-foreground px-2">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="h-8 text-xs"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export { TableCell, TableRow };
