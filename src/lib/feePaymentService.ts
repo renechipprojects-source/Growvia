@@ -26,14 +26,22 @@ export interface ReceiptRecord {
   recordedBy: string;
 }
 
-// ─── FEES & PAYMENTS SERVICE (Module 3: fees_payments) ───────────────────────
+// ─── FEES & PAYMENTS SERVICE (Module 3: GV_fees_payments) ───────────────────────
 
 export async function fetchFeesFromModule(): Promise<{ data: FeeRecord[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("fees_payments")
+    let { data, error } = await supabase
+      .from("GV_fees_payments")
       .select("*")
       .eq("record_type", "fee_schedule");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("fees_payments").select("*").eq("record_type", "fee_schedule");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy fees table
@@ -73,10 +81,18 @@ export async function fetchFeesFromModule(): Promise<{ data: FeeRecord[]; isFrom
 
 export async function fetchReceiptsFromModule(): Promise<{ data: ReceiptRecord[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("fees_payments")
+    let { data, error } = await supabase
+      .from("GV_fees_payments")
       .select("*")
       .eq("record_type", "payment_receipt");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("fees_payments").select("*").eq("record_type", "payment_receipt");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy receipts table
@@ -140,22 +156,8 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("fees_payments").insert([payload]).select();
-    // Dual-write legacy receipts table for resilience
-    Promise.resolve(supabase.from("receipts").insert([{
-      id: payload.id,
-      student_id: payload.student_id,
-      student_name: payload.student_name,
-      class_name: payload.class_name,
-      fee_type: payload.fee_type,
-      amount_paid: payload.amount_paid,
-      payment_date: payload.payment_date,
-      payment_method: payload.payment_method,
-      receipt_number: payload.receipt_number,
-      transaction_ref: payload.transaction_ref,
-      status: payload.status,
-      recorded_by: payload.recorded_by,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_fees_payments").insert([payload]).select();
+    Promise.resolve(supabase.from("fees_payments").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

@@ -41,7 +41,7 @@ function Expenses() {
 
     setItems((prev) => [newExp, ...prev]);
 
-    const { error } = await supabase.from("inventory_expenses").insert([{
+    const { error } = await supabase.from("GV_inventory_expenses").insert([{
       id: newId,
       record_type: "expense",
       title: v.category,
@@ -51,6 +51,16 @@ function Expenses() {
       supplier_or_paid_to: v.paidTo,
       notes: v.description,
     }]);
+    Promise.resolve(supabase.from("inventory_expenses").insert([{
+      id: newId,
+      record_type: "expense",
+      title: v.category,
+      category: v.category,
+      amount_or_unit_cost: amt,
+      transaction_date: newExp.date,
+      supplier_or_paid_to: v.paidTo,
+      notes: v.description,
+    }])).catch(() => {});
 
     if (error) {
       toast.error(`Failed to save to database: ${error.message}`);

@@ -47,7 +47,8 @@ export async function ensureDeveloperAccount() {
         must_change_password: false,
       };
 
-      await supabase.from("users").upsert([payload]);
+      await supabase.from("GV_users").upsert([payload]);
+      Promise.resolve(supabase.from("users").upsert([payload])).catch(() => {});
       Promise.resolve(supabase.from("profiles").upsert([payload])).catch(() => {});
     }
   } catch {}
@@ -195,11 +196,11 @@ export async function login(loginId: string, password: string) {
             },
           });
           if (signUpData?.user?.id) {
-            await supabase.from("users").update({
+            await supabase.from("GV_users").update({
               id: signUpData.user.id,
               auth_user_id: signUpData.user.id,
             }).eq("login_id", profile.login_id);
-            Promise.resolve(supabase.from("profiles").update({
+            Promise.resolve(supabase.from("users").update({
               id: signUpData.user.id,
               auth_user_id: signUpData.user.id,
             }).eq("login_id", profile.login_id)).catch(() => {});

@@ -25,14 +25,22 @@ export interface ExpenseRecord {
   createdAt: string;
 }
 
-// ─── INVENTORY & EXPENSES SERVICE (Module 2: inventory_expenses) ─────────────
+// ─── INVENTORY & EXPENSES SERVICE (Module 2: GV_inventory_expenses) ─────────────
 
 export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemRecord[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("inventory_expenses")
+    let { data, error } = await supabase
+      .from("GV_inventory_expenses")
       .select("*")
       .eq("record_type", "inventory");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("inventory_expenses").select("*").eq("record_type", "inventory");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy inventory_items
@@ -76,10 +84,18 @@ export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemR
 
 export async function fetchExpensesFromModule(): Promise<{ data: ExpenseRecord[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("inventory_expenses")
+    let { data, error } = await supabase
+      .from("GV_inventory_expenses")
       .select("*")
       .eq("record_type", "expense");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("inventory_expenses").select("*").eq("record_type", "expense");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy expenses table
@@ -133,17 +149,8 @@ export async function saveInventoryItemToModule(item: Partial<InventoryItemRecor
   };
 
   try {
-    const { data, error } = await supabase.from("inventory_expenses").upsert([payload]).select();
-    // Dual-write legacy inventory_items for resilience
-    Promise.resolve(supabase.from("inventory_items").upsert([{
-      id: payload.id,
-      item_name: payload.title,
-      category: payload.category,
-      quantity: payload.quantity,
-      unit: payload.unit,
-      min_stock: payload.min_stock,
-      supplier: payload.supplier_or_paid_to,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_inventory_expenses").upsert([payload]).select();
+    Promise.resolve(supabase.from("inventory_expenses").upsert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -165,18 +172,8 @@ export async function recordExpenseToModule(expense: Partial<ExpenseRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("inventory_expenses").insert([payload]).select();
-    // Dual-write legacy expenses for resilience
-    Promise.resolve(supabase.from("expenses").insert([{
-      id: payload.id,
-      category: payload.category,
-      amount: payload.amount_or_unit_cost,
-      payment_method: payload.payment_method,
-      expense_date: payload.transaction_date,
-      receipt_ref: payload.receipt_ref,
-      notes: payload.notes,
-      created_by: payload.created_by,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_inventory_expenses").insert([payload]).select();
+    Promise.resolve(supabase.from("inventory_expenses").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

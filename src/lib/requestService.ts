@@ -2,14 +2,22 @@ import { supabase } from "./supabase";
 import type { LeaveRequest } from "./supabaseService";
 import type { Enquiry } from "./mockData";
 
-// ─── REQUESTS SERVICE (Module 5: requests) ───────────────────────────────────
+// ─── REQUESTS SERVICE (Module 5: GV_requests) ───────────────────────────────────
 
 export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveRequest[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("requests")
+    let { data, error } = await supabase
+      .from("GV_requests")
       .select("*")
       .eq("request_type", "leave");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("requests").select("*").eq("request_type", "leave");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy leave_requests table
@@ -49,10 +57,18 @@ export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveReque
 
 export async function fetchEnquiriesFromModule(): Promise<{ data: Enquiry[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("requests")
+    let { data, error } = await supabase
+      .from("GV_requests")
       .select("*")
       .eq("request_type", "enquiry");
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("requests").select("*").eq("request_type", "enquiry");
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy enquiries table
@@ -121,17 +137,8 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
   };
 
   try {
-    const { data, error } = await supabase.from("requests").insert([payload]).select();
-    // Dual-write legacy leave_requests table for resilience
-    Promise.resolve(supabase.from("leave_requests").insert([{
-      id: payload.id,
-      applicant_name: payload.applicant_or_child_name,
-      applicant_role: payload.leave_type_or_interested_class,
-      start_date: payload.start_date,
-      end_date: payload.end_date,
-      reason: payload.reason_or_notes,
-      status: payload.status,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_requests").insert([payload]).select();
+    Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -157,23 +164,8 @@ export async function createEnquiryToModule(enquiry: Partial<Enquiry>) {
   };
 
   try {
-    const { data, error } = await supabase.from("requests").insert([payload]).select();
-    // Dual-write legacy enquiries table for resilience
-    Promise.resolve(supabase.from("enquiries").insert([{
-      id: payload.id,
-      child_name: payload.applicant_or_child_name,
-      parent_name: payload.parent_name,
-      phone: payload.phone,
-      email: payload.email,
-      address: payload.address,
-      gender: payload.gender,
-      dob: payload.dob,
-      interested_class: payload.leave_type_or_interested_class,
-      source: payload.source,
-      status: payload.status,
-      follow_up: payload.follow_up_date,
-      notes: payload.reason_or_notes,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_requests").insert([payload]).select();
+    Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

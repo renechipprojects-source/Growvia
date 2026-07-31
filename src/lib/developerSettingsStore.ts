@@ -322,9 +322,9 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
     applyDynamicHeadAndTheme(settings);
     window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: settings }));
 
-    // Async save to Supabase system_settings table with independent keys
+    // Async save to Supabase GV_system_settings table with independent keys
     Promise.resolve(
-      supabase.from("system_settings").upsert({
+      supabase.from("GV_system_settings").upsert({
         id: "PRIMARY",
         content: JSON.stringify(settings),
         school_name: settings.school.schoolName,
@@ -354,6 +354,12 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
         updated_at: new Date().toISOString(),
       })
     ).catch(() => {});
+    Promise.resolve(
+      supabase.from("system_settings").upsert({
+        id: "PRIMARY",
+        content: JSON.stringify(settings),
+      })
+    ).catch(() => {});
   } catch {}
 }
 
@@ -363,7 +369,7 @@ export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: Develo
       .channel("system_settings_realtime_sync")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "system_settings" },
+        { event: "*", schema: "public", table: "GV_system_settings" },
         (payload: any) => {
           if (payload?.new?.content) {
             try {
@@ -422,7 +428,7 @@ export function useDeveloperSettings() {
 
     // Initial Supabase Sync & Realtime Subscription
     supabase
-      .from("system_settings")
+      .from("GV_system_settings")
       .select("content")
       .eq("id", "PRIMARY")
       .maybeSingle()
@@ -433,6 +439,21 @@ export function useDeveloperSettings() {
             saveDeveloperSettings(remoteSettings);
             setSettings(remoteSettings);
           } catch {}
+        } else {
+          supabase
+            .from("system_settings")
+            .select("content")
+            .eq("id", "PRIMARY")
+            .maybeSingle()
+            .then((fallbackRes) => {
+              if (fallbackRes.data?.content) {
+                try {
+                  const remoteSettings = JSON.parse(fallbackRes.data.content) as DeveloperSettings;
+                  saveDeveloperSettings(remoteSettings);
+                  setSettings(remoteSettings);
+                } catch {}
+              }
+            }).then(() => {}, () => {});
         }
       });
 

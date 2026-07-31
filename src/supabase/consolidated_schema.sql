@@ -1,21 +1,21 @@
 -- ====================================================================
--- SUNSHINE / GROWVIA SCHOOL ERP — CONSOLIDATED BUSINESS MODULES SCHEMA
+-- SUNSHINE / GROWVIA SCHOOL ERP — NAMESPACED DATABASE MODULES SCHEMA (GV_)
 -- Module Structure:
--- 1. users              (profiles, students, teachers)
--- 2. inventory_expenses (inventory_items, expenses)
--- 3. fees_payments      (fees, receipts)
--- 4. communications     (circulars, messages)
--- 5. requests           (leave_requests, enquiries)
--- 6. system_settings    (developer console & branding settings)
+-- 1. GV_users              (profiles, students, teachers)
+-- 2. GV_inventory_expenses (inventory_items, expenses)
+-- 3. GV_fees_payments      (fees, receipts)
+-- 4. GV_communications     (circulars, messages)
+-- 5. GV_requests           (leave_requests, enquiries)
+-- 6. GV_system_settings    (developer console & branding settings)
 -- ====================================================================
 
 -- 1. EXTENSIONS & ENUMS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. CONSOLIDATED TABLES
+-- 2. NAMESPACED CONSOLIDATED TABLES (GV_)
 
 -- A. USERS MODULE (Profiles, Students, Teachers)
-CREATE TABLE IF NOT EXISTS public.users (
+CREATE TABLE IF NOT EXISTS public.GV_users (
     id VARCHAR(100) PRIMARY KEY,
     auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     login_id VARCHAR(100) UNIQUE NOT NULL,
@@ -47,13 +47,13 @@ CREATE TABLE IF NOT EXISTS public.users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_login_id ON public.users(login_id);
-CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
-CREATE INDEX IF NOT EXISTS idx_users_auth_user_id ON public.users(auth_user_id);
-CREATE INDEX IF NOT EXISTS idx_users_class_section ON public.users(class_name, section);
+CREATE INDEX IF NOT EXISTS idx_gv_users_login_id ON public.GV_users(login_id);
+CREATE INDEX IF NOT EXISTS idx_gv_users_role ON public.GV_users(role);
+CREATE INDEX IF NOT EXISTS idx_gv_users_auth_user_id ON public.GV_users(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_gv_users_class_section ON public.GV_users(class_name, section);
 
 -- B. INVENTORY + EXPENSES MODULE
-CREATE TABLE IF NOT EXISTS public.inventory_expenses (
+CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('IE-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'inventory' | 'expense'
     title VARCHAR(200) NOT NULL,
@@ -72,11 +72,11 @@ CREATE TABLE IF NOT EXISTS public.inventory_expenses (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_inventory_expenses_type ON public.inventory_expenses(record_type);
-CREATE INDEX IF NOT EXISTS idx_inventory_expenses_category ON public.inventory_expenses(category);
+CREATE INDEX IF NOT EXISTS idx_gv_inventory_expenses_type ON public.GV_inventory_expenses(record_type);
+CREATE INDEX IF NOT EXISTS idx_gv_inventory_expenses_category ON public.GV_inventory_expenses(category);
 
 -- C. FEES + RECEIPTS MODULE
-CREATE TABLE IF NOT EXISTS public.fees_payments (
+CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('FP-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'fee_schedule' | 'payment_receipt'
     student_id VARCHAR(100) NOT NULL,
@@ -98,11 +98,11 @@ CREATE TABLE IF NOT EXISTS public.fees_payments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_fees_payments_student ON public.fees_payments(student_id);
-CREATE INDEX IF NOT EXISTS idx_fees_payments_type ON public.fees_payments(record_type);
+CREATE INDEX IF NOT EXISTS idx_gv_fees_payments_student ON public.GV_fees_payments(student_id);
+CREATE INDEX IF NOT EXISTS idx_gv_fees_payments_type ON public.GV_fees_payments(record_type);
 
 -- D. COMMUNICATIONS MODULE (Circulars + Messages)
-CREATE TABLE IF NOT EXISTS public.communications (
+CREATE TABLE IF NOT EXISTS public.GV_communications (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('COM-' || substring(uuid_generate_v4()::text, 1, 8)),
     message_type VARCHAR(50) NOT NULL, -- 'circular' | 'general_message'
     title VARCHAR(250),
@@ -120,12 +120,12 @@ CREATE TABLE IF NOT EXISTS public.communications (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_communications_type ON public.communications(message_type);
-CREATE INDEX IF NOT EXISTS idx_communications_sender ON public.communications(sender_id);
-CREATE INDEX IF NOT EXISTS idx_communications_recipient ON public.communications(recipient_user_id);
+CREATE INDEX IF NOT EXISTS idx_gv_communications_type ON public.GV_communications(message_type);
+CREATE INDEX IF NOT EXISTS idx_gv_communications_sender ON public.GV_communications(sender_id);
+CREATE INDEX IF NOT EXISTS idx_gv_communications_recipient ON public.GV_communications(recipient_user_id);
 
 -- E. REQUESTS MODULE (Leave Requests + Enquiries)
-CREATE TABLE IF NOT EXISTS public.requests (
+CREATE TABLE IF NOT EXISTS public.GV_requests (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('REQ-' || substring(uuid_generate_v4()::text, 1, 8)),
     request_type VARCHAR(50) NOT NULL, -- 'leave' | 'enquiry'
     applicant_or_child_name VARCHAR(150) NOT NULL,
@@ -148,11 +148,11 @@ CREATE TABLE IF NOT EXISTS public.requests (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_requests_type ON public.requests(request_type);
-CREATE INDEX IF NOT EXISTS idx_requests_status ON public.requests(status);
+CREATE INDEX IF NOT EXISTS idx_gv_requests_type ON public.GV_requests(request_type);
+CREATE INDEX IF NOT EXISTS idx_gv_requests_status ON public.GV_requests(status);
 
 -- F. SYSTEM SETTINGS MODULE (Developer Console & Branding)
-CREATE TABLE IF NOT EXISTS public.system_settings (
+CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     id VARCHAR(50) PRIMARY KEY DEFAULT 'PRIMARY',
     content TEXT,
     school_name VARCHAR(150),
@@ -182,13 +182,34 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. RESILIENT PL/PGSQL MIGRATION BLOCKS (Guaranteed Zero Execution Errors)
+-- G. PROMOTION HISTORY MODULE
+CREATE TABLE IF NOT EXISTS public.GV_promotion_history (
+    id VARCHAR(100) PRIMARY KEY DEFAULT ('PRM-' || substring(uuid_generate_v4()::text, 1, 8)),
+    student_id VARCHAR(100) NOT NULL,
+    from_class VARCHAR(50) NOT NULL,
+    to_class VARCHAR(50) NOT NULL,
+    academic_year VARCHAR(50) NOT NULL,
+    promoted_by VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
--- Populate users from profiles
+-- H. ATTENDANCE MODULE
+CREATE TABLE IF NOT EXISTS public.GV_student_attendance (
+    id VARCHAR(100) PRIMARY KEY DEFAULT ('ATT-' || substring(uuid_generate_v4()::text, 1, 8)),
+    student_id VARCHAR(100) NOT NULL,
+    class_name VARCHAR(50) NOT NULL,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'Present', -- Present, Absent, Late, Leave
+    recorded_by VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 3. RESILIENT DATA MIGRATION FROM OLD TABLES TO GV_ TABLES
+
 DO $$ BEGIN
-    INSERT INTO public.users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
+    INSERT INTO public.GV_users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
     SELECT id::text, auth_user_id, login_id, email, full_name, role::text, status, mobile, photo_url, must_change_password, created_at, updated_at
-    FROM public.profiles
+    FROM public.users
     ON CONFLICT (login_id) DO UPDATE SET
       auth_user_id = EXCLUDED.auth_user_id,
       full_name = EXCLUDED.full_name,
@@ -196,124 +217,59 @@ DO $$ BEGIN
       status = EXCLUDED.status;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate users from students
 DO $$ BEGIN
-    INSERT INTO public.users (id, login_id, email, full_name, role, status, admission_no, class_name, section, parent_name, parent_id, mobile, gender, house, joining_date, fee_status, photo_url, attendance_pct, branch, created_at)
-    SELECT id, id, COALESCE(id || '@sunshine.edu'), name, 'student', 'active', admission_no, class_name, section, parent_name, parent_id, phone, gender::text, house::text, admission_date, fee_status::text, avatar, attendance_pct, branch, created_at
-    FROM public.students
-    ON CONFLICT (login_id) DO UPDATE SET
-      class_name = EXCLUDED.class_name,
-      section = EXCLUDED.section,
-      parent_name = EXCLUDED.parent_name,
-      fee_status = EXCLUDED.fee_status;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
--- Populate users from teachers
-DO $$ BEGIN
-    INSERT INTO public.users (id, login_id, email, full_name, role, status, employee_id, class_name, subject, mobile, experience, joining_date, photo_url, branch, created_at)
-    SELECT id, id, email, name, 'teacher', 'active', id, class_name, subject, phone, experience, joined_date, avatar, branch, created_at
-    FROM public.teachers
-    ON CONFLICT (login_id) DO UPDATE SET
-      class_name = EXCLUDED.class_name,
-      subject = EXCLUDED.subject,
-      mobile = EXCLUDED.mobile;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
--- Populate inventory_expenses from inventory_items
-DO $$ BEGIN
-    INSERT INTO public.inventory_expenses (id, record_type, title, category, quantity, unit, min_stock)
-    SELECT id, 'inventory', name, category, quantity, unit, min_threshold
-    FROM public.inventory_items
+    INSERT INTO public.GV_inventory_expenses (id, record_type, title, category, amount_or_unit_cost, quantity, unit, min_stock, supplier_or_paid_to, payment_method, transaction_date, receipt_ref, notes, created_by, created_at, updated_at)
+    SELECT id, record_type, title, category, amount_or_unit_cost, quantity, unit, min_stock, supplier_or_paid_to, payment_method, transaction_date, receipt_ref, notes, created_by, created_at, updated_at
+    FROM public.inventory_expenses
     ON CONFLICT (id) DO NOTHING;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate inventory_expenses from expenses
 DO $$ BEGIN
-    INSERT INTO public.inventory_expenses (id, record_type, title, category, amount_or_unit_cost, payment_method, transaction_date, receipt_ref, notes, created_by, created_at)
-    SELECT id, 'expense', category, category, amount, payment_method, expense_date, receipt_ref, notes, created_by, created_at
-    FROM public.expenses
+    INSERT INTO public.GV_fees_payments (id, record_type, student_id, student_name, class_name, fee_type, academic_year, installment, amount_due, amount_paid, balance, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at, updated_at)
+    SELECT id, record_type, student_id, student_name, class_name, fee_type, academic_year, installment, amount_due, amount_paid, balance, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at, updated_at
+    FROM public.fees_payments
     ON CONFLICT (id) DO NOTHING;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate fees_payments from fees
 DO $$ BEGIN
-    INSERT INTO public.fees_payments (id, record_type, student_id, fee_type, academic_year, amount_due, amount_paid, balance, status, created_at)
-    SELECT id, 'fee_schedule', student_id, fee_type, academic_year, amount_due, amount_paid, balance, status, created_at
-    FROM public.fees
+    INSERT INTO public.GV_communications (id, message_type, title, body, sender_id, sender_name, sender_role, recipient_role, recipient_user_id, priority, attachment_url, read_status, published_at, created_at, updated_at)
+    SELECT id, message_type, title, body, sender_id, sender_name, sender_role, recipient_role, recipient_user_id, priority, attachment_url, read_status, published_at, created_at, updated_at
+    FROM public.communications
     ON CONFLICT (id) DO NOTHING;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate fees_payments from receipts
 DO $$ BEGIN
-    INSERT INTO public.fees_payments (id, record_type, student_id, student_name, class_name, fee_type, amount_paid, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at)
-    SELECT id, 'payment_receipt', student_id, student_name, class_name, fee_type, amount_paid, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at
-    FROM public.receipts
+    INSERT INTO public.GV_requests (id, request_type, applicant_or_child_name, parent_name, phone, email, address, gender, dob, leave_type_or_interested_class, start_date, end_date, reason_or_notes, source, status, follow_up_date, assigned_staff, remarks, created_at, updated_at)
+    SELECT id, request_type, applicant_or_child_name, parent_name, phone, email, address, gender, dob, leave_type_or_interested_class, start_date, end_date, reason_or_notes, source, status, follow_up_date, assigned_staff, remarks, created_at, updated_at
+    FROM public.requests
     ON CONFLICT (id) DO NOTHING;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate communications from circulars
 DO $$ BEGIN
-    INSERT INTO public.communications (id, message_type, title, body, sender_id, recipient_role, priority, published_at, created_at)
-    SELECT id, 'circular', title, content, COALESCE(author, 'Admin'), target_audience, priority, published_date::timestamp, created_at
-    FROM public.circulars
-    ON CONFLICT (id) DO NOTHING;
+    INSERT INTO public.GV_system_settings (id, content, school_name, school_logo_url, header_logo, sidebar_logo, sidebar_logo_url, sidebar_school_name, login_logo, login_bg, favicon, school_address, phone, email, website, motto, office_hours, login_title, login_subtitle, footer_text, theme_color, report_header, receipt_header, academic_year, project_name, project_logo, updated_at)
+    SELECT id, content, school_name, school_logo_url, header_logo, sidebar_logo, sidebar_logo_url, sidebar_school_name, login_logo, login_bg, favicon, school_address, phone, email, website, motto, office_hours, login_title, login_subtitle, footer_text, theme_color, report_header, receipt_header, academic_year, project_name, project_logo, updated_at
+    FROM public.system_settings
+    ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, school_name = EXCLUDED.school_name, updated_at = EXCLUDED.updated_at;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- Populate communications from messages
-DO $$ BEGIN
-    INSERT INTO public.communications (id, message_type, body, sender_id, sender_name, sender_role, recipient_user_id, recipient_role, read_status, published_at, created_at)
-    SELECT id, 'general_message', message_text, sender_id, sender_name, sender_role, receiver_id, receiver_role, read_status, sent_at, sent_at
-    FROM public.messages
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
+-- 4. RLS SECURITY POLICIES FOR GV_ TABLES
+ALTER TABLE public.GV_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_inventory_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_fees_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_communications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_system_settings ENABLE ROW LEVEL SECURITY;
 
--- Populate requests from leave_requests
-DO $$ BEGIN
-    INSERT INTO public.requests (id, request_type, applicant_or_child_name, leave_type_or_interested_class, start_date, end_date, reason_or_notes, status, created_at)
-    SELECT id, 'leave', applicant_name, applicant_role, start_date, end_date, reason, status, applied_on::timestamp
-    FROM public.leave_requests
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
+DROP POLICY IF EXISTS "gv_users_all" ON public.GV_users;
+DROP POLICY IF EXISTS "gv_inventory_expenses_all" ON public.GV_inventory_expenses;
+DROP POLICY IF EXISTS "gv_fees_payments_all" ON public.GV_fees_payments;
+DROP POLICY IF EXISTS "gv_communications_all" ON public.GV_communications;
+DROP POLICY IF EXISTS "gv_requests_all" ON public.GV_requests;
+DROP POLICY IF EXISTS "gv_system_settings_all" ON public.GV_system_settings;
 
--- Populate requests from enquiries
-DO $$ BEGIN
-    INSERT INTO public.requests (id, request_type, applicant_or_child_name, parent_name, phone, email, address, gender, dob, leave_type_or_interested_class, source, status, follow_up_date, reason_or_notes, created_at)
-    SELECT id, 'enquiry', child_name, parent_name, phone, email, address, gender::text, dob, interested_class, source, status, follow_up, notes, created_at
-    FROM public.enquiries
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
--- 4. RLS SECURITY POLICIES FOR CONSOLIDATED TABLES
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.inventory_expenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fees_payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "users_all" ON public.users;
-DROP POLICY IF EXISTS "inventory_expenses_all" ON public.inventory_expenses;
-DROP POLICY IF EXISTS "fees_payments_all" ON public.fees_payments;
-DROP POLICY IF EXISTS "communications_all" ON public.communications;
-DROP POLICY IF EXISTS "requests_all" ON public.requests;
-DROP POLICY IF EXISTS "system_settings_all" ON public.system_settings;
-
-CREATE POLICY "users_all" ON public.users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "inventory_expenses_all" ON public.inventory_expenses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "fees_payments_all" ON public.fees_payments FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "communications_all" ON public.communications FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "requests_all" ON public.requests FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "system_settings_all" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
-
--- 5. CLEANUP / DROP OLD UNCONSOLIDATED TABLES AFTER DATA MERGE
-DROP TABLE IF EXISTS public.profiles CASCADE;
-DROP TABLE IF EXISTS public.students CASCADE;
-DROP TABLE IF EXISTS public.teachers CASCADE;
-DROP TABLE IF EXISTS public.inventory_items CASCADE;
-DROP TABLE IF EXISTS public.expenses CASCADE;
-DROP TABLE IF EXISTS public.fees CASCADE;
-DROP TABLE IF EXISTS public.receipts CASCADE;
-DROP TABLE IF EXISTS public.circulars CASCADE;
-DROP TABLE IF EXISTS public.messages CASCADE;
-DROP TABLE IF EXISTS public.leave_requests CASCADE;
-DROP TABLE IF EXISTS public.enquiries CASCADE;
+CREATE POLICY "gv_users_all" ON public.GV_users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "gv_inventory_expenses_all" ON public.GV_inventory_expenses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "gv_fees_payments_all" ON public.GV_fees_payments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "gv_communications_all" ON public.GV_communications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "gv_requests_all" ON public.GV_requests FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "gv_system_settings_all" ON public.GV_system_settings FOR ALL USING (true) WITH CHECK (true);

@@ -236,19 +236,28 @@ export async function createTeacherAuthAccount(params: {
   }
 
   try {
-    const { data: existingUser } = await supabase
-      .from("users")
+    let { data: existingUser } = await supabase
+      .from("GV_users")
       .select("id, auth_user_id")
       .eq("login_id", loginId)
       .maybeSingle();
 
+    if (!existingUser) {
+      const fallbackUserRes = await supabase.from("users").select("id, auth_user_id").eq("login_id", loginId).maybeSingle();
+      if (fallbackUserRes.data) {
+        existingUser = fallbackUserRes.data;
+      }
+    }
+
     if (existingUser) {
       await supabase
-        .from("users")
+        .from("GV_users")
         .update(profilePayload)
         .eq("login_id", loginId);
+      Promise.resolve(supabase.from("users").update(profilePayload).eq("login_id", loginId)).catch(() => {});
     } else {
-      await supabase.from("users").upsert([profilePayload]);
+      await supabase.from("GV_users").upsert([profilePayload]);
+      Promise.resolve(supabase.from("users").upsert([profilePayload])).catch(() => {});
     }
     // Dual-write profiles for backward compatibility fallback
     Promise.resolve(supabase.from("profiles").upsert([profilePayload])).catch(() => {});

@@ -51,45 +51,45 @@ export interface ParentDashboardStats {
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   return dedupeAndCacheFetch("admin_dashboard_stats", async () => {
     try {
-      // Primary query against consolidated modules
+      // Primary query against GV_ consolidated modules
       let [studentsRes, teachersRes, enquiriesRes, feesRes, circularsRes] = await Promise.all([
-        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student"),
-        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "teacher"),
-        supabase.from("requests").select("id", { count: "exact", head: true }).eq("request_type", "enquiry"),
-        supabase.from("fees_payments").select("amount_paid"),
-        supabase.from("communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("published_at", { ascending: false }).limit(3),
+        supabase.from("GV_users").select("id", { count: "exact", head: true }).eq("role", "student"),
+        supabase.from("GV_users").select("id", { count: "exact", head: true }).eq("role", "teacher"),
+        supabase.from("GV_requests").select("id", { count: "exact", head: true }).eq("request_type", "enquiry"),
+        supabase.from("GV_fees_payments").select("amount_paid"),
+        supabase.from("GV_communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("published_at", { ascending: false }).limit(3),
       ]);
 
-      // Fallbacks to legacy tables if consolidated counts are empty
+      // Fallbacks if GV_ table results are empty
       let totalStudents = studentsRes.count || 0;
       if (totalStudents === 0) {
-        const leg = await supabase.from("students").select("id", { count: "exact", head: true });
+        const leg = await supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student");
         totalStudents = leg.count || 0;
       }
 
       let totalTeachers = teachersRes.count || 0;
       if (totalTeachers === 0) {
-        const leg = await supabase.from("teachers").select("id", { count: "exact", head: true });
+        const leg = await supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "teacher");
         totalTeachers = leg.count || 0;
       }
 
       let totalEnquiries = enquiriesRes.count || 0;
       if (totalEnquiries === 0) {
-        const leg = await supabase.from("enquiries").select("id", { count: "exact", head: true });
+        const leg = await supabase.from("requests").select("id", { count: "exact", head: true }).eq("request_type", "enquiry");
         totalEnquiries = leg.count || 0;
       }
 
       let feeData = feesRes.data || [];
       if (feeData.length === 0) {
-        const leg = await supabase.from("fees").select("paid");
-        feeData = (leg.data || []).map((f: any) => ({ amount_paid: f.paid }));
+        const leg = await supabase.from("fees_payments").select("amount_paid");
+        feeData = leg.data || [];
       }
       const totalFeesCollected = feeData.reduce((acc: number, f: any) => acc + (Number(f.amount_paid) || 0), 0);
 
       let circularData = circularsRes.data || [];
       if (circularData.length === 0) {
-        const leg = await supabase.from("circulars").select("id, title, created_at").order("created_at", { ascending: false }).limit(3);
-        circularData = (leg.data || []).map((c: any) => ({ id: c.id, title: c.title, published_at: c.created_at, created_at: c.created_at }));
+        const leg = await supabase.from("communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("published_at", { ascending: false }).limit(3);
+        circularData = leg.data || [];
       }
 
       const recentActivities = circularData.map((c: any) => ({
@@ -129,29 +129,29 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
     try {
       const todayStr = new Date().toISOString().split("T")[0];
       let [studentsRes, teachersRes, circularsRes, attendanceRes] = await Promise.all([
-        supabase.from("users").select("id, class_name").eq("role", "student"),
-        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "teacher"),
-        supabase.from("communications").select("id, title, priority, published_at").eq("message_type", "circular").order("published_at", { ascending: false }).limit(5),
-        supabase.from("attendance").select("status").eq("date", todayStr),
+        supabase.from("GV_users").select("id, class_name").eq("role", "student"),
+        supabase.from("GV_users").select("id", { count: "exact", head: true }).eq("role", "teacher"),
+        supabase.from("GV_communications").select("id, title, priority, published_at").eq("message_type", "circular").order("published_at", { ascending: false }).limit(5),
+        supabase.from("GV_student_attendance").select("status").eq("date", todayStr),
       ]);
 
       let students = studentsRes.data || [];
       if (students.length === 0) {
-        const leg = await supabase.from("students").select("id, class_name");
+        const leg = await supabase.from("users").select("id, class_name").eq("role", "student");
         students = leg.data || [];
       }
       const totalStudents = students.length;
 
       let totalTeachers = teachersRes.count || 0;
       if (totalTeachers === 0) {
-        const leg = await supabase.from("teachers").select("id", { count: "exact", head: true });
+        const leg = await supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "teacher");
         totalTeachers = leg.count || 0;
       }
 
       let circulars = circularsRes.data || [];
       if (circulars.length === 0) {
-        const leg = await supabase.from("circulars").select("id, title, priority, created_at");
-        circulars = (leg.data || []).map((c: any) => ({ ...c, published_at: c.created_at }));
+        const leg = await supabase.from("communications").select("id, title, priority, published_at").eq("message_type", "circular");
+        circulars = leg.data || [];
       }
       const totalCirculars = circulars.length;
 
@@ -171,7 +171,7 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
       const attendanceRecords = attendanceRes.data || [];
       let todayAttendancePercent = 0;
       if (attendanceRecords.length > 0) {
-        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
+        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present" || a.status === "Late").length;
         todayAttendancePercent = Number(((presentCount / attendanceRecords.length) * 100).toFixed(1));
       }
 
@@ -208,27 +208,27 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   return dedupeAndCacheFetch("office_dashboard_stats", async () => {
     try {
       let [enquiriesRes, studentsRes, feesRes] = await Promise.all([
-        supabase.from("requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }).limit(5),
-        supabase.from("users").select("id, full_name, class_name, admission_no, created_at").eq("role", "student").order("created_at", { ascending: false }).limit(5),
-        supabase.from("fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("GV_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }).limit(5),
+        supabase.from("GV_users").select("id, full_name, class_name, admission_no, created_at").eq("role", "student").order("created_at", { ascending: false }).limit(5),
+        supabase.from("GV_fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }).limit(5),
       ]);
 
       let enquiries = enquiriesRes.data || [];
       if (enquiries.length === 0) {
-        const leg = await supabase.from("enquiries").select("id, child_name, created_at").order("created_at", { ascending: false }).limit(5);
-        enquiries = (leg.data || []).map((e: any) => ({ ...e, applicant_or_child_name: e.child_name }));
+        const leg = await supabase.from("requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }).limit(5);
+        enquiries = leg.data || [];
       }
 
       let students = studentsRes.data || [];
       if (students.length === 0) {
-        const leg = await supabase.from("students").select("id, name, class_name, created_at").order("created_at", { ascending: false }).limit(5);
-        students = (leg.data || []).map((s: any) => ({ ...s, full_name: s.name }));
+        const leg = await supabase.from("users").select("id, full_name, class_name, admission_no, created_at").eq("role", "student").order("created_at", { ascending: false }).limit(5);
+        students = leg.data || [];
       }
 
       let fees = feesRes.data || [];
       if (fees.length === 0) {
-        const leg = await supabase.from("fees").select("id, student_name, paid, remaining_amount, created_at").order("created_at", { ascending: false }).limit(5);
-        fees = (leg.data || []).map((f: any) => ({ ...f, amount_paid: f.paid, balance: f.remaining_amount }));
+        const leg = await supabase.from("fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }).limit(5);
+        fees = leg.data || [];
       }
 
       const totalEnquiries = enquiries.length;
@@ -282,41 +282,34 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
   return dedupeAndCacheFetch("teacher_dashboard_stats", async () => {
     try {
       const todayStr = new Date().toISOString().split("T")[0];
-      let [studentsRes, leaveRes, attendanceRes, homeworkRes] = await Promise.all([
-        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student"),
-        supabase.from("requests").select("id", { count: "exact", head: true }).eq("request_type", "leave").eq("status", "Pending"),
-        supabase.from("attendance").select("status").eq("date", todayStr),
-        supabase.from("homework").select("id, title, created_at").order("created_at", { ascending: false }).limit(3),
+      let [studentsRes, leaveRes, attendanceRes] = await Promise.all([
+        supabase.from("GV_users").select("id", { count: "exact", head: true }).eq("role", "student"),
+        supabase.from("GV_requests").select("id", { count: "exact", head: true }).eq("request_type", "leave").eq("status", "Pending"),
+        supabase.from("GV_student_attendance").select("status").eq("date", todayStr),
       ]);
 
       let assignedStudents = studentsRes.count || 0;
       if (assignedStudents === 0) {
-        const leg = await supabase.from("students").select("id", { count: "exact", head: true });
+        const leg = await supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student");
         assignedStudents = leg.count || 0;
       }
 
       let pendingLeaveRequests = leaveRes.count || 0;
       if (pendingLeaveRequests === 0) {
-        const leg = await supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "Pending");
+        const leg = await supabase.from("requests").select("id", { count: "exact", head: true }).eq("request_type", "leave").eq("status", "Pending");
         pendingLeaveRequests = leg.count || 0;
       }
 
       const attendanceRecords = attendanceRes.data || [];
-      const presentToday = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
-      const absentToday = attendanceRecords.filter((a: any) => a.status === "A" || a.status === "Lv").length;
-
-      const recentClassNotes = (homeworkRes.data || []).map((h: any) => ({
-        id: h.id,
-        title: h.title,
-        date: h.created_at ? new Date(h.created_at).toLocaleDateString() : "Today",
-      }));
+      const presentToday = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present" || a.status === "Late").length;
+      const absentToday = attendanceRecords.filter((a: any) => a.status === "A" || a.status === "Absent").length;
 
       return {
         assignedStudents,
         presentToday,
         absentToday,
         pendingLeaveRequests,
-        recentClassNotes,
+        recentClassNotes: [],
       };
     } catch {
       return {
@@ -337,22 +330,22 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
   return dedupeAndCacheFetch("parent_dashboard_stats", async () => {
     try {
       let [studentsRes, messagesRes, feesRes, attendanceRes] = await Promise.all([
-        supabase.from("users").select("id, full_name, class_name").eq("role", "student").limit(1).maybeSingle(),
-        supabase.from("communications").select("id, sender_name, body, created_at").eq("message_type", "general_message").order("created_at", { ascending: false }).limit(3),
-        supabase.from("fees_payments").select("amount_paid, amount_due, balance").limit(1).maybeSingle(),
-        supabase.from("attendance").select("status"),
+        supabase.from("GV_users").select("id, full_name, class_name").eq("role", "student").limit(1).maybeSingle(),
+        supabase.from("GV_communications").select("id, sender_name, body, created_at").eq("message_type", "general_message").order("created_at", { ascending: false }).limit(3),
+        supabase.from("GV_fees_payments").select("amount_paid, amount_due, balance").limit(1).maybeSingle(),
+        supabase.from("GV_student_attendance").select("status"),
       ]);
 
       let child = studentsRes.data;
       if (!child) {
-        const leg = await supabase.from("students").select("id, name, class_name").limit(1).maybeSingle();
-        if (leg.data) child = { id: leg.data.id, full_name: leg.data.name, class_name: leg.data.class_name };
+        const leg = await supabase.from("users").select("id, full_name, class_name").eq("role", "student").limit(1).maybeSingle();
+        child = leg.data;
       }
 
       let messages = messagesRes.data || [];
       if (messages.length === 0) {
-        const leg = await supabase.from("messages").select("id, sender_name, message_text, sent_at").order("sent_at", { ascending: false }).limit(3);
-        messages = (leg.data || []).map((m: any) => ({ id: m.id, sender_name: m.sender_name, body: m.message_text, created_at: m.sent_at }));
+        const leg = await supabase.from("communications").select("id, sender_name, body, created_at").eq("message_type", "general_message").order("created_at", { ascending: false }).limit(3);
+        messages = leg.data || [];
       }
 
       const feeData = feesRes.data;
@@ -360,7 +353,7 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
 
       let attendancePercent = 0;
       if (attendanceRecords.length > 0) {
-        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "L").length;
+        const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present" || a.status === "Late").length;
         attendancePercent = Number(((presentCount / attendanceRecords.length) * 100).toFixed(1));
       }
 
@@ -415,7 +408,7 @@ export interface AnnualPromotionLifecycleStats {
 
 export async function getAnnualPromotionAndLifecycleStats(year: string = "2024-2025"): Promise<AnnualPromotionLifecycleStats> {
   try {
-    const { data: students } = await supabase.from("users").select("id, status").eq("role", "student");
+    const { data: students } = await supabase.from("GV_users").select("id, status").eq("role", "student");
     const list = students || [];
     const totalStudents = list.length;
     const promotedCount = list.filter((s: any) => s.status === "Promoted").length;
@@ -473,7 +466,7 @@ export function subscribeToPromotionAndLifecycleUpdates(callback: (data: AnnualP
   };
   handler();
   const channel = supabase.channel("promotion_updates_realtime")
-    .on("postgres_changes", { event: "*", schema: "public", table: "users" }, handler)
+    .on("postgres_changes", { event: "*", schema: "public", table: "GV_users" }, handler)
     .subscribe();
 
   return () => {

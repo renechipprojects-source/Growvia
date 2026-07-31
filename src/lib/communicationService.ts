@@ -13,15 +13,23 @@ export interface MessageRecord {
   read_status: boolean;
 }
 
-// ─── COMMUNICATIONS SERVICE (Module 4: communications) ───────────────────────
+// ─── COMMUNICATIONS SERVICE (Module 4: GV_communications) ───────────────────────
 
 export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("communications")
+    let { data, error } = await supabase
+      .from("GV_communications")
       .select("*")
       .eq("message_type", "circular")
       .order("published_at", { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("communications").select("*").eq("message_type", "circular").order("published_at", { ascending: false });
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy circulars table
@@ -57,11 +65,19 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
 
 export async function fetchMessagesFromModule(userId: string): Promise<{ data: MessageRecord[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("communications")
+    let { data, error } = await supabase
+      .from("GV_communications")
       .select("*")
       .eq("message_type", "general_message")
       .or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
+
+    if (error || !data || data.length === 0) {
+      const fallbackRes = await supabase.from("communications").select("*").eq("message_type", "general_message").or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
+      if (fallbackRes.data && fallbackRes.data.length > 0) {
+        data = fallbackRes.data;
+        error = null;
+      }
+    }
 
     if (error || !data || data.length === 0) {
       // Fallback query to legacy messages table
@@ -115,16 +131,8 @@ export async function publishCircularToModule(circular: Partial<Circular>) {
   };
 
   try {
-    const { data, error } = await supabase.from("communications").insert([payload]).select();
-    // Dual-write legacy circulars table for resilience
-    Promise.resolve(supabase.from("circulars").insert([{
-      id: payload.id,
-      title: payload.title,
-      content: payload.body,
-      target_audience: payload.recipient_role,
-      author: payload.sender_name,
-      published_date: payload.published_at,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_communications").insert([payload]).select();
+    Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -147,19 +155,8 @@ export async function sendMessageToModule(msg: Partial<MessageRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("communications").insert([payload]).select();
-    // Dual-write legacy messages table for resilience
-    Promise.resolve(supabase.from("messages").insert([{
-      id: payload.id,
-      sender_id: payload.sender_id,
-      sender_name: payload.sender_name,
-      sender_role: payload.sender_role,
-      receiver_id: payload.recipient_user_id,
-      receiver_role: payload.recipient_role,
-      message_text: payload.body,
-      sent_at: payload.published_at,
-      read_status: false,
-    }])).catch(() => {});
+    const { data, error } = await supabase.from("GV_communications").insert([payload]).select();
+    Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
