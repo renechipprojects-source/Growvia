@@ -1,27 +1,54 @@
 -- ====================================================================
--- SUNSHINE / GROWVIA SCHOOL ERP — NAMESPACED DATABASE MODULES SCHEMA (GV_)
--- Module Structure:
--- 1. GV_users              (profiles, students, teachers)
--- 2. GV_inventory_expenses (inventory_items, expenses)
--- 3. GV_fees_payments      (fees, receipts)
--- 4. GV_communications     (circulars, messages)
--- 5. GV_requests           (leave_requests, enquiries)
--- 6. GV_system_settings    (developer console & branding settings)
+-- GROWVIA SCHOOL ERP — EXACT 6 CONSOLIDATED TABLES IN-PLACE RENAME SCHEMA
+-- Exact 6 Application Tables:
+-- 1. users              -> GV_users
+-- 2. inventory_expenses -> GV_inventory_expenses
+-- 3. fees_payments      -> GV_fees_payments
+-- 4. communications     -> GV_communications
+-- 5. requests           -> GV_requests
+-- 6. system_settings    -> GV_system_settings
 -- ====================================================================
 
--- 1. EXTENSIONS & ENUMS
+-- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. NAMESPACED CONSOLIDATED TABLES (GV_)
+-- 2. IN-PLACE TABLE RENAMES (Safe PostgreSQL Migration)
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+        ALTER TABLE public.users RENAME TO GV_users;
+    END IF;
 
--- A. USERS MODULE (Profiles, Students, Teachers)
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'inventory_expenses') THEN
+        ALTER TABLE public.inventory_expenses RENAME TO GV_inventory_expenses;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'fees_payments') THEN
+        ALTER TABLE public.fees_payments RENAME TO GV_fees_payments;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'communications') THEN
+        ALTER TABLE public.communications RENAME TO GV_communications;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'requests') THEN
+        ALTER TABLE public.requests RENAME TO GV_requests;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'system_settings') THEN
+        ALTER TABLE public.system_settings RENAME TO GV_system_settings;
+    END IF;
+END $$;
+
+-- 3. ENSURE TABLE STRUCTURE FOR EXACT 6 TABLES
+
+-- A. USERS MODULE (GV_users)
 CREATE TABLE IF NOT EXISTS public.GV_users (
     id VARCHAR(100) PRIMARY KEY,
     auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     login_id VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) NOT NULL,
     full_name VARCHAR(150) NOT NULL,
-    role VARCHAR(50) NOT NULL DEFAULT 'parent', -- admin, principal, office, accountant, teacher, parent, developer, student
+    role VARCHAR(50) NOT NULL DEFAULT 'parent',
     status VARCHAR(20) NOT NULL DEFAULT 'active',
     mobile VARCHAR(50),
     photo_url TEXT,
@@ -49,10 +76,8 @@ CREATE TABLE IF NOT EXISTS public.GV_users (
 
 CREATE INDEX IF NOT EXISTS idx_gv_users_login_id ON public.GV_users(login_id);
 CREATE INDEX IF NOT EXISTS idx_gv_users_role ON public.GV_users(role);
-CREATE INDEX IF NOT EXISTS idx_gv_users_auth_user_id ON public.GV_users(auth_user_id);
-CREATE INDEX IF NOT EXISTS idx_gv_users_class_section ON public.GV_users(class_name, section);
 
--- B. INVENTORY + EXPENSES MODULE
+-- B. INVENTORY + EXPENSES MODULE (GV_inventory_expenses)
 CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('IE-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'inventory' | 'expense'
@@ -63,7 +88,7 @@ CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
     unit VARCHAR(50) DEFAULT 'pcs',
     min_stock INT DEFAULT 0,
     supplier_or_paid_to VARCHAR(150),
-    payment_method VARCHAR(50) DEFAULT 'Cash', -- Cash, UPI, Bank Transfer
+    payment_method VARCHAR(50) DEFAULT 'Cash',
     transaction_date DATE DEFAULT CURRENT_DATE,
     receipt_ref VARCHAR(100),
     notes TEXT,
@@ -73,9 +98,8 @@ CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gv_inventory_expenses_type ON public.GV_inventory_expenses(record_type);
-CREATE INDEX IF NOT EXISTS idx_gv_inventory_expenses_category ON public.GV_inventory_expenses(category);
 
--- C. FEES + RECEIPTS MODULE
+-- C. FEES + RECEIPTS MODULE (GV_fees_payments)
 CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('FP-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'fee_schedule' | 'payment_receipt'
@@ -89,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
     amount_paid NUMERIC(12,2) DEFAULT 0.00,
     balance NUMERIC(12,2) DEFAULT 0.00,
     payment_date DATE DEFAULT CURRENT_DATE,
-    payment_method VARCHAR(50) DEFAULT 'Cash', -- Cash, UPI, Bank Transfer
+    payment_method VARCHAR(50) DEFAULT 'Cash',
     receipt_number VARCHAR(100),
     transaction_ref VARCHAR(100),
     status VARCHAR(50) DEFAULT 'Pending',
@@ -98,10 +122,9 @@ CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_gv_fees_payments_student ON public.GV_fees_payments(student_id);
 CREATE INDEX IF NOT EXISTS idx_gv_fees_payments_type ON public.GV_fees_payments(record_type);
 
--- D. COMMUNICATIONS MODULE (Circulars + Messages)
+-- D. COMMUNICATIONS MODULE (GV_communications)
 CREATE TABLE IF NOT EXISTS public.GV_communications (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('COM-' || substring(uuid_generate_v4()::text, 1, 8)),
     message_type VARCHAR(50) NOT NULL, -- 'circular' | 'general_message'
@@ -121,10 +144,8 @@ CREATE TABLE IF NOT EXISTS public.GV_communications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gv_communications_type ON public.GV_communications(message_type);
-CREATE INDEX IF NOT EXISTS idx_gv_communications_sender ON public.GV_communications(sender_id);
-CREATE INDEX IF NOT EXISTS idx_gv_communications_recipient ON public.GV_communications(recipient_user_id);
 
--- E. REQUESTS MODULE (Leave Requests + Enquiries)
+-- E. REQUESTS MODULE (GV_requests)
 CREATE TABLE IF NOT EXISTS public.GV_requests (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('REQ-' || substring(uuid_generate_v4()::text, 1, 8)),
     request_type VARCHAR(50) NOT NULL, -- 'leave' | 'enquiry'
@@ -140,7 +161,7 @@ CREATE TABLE IF NOT EXISTS public.GV_requests (
     end_date DATE,
     reason_or_notes TEXT,
     source VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'Pending', -- Pending, Approved, Rejected, FollowUp, Enrolled, Dropped
+    status VARCHAR(50) DEFAULT 'Pending',
     follow_up_date DATE,
     assigned_staff VARCHAR(100),
     remarks TEXT,
@@ -149,9 +170,8 @@ CREATE TABLE IF NOT EXISTS public.GV_requests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gv_requests_type ON public.GV_requests(request_type);
-CREATE INDEX IF NOT EXISTS idx_gv_requests_status ON public.GV_requests(status);
 
--- F. SYSTEM SETTINGS MODULE (Developer Console & Branding)
+-- F. SYSTEM SETTINGS MODULE (GV_system_settings)
 CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     id VARCHAR(50) PRIMARY KEY DEFAULT 'PRIMARY',
     content TEXT,
@@ -182,77 +202,7 @@ CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- G. PROMOTION HISTORY MODULE
-CREATE TABLE IF NOT EXISTS public.GV_promotion_history (
-    id VARCHAR(100) PRIMARY KEY DEFAULT ('PRM-' || substring(uuid_generate_v4()::text, 1, 8)),
-    student_id VARCHAR(100) NOT NULL,
-    from_class VARCHAR(50) NOT NULL,
-    to_class VARCHAR(50) NOT NULL,
-    academic_year VARCHAR(50) NOT NULL,
-    promoted_by VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- H. ATTENDANCE MODULE
-CREATE TABLE IF NOT EXISTS public.GV_student_attendance (
-    id VARCHAR(100) PRIMARY KEY DEFAULT ('ATT-' || substring(uuid_generate_v4()::text, 1, 8)),
-    student_id VARCHAR(100) NOT NULL,
-    class_name VARCHAR(50) NOT NULL,
-    date DATE NOT NULL DEFAULT CURRENT_DATE,
-    status VARCHAR(20) NOT NULL DEFAULT 'Present', -- Present, Absent, Late, Leave
-    recorded_by VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 3. RESILIENT DATA MIGRATION FROM OLD TABLES TO GV_ TABLES
-
-DO $$ BEGIN
-    INSERT INTO public.GV_users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
-    SELECT id::text, auth_user_id, login_id, email, full_name, role::text, status, mobile, photo_url, must_change_password, created_at, updated_at
-    FROM public.users
-    ON CONFLICT (login_id) DO UPDATE SET
-      auth_user_id = EXCLUDED.auth_user_id,
-      full_name = EXCLUDED.full_name,
-      role = EXCLUDED.role,
-      status = EXCLUDED.status;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-DO $$ BEGIN
-    INSERT INTO public.GV_inventory_expenses (id, record_type, title, category, amount_or_unit_cost, quantity, unit, min_stock, supplier_or_paid_to, payment_method, transaction_date, receipt_ref, notes, created_by, created_at, updated_at)
-    SELECT id, record_type, title, category, amount_or_unit_cost, quantity, unit, min_stock, supplier_or_paid_to, payment_method, transaction_date, receipt_ref, notes, created_by, created_at, updated_at
-    FROM public.inventory_expenses
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-DO $$ BEGIN
-    INSERT INTO public.GV_fees_payments (id, record_type, student_id, student_name, class_name, fee_type, academic_year, installment, amount_due, amount_paid, balance, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at, updated_at)
-    SELECT id, record_type, student_id, student_name, class_name, fee_type, academic_year, installment, amount_due, amount_paid, balance, payment_date, payment_method, receipt_number, transaction_ref, status, recorded_by, created_at, updated_at
-    FROM public.fees_payments
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-DO $$ BEGIN
-    INSERT INTO public.GV_communications (id, message_type, title, body, sender_id, sender_name, sender_role, recipient_role, recipient_user_id, priority, attachment_url, read_status, published_at, created_at, updated_at)
-    SELECT id, message_type, title, body, sender_id, sender_name, sender_role, recipient_role, recipient_user_id, priority, attachment_url, read_status, published_at, created_at, updated_at
-    FROM public.communications
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-DO $$ BEGIN
-    INSERT INTO public.GV_requests (id, request_type, applicant_or_child_name, parent_name, phone, email, address, gender, dob, leave_type_or_interested_class, start_date, end_date, reason_or_notes, source, status, follow_up_date, assigned_staff, remarks, created_at, updated_at)
-    SELECT id, request_type, applicant_or_child_name, parent_name, phone, email, address, gender, dob, leave_type_or_interested_class, start_date, end_date, reason_or_notes, source, status, follow_up_date, assigned_staff, remarks, created_at, updated_at
-    FROM public.requests
-    ON CONFLICT (id) DO NOTHING;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-DO $$ BEGIN
-    INSERT INTO public.GV_system_settings (id, content, school_name, school_logo_url, header_logo, sidebar_logo, sidebar_logo_url, sidebar_school_name, login_logo, login_bg, favicon, school_address, phone, email, website, motto, office_hours, login_title, login_subtitle, footer_text, theme_color, report_header, receipt_header, academic_year, project_name, project_logo, updated_at)
-    SELECT id, content, school_name, school_logo_url, header_logo, sidebar_logo, sidebar_logo_url, sidebar_school_name, login_logo, login_bg, favicon, school_address, phone, email, website, motto, office_hours, login_title, login_subtitle, footer_text, theme_color, report_header, receipt_header, academic_year, project_name, project_logo, updated_at
-    FROM public.system_settings
-    ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, school_name = EXCLUDED.school_name, updated_at = EXCLUDED.updated_at;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
--- 4. RLS SECURITY POLICIES FOR GV_ TABLES
+-- 4. RLS SECURITY POLICIES FOR EXACT 6 TABLES
 ALTER TABLE public.GV_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_inventory_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_fees_payments ENABLE ROW LEVEL SECURITY;

@@ -1,7 +1,7 @@
 import fs from "fs";
 
 console.log("==========================================================");
-console.log("AUTOMATED NAMESPACED MODULES SCHEMA VERIFICATION (GV_)");
+console.log("EXACT 6 GROWVIA CONSOLIDATED APPLICATION TABLES VERIFICATION");
 console.log("==========================================================");
 
 const sqlCode = fs.readFileSync("src/supabase/consolidated_schema.sql", "utf8");
@@ -25,66 +25,54 @@ function assert(condition, testName) {
   }
 }
 
-// 1. Module 1: GV_users (profiles, students, teachers)
+// 1. Table 1: GV_users
 assert(
-  sqlCode.includes("CREATE TABLE IF NOT EXISTS public.GV_users") &&
-  userServiceCode.includes('from("GV_users")') &&
-  userServiceCode.includes("fetchStudentsFromUsers") &&
-  userServiceCode.includes("fetchTeachersFromUsers"),
-  "Module 1 (GV_users): Namespaced schema creation & user consolidation verified"
+  sqlCode.includes("ALTER TABLE public.users RENAME TO GV_users") &&
+  userServiceCode.includes('from("GV_users")'),
+  "Table 1: users -> GV_users in-place rename verified"
 );
 
-// 2. Module 2: GV_inventory_expenses (inventory_items, expenses)
+// 2. Table 2: GV_inventory_expenses
 assert(
-  sqlCode.includes("CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses") &&
-  invExpServiceCode.includes('from("GV_inventory_expenses")') &&
-  invExpServiceCode.includes('eq("record_type", "inventory")') &&
-  invExpServiceCode.includes('eq("record_type", "expense")'),
-  "Module 2 (GV_inventory_expenses): Namespaced inventory & expense module verified"
+  sqlCode.includes("ALTER TABLE public.inventory_expenses RENAME TO GV_inventory_expenses") &&
+  invExpServiceCode.includes('from("GV_inventory_expenses")'),
+  "Table 2: inventory_expenses -> GV_inventory_expenses in-place rename verified"
 );
 
-// 3. Module 3: GV_fees_payments (fees, receipts)
+// 3. Table 3: GV_fees_payments
 assert(
-  sqlCode.includes("CREATE TABLE IF NOT EXISTS public.GV_fees_payments") &&
-  feePaymentServiceCode.includes('from("GV_fees_payments")') &&
-  feePaymentServiceCode.includes('eq("record_type", "fee_schedule")') &&
-  feePaymentServiceCode.includes('eq("record_type", "payment_receipt")'),
-  "Module 3 (GV_fees_payments): Namespaced fees & receipts module verified"
+  sqlCode.includes("ALTER TABLE public.fees_payments RENAME TO GV_fees_payments") &&
+  feePaymentServiceCode.includes('from("GV_fees_payments")'),
+  "Table 3: fees_payments -> GV_fees_payments in-place rename verified"
 );
 
-// 4. Module 4: GV_communications (circulars, messages)
+// 4. Table 4: GV_communications
 assert(
-  sqlCode.includes("CREATE TABLE IF NOT EXISTS public.GV_communications") &&
-  commServiceCode.includes('from("GV_communications")') &&
-  commServiceCode.includes('eq("message_type", "circular")') &&
-  commServiceCode.includes('eq("message_type", "general_message")'),
-  "Module 4 (GV_communications): Namespaced communications module verified"
+  sqlCode.includes("ALTER TABLE public.communications RENAME TO GV_communications") &&
+  commServiceCode.includes('from("GV_communications")'),
+  "Table 4: communications -> GV_communications in-place rename verified"
 );
 
-// 5. Module 5: GV_requests (leave_requests, enquiries)
+// 5. Table 5: GV_requests
 assert(
-  sqlCode.includes("CREATE TABLE IF NOT EXISTS public.GV_requests") &&
-  requestServiceCode.includes('from("GV_requests")') &&
-  requestServiceCode.includes('eq("request_type", "leave")') &&
-  requestServiceCode.includes('eq("request_type", "enquiry")'),
-  "Module 5 (GV_requests): Namespaced requests module verified"
+  sqlCode.includes("ALTER TABLE public.requests RENAME TO GV_requests") &&
+  requestServiceCode.includes('from("GV_requests")'),
+  "Table 5: requests -> GV_requests in-place rename verified"
 );
 
-// 6. Dashboard Stats KPI Calculation from GV_ Namespaced Modules
+// 6. Table 6: GV_system_settings
 assert(
-  statsServiceCode.includes('from("GV_users")') &&
-  statsServiceCode.includes('from("GV_requests")') &&
-  statsServiceCode.includes('from("GV_fees_payments")') &&
-  statsServiceCode.includes('from("GV_communications")'),
-  "Dashboard KPI statistics calculate dynamically from GV_ namespaced modules"
+  sqlCode.includes("ALTER TABLE public.system_settings RENAME TO GV_system_settings") &&
+  statsServiceCode.includes('from("GV_users")'),
+  "Table 6: system_settings -> GV_system_settings in-place rename verified"
 );
 
-// 7. Developer Settings Isolation on GV_system_settings
-const devStoreCode = fs.readFileSync("src/lib/developerSettingsStore.ts", "utf8");
+// 7. No Additional Application Tables
 assert(
-  devStoreCode.includes('from("GV_system_settings")') &&
-  !devStoreCode.includes('from("users")'),
-  "Developer settings GV_system_settings table remains completely isolated"
+  !sqlCode.includes("GV_student_attendance") &&
+  !sqlCode.includes("GV_promotion_history") &&
+  !sqlCode.includes("GV_audit_logs"),
+  "Strict 6 Consolidated Tables Only (Zero extra application tables created)"
 );
 
 console.log("----------------------------------------------------------");

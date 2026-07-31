@@ -5,63 +5,38 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const MIGRATION_MAP = [
-  { oldTable: 'users', newTable: 'GV_users' },
-  { oldTable: 'inventory_expenses', newTable: 'GV_inventory_expenses' },
-  { oldTable: 'fees_payments', newTable: 'GV_fees_payments' },
-  { oldTable: 'communications', newTable: 'GV_communications' },
-  { oldTable: 'requests', newTable: 'GV_requests' },
-  { oldTable: 'system_settings', newTable: 'GV_system_settings' },
-  { oldTable: 'promotion_history', newTable: 'GV_promotion_history' },
-  { oldTable: 'student_attendance', newTable: 'GV_student_attendance' },
-  { oldTable: 'audit_logs', newTable: 'GV_audit_logs' }
+const EXACT_SIX_TABLES = [
+  'GV_users',
+  'GV_inventory_expenses',
+  'GV_fees_payments',
+  'GV_communications',
+  'GV_requests',
+  'GV_system_settings'
 ];
 
-async function runNamespaceMigration() {
+async function verifyExactSixTables() {
   console.log("==========================================================");
-  console.log("EXECUTING DATABASE NAMESPACE MIGRATION (GV_ PREFIX)");
+  console.log("VERIFYING EXACT 6 CONSOLIDATED APPLICATION TABLES (GV_)");
   console.log("Project URL:", SUPABASE_URL);
   console.log("==========================================================");
 
   const report = [];
 
-  for (const { oldTable, newTable } of MIGRATION_MAP) {
-    let oldCount = 0;
-    let newCount = 0;
-    let status = 'SUCCESS';
-
+  for (const tableName of EXACT_SIX_TABLES) {
     try {
-      // 1. Fetch old table rows
-      const { data: oldRows, count: cOld } = await supabase.from(oldTable).select('*', { count: 'exact' });
-      oldCount = cOld ?? (oldRows ? oldRows.length : 0);
-
-      if (oldRows && oldRows.length > 0) {
-        // 2. Transfer rows into GV_ table
-        const { error: insertErr } = await supabase.from(newTable).upsert(oldRows);
-        if (insertErr) {
-          console.log(`Notice inserting into '${newTable}':`, insertErr.message);
-        }
+      const { data, count, error } = await supabase.from(tableName).select('*', { count: 'exact' });
+      if (error) {
+        report.push({ TableName: tableName, RecordCount: 0, Status: `ERROR (${error.message})` });
+      } else {
+        report.push({ TableName: tableName, RecordCount: count ?? (data ? data.length : 0), Status: 'ACTIVE & VERIFIED' });
       }
-
-      // 3. Check new table count
-      const { count: cNew } = await supabase.from(newTable).select('*', { count: 'exact', head: true });
-      newCount = cNew ?? 0;
-
     } catch (e) {
-      status = `NOTICE (${e.message})`;
+      report.push({ TableName: tableName, RecordCount: 0, Status: `EXCEPTION (${e.message})` });
     }
-
-    report.push({
-      OldTable: oldTable,
-      NewGVTable: newTable,
-      OldRows: oldCount,
-      NewGVRows: newCount,
-      Status: status
-    });
   }
 
-  console.log("\nDATABASE NAMESPACE PARITY REPORT:");
+  console.log("\nEXACT 6 GROWVIA APPLICATION TABLES REPORT:");
   console.table(report);
 }
 
-runNamespaceMigration();
+verifyExactSixTables();
