@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Circular } from "./mockData";
+import type { Circular } from "./supabaseService";
 
 export interface MessageRecord {
   id: string;
@@ -31,11 +31,9 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
           id: d.id,
           title: d.title,
           content: d.content,
-          date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
-          targetRole: d.target_role || "all",
-          priority: d.priority || "normal",
+          published_date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
+          target_audience: d.target_audience || "All",
           author: d.author || "School Admin",
-          attachmentUrl: d.attachment_url,
         }));
         return { data: mapped, isFromSupabase: true };
       }
@@ -46,11 +44,9 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
       id: d.id,
       title: d.title || "School Circular",
       content: d.body,
-      date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
-      targetRole: d.recipient_role || "all",
-      priority: d.priority || "normal",
+      published_date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
+      target_audience: d.recipient_role || "All",
       author: d.sender_name || d.sender_id || "School Admin",
-      attachmentUrl: d.attachment_url,
     }));
 
     return { data: mapped, isFromSupabase: true };
@@ -114,25 +110,21 @@ export async function publishCircularToModule(circular: Partial<Circular>) {
     sender_id: circular.author || "Admin",
     sender_name: circular.author || "School Admin",
     sender_role: "admin",
-    recipient_role: circular.targetRole || "all",
-    priority: circular.priority || "normal",
-    attachment_url: circular.attachmentUrl,
+    recipient_role: circular.target_audience || "all",
     published_at: new Date().toISOString(),
   };
 
   try {
     const { data, error } = await supabase.from("communications").insert([payload]).select();
     // Dual-write legacy circulars table for resilience
-    await supabase.from("circulars").insert([{
+    Promise.resolve(supabase.from("circulars").insert([{
       id: payload.id,
       title: payload.title,
       content: payload.body,
-      target_role: payload.recipient_role,
-      priority: payload.priority,
+      target_audience: payload.recipient_role,
       author: payload.sender_name,
-      attachment_url: payload.attachment_url,
-      published_at: payload.published_at,
-    }]).catch(() => {});
+      published_date: payload.published_at,
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -157,7 +149,7 @@ export async function sendMessageToModule(msg: Partial<MessageRecord>) {
   try {
     const { data, error } = await supabase.from("communications").insert([payload]).select();
     // Dual-write legacy messages table for resilience
-    await supabase.from("messages").insert([{
+    Promise.resolve(supabase.from("messages").insert([{
       id: payload.id,
       sender_id: payload.sender_id,
       sender_name: payload.sender_name,
@@ -167,7 +159,7 @@ export async function sendMessageToModule(msg: Partial<MessageRecord>) {
       message_text: payload.body,
       sent_at: payload.published_at,
       read_status: false,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

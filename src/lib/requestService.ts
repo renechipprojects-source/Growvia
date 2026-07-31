@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
-import type { LeaveRequest, Enquiry } from "./mockData";
+import type { LeaveRequest } from "./supabaseService";
+import type { Enquiry } from "./mockData";
 
 // ─── REQUESTS SERVICE (Module 5: requests) ───────────────────────────────────
 
@@ -16,13 +17,13 @@ export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveReque
       if (legacy && legacy.length > 0) {
         const mapped: LeaveRequest[] = legacy.map((d: any) => ({
           id: d.id,
-          applicantName: d.applicant_name,
-          applicantRole: d.applicant_role,
-          startDate: d.start_date,
-          endDate: d.end_date,
+          applicant_name: d.applicant_name,
+          applicant_role: d.applicant_role,
+          start_date: d.start_date,
+          end_date: d.end_date,
           reason: d.reason,
           status: d.status,
-          appliedOn: d.applied_on || d.created_at,
+          applied_on: d.applied_on || d.created_at,
         }));
         return { data: mapped, isFromSupabase: true };
       }
@@ -31,13 +32,13 @@ export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveReque
 
     const mapped: LeaveRequest[] = data.map((d: any) => ({
       id: d.id,
-      applicantName: d.applicant_or_child_name,
-      applicantRole: d.leave_type_or_interested_class || "Teacher",
-      startDate: d.start_date || new Date().toISOString().split("T")[0],
-      endDate: d.end_date || new Date().toISOString().split("T")[0],
+      applicant_name: d.applicant_or_child_name,
+      applicant_role: d.leave_type_or_interested_class || "Teacher",
+      start_date: d.start_date || new Date().toISOString().split("T")[0],
+      end_date: d.end_date || new Date().toISOString().split("T")[0],
       reason: d.reason_or_notes || "Personal leave",
       status: d.status || "Pending",
-      appliedOn: new Date(d.created_at).toISOString().split("T")[0],
+      applied_on: new Date(d.created_at).toISOString().split("T")[0],
     }));
 
     return { data: mapped, isFromSupabase: true };
@@ -111,10 +112,10 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
   const payload = {
     id: leave.id || `LR-${Date.now()}`,
     request_type: "leave",
-    applicant_or_child_name: leave.applicantName,
-    leave_type_or_interested_class: leave.applicantRole,
-    start_date: leave.startDate,
-    end_date: leave.endDate,
+    applicant_or_child_name: leave.applicant_name,
+    leave_type_or_interested_class: leave.applicant_role,
+    start_date: leave.start_date,
+    end_date: leave.end_date,
     reason_or_notes: leave.reason,
     status: leave.status || "Pending",
   };
@@ -122,7 +123,7 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
   try {
     const { data, error } = await supabase.from("requests").insert([payload]).select();
     // Dual-write legacy leave_requests table for resilience
-    await supabase.from("leave_requests").insert([{
+    Promise.resolve(supabase.from("leave_requests").insert([{
       id: payload.id,
       applicant_name: payload.applicant_or_child_name,
       applicant_role: payload.leave_type_or_interested_class,
@@ -130,7 +131,7 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
       end_date: payload.end_date,
       reason: payload.reason_or_notes,
       status: payload.status,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -158,7 +159,7 @@ export async function createEnquiryToModule(enquiry: Partial<Enquiry>) {
   try {
     const { data, error } = await supabase.from("requests").insert([payload]).select();
     // Dual-write legacy enquiries table for resilience
-    await supabase.from("enquiries").insert([{
+    Promise.resolve(supabase.from("enquiries").insert([{
       id: payload.id,
       child_name: payload.applicant_or_child_name,
       parent_name: payload.parent_name,
@@ -172,7 +173,7 @@ export async function createEnquiryToModule(enquiry: Partial<Enquiry>) {
       status: payload.status,
       follow_up: payload.follow_up_date,
       notes: payload.reason_or_notes,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

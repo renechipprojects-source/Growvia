@@ -135,7 +135,7 @@ export async function saveInventoryItemToModule(item: Partial<InventoryItemRecor
   try {
     const { data, error } = await supabase.from("inventory_expenses").upsert([payload]).select();
     // Dual-write legacy inventory_items for resilience
-    await supabase.from("inventory_items").upsert([{
+    Promise.resolve(supabase.from("inventory_items").upsert([{
       id: payload.id,
       item_name: payload.title,
       category: payload.category,
@@ -143,7 +143,7 @@ export async function saveInventoryItemToModule(item: Partial<InventoryItemRecor
       unit: payload.unit,
       min_stock: payload.min_stock,
       supplier: payload.supplier_or_paid_to,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -167,7 +167,7 @@ export async function recordExpenseToModule(expense: Partial<ExpenseRecord>) {
   try {
     const { data, error } = await supabase.from("inventory_expenses").insert([payload]).select();
     // Dual-write legacy expenses for resilience
-    await supabase.from("expenses").insert([{
+    Promise.resolve(supabase.from("expenses").insert([{
       id: payload.id,
       category: payload.category,
       amount: payload.amount_or_unit_cost,
@@ -176,7 +176,7 @@ export async function recordExpenseToModule(expense: Partial<ExpenseRecord>) {
       receipt_ref: payload.receipt_ref,
       notes: payload.notes,
       created_by: payload.created_by,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

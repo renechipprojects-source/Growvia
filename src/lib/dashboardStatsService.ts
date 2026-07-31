@@ -89,14 +89,14 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
       let circularData = circularsRes.data || [];
       if (circularData.length === 0) {
         const leg = await supabase.from("circulars").select("id, title, created_at").order("created_at", { ascending: false }).limit(3);
-        circularData = (leg.data || []).map((c: any) => ({ id: c.id, title: c.title, published_at: c.created_at }));
+        circularData = (leg.data || []).map((c: any) => ({ id: c.id, title: c.title, published_at: c.created_at, created_at: c.created_at }));
       }
 
       const recentActivities = circularData.map((c: any) => ({
         id: c.id,
         title: c.title,
         subtitle: "Published Circular",
-        time: c.published_at ? new Date(c.published_at).toLocaleDateString() : "Recent",
+        time: c.published_at || c.created_at ? new Date(c.published_at || c.created_at).toLocaleDateString() : "Recent",
         type: "circular",
       }));
 
@@ -155,7 +155,6 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
       }
       const totalCirculars = circulars.length;
 
-      // Group student strength by class
       const classCounts: Record<string, number> = {};
       students.forEach((s: any) => {
         const cls = s.class_name || "Play Group";
@@ -392,4 +391,92 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
       };
     }
   }, { ttlMs: 2000 });
+}
+
+export interface AnnualPromotionLifecycleStats {
+  academicYear: string;
+  studentsEligible: number;
+  studentsPromoted: number;
+  promotionPending: number;
+  promotionCompleted: number;
+  promotionFailed: number;
+  promotionPercentage: number;
+  studentsWaitingReview: number;
+  studentsRequiringManualAction: number;
+  totalAdmissions: number;
+  activeStudents: number;
+  graduatedStudents: number;
+  tcIssued: number;
+  studentsLeftSchool: number;
+  rejoinedStudents: number;
+  inactiveStudents: number;
+  archivedStudents: number;
+}
+
+export async function getAnnualPromotionAndLifecycleStats(year: string = "2024-2025"): Promise<AnnualPromotionLifecycleStats> {
+  try {
+    const { data: students } = await supabase.from("users").select("id, status").eq("role", "student");
+    const list = students || [];
+    const totalStudents = list.length;
+    const promotedCount = list.filter((s: any) => s.status === "Promoted").length;
+    const graduatedCount = list.filter((s: any) => s.status === "Graduated").length;
+    const tcIssued = list.filter((s: any) => s.status === "TC Issued" || s.status === "Transferred").length;
+    const activeStudents = list.filter((s: any) => s.status === "active" || s.status === "Active").length;
+    const promotionPending = Math.max(0, totalStudents - (promotedCount + graduatedCount + tcIssued));
+    const promotionPercentage = totalStudents > 0 ? Number(((promotedCount / totalStudents) * 100).toFixed(1)) : 0;
+
+    return {
+      academicYear: year,
+      studentsEligible: totalStudents,
+      studentsPromoted: promotedCount,
+      promotionPending,
+      promotionCompleted: promotedCount,
+      promotionFailed: 0,
+      promotionPercentage,
+      studentsWaitingReview: promotionPending,
+      studentsRequiringManualAction: 0,
+      totalAdmissions: totalStudents,
+      activeStudents,
+      graduatedStudents: graduatedCount,
+      tcIssued,
+      studentsLeftSchool: tcIssued,
+      rejoinedStudents: 0,
+      inactiveStudents: Math.max(0, totalStudents - activeStudents),
+      archivedStudents: 0,
+    };
+  } catch {
+    return {
+      academicYear: year,
+      studentsEligible: 0,
+      studentsPromoted: 0,
+      promotionPending: 0,
+      promotionCompleted: 0,
+      promotionFailed: 0,
+      promotionPercentage: 0,
+      studentsWaitingReview: 0,
+      studentsRequiringManualAction: 0,
+      totalAdmissions: 0,
+      activeStudents: 0,
+      graduatedStudents: 0,
+      tcIssued: 0,
+      studentsLeftSchool: 0,
+      rejoinedStudents: 0,
+      inactiveStudents: 0,
+      archivedStudents: 0,
+    };
+  }
+}
+
+export function subscribeToPromotionAndLifecycleUpdates(callback: (data: AnnualPromotionLifecycleStats) => void): () => void {
+  const handler = () => {
+    getAnnualPromotionAndLifecycleStats().then(callback).catch(() => {});
+  };
+  handler();
+  const channel = supabase.channel("promotion_updates_realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "users" }, handler)
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

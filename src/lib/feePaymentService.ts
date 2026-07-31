@@ -142,7 +142,7 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
   try {
     const { data, error } = await supabase.from("fees_payments").insert([payload]).select();
     // Dual-write legacy receipts table for resilience
-    await supabase.from("receipts").insert([{
+    Promise.resolve(supabase.from("receipts").insert([{
       id: payload.id,
       student_id: payload.student_id,
       student_name: payload.student_name,
@@ -155,7 +155,7 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
       transaction_ref: payload.transaction_ref,
       status: payload.status,
       recorded_by: payload.recorded_by,
-    }]).catch(() => {});
+    }])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

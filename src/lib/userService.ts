@@ -69,6 +69,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
           dob: d.dob || "2020-01-01",
           className: d.class_name,
           section: d.section || "A",
+          parent: d.parent_name || "Parent",
           parentName: d.parent_name,
           parentId: d.parent_id || "PRT1001",
           phone: d.phone || "9876543210",
@@ -77,6 +78,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
           admissionDate: d.admission_date || "2024-04-01",
           feeStatus: d.fee_status || "Pending",
           avatar: d.avatar,
+          attendance: Number(d.attendance_pct || 95),
           attendancePct: Number(d.attendance_pct || 95),
           branch: d.branch || "Main Branch",
         }));
@@ -94,6 +96,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
       dob: d.date_of_birth || "2020-01-01",
       className: d.class_name || "Nursery",
       section: d.section || "A",
+      parent: d.parent_name || "Parent",
       parentName: d.parent_name || "Parent",
       parentId: d.parent_id || "PRT1001",
       phone: d.mobile || "9876543210",
@@ -102,6 +105,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
       admissionDate: d.joining_date || "2024-04-01",
       feeStatus: (d.fee_status as any) || "Pending",
       avatar: d.photo_url || undefined,
+      attendance: Number(d.attendance_pct || 95),
       attendancePct: Number(d.attendance_pct || 95),
       branch: d.branch || "Main Branch",
     }));
@@ -166,14 +170,14 @@ export async function saveUserRecord(user: Partial<UserRecord>) {
     if (error) {
       // Dual-write legacy profiles for resilience
       if (user.login_id) {
-        await supabase.from("profiles").upsert([{
+        Promise.resolve(supabase.from("profiles").upsert([{
           login_id: user.login_id,
           role: user.role || "parent",
           full_name: user.full_name || "User",
           email: user.email || `${user.login_id}@sunshine.edu`,
           mobile: user.mobile || "9876543210",
           status: user.status || "active",
-        }]);
+        }])).catch(() => {});
       }
     }
     return { data: data ? data[0] : payload, error: null };
