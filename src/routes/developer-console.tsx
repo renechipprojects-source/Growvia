@@ -291,6 +291,100 @@ function DeveloperConsolePage() {
 
         {/* 2. BRANDING & HEAD */}
         <TabsContent value="branding" className="space-y-6">
+          {/* Dedicated Sidebar Branding Section */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-amber-400" /> Sidebar Live Branding
+              </h2>
+              <span className="text-xs text-slate-400">Controls top-left sidebar logo & school name independently</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="text-xs text-slate-300 font-semibold">Sidebar Logo</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={draft.branding.sidebarLogoUrl || ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        branding: { ...draft.branding, sidebarLogoUrl: e.target.value },
+                        theme: { ...draft.theme, sidebarLogoUrl: e.target.value },
+                      })
+                    }
+                    placeholder="https://... or /logo.png"
+                    className="bg-slate-950 border-slate-800 text-white"
+                  />
+                  <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    {uploadingField === "Sidebar Logo" ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileUpload(
+                          e,
+                          (url) =>
+                            setDraft({
+                              ...draft,
+                              branding: { ...draft.branding, sidebarLogoUrl: url },
+                              theme: { ...draft.theme, sidebarLogoUrl: url },
+                            }),
+                          "Sidebar Logo"
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+                {/* Preview Box */}
+                {draft.branding.sidebarLogoUrl && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-950/80 border border-slate-800 rounded-xl">
+                    <span className="text-xs text-slate-400">Preview:</span>
+                    <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 overflow-hidden flex items-center justify-center p-1">
+                      <img src={draft.branding.sidebarLogoUrl} alt="Sidebar Logo Preview" className="h-full w-full object-contain" />
+                    </div>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1" /> Save Sidebar Logo
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-xs text-slate-300 font-semibold">Sidebar School Name</Label>
+                <Input
+                  value={draft.branding.sidebarSchoolName || draft.branding.sidebarTitle || draft.school.schoolName || ""}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      branding: {
+                        ...draft.branding,
+                        sidebarSchoolName: e.target.value,
+                        sidebarTitle: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Sunshine Play School ERP"
+                  className="bg-slate-950 border-slate-800 text-white"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1" /> Save Sidebar School Name
+                </Button>
+              </div>
+            </div>
+          </div>
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">

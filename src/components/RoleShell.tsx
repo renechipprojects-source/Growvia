@@ -75,12 +75,18 @@ function RoleShellInner({ role }: { role: Role }) {
   const sidebarContent = (compact: boolean) => (
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
-        <div className={cn("h-11 w-11 shrink-0 rounded-2xl bg-gradient-to-br grid place-items-center text-white shadow-lg", theme.gradient)}>
-          <theme.icon className="h-5 w-5" />
+        <div className={cn("h-11 w-11 shrink-0 rounded-2xl bg-gradient-to-br grid place-items-center text-white shadow-lg overflow-hidden", theme.gradient)}>
+          {settings.branding.sidebarLogoUrl ? (
+            <img src={settings.branding.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+          ) : (
+            <theme.icon className="h-5 w-5" />
+          )}
         </div>
         {!compact && (
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Sunshine</div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground truncate">
+              {settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}
+            </div>
             <div className="font-semibold truncate">{theme.name}</div>
           </div>
         )}

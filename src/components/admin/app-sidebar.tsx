@@ -93,10 +93,10 @@ export function AppSidebar() {
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight text-slate-900">
-              {settings.school.schoolName || settings.branding.schoolName}
+              {settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}
             </div>
             <div className="text-[11px] font-medium text-slate-500">
-              {settings.school.schoolCode}
+              Academic Session {settings.school.academicYear}
             </div>
           </div>
         </div>

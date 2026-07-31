@@ -120,8 +120,8 @@ export function OfficeSidebar() {
             )}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold">{settings.school.schoolName || settings.branding.schoolName}</div>
-            <div className="truncate text-xs text-muted-foreground">Office Suite</div>
+            <div className="truncate text-sm font-semibold">{settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}</div>
+            <div className="truncate text-xs text-muted-foreground">Academic Session {settings.school.academicYear}</div>
           </div>
         </Link>
       </SidebarHeader>

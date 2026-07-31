@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 export interface SystemBranding {
   headerLogoUrl: string;
   sidebarLogoUrl: string;
+  sidebarSchoolName?: string;
   faviconUrl: string;
   projectName: string;
   projectLogo?: string;
@@ -133,6 +134,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   branding: {
     headerLogoUrl: "/renechip-logo.png",
     sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    sidebarSchoolName: "Sunshine Play School ERP",
     faviconUrl: "/favicon.png",
     projectName: "Growvia",
     projectLogo: "/growvia-logo.png",
@@ -322,6 +324,8 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
         school_name: settings.school.schoolName,
         header_logo: settings.branding.headerLogoUrl,
         sidebar_logo: settings.branding.sidebarLogoUrl,
+        sidebar_logo_url: settings.branding.sidebarLogoUrl,
+        sidebar_school_name: settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName,
         login_logo: settings.loginPage.logoUrl,
         login_bg: settings.loginPage.backgroundImage || settings.loginPage.bgImageUrl,
         favicon: settings.branding.faviconUrl,
