@@ -269,3 +269,16 @@ CREATE POLICY "inventory_expenses_all" ON public.inventory_expenses FOR ALL USIN
 CREATE POLICY "fees_payments_all" ON public.fees_payments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "communications_all" ON public.communications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "requests_all" ON public.requests FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. CLEANUP / DROP OLD UNCONSOLIDATED TABLES AFTER DATA MERGE
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.students CASCADE;
+DROP TABLE IF EXISTS public.teachers CASCADE;
+DROP TABLE IF EXISTS public.inventory_items CASCADE;
+DROP TABLE IF EXISTS public.expenses CASCADE;
+DROP TABLE IF EXISTS public.fees CASCADE;
+DROP TABLE IF EXISTS public.receipts CASCADE;
+DROP TABLE IF EXISTS public.circulars CASCADE;
+DROP TABLE IF EXISTS public.messages CASCADE;
+DROP TABLE IF EXISTS public.leave_requests CASCADE;
+DROP TABLE IF EXISTS public.enquiries CASCADE;
