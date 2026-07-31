@@ -1,18 +1,18 @@
 -- ====================================================================
--- GROWVIA SCHOOL ERP — RESILIENT 6 CONSOLIDATED TABLES SCHEMA (GV_)
--- Exact 6 Application Tables:
--- 1. users              -> GV_users
--- 2. inventory_expenses -> GV_inventory_expenses
--- 3. fees_payments      -> GV_fees_payments
--- 4. communications     -> GV_communications
--- 5. requests           -> GV_requests
--- 6. system_settings    -> GV_system_settings
+-- GROWVIA SCHOOL ERP — CLEANUP TO EXACTLY 6 CONSOLIDATED TABLES SCHEMA
+-- Final Database State: EXACTLY 6 TABLES IN PUBLIC SCHEMA
+-- 1. GV_users
+-- 2. GV_inventory_expenses
+-- 3. GV_fees_payments
+-- 4. GV_communications
+-- 5. GV_requests
+-- 6. GV_system_settings
 -- ====================================================================
 
 -- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. RESILIENT IN-PLACE RENAMES (Guaranteed Zero Duplicate Relation Errors)
+-- 2. IN-PLACE TABLE RENAMES (If old tables exist and new ones do not)
 DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users')
        AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_users') THEN
@@ -47,7 +47,7 @@ EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 -- 3. ENSURE EXACT 6 CONSOLIDATED TABLES EXIST
 
--- A. USERS MODULE (GV_users)
+-- Table 1: GV_users
 CREATE TABLE IF NOT EXISTS public.GV_users (
     id VARCHAR(100) PRIMARY KEY,
     auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.GV_users (
 CREATE INDEX IF NOT EXISTS idx_gv_users_login_id ON public.GV_users(login_id);
 CREATE INDEX IF NOT EXISTS idx_gv_users_role ON public.GV_users(role);
 
--- B. INVENTORY + EXPENSES MODULE (GV_inventory_expenses)
+-- Table 2: GV_inventory_expenses
 CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('IE-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'inventory' | 'expense'
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.GV_inventory_expenses (
 
 CREATE INDEX IF NOT EXISTS idx_gv_inventory_expenses_type ON public.GV_inventory_expenses(record_type);
 
--- C. FEES + RECEIPTS MODULE (GV_fees_payments)
+-- Table 3: GV_fees_payments
 CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('FP-' || substring(uuid_generate_v4()::text, 1, 8)),
     record_type VARCHAR(50) NOT NULL, -- 'fee_schedule' | 'payment_receipt'
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS public.GV_fees_payments (
 
 CREATE INDEX IF NOT EXISTS idx_gv_fees_payments_type ON public.GV_fees_payments(record_type);
 
--- D. COMMUNICATIONS MODULE (GV_communications)
+-- Table 4: GV_communications
 CREATE TABLE IF NOT EXISTS public.GV_communications (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('COM-' || substring(uuid_generate_v4()::text, 1, 8)),
     message_type VARCHAR(50) NOT NULL, -- 'circular' | 'general_message'
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS public.GV_communications (
 
 CREATE INDEX IF NOT EXISTS idx_gv_communications_type ON public.GV_communications(message_type);
 
--- E. REQUESTS MODULE (GV_requests)
+-- Table 5: GV_requests
 CREATE TABLE IF NOT EXISTS public.GV_requests (
     id VARCHAR(100) PRIMARY KEY DEFAULT ('REQ-' || substring(uuid_generate_v4()::text, 1, 8)),
     request_type VARCHAR(50) NOT NULL, -- 'leave' | 'enquiry'
@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS public.GV_requests (
 
 CREATE INDEX IF NOT EXISTS idx_gv_requests_type ON public.GV_requests(request_type);
 
--- F. SYSTEM SETTINGS MODULE (GV_system_settings)
+-- Table 6: GV_system_settings
 CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     id VARCHAR(50) PRIMARY KEY DEFAULT 'PRIMARY',
     content TEXT,
@@ -208,10 +208,9 @@ CREATE TABLE IF NOT EXISTS public.GV_system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. MERGE DATA IF OLD UNPREFIXED TABLES ALSO EXIST
+-- 4. MERGE ANY REMAINING UNPREFIXED DATA INTO GV_ TABLES
 DO $$ BEGIN
-    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users')
-       AND EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gv_users') THEN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
         INSERT INTO public.GV_users (id, auth_user_id, login_id, email, full_name, role, status, mobile, photo_url, must_change_password, created_at, updated_at)
         SELECT id::text, auth_user_id, login_id, email, full_name, role::text, status, mobile, photo_url, must_change_password, created_at, updated_at
         FROM public.users
@@ -240,3 +239,25 @@ CREATE POLICY "gv_fees_payments_all" ON public.GV_fees_payments FOR ALL USING (t
 CREATE POLICY "gv_communications_all" ON public.GV_communications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "gv_requests_all" ON public.GV_requests FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "gv_system_settings_all" ON public.GV_system_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- 6. DROP ALL OLD UNPREFIXED / UNCONSOLIDATED TABLES SO ONLY EXACTLY 6 TABLES REMAIN
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.students CASCADE;
+DROP TABLE IF EXISTS public.teachers CASCADE;
+DROP TABLE IF EXISTS public.inventory_expenses CASCADE;
+DROP TABLE IF EXISTS public.inventory_items CASCADE;
+DROP TABLE IF EXISTS public.expenses CASCADE;
+DROP TABLE IF EXISTS public.fees_payments CASCADE;
+DROP TABLE IF EXISTS public.fees CASCADE;
+DROP TABLE IF EXISTS public.receipts CASCADE;
+DROP TABLE IF EXISTS public.communications CASCADE;
+DROP TABLE IF EXISTS public.circulars CASCADE;
+DROP TABLE IF EXISTS public.messages CASCADE;
+DROP TABLE IF EXISTS public.requests CASCADE;
+DROP TABLE IF EXISTS public.leave_requests CASCADE;
+DROP TABLE IF EXISTS public.enquiries CASCADE;
+DROP TABLE IF EXISTS public.system_settings CASCADE;
+DROP TABLE IF EXISTS public.student_attendance CASCADE;
+DROP TABLE IF EXISTS public.promotion_history CASCADE;
+DROP TABLE IF EXISTS public.audit_logs CASCADE;
