@@ -3,13 +3,23 @@ import { authenticateGenerated } from "./credentials";
 
 export async function ensureDeveloperAccount() {
   try {
-    const { data: existingProfile } = await supabase
-      .from("profiles")
+    let { data: existingUser } = await supabase
+      .from("users")
       .select("*")
       .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
       .maybeSingle();
 
-    if (!existingProfile) {
+    if (!existingUser) {
+      // Fallback query profiles
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("*")
+        .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
+        .maybeSingle();
+      existingUser = prof;
+    }
+
+    if (!existingUser) {
       // 1. SignUp in Supabase Auth
       const { data: authData } = await supabase.auth.signUp({
         email: "developer@growvia.com",
@@ -25,19 +35,20 @@ export async function ensureDeveloperAccount() {
 
       const userId = authData?.user?.id || "49dad3a9-83c2-49cf-a1b4-930002cdf845";
 
-      // 2. Upsert profile in Supabase profiles table
-      await supabase.from("profiles").upsert([
-        {
-          id: userId,
-          auth_user_id: userId,
-          login_id: "DEV001",
-          role: "super-admin", // Compatible with database enum constraint while keeping developer identity
-          full_name: "Lead Developer",
-          email: "developer@growvia.local",
-          status: "active",
-          must_change_password: false,
-        },
-      ]);
+      // 2. Upsert profile in Supabase users table
+      const payload = {
+        id: userId,
+        auth_user_id: userId,
+        login_id: "DEV001",
+        role: "developer",
+        full_name: "Lead Developer",
+        email: "developer@growvia.local",
+        status: "active",
+        must_change_password: false,
+      };
+
+      await supabase.from("users").upsert([payload]);
+      Promise.resolve(supabase.from("profiles").upsert([payload])).catch(() => {});
     }
   } catch {}
 }
@@ -52,9 +63,10 @@ export async function login(loginId: string, password: string) {
       await ensureDeveloperAccount();
     }
 
-    // Find the user's profile using their Login ID or Email
-    let { data: profile, error: profileError } = await supabase
-      .from("profiles")
+    // Find user profile in users table (with fallback to profiles table)
+    let profile: any = null;
+    let { data: userData, error: userError } = await supabase
+      .from("users")
       .select(`
         id,
         auth_user_id,
@@ -70,7 +82,30 @@ export async function login(loginId: string, password: string) {
       .or(`login_id.ilike.${id},email.ilike.${id}`)
       .maybeSingle();
 
-    if (profileError || !profile) {
+    if (userData) {
+      profile = userData;
+    } else {
+      const { data: legacyProf } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          auth_user_id,
+          login_id,
+          role,
+          full_name,
+          email,
+          mobile,
+          photo_url,
+          status,
+          must_change_password
+        `)
+        .or(`login_id.ilike.${id},email.ilike.${id}`)
+        .maybeSingle();
+
+      profile = legacyProf;
+    }
+
+    if (!profile) {
       if (isDev) {
         // Fallback profile object for Developer
         profile = {
@@ -160,10 +195,14 @@ export async function login(loginId: string, password: string) {
             },
           });
           if (signUpData?.user?.id) {
-            await supabase.from("profiles").update({
+            await supabase.from("users").update({
               id: signUpData.user.id,
               auth_user_id: signUpData.user.id,
             }).eq("login_id", profile.login_id);
+            Promise.resolve(supabase.from("profiles").update({
+              id: signUpData.user.id,
+              auth_user_id: signUpData.user.id,
+            }).eq("login_id", profile.login_id)).catch(() => {});
           }
         } catch {}
 

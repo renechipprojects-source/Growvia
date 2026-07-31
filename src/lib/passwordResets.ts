@@ -147,6 +147,7 @@ export function setStatus(id: string, status: ResetStatus, tempPassword?: string
   const rows = read().map((r) => {
     if (r.id === id) {
       if (status === "Completed") {
+        Promise.resolve(supabase.from("users").update({ must_change_password: true }).eq("login_id", r.loginId)).catch(() => {});
         Promise.resolve(supabase.from("profiles").update({ must_change_password: true }).eq("login_id", r.loginId)).catch(() => {});
       }
       return {

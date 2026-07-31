@@ -475,17 +475,20 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
     }));
     Promise.resolve(supabase.from("promotion_history").upsert(supabasePayload)).catch(() => {});
 
-    // Update students table in Supabase
+    // Update users table in Supabase
     const activePromotedIds = studentIds.filter((sId) => toClass !== "Alumni / Graduated" && toClass !== "Graduated");
     const graduatedIds = studentIds.filter((sId) => toClass === "Alumni / Graduated" || toClass === "Graduated");
 
     if (activePromotedIds.length > 0) {
+      Promise.resolve(supabase.from("users").update({ class_name: toClass, status: "Active" }).in("id", activePromotedIds)).catch(() => {});
       Promise.resolve(supabase.from("students").update({ class_name: toClass, status: "Active" }).in("id", activePromotedIds)).catch(() => {});
     }
     if (graduatedIds.length > 0) {
+      Promise.resolve(supabase.from("users").update({ status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
       Promise.resolve(supabase.from("students").update({ status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
     }
     if (transferredStudentIds.length > 0) {
+      Promise.resolve(supabase.from("users").update({ status: "TC Issued" }).in("id", transferredStudentIds)).catch(() => {});
       Promise.resolve(supabase.from("students").update({ status: "TC Issued" }).in("id", transferredStudentIds)).catch(() => {});
     }
   } catch {}

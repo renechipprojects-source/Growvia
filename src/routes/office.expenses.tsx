@@ -41,13 +41,15 @@ function Expenses() {
 
     setItems((prev) => [newExp, ...prev]);
 
-    const { error } = await supabase.from("expenses").insert([{
+    const { error } = await supabase.from("inventory_expenses").insert([{
       id: newId,
+      record_type: "expense",
+      title: v.category,
       category: v.category,
-      description: v.description,
-      amount: amt,
-      expense_date: newExp.date,
-      paid_to: v.paidTo,
+      amount_or_unit_cost: amt,
+      transaction_date: newExp.date,
+      supplier_or_paid_to: v.paidTo,
+      notes: v.description,
     }]);
 
     if (error) {

@@ -173,6 +173,7 @@ export function setParentStatus(studentId: string, status: CredentialStatus) {
   if (!existing) return;
   store.parents[studentId] = { ...existing, status, updatedAt: new Date().toISOString() };
   write(store);
+  Promise.resolve(supabase.from("users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
   Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
@@ -235,22 +236,24 @@ export async function createTeacherAuthAccount(params: {
   }
 
   try {
-    const { data: existingProfile } = await supabase
-      .from("profiles")
+    const { data: existingUser } = await supabase
+      .from("users")
       .select("id, auth_user_id")
       .eq("login_id", loginId)
       .maybeSingle();
 
-    if (existingProfile) {
+    if (existingUser) {
       await supabase
-        .from("profiles")
+        .from("users")
         .update(profilePayload)
         .eq("login_id", loginId);
     } else {
-      await supabase.from("profiles").upsert([profilePayload]);
+      await supabase.from("users").upsert([profilePayload]);
     }
+    // Dual-write profiles for backward compatibility fallback
+    Promise.resolve(supabase.from("profiles").upsert([profilePayload])).catch(() => {});
   } catch (err) {
-    console.warn("Supabase profile upsert notice:", err);
+    console.warn("Supabase user upsert notice:", err);
   }
 
   return {
