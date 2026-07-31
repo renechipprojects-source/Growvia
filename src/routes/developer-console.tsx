@@ -185,9 +185,87 @@ function DeveloperConsolePage() {
               <span className="text-xs text-slate-400">Updates / index route in real-time</span>
             </div>
 
+            {/* Dedicated School Logo Section */}
+            <div className="p-4 bg-slate-950/90 border border-amber-500/30 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" /> School Logo
+                  </h3>
+                  <p className="text-xs text-slate-400">Used on the login page as the official institution logo</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1" /> Save School Logo
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-300">School Logo URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={draft.branding.schoolLogoUrl || draft.school.schoolLogoUrl || draft.school.logoUrl || draft.loginPage.schoolLogoUrl || ""}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          branding: { ...draft.branding, schoolLogoUrl: e.target.value },
+                          school: { ...draft.school, schoolLogoUrl: e.target.value, logoUrl: e.target.value },
+                          loginPage: { ...draft.loginPage, schoolLogoUrl: e.target.value },
+                        })
+                      }
+                      placeholder="https://... or /logo.png"
+                      className="bg-slate-900 border-slate-800 text-white"
+                    />
+                    <label className="cursor-pointer inline-flex items-center px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-700 shrink-0">
+                      <Upload className="h-3.5 w-3.5 mr-1" />
+                      {uploadingField === "School Logo" ? "..." : "Upload"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleFileUpload(
+                            e,
+                            (url) =>
+                              setDraft({
+                                ...draft,
+                                branding: { ...draft.branding, schoolLogoUrl: url },
+                                school: { ...draft.school, schoolLogoUrl: url, logoUrl: url },
+                                loginPage: { ...draft.loginPage, schoolLogoUrl: url },
+                              }),
+                            "School Logo"
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* School Logo Preview */}
+                <div className="flex items-center gap-3 p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
+                  <span className="text-xs text-slate-400 font-medium">Logo Preview:</span>
+                  <div className="h-12 w-12 rounded-xl bg-amber-500/10 border border-amber-500/30 overflow-hidden flex items-center justify-center p-1">
+                    {(draft.branding.schoolLogoUrl || draft.school.schoolLogoUrl || draft.school.logoUrl || draft.loginPage.schoolLogoUrl) ? (
+                      <img
+                        src={draft.branding.schoolLogoUrl || draft.school.schoolLogoUrl || draft.school.logoUrl || draft.loginPage.schoolLogoUrl}
+                        alt="School Logo Preview"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-slate-500">No Image</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Login Page Logo URL</Label>
+                <Label className="text-xs text-slate-300">Login Page Logo URL (Optional)</Label>
                 <div className="flex gap-2">
                   <Input
                     value={draft.loginPage.logoUrl}
@@ -283,6 +361,33 @@ function DeveloperConsolePage() {
                     })
                   }
                   className="bg-slate-950 border-slate-800 text-white"
+                />
+              </div>
+
+              {/* Dedicated Footer Text Section */}
+              <div className="space-y-3 md:col-span-2 p-4 bg-slate-950/80 border border-slate-800 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-amber-400 font-bold flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Footer Company & Copyright Text
+                  </Label>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1" /> Save Footer Text
+                  </Button>
+                </div>
+                <Textarea
+                  value={draft.branding.footer || "Renechip Pvt. Ltd.\n© 2026 All Rights Reserved."}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      branding: { ...draft.branding, footer: e.target.value },
+                    })
+                  }
+                  placeholder="Renechip Pvt. Ltd.&#10;© 2026 All Rights Reserved."
+                  className="bg-slate-900 border-slate-800 text-white h-20 text-xs font-mono"
                 />
               </div>
             </div>

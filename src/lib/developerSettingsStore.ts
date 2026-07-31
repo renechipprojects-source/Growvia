@@ -18,6 +18,7 @@ export interface SystemBranding {
   printFooter?: string;
   footer?: string;
   copyright?: string;
+  schoolLogoUrl?: string;
   // Legacy aliases
   schoolName?: string;
   logoUrl?: string;
@@ -42,6 +43,8 @@ export interface LoginPageConfig {
 
 export interface SchoolBranding {
   schoolName: string;
+  logoUrl?: string;
+  schoolLogoUrl?: string;
   address: string;
   phone: string;
   email: string;
@@ -135,6 +138,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     headerLogoUrl: "/renechip-logo.png",
     sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     sidebarSchoolName: "Sunshine Play School ERP",
+    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     faviconUrl: "/favicon.png",
     projectName: "Growvia",
     projectLogo: "/growvia-logo.png",
@@ -146,7 +150,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     reportHeader: "SUNSHINE PLAY SCHOOL — ENTERPRISE DATA REPORT",
     receiptHeader: "SUNSHINE PLAY SCHOOL — OFFICIAL FEE RECEIPT",
     printFooter: "Powered by Growvia ERP System",
-    footer: "Renechip Private Limited\n© 2026 All Rights Reserved.",
+    footer: "Renechip Pvt. Ltd.\n© 2026 All Rights Reserved.",
     copyright: "© 2026 Sunshine Play School. All Rights Reserved.",
     schoolName: "Sunshine Play School ERP",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
@@ -159,6 +163,8 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   },
   school: {
     schoolName: "Sunshine Play School ERP",
+    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     address: "123 Sunshine Lane, Education City, TN 600001",
     phone: "+91 98765 43210",
     email: "info@sunshineplayschool.edu",
@@ -322,6 +328,7 @@ export function saveDeveloperSettings(settings: DeveloperSettings) {
         id: "PRIMARY",
         content: JSON.stringify(settings),
         school_name: settings.school.schoolName,
+        school_logo_url: settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || settings.school.logoUrl || settings.loginPage.schoolLogoUrl,
         header_logo: settings.branding.headerLogoUrl,
         sidebar_logo: settings.branding.sidebarLogoUrl,
         sidebar_logo_url: settings.branding.sidebarLogoUrl,

@@ -113,8 +113,8 @@ function Login() {
               {/* Top Left: School Logo, School Name & Academic Session */}
               <div className="flex flex-col items-start">
                 <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-sm">
-                  {settings.loginPage.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl ? (
-                    <img src={settings.loginPage.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                  {Boolean(settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || settings.school.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl) ? (
+                    <img src={settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || settings.school.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
                   ) : (
                     <GraduationCap className="h-8 w-8" />
                   )}
@@ -184,7 +184,7 @@ function Login() {
               ))
             ) : (
               <>
-                <p className="text-xs font-semibold text-slate-700">Renechip Private Limited</p>
+                <p className="text-xs font-semibold text-slate-700">Renechip Pvt. Ltd.</p>
                 <p className="text-[11px] text-slate-500">© 2026 All Rights Reserved.</p>
               </>
             )}
