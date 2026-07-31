@@ -350,7 +350,6 @@ function DeveloperConsolePage() {
                 <Button
                   size="sm"
                   onClick={handleSave}
-                  disabled={saving}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
                 >
                   <Save className="h-3.5 w-3.5 mr-1" /> Save Sidebar Logo
@@ -377,7 +376,6 @@ function DeveloperConsolePage() {
                 <Button
                   size="sm"
                   onClick={handleSave}
-                  disabled={saving}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
                 >
                   <Save className="h-3.5 w-3.5 mr-1" /> Save Sidebar School Name

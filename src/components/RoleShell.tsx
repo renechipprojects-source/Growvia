@@ -11,6 +11,7 @@ import { SupabaseStatus } from "@/components/SupabaseStatus";
 import { SearchProvider, useSearch } from "@/lib/searchContext";
 import { fetchCirculars } from "@/lib/supabaseService";
 import { getUnreadCountForRole } from "@/lib/circularReadStore";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 export function RoleShell({ role }: { role: Role }) {
   return (
@@ -21,6 +22,7 @@ export function RoleShell({ role }: { role: Role }) {
 }
 
 function RoleShellInner({ role }: { role: Role }) {
+  const { settings } = useDeveloperSettings();
   const theme = ROLES[role];
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const [desktopOpen, setDesktopOpen] = useState(true);
