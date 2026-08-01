@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
 // Supabase client initialization (with fallback to current live credentials)
@@ -18,6 +18,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Middleware
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(express.json());
+
+// ─── ROOT ENDPOINT ─────────────────────────────────────────────────────────────
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Growvia School ERP Express Backend API Foundation',
+    health: '/health',
+    version: '1.0.0',
+  });
+});
 
 // ─── HEALTH CHECK ENDPOINT (RENDER REQUIREMENT) ──────────────────────────────
 app.get('/health', (_req: Request, res: Response) => {
@@ -65,10 +75,10 @@ app.get('/api/inventory-expenses', async (req: Request, res: Response) => {
 // 3. Fees & Payments Endpoint (GV_fees_payments)
 app.get('/api/fees-payments', async (req: Request, res: Response) => {
   try {
-    const recordType = req.query.record_type as string;
+    const studentId = req.query.student_id as string;
     let query = supabase.from('GV_fees_payments').select('*');
-    if (recordType) {
-      query = query.eq('record_type', recordType);
+    if (studentId) {
+      query = query.eq('student_id', studentId);
     }
     const { data, error } = await query;
     if (error) {
@@ -83,10 +93,10 @@ app.get('/api/fees-payments', async (req: Request, res: Response) => {
 // 4. Communications Endpoint (GV_communications)
 app.get('/api/communications', async (req: Request, res: Response) => {
   try {
-    const messageType = req.query.message_type as string;
+    const channel = req.query.channel as string;
     let query = supabase.from('GV_communications').select('*');
-    if (messageType) {
-      query = query.eq('message_type', messageType);
+    if (channel) {
+      query = query.eq('channel', channel);
     }
     const { data, error } = await query;
     if (error) {
@@ -129,7 +139,18 @@ app.get('/api/settings', async (_req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Growvia Express Backend API server running on port ${PORT}`);
+// ─── 404 FALLBACK ROUTE HANDLER ────────────────────────────────────────────────
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Endpoint not found', health: '/health' });
+});
+
+// ─── GLOBAL ERROR HANDLER ─────────────────────────────────────────────────────
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled Server Error:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Growvia Express Backend API server running on 0.0.0.0:${PORT}`);
   console.log(`Health Check available at GET /health`);
 });
