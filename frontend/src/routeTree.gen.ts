@@ -19,7 +19,6 @@ import { Route as ParentRouteImport } from './routes/parent'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminCircularsRouteImport } from './routes/admin.circulars'
 import { Route as AdminClassesRouteImport } from './routes/admin.classes'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -29,8 +28,6 @@ import { Route as AdminHealthRouteImport } from './routes/admin.health'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
 import { Route as AdminParentsRouteImport } from './routes/admin.parents'
 import { Route as AdminPasswordResetsRouteImport } from './routes/admin.password-resets'
-import { Route as AdminReportsRouteImport } from './routes/admin.reports'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
@@ -48,7 +45,6 @@ import { Route as OfficeParentCredentialsRouteImport } from './routes/office.par
 import { Route as OfficePasswordResetsRouteImport } from './routes/office.password-resets'
 import { Route as OfficePromotionMappingRouteImport } from './routes/office.promotion-mapping'
 import { Route as OfficeReceiptsRouteImport } from './routes/office.receipts'
-import { Route as OfficeReportsRouteImport } from './routes/office.reports'
 import { Route as OfficeStudentsRouteImport } from './routes/office.students'
 import { Route as OfficeTeacherCredentialsRouteImport } from './routes/office.teacher-credentials'
 import { Route as OfficeTransportRouteImport } from './routes/office.transport'
@@ -146,11 +142,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
-  id: '/audit-logs',
-  path: '/audit-logs',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminCircularsRoute = AdminCircularsRouteImport.update({
   id: '/circulars',
   path: '/circulars',
@@ -194,16 +185,6 @@ const AdminParentsRoute = AdminParentsRouteImport.update({
 const AdminPasswordResetsRoute = AdminPasswordResetsRouteImport.update({
   id: '/password-resets',
   path: '/password-resets',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminReportsRoute = AdminReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
@@ -289,11 +270,6 @@ const OfficePromotionMappingRoute = OfficePromotionMappingRouteImport.update({
 const OfficeReceiptsRoute = OfficeReceiptsRouteImport.update({
   id: '/receipts',
   path: '/receipts',
-  getParentRoute: () => OfficeRoute,
-} as any)
-const OfficeReportsRoute = OfficeReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeStudentsRoute = OfficeStudentsRouteImport.update({
@@ -540,7 +516,6 @@ export interface FileRoutesByFullPath {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
-  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -550,8 +525,6 @@ export interface FileRoutesByFullPath {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
-  '/admin/reports': typeof AdminReportsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -568,7 +541,6 @@ export interface FileRoutesByFullPath {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
-  '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
   '/office/transport': typeof OfficeTransportRoute
@@ -623,7 +595,6 @@ export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/developer-console': typeof DeveloperConsoleRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -633,8 +604,6 @@ export interface FileRoutesByTo {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
-  '/admin/reports': typeof AdminReportsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -651,7 +620,6 @@ export interface FileRoutesByTo {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
-  '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
   '/office/transport': typeof OfficeTransportRoute
@@ -712,7 +680,6 @@ export interface FileRoutesById {
   '/parent': typeof ParentRouteWithChildren
   '/principal': typeof PrincipalRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
-  '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/circulars': typeof AdminCircularsRoute
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -722,8 +689,6 @@ export interface FileRoutesById {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
-  '/admin/reports': typeof AdminReportsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -740,7 +705,6 @@ export interface FileRoutesById {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
-  '/office/reports': typeof OfficeReportsRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
   '/office/transport': typeof OfficeTransportRoute
@@ -802,7 +766,6 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
-    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -812,8 +775,6 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
-    | '/admin/reports'
-    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -830,7 +791,6 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
-    | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
     | '/office/transport'
@@ -885,7 +845,6 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/developer-console'
     | '/forgot-password'
-    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -895,8 +854,6 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
-    | '/admin/reports'
-    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -913,7 +870,6 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
-    | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
     | '/office/transport'
@@ -973,7 +929,6 @@ export interface FileRouteTypes {
     | '/parent'
     | '/principal'
     | '/teacher'
-    | '/admin/audit-logs'
     | '/admin/circulars'
     | '/admin/classes'
     | '/admin/dashboard'
@@ -983,8 +938,6 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
-    | '/admin/reports'
-    | '/admin/settings'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -1001,7 +954,6 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
-    | '/office/reports'
     | '/office/students'
     | '/office/teacher-credentials'
     | '/office/transport'
@@ -1136,13 +1088,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/audit-logs': {
-      id: '/admin/audit-logs'
-      path: '/audit-logs'
-      fullPath: '/admin/audit-logs'
-      preLoaderRoute: typeof AdminAuditLogsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/circulars': {
       id: '/admin/circulars'
       path: '/circulars'
@@ -1204,20 +1149,6 @@ declare module '@tanstack/react-router' {
       path: '/password-resets'
       fullPath: '/admin/password-resets'
       preLoaderRoute: typeof AdminPasswordResetsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/reports': {
-      id: '/admin/reports'
-      path: '/reports'
-      fullPath: '/admin/reports'
-      preLoaderRoute: typeof AdminReportsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/students': {
@@ -1337,13 +1268,6 @@ declare module '@tanstack/react-router' {
       path: '/receipts'
       fullPath: '/office/receipts'
       preLoaderRoute: typeof OfficeReceiptsRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/reports': {
-      id: '/office/reports'
-      path: '/reports'
-      fullPath: '/office/reports'
-      preLoaderRoute: typeof OfficeReportsRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/office/students': {
@@ -1684,7 +1608,6 @@ const AdminFeesRouteWithChildren = AdminFeesRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
-  AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminCircularsRoute: typeof AdminCircularsRoute
   AdminClassesRoute: typeof AdminClassesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
@@ -1694,8 +1617,6 @@ interface AdminRouteChildren {
   AdminInventoryRoute: typeof AdminInventoryRoute
   AdminParentsRoute: typeof AdminParentsRoute
   AdminPasswordResetsRoute: typeof AdminPasswordResetsRoute
-  AdminReportsRoute: typeof AdminReportsRoute
-  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminTransportRoute: typeof AdminTransportRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1705,7 +1626,6 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminCircularsRoute: AdminCircularsRoute,
   AdminClassesRoute: AdminClassesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
@@ -1715,8 +1635,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminInventoryRoute: AdminInventoryRoute,
   AdminParentsRoute: AdminParentsRoute,
   AdminPasswordResetsRoute: AdminPasswordResetsRoute,
-  AdminReportsRoute: AdminReportsRoute,
-  AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminTransportRoute: AdminTransportRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -1742,7 +1660,6 @@ interface OfficeRouteChildren {
   OfficePasswordResetsRoute: typeof OfficePasswordResetsRoute
   OfficePromotionMappingRoute: typeof OfficePromotionMappingRoute
   OfficeReceiptsRoute: typeof OfficeReceiptsRoute
-  OfficeReportsRoute: typeof OfficeReportsRoute
   OfficeStudentsRoute: typeof OfficeStudentsRoute
   OfficeTeacherCredentialsRoute: typeof OfficeTeacherCredentialsRoute
   OfficeTransportRoute: typeof OfficeTransportRoute
@@ -1765,7 +1682,6 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficePasswordResetsRoute: OfficePasswordResetsRoute,
   OfficePromotionMappingRoute: OfficePromotionMappingRoute,
   OfficeReceiptsRoute: OfficeReceiptsRoute,
-  OfficeReportsRoute: OfficeReportsRoute,
   OfficeStudentsRoute: OfficeStudentsRoute,
   OfficeTeacherCredentialsRoute: OfficeTeacherCredentialsRoute,
   OfficeTransportRoute: OfficeTransportRoute,
