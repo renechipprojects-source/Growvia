@@ -222,7 +222,8 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
         authUserId = newAuthData?.user?.id;
         results.push({ loginId: coreAcc.loginId, status: 'created', authUserId });
       } else {
-        results.push({ loginId: coreAcc.loginId, status: 'existing_auth', authUserId });
+        await supabaseAdmin.auth.admin.updateUserById(authUserId, { email_confirm: true });
+        results.push({ loginId: coreAcc.loginId, status: 'existing_auth_confirmed', authUserId });
       }
 
       // Link auth_user_id to GV_users record
