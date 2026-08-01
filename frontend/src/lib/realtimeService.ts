@@ -48,20 +48,33 @@ export function subscribeToRealtimeTable({
     });
 
   return () => {
-    channel.unsubscribe();
+    supabase.removeChannel(channel);
     activeChannels.delete(channelName);
   };
 }
 
 /**
- * Maps Supabase table names to ERP module names for auto-refresh revalidation.
+ * Maps the 6 consolidated Supabase GV_ table names to affected ERP module lists for instant UI refresh.
  */
-export const TABLE_TO_MODULE_MAP: Record<string, ERPModule> = {
-  circulars: "circulars",
-  messages: "messages",
-  leave_requests: "leaveRequests",
-  students: "students",
-  fees: "fees",
-  enquiries: "admissions",
-  notifications: "notifications",
+export const TABLE_TO_MODULE_MAP: Record<string, ERPModule[]> = {
+  GV_users: ["students", "staff", "attendance", "promotion", "assignments"],
+  GV_inventory_expenses: ["inventory", "reports"],
+  GV_fees_payments: ["fees", "reports"],
+  GV_communications: ["circulars", "messages", "notifications"],
+  GV_requests: ["leaveRequests", "admissions"],
+  GV_system_settings: ["reports"],
+  // Legacy aliases for backward compatibility
+  users: ["students", "staff", "attendance", "promotion"],
+  students: ["students"],
+  teachers: ["staff"],
+  fees: ["fees"],
+  fees_payments: ["fees"],
+  inventory_expenses: ["inventory"],
+  communications: ["circulars", "messages", "notifications"],
+  circulars: ["circulars"],
+  messages: ["messages"],
+  requests: ["leaveRequests", "admissions"],
+  leave_requests: ["leaveRequests"],
+  enquiries: ["admissions"],
+  system_settings: ["reports"],
 };

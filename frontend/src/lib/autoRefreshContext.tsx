@@ -99,23 +99,20 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
   // Supabase Realtime Table Subscriptions for Instant Cross-Device Sync
   useEffect(() => {
     const tablesToSubscribe = [
-      "circulars",
-      "messages",
-      "leave_requests",
-      "students",
-      "fees",
-      "enquiries",
-      "notifications",
+      "GV_users",
+      "GV_inventory_expenses",
+      "GV_fees_payments",
+      "GV_communications",
+      "GV_requests",
+      "GV_system_settings",
     ];
 
     const unsubs = tablesToSubscribe.map((table) => {
       return subscribeToRealtimeTable({
         table,
         onPayload: () => {
-          const targetModule = TABLE_TO_MODULE_MAP[table];
-          if (targetModule) {
-            triggerModuleRefresh(targetModule);
-          }
+          const targetModules = TABLE_TO_MODULE_MAP[table] || [];
+          targetModules.forEach((mod) => triggerModuleRefresh(mod));
         },
       });
     });
