@@ -265,3 +265,12 @@ DROP TABLE IF EXISTS public.system_settings CASCADE;
 DROP TABLE IF EXISTS public.student_attendance CASCADE;
 DROP TABLE IF EXISTS public.promotion_history CASCADE;
 DROP TABLE IF EXISTS public.audit_logs CASCADE;
+
+-- 7. ENABLE REALTIME PUBLICATION FOR ALL 6 CONSOLIDATED GROWVIA TABLES
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_users;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_inventory_expenses;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_fees_payments;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_communications;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_system_settings;
+
