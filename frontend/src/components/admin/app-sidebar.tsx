@@ -85,8 +85,8 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-md overflow-hidden">
-            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl ? (
-              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
+              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl} alt="Logo" className="h-full w-full object-cover" />
             ) : (
               <Sparkles className="h-5 w-5 text-white" />
             )}

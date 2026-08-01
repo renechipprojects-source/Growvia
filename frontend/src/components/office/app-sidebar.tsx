@@ -113,8 +113,8 @@ export function OfficeSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <Link to="/office" className="flex items-center gap-2 px-2 py-2">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-slate-950 font-bold overflow-hidden">
-            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl ? (
-              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
+              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl} alt="Logo" className="h-full w-full object-cover" />
             ) : (
               <Building2 className="h-5 w-5" />
             )}

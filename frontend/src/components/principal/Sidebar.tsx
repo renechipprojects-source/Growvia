@@ -22,6 +22,7 @@ import {
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/principal-auth";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 import {
   getPrincipalProfile,
   subscribePrincipalProfile,
@@ -68,6 +69,7 @@ export function PrincipalSidebar({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const { settings } = useDeveloperSettings();
   const [attendanceOpen, setAttendanceOpen] = useState(pathname.startsWith("/principal/attendance"));
   const [unreadCirculars, setUnreadCirculars] = useState(0);
   const profile = useSyncExternalStore(
@@ -115,12 +117,16 @@ export function PrincipalSidebar({
       >
         <div className="flex items-center justify-between px-4 h-16 border-b border-slate-200/80">
           <div className={cn("flex items-center gap-2.5 min-w-0", isCompact && "justify-center w-full")}>
-            <div className="w-9 h-9 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md">
-              <School className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md overflow-hidden">
+              {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
+                <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl} alt="School Logo" className="h-full w-full object-cover" />
+              ) : (
+                <School className="w-5 h-5 text-white" />
+              )}
             </div>
             {!isCompact && (
               <div className="min-w-0">
-                <div className="text-sm font-bold text-slate-900 leading-tight truncate">Bright Bloom</div>
+                <div className="text-sm font-bold text-slate-900 leading-tight truncate">{settings.branding.sidebarSchoolName || settings.school.schoolName}</div>
                 <div className="text-[11px] font-medium text-slate-500 leading-tight">Principal Portal</div>
               </div>
             )}

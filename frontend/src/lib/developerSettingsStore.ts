@@ -212,28 +212,35 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
 const KEY = "sunshine_dev_settings";
 
 /**
- * Ensures all logo properties in the settings object are synchronized.
+ * Ensures all logo properties in the settings object are synchronized to a single source of truth.
  */
-
 export function synchronizeLogoFields(settings: DeveloperSettings, targetLogoUrl: string): DeveloperSettings {
   if (!targetLogoUrl) return settings;
+
+  const urlWithCacheBuster = targetLogoUrl.includes("?") ? targetLogoUrl : `${targetLogoUrl}?v=${Date.now()}`;
 
   return {
     ...settings,
     branding: {
       ...settings.branding,
-      schoolLogoUrl: targetLogoUrl,
-      logoUrl: targetLogoUrl,
+      schoolLogoUrl: urlWithCacheBuster,
+      logoUrl: urlWithCacheBuster,
+      headerLogoUrl: urlWithCacheBuster,
+      sidebarLogoUrl: urlWithCacheBuster,
     },
     school: {
       ...settings.school,
-      schoolLogoUrl: targetLogoUrl,
-      logoUrl: targetLogoUrl,
+      schoolLogoUrl: urlWithCacheBuster,
+      logoUrl: urlWithCacheBuster,
     },
     loginPage: {
       ...settings.loginPage,
-      schoolLogoUrl: targetLogoUrl,
-      logoUrl: targetLogoUrl,
+      schoolLogoUrl: urlWithCacheBuster,
+      logoUrl: urlWithCacheBuster,
+    },
+    theme: {
+      ...settings.theme,
+      sidebarLogoUrl: urlWithCacheBuster,
     },
   };
 }
@@ -283,7 +290,7 @@ export function getDeveloperSettings(): DeveloperSettings {
       ...(parsed.school || {}),
     };
 
-    const merged: DeveloperSettings = {
+    let merged: DeveloperSettings = {
       ...DEFAULT_DEV_SETTINGS,
       ...parsed,
       branding: mergedBranding,
@@ -296,6 +303,18 @@ export function getDeveloperSettings(): DeveloperSettings {
       roles: { ...DEFAULT_DEV_SETTINGS.roles, ...(parsed.roles || {}) },
       features: { ...DEFAULT_DEV_SETTINGS.features, ...(parsed.features || {}) },
     };
+
+    const logoUrl =
+      merged.branding.schoolLogoUrl ||
+      merged.school.schoolLogoUrl ||
+      merged.school.logoUrl ||
+      merged.loginPage.schoolLogoUrl ||
+      merged.loginPage.logoUrl ||
+      "";
+
+    if (logoUrl) {
+      merged = synchronizeLogoFields(merged, logoUrl);
+    }
 
     applyDynamicHeadAndTheme(merged);
     return merged;
@@ -316,15 +335,6 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
     "";
 
   const syncedSettings = synchronizeLogoFields(settings, targetLogoUrl);
-
-  try {
-    localStorage.setItem(KEY, JSON.stringify(syncedSettings));
-  } catch (err) {
-    console.warn("localStorage save error:", err);
-  }
-
-  applyDynamicHeadAndTheme(syncedSettings);
-  window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: syncedSettings }));
 
   const payload = {
     id: "PRIMARY",
@@ -356,11 +366,22 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
     updated_at: new Date().toISOString(),
   };
 
+  // 1. Supabase persistence is the AUTHORITATIVE source of truth. Must succeed before localStorage/state update.
   const { error } = await supabase.from("GV_system_settings").upsert(payload, { onConflict: "id" });
 
   if (error) {
-    throw new Error(`Failed to save settings to Supabase: ${error.message}`);
+    throw new Error(`Failed to save settings to Supabase DB: ${error.message}`);
   }
+
+  // 2. Update localStorage only after successful DB persistence
+  try {
+    localStorage.setItem(KEY, JSON.stringify(syncedSettings));
+  } catch (err) {
+    console.warn("localStorage save warning:", err);
+  }
+
+  applyDynamicHeadAndTheme(syncedSettings);
+  window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: syncedSettings }));
 }
 
 export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: DeveloperSettings) => void): () => void {
@@ -371,14 +392,28 @@ export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: Develo
         "postgres_changes",
         { event: "*", schema: "public", table: "GV_system_settings" },
         (payload: any) => {
+          let remoteSettings: DeveloperSettings | null = null;
           if (payload?.new?.content) {
             try {
-              const remote = JSON.parse(payload.new.content) as DeveloperSettings;
-              localStorage.setItem(KEY, JSON.stringify(remote));
-              applyDynamicHeadAndTheme(remote);
-              window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: remote }));
-              onUpdate(remote);
+              remoteSettings = JSON.parse(payload.new.content) as DeveloperSettings;
             } catch {}
+          }
+
+          const logoUrl =
+            payload?.new?.school_logo_url ||
+            payload?.new?.sidebar_logo_url ||
+            payload?.new?.header_logo ||
+            payload?.new?.login_logo ||
+            remoteSettings?.branding?.schoolLogoUrl;
+
+          if (remoteSettings && logoUrl) {
+            remoteSettings = synchronizeLogoFields(remoteSettings, logoUrl);
+            try {
+              localStorage.setItem(KEY, JSON.stringify(remoteSettings));
+            } catch {}
+            applyDynamicHeadAndTheme(remoteSettings);
+            window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: remoteSettings }));
+            onUpdate(remoteSettings);
           }
         }
       )
@@ -457,19 +492,35 @@ export function useDeveloperSettings() {
     window.addEventListener("sunshine-dev-settings", handleUpdate);
     window.addEventListener("storage", handleUpdate);
 
-    // Initial Supabase Sync & Realtime Subscription
+    // Initial Supabase Sync: Primary DB row is authoritative
     supabase
       .from("GV_system_settings")
-      .select("content")
+      .select("*")
       .eq("id", "PRIMARY")
       .maybeSingle()
       .then((res) => {
-        if (res.data?.content) {
+        if (res.data) {
           try {
-            const remoteSettings = JSON.parse(res.data.content) as DeveloperSettings;
-            localStorage.setItem(KEY, JSON.stringify(remoteSettings));
-            applyDynamicHeadAndTheme(remoteSettings);
-            setSettings(remoteSettings);
+            let parsedSettings: DeveloperSettings = res.data.content
+              ? JSON.parse(res.data.content)
+              : getDeveloperSettings();
+
+            const dbLogoUrl =
+              res.data.school_logo_url ||
+              res.data.sidebar_logo_url ||
+              res.data.header_logo ||
+              res.data.login_logo ||
+              parsedSettings.branding?.schoolLogoUrl;
+
+            if (dbLogoUrl) {
+              parsedSettings = synchronizeLogoFields(parsedSettings, dbLogoUrl);
+            }
+
+            try {
+              localStorage.setItem(KEY, JSON.stringify(parsedSettings));
+            } catch {}
+            applyDynamicHeadAndTheme(parsedSettings);
+            setSettings(parsedSettings);
           } catch {}
         }
       });
@@ -488,7 +539,7 @@ export function useDeveloperSettings() {
   const updateSettings = async (newSettings: DeveloperSettings) => {
     try {
       await saveDeveloperSettings(newSettings);
-      setSettings(newSettings);
+      setSettings(getDeveloperSettings());
     } catch (err: any) {
       throw err;
     }
@@ -497,7 +548,7 @@ export function useDeveloperSettings() {
   const resetToDefaults = async () => {
     try {
       await saveDeveloperSettings(DEFAULT_DEV_SETTINGS);
-      setSettings(DEFAULT_DEV_SETTINGS);
+      setSettings(getDeveloperSettings());
     } catch (err: any) {
       throw err;
     }
