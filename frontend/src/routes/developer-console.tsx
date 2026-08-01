@@ -41,15 +41,23 @@ function DeveloperConsolePage() {
     setDraft(settings);
   }, [settings]);
 
-  const handleSave = () => {
-    updateSettings(draft);
-    toast.success("Developer Console Settings saved to Supabase & updated across ERP in real-time!");
+  const handleSave = async () => {
+    try {
+      await updateSettings(draft);
+      toast.success("Developer Console Settings saved to Supabase & updated across ERP in real-time!");
+    } catch (err: any) {
+      toast.error(`Failed to save settings: ${err.message || "Unknown error"}`);
+    }
   };
 
-  const handleReset = () => {
-    resetToDefaults();
-    setDraft(DEFAULT_DEV_SETTINGS);
-    toast.info("Settings reset to factory production defaults.");
+  const handleReset = async () => {
+    try {
+      await resetToDefaults();
+      setDraft(DEFAULT_DEV_SETTINGS);
+      toast.info("Settings reset to factory production defaults.");
+    } catch (err: any) {
+      toast.error(`Failed to reset settings: ${err.message}`);
+    }
   };
 
   const handleFileUpload = async (
@@ -63,9 +71,9 @@ function DeveloperConsolePage() {
     try {
       const url = await uploadSystemAsset(file);
       fieldSetter(url);
-      toast.success(`${fieldName} uploaded successfully!`);
-    } catch {
-      toast.error(`Failed to upload ${fieldName}`);
+      toast.success(`${fieldName} uploaded successfully to Supabase Storage!`);
+    } catch (err: any) {
+      toast.error(`Failed to upload ${fieldName}: ${err.message}`);
     } finally {
       setUploadingField(null);
     }
@@ -1101,20 +1109,20 @@ function DeveloperConsolePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(draft.roles.permissions).map(([permKey, isAllowed]) => (
+              {Object.entries(draft.roles.permissions || {}).map(([permKey, isAllowed]) => (
                 <div key={permKey} className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-800">
                   <div>
                     <div className="text-sm font-medium text-white capitalize">{permKey.replace(/([A-Z])/g, " $1")}</div>
                     <div className="text-xs text-slate-400">RBAC permission switch</div>
                   </div>
                   <Switch
-                    checked={isAllowed}
+                    checked={Boolean(isAllowed)}
                     onCheckedChange={(checked) =>
                       setDraft({
                         ...draft,
                         roles: {
                           ...draft.roles,
-                          permissions: { ...draft.roles.permissions, [permKey]: checked },
+                          permissions: { ...(draft.roles.permissions || {}), [permKey]: checked },
                         },
                       })
                     }

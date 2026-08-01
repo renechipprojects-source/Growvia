@@ -28,7 +28,8 @@ export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
 
 // Middleware
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ─── ROOT ENDPOINT ─────────────────────────────────────────────────────────────
 app.get('/', (_req: Request, res: Response) => {
@@ -330,6 +331,43 @@ app.post('/api/storage/init-bucket', async (_req: Request, res: Response) => {
     }
 
     return res.status(200).json({ success: true, message: 'Storage bucket system-assets already exists' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── STORAGE FILE UPLOAD ENDPOINT (ADMIN PRIVILEGED) ─────────────────────────
+app.post('/api/storage/upload', async (req: Request, res: Response) => {
+  try {
+    const { fileName, fileBase64, contentType } = req.body;
+
+    if (!fileName || !fileBase64) {
+      return res.status(400).json({ error: 'fileName and fileBase64 are required' });
+    }
+
+    const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    const filePath = `system_branding/${fileName}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('system-assets')
+      .upload(filePath, buffer, {
+        contentType: contentType || 'image/png',
+        upsert: true,
+        cacheControl: '3600',
+      });
+
+    if (uploadError) {
+      return res.status(400).json({ error: uploadError.message });
+    }
+
+    const { data: publicData } = supabaseAdmin.storage.from('system-assets').getPublicUrl(filePath);
+
+    return res.status(200).json({
+      success: true,
+      publicUrl: publicData.publicUrl,
+      filePath,
+    });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
