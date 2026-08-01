@@ -9,11 +9,22 @@ const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || '*';
 
-// Supabase client initialization (with fallback to current live credentials)
+// Supabase client initialization (public client with fallback credentials)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nyhnkftlkigoliyogwvp.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Server-only Admin Client with Service Role privileges for Auth user provisioning
+export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : supabase;
 
 // Middleware
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
@@ -134,6 +145,165 @@ app.get('/api/settings', async (_req: Request, res: Response) => {
       return res.status(400).json({ error: error.message });
     }
     return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SECURE SERVER-SIDE SUPABASE AUTH USER PROVISIONING ENDPOINTS ─────────────
+
+// Core default account definitions for standard ERP roles
+const CORE_ERP_ACCOUNTS = [
+  { loginId: 'ADM001', email: 'admin@growvia.com', password: 'Admin@123', role: 'admin', name: 'System Administrator' },
+  { loginId: 'PRN001', email: 'principal@growvia.com', password: 'Principal@123', role: 'principal', name: 'Principal' },
+  { loginId: 'OFF001', email: 'office@growvia.com', password: 'Office@123', role: 'office', name: 'Office Staff' },
+  { loginId: 'TCH001', email: 'teacher@growvia.com', password: 'Teacher@123', role: 'teacher', name: 'Lead Teacher' },
+  { loginId: 'PAR001', email: 'parent@growvia.com', password: 'Parent@123', role: 'parent', name: 'Parent Account' },
+  { loginId: 'DEV001', email: 'developer@growvia.com', password: 'Dev@123', role: 'developer', name: 'Lead Developer' },
+];
+
+/**
+ * Bulk Provisioning Endpoint:
+ * Ensures all core ERP role accounts (Admin, Principal, Office, Teacher, Parent, Developer)
+ * and unlinked records in GV_users are provisioned in Supabase Auth and linked via auth_user_id.
+ */
+app.post('/api/users/provision', async (req: Request, res: Response) => {
+  try {
+    const results: Array<{ loginId: string; status: string; authUserId?: string; details?: string }> = [];
+
+    // 1. Fetch existing Auth users from Supabase Auth admin API
+    const { data: authUserList, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUsers = authUserList?.users || [];
+
+    if (listErr && !SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(403).json({
+        error: 'SUPABASE_SERVICE_ROLE_KEY environment variable is required on server to provision Auth users.',
+      });
+    }
+
+    // 2. Loop through core accounts
+    for (const coreAcc of CORE_ERP_ACCOUNTS) {
+      // Check if profile exists in GV_users
+      const { data: profile } = await supabase
+        .from('GV_users')
+        .select('*')
+        .eq('login_id', coreAcc.loginId)
+        .maybeSingle();
+
+      const targetEmail = profile?.email || coreAcc.email;
+      const targetRole = profile?.role || coreAcc.role;
+      const targetName = profile?.full_name || coreAcc.name;
+
+      // Check if Auth user exists in Supabase Auth
+      let existingAuthUser = existingAuthUsers.find(
+        (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
+      );
+
+      let authUserId = existingAuthUser?.id;
+
+      if (!authUserId) {
+        // Create new Auth user with auto-confirmed email
+        const { data: newAuthData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: targetEmail,
+          password: coreAcc.password,
+          email_confirm: true,
+          user_metadata: {
+            login_id: coreAcc.loginId,
+            role: targetRole,
+            full_name: targetName,
+          },
+        });
+
+        if (createErr) {
+          results.push({ loginId: coreAcc.loginId, status: 'error', details: createErr.message });
+          continue;
+        }
+
+        authUserId = newAuthData?.user?.id;
+        results.push({ loginId: coreAcc.loginId, status: 'created', authUserId });
+      } else {
+        results.push({ loginId: coreAcc.loginId, status: 'existing_auth', authUserId });
+      }
+
+      // Link auth_user_id to GV_users record
+      if (authUserId) {
+        const payload = {
+          id: authUserId,
+          auth_user_id: authUserId,
+          login_id: coreAcc.loginId,
+          email: targetEmail,
+          full_name: targetName,
+          role: targetRole,
+          status: 'active',
+          must_change_password: false,
+        };
+
+        await supabase.from('GV_users').upsert([payload], { onConflict: 'login_id' });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Supabase Auth user provisioning completed successfully',
+      results,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Single User Provisioning Endpoint:
+ * Called when an admin/office user creates a new staff/student/parent account.
+ */
+app.post('/api/users/provision-single', async (req: Request, res: Response) => {
+  try {
+    const { login_id, email, password, role, full_name } = req.body;
+
+    if (!login_id || !email || !password) {
+      return res.status(400).json({ error: 'login_id, email, and password are required' });
+    }
+
+    // Check if Auth user already exists
+    const { data: authUserList } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUser = authUserList?.users.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    let authUserId = existingAuthUser?.id;
+
+    if (!authUserId) {
+      const { data: newAuthData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          login_id,
+          role: role || 'parent',
+          full_name: full_name || login_id,
+        },
+      });
+
+      if (createErr) {
+        return res.status(400).json({ error: createErr.message });
+      }
+
+      authUserId = newAuthData?.user?.id;
+    }
+
+    if (authUserId) {
+      await supabase
+        .from('GV_users')
+        .update({ auth_user_id: authUserId, id: authUserId })
+        .eq('login_id', login_id);
+    }
+
+    return res.status(200).json({
+      success: true,
+      authUserId,
+      login_id,
+      message: `User ${login_id} successfully provisioned in Supabase Auth`,
+    });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

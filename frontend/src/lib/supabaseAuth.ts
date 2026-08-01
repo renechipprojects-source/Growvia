@@ -1,22 +1,43 @@
 import { supabase } from "./supabase";
 import { authenticateGenerated } from "./credentials";
 
+const BACKEND_URL = (import.meta.env.VITE_API_BASE_URL || "https://growvia-backend-2u2p.onrender.com").replace(/\/$/, "");
+
+/**
+ * Server-Side Provisioning Trigger:
+ * Calls the secure backend endpoint to provision or link Supabase Auth users
+ * using server-side credentials without exposing keys to the browser.
+ */
+export async function triggerServerUserProvisioning(loginId?: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/users/provision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login_id: loginId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, data };
+    }
+  } catch {}
+  return { success: false };
+}
+
 export async function ensureDeveloperAccount() {
   try {
     let { data: existingUser } = await supabase
-      .from("users")
+      .from("GV_users")
       .select("*")
       .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
       .maybeSingle();
 
     if (!existingUser) {
-      // Fallback query profiles
-      const { data: prof } = await supabase
-        .from("profiles")
+      const { data: legacyProf } = await supabase
+        .from("users")
         .select("*")
         .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
         .maybeSingle();
-      existingUser = prof;
+      existingUser = legacyProf;
     }
 
     if (!existingUser) {
@@ -35,7 +56,7 @@ export async function ensureDeveloperAccount() {
 
       const userId = authData?.user?.id || "49dad3a9-83c2-49cf-a1b4-930002cdf845";
 
-      // 2. Upsert profile in Supabase users table
+      // 2. Upsert profile in Supabase GV_users table
       const payload = {
         id: userId,
         auth_user_id: userId,
@@ -47,9 +68,7 @@ export async function ensureDeveloperAccount() {
         must_change_password: false,
       };
 
-      await supabase.from("GV_users").upsert([payload]);
-      Promise.resolve(supabase.from("users").upsert([payload])).catch(() => {});
-      Promise.resolve(supabase.from("profiles").upsert([payload])).catch(() => {});
+      await supabase.from("GV_users").upsert([payload], { onConflict: "login_id" });
     }
   } catch {}
 }
@@ -64,10 +83,10 @@ export async function login(loginId: string, password: string) {
       await ensureDeveloperAccount();
     }
 
-    // Find user profile in users table (with fallback to profiles table)
+    // Find user profile in primary GV_users table (with fallback to legacy users/profiles tables)
     let profile: any = null;
-    let { data: userData, error: userError } = await supabase
-      .from("users")
+    let { data: userData } = await supabase
+      .from("GV_users")
       .select(`
         id,
         auth_user_id,
@@ -86,8 +105,8 @@ export async function login(loginId: string, password: string) {
     if (userData) {
       profile = userData;
     } else {
-      const { data: legacyProf } = await supabase
-        .from("profiles")
+      const { data: legacyUser } = await supabase
+        .from("users")
         .select(`
           id,
           auth_user_id,
@@ -103,7 +122,7 @@ export async function login(loginId: string, password: string) {
         .or(`login_id.ilike.${id},email.ilike.${id}`)
         .maybeSingle();
 
-      profile = legacyProf;
+      profile = legacyUser;
     }
 
     if (!profile) {
@@ -182,31 +201,6 @@ export async function login(loginId: string, password: string) {
       // Check generated credentials fallback (Teacher / Parent generated logins)
       const generatedCred = authenticateGenerated(id, password);
       if (generatedCred && profile) {
-        // Auto-provision Auth user in Supabase Auth so future signInWithPassword succeeds natively
-        try {
-          const { data: signUpData } = await supabase.auth.signUp({
-            email: emailToAuth,
-            password: password,
-            options: {
-              data: {
-                full_name: profile.full_name,
-                role: profile.role,
-                login_id: profile.login_id,
-              },
-            },
-          });
-          if (signUpData?.user?.id) {
-            await supabase.from("GV_users").update({
-              id: signUpData.user.id,
-              auth_user_id: signUpData.user.id,
-            }).eq("login_id", profile.login_id);
-            Promise.resolve(supabase.from("users").update({
-              id: signUpData.user.id,
-              auth_user_id: signUpData.user.id,
-            }).eq("login_id", profile.login_id)).catch(() => {});
-          }
-        } catch {}
-
         return {
           success: true,
           user: { id: profile.auth_user_id || profile.id, email: emailToAuth } as any,
