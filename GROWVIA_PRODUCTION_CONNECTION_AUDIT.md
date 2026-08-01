@@ -1,113 +1,104 @@
 # Growvia School ERP — Production Connection Audit & Hosting Setup Report
 
-This document presents the complete production connection audit, database validation, and environment configuration guide for **Growvia School ERP**.
+This document records the production connection audit, live database validation, and step-by-step dashboard setup guide for **Growvia School ERP**.
 
 ---
 
-## 1. Executive Summary & Verification Matrix
+## 1. Hosting Status Classification Summary
 
-| Component | Target Host / Platform | Configuration Details | Verification Status |
-| :--- | :--- | :--- | :--- |
-| **GitHub Monorepo** | GitHub (`renechipprojects-source/Growvia`) | Branch: `main` \| Contains `/frontend` & `/backend` | **100% Single Push Verified** |
-| **Frontend Application** | Vercel | Root Directory: `frontend` \| Vite + React SSG/SPA | **Build Passed (0 Errors)** |
-| **Backend API Server** | Render Web Service | Root Directory: `backend` \| Node.js Express API | **Build Passed (0 Errors)** |
-| **Database** | Supabase (`nyhnkftlkigoliyogwvp`) | Project URL: `https://nyhnkftlkigoliyogwvp.supabase.co` | **6 `GV_` Tables Verified** |
-| **Object Storage** | Cloudflare R2 | S3-Compatible Bucket \| Server-side upload via Render | **Architecture Documented** |
-| **Security Audit** | Tracked File Scan | `git ls-files` contains **0 secret `.env` files** | **Clean & Secure** |
-
----
-
-## 2. Monorepo & Hosting Architecture Diagram
-
-```
-                       GitHub Repository (Single Monorepo)
-             https://github.com/renechipprojects-source/Growvia.git
-                                │
-                      ┌─────────┴─────────┐
-                      │                   │
-                 /frontend            /backend
-                      │                   │
-              Vercel Deployment   Render Deployment
-              (Root: frontend)    (Root: backend)
-                      │                   │
-                      └─────────┬─────────┘
-                                │
-                      Supabase Database Project
-               (https://nyhnkftlkigoliyogwvp.supabase.co)
-                                │
-                      ┌─────────┴─────────┐
-                 6 Consolidated     Cloudflare R2
-                   `GV_` Tables        Storage
-```
+| Component | Target Host | Configuration Parameter | Audit Classification | Action / Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **GitHub Monorepo** | GitHub (`renechipprojects-source/Growvia`) | Branch: `main` \| Contains `/frontend` & `/backend` | ✅ **VERIFIED** | Local code and branch pushed |
+| **Database** | Supabase (`nyhnkftlkigoliyogwvp`) | URL: `https://nyhnkftlkigoliyogwvp.supabase.co` | ✅ **VERIFIED** | 6 `GV_` tables active & connected |
+| **Frontend Code** | Vite + React (`/frontend`) | Root: `frontend` \| Build: `npm run build` | ✅ **VERIFIED** | Local production build passed (0 errors) |
+| **Backend Code** | Node.js Express (`/backend`) | Root: `backend` \| Endpoint: `GET /health` | ✅ **VERIFIED** | Local production build passed (0 errors) |
+| **Render Service** | Render (`dashboard.render.com`) | Web Service connected to GitHub `/backend` | ⚠️ **MANUAL ACTION REQUIRED** | Create Web Service & set env vars |
+| **Vercel Service** | Vercel (`vercel.com/new`) | Frontend project connected to GitHub `/frontend` | ⚠️ **MANUAL ACTION REQUIRED** | Import project & set env vars |
+| **Cloudflare Storage** | Cloudflare R2 | S3-Compatible bucket `growvia-assets` | ⚠️ **MANUAL ACTION REQUIRED** | Create R2 bucket & add keys to Render |
 
 ---
 
-## 3. Environment Variables Matrix
+## 2. Verified Local Configuration Matrix
 
-### A. Vercel Frontend Environment Variables (`frontend/`)
+### A. Git Repository Status
+- **Remote**: `https://github.com/renechipprojects-source/Growvia.git`
+- **Branch**: `main`
+- **Monorepo Directories**: `frontend/` and `backend/` contained inside the SAME repository.
+- **Security Check**: `git ls-files` contains **0 secret `.env` files** (only `.env.example` templates).
+
+### B. Supabase Database & Table Architecture
+- **Project URL**: `https://nyhnkftlkigoliyogwvp.supabase.co`
+- **Consolidated Tables (6)**:
+  1. `GV_users` (User profiles: Admin, Principal, Office, Teacher, Student, Parent)
+  2. `GV_inventory_expenses` (Inventory stock, equipment, office expenses)
+  3. `GV_fees_payments` (Fee schedules, installments, receipts)
+  4. `GV_communications` (Circulars, messages, diary notes, announcements)
+  5. `GV_requests` (Admissions, enquiries, leave requests, password resets)
+  6. `GV_system_settings` (Developer console, independent logos, theme config, dynamic academic session)
+
+---
+
+## 3. Required Environment Variables Matrix
+
+### A. Render Backend Environment Variables (`backend/`)
+*Set in Render Dashboard -> Web Service -> Environment Settings:*
+
+| Variable Name | Required Value / Description | Purpose |
+| :--- | :--- | :--- |
+| `PORT` | `5000` (Or dynamic Render default) | Server listening port |
+| `SUPABASE_URL` | `https://nyhnkftlkigoliyogwvp.supabase.co` | Database Client URL |
+| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI...` | Anonymous Public Client Key |
+| `SUPABASE_SERVICE_ROLE_KEY` | `[YOUR_SUPABASE_SERVICE_ROLE_KEY]` | Server-side database access key |
+| `FRONTEND_URL` | `https://[YOUR_VERCEL_APP].vercel.app` | CORS whitelist domain |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` | `[YOUR_CLOUDFLARE_R2_KEY_ID]` | Cloudflare R2 Access Key |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | `[YOUR_CLOUDFLARE_R2_SECRET]` | Cloudflare R2 Secret Key |
+| `CLOUDFLARE_R2_BUCKET_NAME` | `growvia-assets` | R2 Bucket Name |
+| `CLOUDFLARE_R2_PUBLIC_URL` | `https://pub-growvia.r2.dev` | Public CDN asset URL |
+
+### B. Vercel Frontend Environment Variables (`frontend/`)
+*Set in Vercel Dashboard -> Project Settings -> Environment Variables:*
 
 | Variable Name | Required Value / Description | Purpose |
 | :--- | :--- | :--- |
 | `VITE_SUPABASE_URL` | `https://nyhnkftlkigoliyogwvp.supabase.co` | Supabase Client URL |
 | `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI...` | Anonymous Public Client Key |
-| `VITE_API_BASE_URL` | `https://your-growvia-backend.onrender.com` | Render Express API Endpoint |
-
-### B. Render Backend Environment Variables (`backend/`)
-
-| Variable Name | Required Value / Description | Purpose |
-| :--- | :--- | :--- |
-| `PORT` | `5000` (Assigned dynamically by Render) | Server listening port |
-| `FRONTEND_URL` | `https://your-growvia-frontend.vercel.app` | CORS origins whitelist |
-| `SUPABASE_URL` | `https://nyhnkftlkigoliyogwvp.supabase.co` | Database Client URL |
-| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI...` | Public Client Key |
-| `SUPABASE_SERVICE_ROLE_KEY` | `[SUPER_SECRET_ROLE_KEY]` | Server-side database access key |
-| `CLOUDFLARE_R2_ACCESS_KEY_ID` | `[CLOUDFLARE_KEY]` | Cloudflare R2 Access Key |
-| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | `[CLOUDFLARE_SECRET]` | Cloudflare R2 Secret Key |
-| `CLOUDFLARE_R2_BUCKET_NAME` | `growvia-assets` | Cloudflare Storage Bucket Name |
-| `CLOUDFLARE_R2_PUBLIC_URL` | `https://pub-growvia.r2.dev` | Public CDN asset URL |
+| `VITE_API_BASE_URL` | `https://[YOUR_RENDER_BACKEND_URL].onrender.com` | Render Express API Base URL |
 
 ---
 
-## 4. Database Schema Audit (6 Consolidated Tables)
+## 4. Step-by-Step Hosting Setup Instructions
 
-| Table Name | Primary Keys & Indexes | Functional Purpose |
-| :--- | :--- | :--- |
-| **`GV_users`** | `id`, `login_id`, `role`, `status` | Admin, Principal, Office, Teacher, Student, Parent profiles |
-| **`GV_inventory_expenses`** | `id`, `record_type`, `item_name` | Inventory stock, equipment, office expenses, asset tracking |
-| **`GV_fees_payments`** | `id`, `student_id`, `record_type` | Fee structures, installment schedules, receipt history |
-| **`GV_communications`** | `id`, `channel`, `recipient_role` | Circulars, messages, diary notes, announcements |
-| **`GV_requests`** | `id`, `request_type`, `status` | Admissions, enquiries, leave requests, password resets |
-| **`GV_system_settings`** | `id` (PRIMARY), `academic_year` | Developer console settings, independent logos, theme config |
+### Step 1: Deploy Backend to Render
+1. Open [dashboard.render.com](https://dashboard.render.com) and click **New + -> Web Service**.
+2. Select repository **`renechipprojects-source/Growvia`**.
+3. Configure:
+   - **Name**: `growvia-backend`
+   - **Root Directory**: `backend`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Health Check Path**: `/health`
+4. Add the Backend Environment Variables listed in Section 3A.
+5. Click **Create Web Service**. Once deployed, copy your live Render URL (e.g. `https://growvia-backend.onrender.com`).
+6. Test endpoint: `GET https://[YOUR_RENDER_URL]/health` -> Should return `{"status":"ok"}`.
 
----
+### Step 2: Deploy Frontend to Vercel
+1. Open [vercel.com/new](https://vercel.com/new) and select repository **`renechipprojects-source/Growvia`**.
+2. Configure:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Add the Frontend Environment Variables listed in Section 3B (paste your live Render backend URL into `VITE_API_BASE_URL`).
+4. Click **Deploy**. Copy your live Vercel domain (e.g. `https://growvia-app.vercel.app`).
 
-## 5. Phased Deployment Sequence
+### Step 3: Update Render CORS & Verify
+1. Go back to Render Dashboard -> Environment Settings.
+2. Set `FRONTEND_URL` = `https://[YOUR_VERCEL_APP].vercel.app`.
+3. Click **Save Changes** (Render will redeploy with updated CORS settings).
 
-1. **Step 1 — GitHub Verification**:
-   - Monorepo `https://github.com/renechipprojects-source/Growvia.git` up to date on `main`.
-2. **Step 2 — Supabase Verification**:
-   - Verify table structure and seed data in Supabase project `nyhnkftlkigoliyogwvp`.
-3. **Step 3 — Render Backend Deployment**:
-   - Connect repository `renechipprojects-source/Growvia`.
-   - Set Root Directory = `backend`.
-   - Set Build Command = `npm install && npm run build`.
-   - Set Start Command = `npm start`.
-   - Add backend environment variables.
-   - Verify `GET /health` endpoint returns `{"status":"ok"}`.
-4. **Step 4 — Vercel Frontend Deployment**:
-   - Connect repository `renechipprojects-source/Growvia`.
-   - Set Root Directory = `frontend`.
-   - Set Build Command = `npm run build`.
-   - Set Output Directory = `dist`.
-   - Set `VITE_API_BASE_URL` to the Render backend URL.
-5. **Step 5 — Final Integration & CORS Verification**:
-   - Update `FRONTEND_URL` on Render to the live Vercel domain.
-   - Test login, role dashboards, dynamic academic session, and real-time updates.
-
----
-
-## 6. Build Verification
-
-- **Frontend Compilation**: `cd frontend && npx tsc --noEmit` — **0 Errors**.
-- **Backend Compilation**: `cd backend && npm run build` — **0 Errors**.
-- **Backend Health Check**: `GET /health` — `{"status":"ok"}`.
+### Step 4: Configure Cloudflare R2 Storage
+1. Open [dash.cloudflare.com](https://dash.cloudflare.com) -> R2.
+2. Create bucket named `growvia-assets`.
+3. Create API Token with Object Read/Write permissions.
+4. Add credentials to Render environment variables (`CLOUDFLARE_R2_ACCESS_KEY_ID`, `CLOUDFLARE_R2_SECRET_ACCESS_KEY`, `CLOUDFLARE_R2_BUCKET_NAME`, `CLOUDFLARE_R2_PUBLIC_URL`).
