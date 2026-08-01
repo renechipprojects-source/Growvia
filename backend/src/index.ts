@@ -310,6 +310,43 @@ app.post('/api/users/provision-single', async (req: Request, res: Response) => {
   }
 });
 
+// ─── STORAGE BUCKET PROVISIONING ENDPOINT ─────────────────────────────────────
+app.post('/api/storage/init-bucket', async (_req: Request, res: Response) => {
+  try {
+    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+    const exists = buckets?.some((b) => b.id === 'system-assets' || b.name === 'system-assets');
+
+    if (!exists) {
+      const { data, error } = await supabaseAdmin.storage.createBucket('system-assets', {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/gif', 'image/x-icon'],
+      });
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+      return res.status(200).json({ success: true, message: 'Storage bucket system-assets created successfully', data });
+    }
+
+    return res.status(200).json({ success: true, message: 'Storage bucket system-assets already exists' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-initialize storage bucket at server start
+supabaseAdmin.storage.listBuckets().then(({ data: buckets }) => {
+  const exists = buckets?.some((b) => b.id === 'system-assets' || b.name === 'system-assets');
+  if (!exists) {
+    supabaseAdmin.storage.createBucket('system-assets', {
+      public: true,
+      fileSizeLimit: 10485760,
+      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/gif', 'image/x-icon'],
+    }).catch(() => {});
+  }
+}).catch(() => {});
+
 // ─── 404 FALLBACK ROUTE HANDLER ────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Endpoint not found', health: '/health' });
