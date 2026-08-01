@@ -17,7 +17,6 @@ import { useEnquiries } from "@/lib/enquiryContext";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { useStudentDocs, DEFAULT_DOCS, type DocEntry } from "@/lib/studentDocsContext";
 import { createStudent } from "@/lib/supabaseService";
-import { healthRecords } from "@/modules/health/data/mockData";
 import { NotificationService } from "@/lib/notifications";
 import type { ClassName, Section } from "@/lib/mockData";
 
@@ -140,22 +139,6 @@ function Admissions() {
       attendance: 100,
       branch: "Main Branch",
     });
-
-    if (v.allergies || v.medicalConditions || v.heightCm || v.weightKg || v.doctor) {
-      healthRecords.unshift({
-        id: `H-${Date.now().toString().slice(-4)}`,
-        student: v.childName,
-        admissionNumber: v.admissionNo || "ADM-2026",
-        bloodGroup: (v.bloodGroup as any) || "O+",
-        heightCm: parseInt(v.heightCm || "110", 10),
-        weightKg: parseInt(v.weightKg || "20", 10),
-        allergies: v.allergies || "—",
-        medicalConditions: v.medicalConditions || "—",
-        doctor: v.doctor || "Family Doctor",
-        emergencyContact: v.emergencyContact || v.phone,
-        lastCheckup: new Date().toISOString().slice(0, 10),
-      });
-    }
 
     NotificationService.admissionCreated(v.childName, v.admissionNo || "ADM-2026");
     toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
