@@ -60,7 +60,6 @@ import { Route as ParentHomeworkRouteImport } from './routes/parent.homework'
 import { Route as ParentLeaveRouteImport } from './routes/parent.leave'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
 import { Route as PrincipalIndexRouteImport } from './routes/principal.index'
-import { Route as PrincipalCalendarRouteImport } from './routes/principal.calendar'
 import { Route as PrincipalCircularsRouteImport } from './routes/principal.circulars'
 import { Route as PrincipalClassesRouteImport } from './routes/principal.classes'
 import { Route as PrincipalDashboardRouteImport } from './routes/principal.dashboard'
@@ -68,7 +67,6 @@ import { Route as PrincipalEventsRouteImport } from './routes/principal.events'
 import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as PrincipalHealthRouteImport } from './routes/principal.health'
 import { Route as PrincipalInventoryRouteImport } from './routes/principal.inventory'
-import { Route as PrincipalReportsRouteImport } from './routes/principal.reports'
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
 import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
@@ -348,11 +346,6 @@ const PrincipalIndexRoute = PrincipalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PrincipalRoute,
 } as any)
-const PrincipalCalendarRoute = PrincipalCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => PrincipalRoute,
-} as any)
 const PrincipalCircularsRoute = PrincipalCircularsRouteImport.update({
   id: '/circulars',
   path: '/circulars',
@@ -386,11 +379,6 @@ const PrincipalHealthRoute = PrincipalHealthRouteImport.update({
 const PrincipalInventoryRoute = PrincipalInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
-  getParentRoute: () => PrincipalRoute,
-} as any)
-const PrincipalReportsRoute = PrincipalReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
   getParentRoute: () => PrincipalRoute,
 } as any)
 const PrincipalStudentsRoute = PrincipalStudentsRouteImport.update({
@@ -554,7 +542,6 @@ export interface FileRoutesByFullPath {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
-  '/principal/calendar': typeof PrincipalCalendarRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
@@ -562,7 +549,6 @@ export interface FileRoutesByFullPath {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
-  '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -633,7 +619,6 @@ export interface FileRoutesByTo {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
-  '/principal/calendar': typeof PrincipalCalendarRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
@@ -641,7 +626,6 @@ export interface FileRoutesByTo {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
-  '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -718,7 +702,6 @@ export interface FileRoutesById {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
-  '/principal/calendar': typeof PrincipalCalendarRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
@@ -726,7 +709,6 @@ export interface FileRoutesById {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
-  '/principal/reports': typeof PrincipalReportsRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -804,7 +786,6 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
-    | '/principal/calendar'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
@@ -812,7 +793,6 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
-    | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -883,7 +863,6 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
-    | '/principal/calendar'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
@@ -891,7 +870,6 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
-    | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -967,7 +945,6 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
-    | '/principal/calendar'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
@@ -975,7 +952,6 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
-    | '/principal/reports'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -1375,13 +1351,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalIndexRouteImport
       parentRoute: typeof PrincipalRoute
     }
-    '/principal/calendar': {
-      id: '/principal/calendar'
-      path: '/calendar'
-      fullPath: '/principal/calendar'
-      preLoaderRoute: typeof PrincipalCalendarRouteImport
-      parentRoute: typeof PrincipalRoute
-    }
     '/principal/circulars': {
       id: '/principal/circulars'
       path: '/circulars'
@@ -1429,13 +1398,6 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/principal/inventory'
       preLoaderRoute: typeof PrincipalInventoryRouteImport
-      parentRoute: typeof PrincipalRoute
-    }
-    '/principal/reports': {
-      id: '/principal/reports'
-      path: '/reports'
-      fullPath: '/principal/reports'
-      preLoaderRoute: typeof PrincipalReportsRouteImport
       parentRoute: typeof PrincipalRoute
     }
     '/principal/students': {
@@ -1722,7 +1684,6 @@ const ParentRouteWithChildren =
   ParentRoute._addFileChildren(ParentRouteChildren)
 
 interface PrincipalRouteChildren {
-  PrincipalCalendarRoute: typeof PrincipalCalendarRoute
   PrincipalCircularsRoute: typeof PrincipalCircularsRoute
   PrincipalClassesRoute: typeof PrincipalClassesRoute
   PrincipalDashboardRoute: typeof PrincipalDashboardRoute
@@ -1730,7 +1691,6 @@ interface PrincipalRouteChildren {
   PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalHealthRoute: typeof PrincipalHealthRoute
   PrincipalInventoryRoute: typeof PrincipalInventoryRoute
-  PrincipalReportsRoute: typeof PrincipalReportsRoute
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
   PrincipalTransportRoute: typeof PrincipalTransportRoute
@@ -1740,7 +1700,6 @@ interface PrincipalRouteChildren {
 }
 
 const PrincipalRouteChildren: PrincipalRouteChildren = {
-  PrincipalCalendarRoute: PrincipalCalendarRoute,
   PrincipalCircularsRoute: PrincipalCircularsRoute,
   PrincipalClassesRoute: PrincipalClassesRoute,
   PrincipalDashboardRoute: PrincipalDashboardRoute,
@@ -1748,7 +1707,6 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalHealthRoute: PrincipalHealthRoute,
   PrincipalInventoryRoute: PrincipalInventoryRoute,
-  PrincipalReportsRoute: PrincipalReportsRoute,
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
   PrincipalTransportRoute: PrincipalTransportRoute,
