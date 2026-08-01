@@ -9,8 +9,9 @@
 -- 6. GV_system_settings
 -- ====================================================================
 
--- 1. EXTENSIONS
+-- 1. EXTENSIONS & SCHEMA CACHE RELOAD
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+NOTIFY pgrst, 'reload schema';
 
 -- 2. IN-PLACE TABLE RENAMES (If old tables exist and new ones do not)
 DO $$ BEGIN
