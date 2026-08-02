@@ -11,24 +11,17 @@ export interface Activity {
   date: string;
 }
 
-const KEY = "sunshine.activities.v2";
+let memoryActivitiesCache: Activity[] = [];
 
 function readActivities(): Activity[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return memoryActivitiesCache;
 }
 
 function writeActivities(acts: Activity[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(acts));
+  memoryActivitiesCache = acts;
+  if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("sunshine-activities"));
-  } catch {}
+  }
 }
 
 export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
@@ -109,7 +102,7 @@ export function useActivities() {
 
   useEffect(() => {
     fetchActivitiesFromSupabase().then((res) => {
-      if (res && res.length > 0) setActivities(res);
+      if (res) setActivities(res);
     });
 
     const unsubscribe = subscribeToRealtimeTable({
@@ -123,12 +116,10 @@ export function useActivities() {
 
     const sync = () => setActivities(readActivities());
     window.addEventListener("sunshine-activities", sync);
-    window.addEventListener("storage", sync);
 
     return () => {
       unsubscribe();
       window.removeEventListener("sunshine-activities", sync);
-      window.removeEventListener("storage", sync);
     };
   }, []);
 

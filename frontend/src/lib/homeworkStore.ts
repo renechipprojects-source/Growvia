@@ -11,24 +11,17 @@ export interface Homework {
   due: string;
 }
 
-const KEY = "sunshine.homework.v2";
+let memoryHomeworkCache: Homework[] = [];
 
 function readHomework(): Homework[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return memoryHomeworkCache;
 }
 
 function writeHomework(items: Homework[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(items));
+  memoryHomeworkCache = items;
+  if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("sunshine-homework"));
-  } catch {}
+  }
 }
 
 export async function fetchHomeworkFromSupabase(): Promise<Homework[]> {
@@ -117,7 +110,7 @@ export function useHomework() {
 
   useEffect(() => {
     fetchHomeworkFromSupabase().then((res) => {
-      if (res && res.length > 0) setHomework(res);
+      if (res) setHomework(res);
     });
 
     const unsubscribe = subscribeToRealtimeTable({
@@ -131,12 +124,10 @@ export function useHomework() {
 
     const sync = () => setHomework(readHomework());
     window.addEventListener("sunshine-homework", sync);
-    window.addEventListener("storage", sync);
 
     return () => {
       unsubscribe();
       window.removeEventListener("sunshine-homework", sync);
-      window.removeEventListener("storage", sync);
     };
   }, []);
 

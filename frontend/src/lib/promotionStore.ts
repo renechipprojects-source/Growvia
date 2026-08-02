@@ -34,7 +34,7 @@ export interface AcademicYearRecord {
   closedOn?: string;
 }
 
-const PROMOTION_HISTORY_KEY = "sunshine.promotion_history.v1";
+
 const ACTIVITY_TIMELINE_KEY = "sunshine.activity_timeline.v1";
 const PROMOTION_MAPPING_KEY = "sunshine.promotion_mapping.v1";
 const ACADEMIC_YEARS_KEY = "sunshine.academic_years.v1";
@@ -178,19 +178,14 @@ export function validatePromotionCapacity(
 
 // ─── 4. PROMOTION HISTORY & TIMELINE STORE ────────────────────────────────────
 
+let memoryPromotionHistoryCache: PromotionHistoryRecord[] = getSeedPromotionHistory();
+
 export function getPromotionHistory(): PromotionHistoryRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(PROMOTION_HISTORY_KEY);
-    return raw ? JSON.parse(raw) : getSeedPromotionHistory();
-  } catch {
-    return getSeedPromotionHistory();
-  }
+  return memoryPromotionHistoryCache;
 }
 
 export function savePromotionHistory(records: PromotionHistoryRecord[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(PROMOTION_HISTORY_KEY, JSON.stringify(records));
+  memoryPromotionHistoryCache = records;
 }
 
 export function getActivityTimeline(studentId?: string): ActivityTimelineRecord[] {

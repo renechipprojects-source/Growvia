@@ -26,16 +26,8 @@ interface LeaveState {
 }
 
 const Ctx = createContext<LeaveState | null>(null);
-const KEY = "sunshine.leave.v1";
 
-function load(): LeaveRequest[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as LeaveRequest[];
-  } catch { /* noop */ }
-  return [];
-}
+let memoryLeaveCache: LeaveRequest[] = [];
 
 export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> {
   try {
@@ -45,7 +37,7 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
       .eq("request_type", "leave")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return load();
+    if (error || !data) return memoryLeaveCache;
 
     const mapped: LeaveRequest[] = data.map((d: any) => {
       let meta: any = {};
@@ -72,23 +64,19 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
       };
     });
 
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(mapped));
-      } catch {}
-    }
+    memoryLeaveCache = mapped;
     return mapped;
   } catch {
-    return load();
+    return memoryLeaveCache;
   }
 }
 
 export function LeaveProvider({ children }: { children: ReactNode }) {
-  const [requests, setRequests] = useState<LeaveRequest[]>(() => load());
+  const [requests, setRequests] = useState<LeaveRequest[]>(() => memoryLeaveCache);
 
   useEffect(() => {
     fetchLeaveRequestsFromSupabase().then((res) => {
-      if (res && res.length > 0) setRequests(res);
+      if (res) setRequests(res);
     });
 
     const unsubscribe = subscribeToRealtimeTable({
@@ -105,14 +93,6 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const saveLocalAndRemote = (nextRequests: LeaveRequest[]) => {
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(nextRequests));
-      } catch {}
-    }
-  };
-
   const submit: LeaveState["submit"] = useCallback((r) => {
     const newId = `LV-${Date.now()}`;
     const created: LeaveRequest = {
@@ -123,7 +103,7 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
     };
     setRequests((prev) => {
       const next = [created, ...prev];
-      saveLocalAndRemote(next);
+      memoryLeaveCache = next;
       return next;
     });
 
@@ -158,7 +138,7 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
         }
         return r;
       });
-      saveLocalAndRemote(next);
+      memoryLeaveCache = next;
       return next;
     });
   }, []);

@@ -18,24 +18,17 @@ export interface Message {
   attachments?: string[];
 }
 
-const KEY = "sunshine.messages.v3";
+let memoryMessagesCache: Message[] = [];
 
 function readMessages(): Message[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return memoryMessagesCache;
 }
 
 function writeMessages(msgs: Message[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(msgs));
+  memoryMessagesCache = msgs;
+  if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("sunshine-message"));
-  } catch {}
+  }
 }
 
 export async function fetchMessagesFromSupabase(): Promise<Message[]> {
@@ -156,7 +149,7 @@ export function useMessages() {
 
   useEffect(() => {
     fetchMessagesFromSupabase().then((res) => {
-      if (res && res.length > 0) setMessages(res);
+      if (res) setMessages(res);
     });
 
     const unsubscribe = subscribeToRealtimeTable({
@@ -170,12 +163,10 @@ export function useMessages() {
 
     const sync = () => setMessages(readMessages());
     window.addEventListener("sunshine-message", sync);
-    window.addEventListener("storage", sync);
 
     return () => {
       unsubscribe();
       window.removeEventListener("sunshine-message", sync);
-      window.removeEventListener("storage", sync);
     };
   }, []);
 

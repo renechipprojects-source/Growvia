@@ -11,16 +11,10 @@ export interface AuditLogEntry {
   newValue?: string;
 }
 
-const KEY = "sunshine.auditLogs.v1";
+let memoryAuditLogsCache: AuditLogEntry[] = [];
 
 export function readAuditLogs(): AuditLogEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as AuditLogEntry[]) : [];
-  } catch {
-    return [];
-  }
+  return memoryAuditLogsCache;
 }
 
 export async function fetchAuditLogsFromSupabase(): Promise<AuditLogEntry[]> {
@@ -31,7 +25,7 @@ export async function fetchAuditLogsFromSupabase(): Promise<AuditLogEntry[]> {
       .eq("request_type", "audit_log")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return readAuditLogs();
+    if (error || !data) return memoryAuditLogsCache;
 
     const mapped: AuditLogEntry[] = data.map((d: any) => {
       let meta: any = {};
@@ -53,31 +47,23 @@ export async function fetchAuditLogsFromSupabase(): Promise<AuditLogEntry[]> {
       };
     });
 
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(mapped));
-      } catch {}
-    }
+    memoryAuditLogsCache = mapped;
     return mapped;
   } catch {
-    return readAuditLogs();
+    return memoryAuditLogsCache;
   }
 }
 
 export const getAuditLogs = readAuditLogs;
 
 export function logAuditEvent(entry: Omit<AuditLogEntry, "id" | "timestamp">) {
-  if (typeof window === "undefined") return;
   const current = readAuditLogs();
   const newEntry: AuditLogEntry = {
     ...entry,
     id: `LOG-${Date.now()}`,
     timestamp: new Date().toISOString(),
   };
-  const updated = [newEntry, ...current].slice(0, 200);
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(updated));
-  } catch {}
+  memoryAuditLogsCache = [newEntry, ...current].slice(0, 200);
 
   Promise.resolve(
     supabase.from("gv_requests").insert([{

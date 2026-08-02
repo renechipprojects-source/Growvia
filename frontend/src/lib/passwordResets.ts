@@ -3,8 +3,6 @@ import { findSystemUserByLoginId } from "@/lib/auth";
 import { listParentCredentials, listTeacherCredentials } from "@/lib/credentials";
 import { supabase } from "@/lib/supabase";
 
-const KEY = "sunshine.passwordResets.v1";
-
 export type ResetStatus = "Pending" | "In Progress" | "Completed";
 
 export interface ResetRequest {
@@ -23,20 +21,19 @@ export interface ResetRequest {
   notes?: string;
 }
 
+let memoryResetCache: ResetRequest[] = [];
+
 function read(): ResetRequest[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as ResetRequest[]) : [];
-  } catch { return []; }
+  return memoryResetCache;
 }
 
 function write(rows: ResetRequest[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(rows));
-    window.dispatchEvent(new CustomEvent("sunshine:resets"));
-  } catch {}
+  memoryResetCache = rows;
+  if (typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new CustomEvent("sunshine:resets"));
+    } catch {}
+  }
 }
 
 export async function fetchPasswordResetsFromSupabase(): Promise<ResetRequest[]> {
@@ -84,12 +81,9 @@ export function subscribeResets(cb: () => void): () => void {
   fetchPasswordResetsFromSupabase().then(() => cb());
   if (typeof window === "undefined") return () => {};
   const onCustom = () => cb();
-  const onStorage = (e: StorageEvent) => { if (e.key === KEY) cb(); };
   window.addEventListener("sunshine:resets", onCustom);
-  window.addEventListener("storage", onStorage);
   return () => {
     window.removeEventListener("sunshine:resets", onCustom);
-    window.removeEventListener("storage", onStorage);
   };
 }
 

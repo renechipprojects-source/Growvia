@@ -32,16 +32,8 @@ interface State {
 }
 
 const Ctx = createContext<State | null>(null);
-const KEY = "sunshine.studentDocs.v1";
 
-function load(): Record<string, StudentDocs> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Record<string, StudentDocs>;
-  } catch { /* noop */ }
-  return {};
-}
+let memoryStudentDocsCache: Record<string, StudentDocs> = {};
 
 export async function fetchStudentDocsFromSupabase(): Promise<Record<string, StudentDocs>> {
   try {
@@ -50,7 +42,7 @@ export async function fetchStudentDocsFromSupabase(): Promise<Record<string, Stu
       .select("*")
       .eq("request_type", "student_docs");
 
-    if (error || !data) return load();
+    if (error || !data) return memoryStudentDocsCache;
 
     const recs: Record<string, StudentDocs> = {};
     data.forEach((d: any) => {
@@ -70,32 +62,24 @@ export async function fetchStudentDocsFromSupabase(): Promise<Record<string, Stu
       };
     });
 
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(recs));
-      } catch {}
-    }
+    memoryStudentDocsCache = recs;
     return recs;
   } catch {
-    return load();
+    return memoryStudentDocsCache;
   }
 }
 
 export function StudentDocsProvider({ children }: { children: ReactNode }) {
-  const [records, setRecords] = useState<Record<string, StudentDocs>>(() => load());
+  const [records, setRecords] = useState<Record<string, StudentDocs>>(() => memoryStudentDocsCache);
 
   useEffect(() => {
     fetchStudentDocsFromSupabase().then((res) => {
-      if (res && Object.keys(res).length > 0) setRecords(res);
+      if (res) setRecords(res);
     });
   }, []);
 
-  const saveLocalAndRemote = (updatedRecords: Record<string, StudentDocs>, targetAdmNo: string) => {
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(updatedRecords));
-      } catch {}
-    }
+  const saveToSupabase = (updatedRecords: Record<string, StudentDocs>, targetAdmNo: string) => {
+    memoryStudentDocsCache = updatedRecords;
     const docData = updatedRecords[targetAdmNo];
     if (docData) {
       Promise.resolve(
@@ -121,7 +105,7 @@ export function StudentDocsProvider({ children }: { children: ReactNode }) {
           medicalCertificates: prev[admissionNo]?.medicalCertificates ?? [],
         },
       };
-      saveLocalAndRemote(next, admissionNo);
+      saveToSupabase(next, admissionNo);
       return next;
     });
   }, []);
@@ -139,7 +123,7 @@ export function StudentDocsProvider({ children }: { children: ReactNode }) {
           ],
         },
       };
-      saveLocalAndRemote(next, admissionNo);
+      saveToSupabase(next, admissionNo);
       return next;
     });
   }, []);

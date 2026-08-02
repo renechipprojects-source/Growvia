@@ -25,9 +25,7 @@ export interface TeacherWorkload {
   totalSubjects: number;
 }
 
-const KEY = "sunshine.classAssignments.v1";
-
-const SEED: ClassAssignment[] = [
+let memoryAssignmentsCache: ClassAssignment[] = [
   { id: "CA-1", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "class", className: "Nursery", section: "A", status: "active" },
   { id: "CA-2", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "subject", className: "UKG", section: "A", subject: "English", status: "active" },
   { id: "CA-3", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "subject", className: "UKG", section: "B", subject: "English", status: "active" },
@@ -39,12 +37,7 @@ const SEED: ClassAssignment[] = [
 ];
 
 export function readAssignments(): ClassAssignment[] {
-  if (typeof window === "undefined") return SEED;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as ClassAssignment[];
-  } catch {}
-  return SEED;
+  return memoryAssignmentsCache;
 }
 
 export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]> {
@@ -54,7 +47,7 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
       .select("*")
       .eq("request_type", "class_assignment");
 
-    if (error || !data || data.length === 0) return readAssignments();
+    if (error || !data || data.length === 0) return memoryAssignmentsCache;
 
     const mapped: ClassAssignment[] = data.map((d: any) => {
       let meta: any = {};
@@ -77,14 +70,10 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
       };
     });
 
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(mapped));
-      } catch {}
-    }
+    memoryAssignmentsCache = mapped;
     return mapped;
   } catch {
-    return readAssignments();
+    return memoryAssignmentsCache;
   }
 }
 
@@ -103,7 +92,7 @@ interface State {
 const Ctx = createContext<State | null>(null);
 
 export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
-  const [assignments, setAssignments] = useState<ClassAssignment[]>(() => readAssignments());
+  const [assignments, setAssignments] = useState<ClassAssignment[]>(() => memoryAssignmentsCache);
 
   useEffect(() => {
     fetchAssignmentsFromSupabase().then((res) => {
@@ -112,11 +101,7 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveToSupabase = (newItems: ClassAssignment[]) => {
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(newItems));
-      } catch {}
-    }
+    memoryAssignmentsCache = newItems;
     const payloads = newItems.map((a) => ({
       id: a.id,
       request_type: "class_assignment",

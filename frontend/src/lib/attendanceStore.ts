@@ -19,17 +19,13 @@ export interface StudentAttendanceEntry {
   updatedAt: string;
 }
 
-const STORAGE_KEY = "sunshine.attendance.v1";
 const EVENT_NAME = "sunshine-attendance-update";
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+let memoryAttendanceCache: StudentAttendanceEntry[] = [];
+
 export function getStoredAttendance(): StudentAttendanceEntry[] {
-  try {
-    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return memoryAttendanceCache;
 }
 
 export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEntry[]> {
@@ -39,7 +35,7 @@ export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEn
       .select("*")
       .eq("request_type", "attendance");
 
-    if (error || !data) return getStoredAttendance();
+    if (error || !data) return memoryAttendanceCache;
 
     const mapped: StudentAttendanceEntry[] = data.map((d: any) => {
       let meta: any = {};
@@ -66,14 +62,10 @@ export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEn
       };
     });
 
-    if (typeof window !== "undefined" && mapped.length > 0) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
-      } catch {}
-    }
+    memoryAttendanceCache = mapped;
     return mapped;
   } catch {
-    return getStoredAttendance();
+    return memoryAttendanceCache;
   }
 }
 
@@ -85,7 +77,7 @@ export async function saveAttendance(
   studentList?: { id: string; name: string }[],
   markedBy: string = "Class Teacher"
 ) {
-  const current = getStoredAttendance();
+  const current = memoryAttendanceCache;
   const updatedMap = new Map(current.map((item) => [`${item.studentId}_${item.date}`, item]));
 
   const time = new Date().toISOString();
@@ -135,12 +127,9 @@ export async function saveAttendance(
     });
   });
 
-  const newList = Array.from(updatedMap.values());
+  memoryAttendanceCache = Array.from(updatedMap.values());
   if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
-      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: newList }));
-    } catch {}
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: memoryAttendanceCache }));
   }
 
   try {
@@ -149,13 +138,11 @@ export async function saveAttendance(
 }
 
 export function getAttendanceForStudent(studentId: string): StudentAttendanceEntry[] {
-  const current = getStoredAttendance();
-  return current.filter((item) => item.studentId === studentId);
+  return memoryAttendanceCache.filter((item) => item.studentId === studentId);
 }
 
 export function getAttendanceForDate(date: string, className?: string, section?: string): StudentAttendanceEntry[] {
-  const current = getStoredAttendance();
-  return current.filter((item) => {
+  return memoryAttendanceCache.filter((item) => {
     if (item.date !== date) return false;
     if (className && className !== "all" && item.className !== className) return false;
     if (section && section !== "all" && item.section !== section) return false;
@@ -221,11 +208,11 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
 }
 
 export function useLiveAttendance(studentId?: string, date?: string) {
-  const [data, setData] = useState<StudentAttendanceEntry[]>(() => getStoredAttendance());
+  const [data, setData] = useState<StudentAttendanceEntry[]>(() => memoryAttendanceCache);
 
   useEffect(() => {
     fetchAttendanceFromSupabase().then((res) => {
-      if (res && res.length > 0) setData(res);
+      if (res) setData(res);
     });
 
     const unsubscribe = subscribeToRealtimeTable({
@@ -237,14 +224,12 @@ export function useLiveAttendance(studentId?: string, date?: string) {
       },
     });
 
-    const handler = () => setData(getStoredAttendance());
+    const handler = () => setData(memoryAttendanceCache);
     window.addEventListener(EVENT_NAME, handler);
-    window.addEventListener("storage", handler);
 
     return () => {
       unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
-      window.removeEventListener("storage", handler);
     };
   }, []);
 

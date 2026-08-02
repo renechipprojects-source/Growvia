@@ -29,20 +29,27 @@ function ParentFees() {
       if (match) setFeeRecord(match);
     });
 
-    try {
-      const raw = localStorage.getItem("SUNSHINE_RECEIPTS");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const matchRcpts = parsed.filter(
-            (r: any) =>
-              r.studentName === activeChild.name ||
-              r.admissionNo === activeChild.admissionNo
-          );
-          setLiveReceipts(matchRcpts);
-        }
-      }
-    } catch {}
+    import("@/lib/supabase").then(({ supabase }) => {
+      supabase
+        .from("gv_fees_payments")
+        .select("*")
+        .eq("record_type", "payment")
+        .then(({ data }) => {
+          if (data) {
+            const matchRcpts = data
+              .filter((r: any) => r.student_name === activeChild.name || r.student_id === activeChild.id)
+              .map((r: any) => ({
+                id: r.id,
+                receiptNo: r.id,
+                studentName: r.student_name,
+                amountPaid: r.amount_paid || r.amount_due || 0,
+                method: r.payment_method || "Cash",
+                date: r.date || r.created_at?.slice(0, 10),
+              }));
+            setLiveReceipts(matchRcpts);
+          }
+        });
+    });
   }, [activeChild]);
 
   const origFee = feeRecord?.originalFee ?? feeRecord?.amount ?? 8500;

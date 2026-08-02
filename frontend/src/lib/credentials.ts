@@ -6,7 +6,7 @@ import type { Student, Teacher } from "@/lib/mockData";
 import type { Role } from "@/lib/roleConfig";
 import { supabase } from "@/lib/supabase";
 
-const KEY = "sunshine.credentials.v1";
+
 
 export type CredentialStatus = "Active" | "Inactive";
 
@@ -37,26 +37,19 @@ interface Store {
   teachers: Record<string, TeacherCredential>; // key: teacherId
 }
 
-function empty(): Store {
-  return { parents: {}, teachers: {} };
-}
+let memoryCredentialsStore: Store = { parents: {}, teachers: {} };
 
 function read(): Store {
-  if (typeof window === "undefined") return empty();
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return empty();
-    const parsed = JSON.parse(raw) as Partial<Store>;
-    return { parents: parsed.parents ?? {}, teachers: parsed.teachers ?? {} };
-  } catch {
-    return empty();
-  }
+  return memoryCredentialsStore;
 }
 
 function write(store: Store) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(store));
-  window.dispatchEvent(new CustomEvent("sunshine:credentials"));
+  memoryCredentialsStore = store;
+  if (typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new CustomEvent("sunshine:credentials"));
+    } catch {}
+  }
 }
 
 // ─── Suggestions ────────────────────────────────────────────────────────────
@@ -398,11 +391,8 @@ export function authenticateGenerated(loginId: string, password: string): AuthRe
 export function subscribeCredentials(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onCustom = () => cb();
-  const onStorage = (e: StorageEvent) => { if (e.key === KEY) cb(); };
   window.addEventListener("sunshine:credentials", onCustom);
-  window.addEventListener("storage", onStorage);
   return () => {
     window.removeEventListener("sunshine:credentials", onCustom);
-    window.removeEventListener("storage", onStorage);
   };
 }
