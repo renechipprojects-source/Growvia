@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import type { Student } from "@/lib/mockData";
+import { supabase } from "./supabase";
+import { subscribeToRealtimeTable } from "./realtimeService";
 
 export interface StudentAttendanceEntry {
   id?: string;
@@ -20,34 +21,63 @@ export interface StudentAttendanceEntry {
 
 const STORAGE_KEY = "sunshine.attendance.v1";
 const EVENT_NAME = "sunshine-attendance-update";
-
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-function generateInitialHistoricalAttendance(): StudentAttendanceEntry[] {
-  return [];
-}
 
 export function getStoredAttendance(): StudentAttendanceEntry[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const initial = generateInitialHistoricalAttendance();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      return initial;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      const initial = generateInitialHistoricalAttendance();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      return initial;
-    }
-    return parsed;
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return generateInitialHistoricalAttendance();
+    return [];
   }
 }
 
-export function saveAttendance(
+export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "attendance");
+
+    if (error || !data) return getStoredAttendance();
+
+    const mapped: StudentAttendanceEntry[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+          meta = JSON.parse(d.reason_or_notes);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        studentId: meta.studentId || d.applicant_or_child_name || d.id,
+        studentName: d.applicant_or_child_name || meta.studentName || "Student",
+        className: d.class_name || meta.className || "Nursery",
+        section: d.section || meta.section || "A",
+        admissionNo: meta.admissionNo || `ADM-${d.id}`,
+        rollNo: meta.rollNo || 1,
+        parentName: meta.parentName || "Parent",
+        date: meta.date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        day: meta.day || "Weekday",
+        status: (d.status as any) || meta.status || "P",
+        markedBy: meta.markedBy || "Class Teacher",
+        updatedAt: d.created_at || new Date().toISOString(),
+      };
+    });
+
+    if (typeof window !== "undefined" && mapped.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+      } catch {}
+    }
+    return mapped;
+  } catch {
+    return getStoredAttendance();
+  }
+}
+
+export async function saveAttendance(
   className: string,
   section: string,
   date: string,
@@ -58,27 +88,20 @@ export function saveAttendance(
   const current = getStoredAttendance();
   const updatedMap = new Map(current.map((item) => [`${item.studentId}_${item.date}`, item]));
 
-  let localStudents: any[] = [];
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem("SUNSHINE_STUDENTS");
-      if (raw) localStudents = JSON.parse(raw);
-    } catch {}
-  }
-
   const time = new Date().toISOString();
   const dateObj = new Date(date);
   const dayName = DAYS_OF_WEEK[dateObj.getDay()] || "Weekday";
 
+  const supabasePayloads: any[] = [];
+
   Object.entries(records).forEach(([studentId, status]) => {
-    const student =
-      (studentList && studentList.find((s: any) => s.id === studentId)) ||
-      localStudents.find((s: any) => s.id === studentId);
+    const student = studentList && studentList.find((s: any) => s.id === studentId);
+    const sName = student ? student.name : studentId;
 
     const entry: StudentAttendanceEntry = {
       id: `ATT-${studentId}-${date}`,
       studentId,
-      studentName: student ? student.name : studentId,
+      studentName: sName,
       className: className || (student as any)?.className || "Playgroup",
       section: section || (student as any)?.section || "A",
       admissionNo: (student as any)?.admissionNo || `ADM-${studentId}`,
@@ -91,11 +114,38 @@ export function saveAttendance(
       updatedAt: time,
     };
     updatedMap.set(`${studentId}_${date}`, entry);
+
+    supabasePayloads.push({
+      id: `ATT-${studentId}-${date}`,
+      request_type: "attendance",
+      applicant_or_child_name: sName,
+      class_name: className || "Nursery",
+      section: section || "A",
+      status: status,
+      reason_or_notes: JSON.stringify({
+        studentId,
+        studentName: sName,
+        className,
+        section,
+        date,
+        day: dayName,
+        status,
+        markedBy,
+      }),
+    });
   });
 
   const newList = Array.from(updatedMap.values());
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: newList }));
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
+      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: newList }));
+    } catch {}
+  }
+
+  try {
+    await supabase.from("gv_requests").upsert(supabasePayloads);
+  } catch {}
 }
 
 export function getAttendanceForStudent(studentId: string): StudentAttendanceEntry[] {
@@ -122,7 +172,6 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
   const leaveDays = records.filter((r) => r.status === "Lv").length;
   const percentage = Math.round(((presentDays + lateDays) / totalDays) * 100);
 
-  // Weekly Report (Last 5 working days)
   const weeklyRecords = records.slice(0, 5);
   const weeklyPresent = weeklyRecords.filter((r) => r.status === "P").length;
   const weeklyAbsent = weeklyRecords.filter((r) => r.status === "A").length;
@@ -130,7 +179,6 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
   const weeklyLeave = weeklyRecords.filter((r) => r.status === "Lv").length;
   const weeklyPct = weeklyRecords.length ? Math.round(((weeklyPresent + weeklyLate) / weeklyRecords.length) * 100) : 0;
 
-  // Monthly Report (Last 20 working days)
   const monthlyRecords = records.slice(0, 20);
   const monthlyPresent = monthlyRecords.filter((r) => r.status === "P").length;
   const monthlyAbsent = monthlyRecords.filter((r) => r.status === "A").length;
@@ -176,10 +224,25 @@ export function useLiveAttendance(studentId?: string, date?: string) {
   const [data, setData] = useState<StudentAttendanceEntry[]>(() => getStoredAttendance());
 
   useEffect(() => {
+    fetchAttendanceFromSupabase().then((res) => {
+      if (res && res.length > 0) setData(res);
+    });
+
+    const unsubscribe = subscribeToRealtimeTable({
+      table: "gv_requests",
+      onPayload: () => {
+        fetchAttendanceFromSupabase().then((res) => {
+          if (res) setData(res);
+        });
+      },
+    });
+
     const handler = () => setData(getStoredAttendance());
     window.addEventListener(EVENT_NAME, handler);
     window.addEventListener("storage", handler);
+
     return () => {
+      unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
       window.removeEventListener("storage", handler);
     };

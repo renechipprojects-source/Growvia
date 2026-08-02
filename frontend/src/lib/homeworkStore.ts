@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { subscribeToRealtimeTable } from "./realtimeService";
 
 export interface Homework {
   id: string | number;
@@ -16,9 +17,7 @@ function readHomework(): Homework[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
@@ -32,6 +31,40 @@ function writeHomework(items: Homework[]) {
   } catch {}
 }
 
+export async function fetchHomeworkFromSupabase(): Promise<Homework[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .select("*")
+      .eq("message_type", "homework")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return readHomework();
+
+    const mapped: Homework[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
+          meta = JSON.parse(d.content);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        title: d.title || meta.title || "Homework Assignment",
+        className: meta.className || d.target_audience || "Nursery",
+        subject: meta.subject || "General",
+        due: meta.due || d.published_date || new Date().toISOString().slice(0, 10),
+      };
+    });
+
+    writeHomework(mapped);
+    return mapped;
+  } catch {
+    return readHomework();
+  }
+}
+
 export function createHomework(input: {
   title: string;
   className: string;
@@ -39,8 +72,9 @@ export function createHomework(input: {
   due: string;
   details?: string;
 }): Homework {
+  const newId = `HW-${Date.now().toString().slice(-4)}`;
   const newHW: Homework = {
-    id: `HW-${Date.now().toString().slice(-4)}`,
+    id: newId,
     title: input.title,
     className: input.className,
     subject: input.subject,
@@ -48,22 +82,32 @@ export function createHomework(input: {
   };
 
   const list = readHomework();
-  writeHomework([newHW, ...list]);
+  const nextList = [newHW, ...list];
+  writeHomework(nextList);
 
   try {
     NotificationService.homeworkAssigned(input.subject, input.className);
   } catch {}
 
-  try {
-    supabase.from("homework").insert([{
-      id: newHW.id,
+  const meta = {
+    title: input.title,
+    className: input.className,
+    subject: input.subject,
+    due: input.due,
+    details: input.details || input.title,
+  };
+
+  Promise.resolve(
+    supabase.from("gv_communications").insert([{
+      id: newId,
+      message_type: "homework",
       title: input.title,
-      class_name: input.className,
-      subject: input.subject,
-      due_date: input.due,
-      created_at: new Date().toISOString(),
-    }]);
-  } catch {}
+      content: JSON.stringify(meta),
+      target_audience: input.className,
+      author: "Class Teacher",
+      published_date: input.due,
+    }])
+  ).catch(() => {});
 
   return newHW;
 }
@@ -72,10 +116,25 @@ export function useHomework() {
   const [homework, setHomework] = useState<Homework[]>(readHomework);
 
   useEffect(() => {
+    fetchHomeworkFromSupabase().then((res) => {
+      if (res && res.length > 0) setHomework(res);
+    });
+
+    const unsubscribe = subscribeToRealtimeTable({
+      table: "gv_communications",
+      onPayload: () => {
+        fetchHomeworkFromSupabase().then((res) => {
+          if (res) setHomework(res);
+        });
+      },
+    });
+
     const sync = () => setHomework(readHomework());
     window.addEventListener("sunshine-homework", sync);
     window.addEventListener("storage", sync);
+
     return () => {
+      unsubscribe();
       window.removeEventListener("sunshine-homework", sync);
       window.removeEventListener("storage", sync);
     };

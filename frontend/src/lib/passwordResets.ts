@@ -1,9 +1,3 @@
-// Password Reset Requests store.
-//
-// Office queue handles requests for: parent, teacher.
-// Admin queue handles requests for:  principal, office.
-// Admin cannot self-reset (a hard rule enforced in the UI).
-
 import type { Role } from "@/lib/roleConfig";
 import { findSystemUserByLoginId } from "@/lib/auth";
 import { listParentCredentials, listTeacherCredentials } from "@/lib/credentials";
@@ -17,8 +11,8 @@ export interface ResetRequest {
   id: string;
   role: Role;
   name: string;
-  loginId: string;         // resolved login id
-  identifier: string;      // what the user typed (admission no, employee id, mobile, or login id)
+  loginId: string;
+  identifier: string;
   admissionNo?: string;
   employeeId?: string;
   mobile?: string;
@@ -36,13 +30,58 @@ function read(): ResetRequest[] {
     return raw ? (JSON.parse(raw) as ResetRequest[]) : [];
   } catch { return []; }
 }
+
 function write(rows: ResetRequest[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(rows));
-  window.dispatchEvent(new CustomEvent("sunshine:resets"));
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(rows));
+    window.dispatchEvent(new CustomEvent("sunshine:resets"));
+  } catch {}
+}
+
+export async function fetchPasswordResetsFromSupabase(): Promise<ResetRequest[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "password_reset");
+
+    if (error || !data) return read();
+
+    const mapped: ResetRequest[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+          meta = JSON.parse(d.reason_or_notes);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        role: meta.role || "teacher",
+        name: d.applicant_or_child_name || meta.name || "User",
+        loginId: meta.loginId || d.applicant_or_child_name || "user",
+        identifier: meta.identifier || d.applicant_or_child_name || "user",
+        admissionNo: meta.admissionNo,
+        employeeId: meta.employeeId,
+        mobile: meta.mobile,
+        requestedAt: d.created_at || new Date().toISOString(),
+        status: (d.status as any) || "Pending",
+        tempPassword: meta.tempPassword,
+        completedAt: meta.completedAt,
+        notes: meta.notes,
+      };
+    });
+
+    write(mapped);
+    return mapped;
+  } catch {
+    return read();
+  }
 }
 
 export function subscribeResets(cb: () => void): () => void {
+  fetchPasswordResetsFromSupabase().then(() => cb());
   if (typeof window === "undefined") return () => {};
   const onCustom = () => cb();
   const onStorage = (e: StorageEvent) => { if (e.key === KEY) cb(); };
@@ -67,8 +106,6 @@ function makeId(): string {
   return "RR-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-// ─── Request creators (used by /forgot-password) ────────────────────────────
-
 export interface CreateResult { ok: true; request: ResetRequest }
 export interface CreateErr    { ok: false; error: string }
 
@@ -92,6 +129,17 @@ export function requestSystemReset(loginId: string): CreateResult | CreateErr {
   const rows = read();
   rows.push(req);
   write(rows);
+
+  Promise.resolve(
+    supabase.from("gv_requests").insert([{
+      id: req.id,
+      request_type: "password_reset",
+      applicant_or_child_name: req.name,
+      status: "Pending",
+      reason_or_notes: JSON.stringify(req),
+    }])
+  ).catch(() => {});
+
   return { ok: true, request: req };
 }
 
@@ -116,6 +164,17 @@ export function requestTeacherReset(identifier: string): CreateResult | CreateEr
   const rows = read();
   rows.push(req);
   write(rows);
+
+  Promise.resolve(
+    supabase.from("gv_requests").insert([{
+      id: req.id,
+      request_type: "password_reset",
+      applicant_or_child_name: req.name,
+      status: "Pending",
+      reason_or_notes: JSON.stringify(req),
+    }])
+  ).catch(() => {});
+
   return { ok: true, request: req };
 }
 
@@ -138,24 +197,38 @@ export function requestParentReset(identifier: string): CreateResult | CreateErr
   const rows = read();
   rows.push(req);
   write(rows);
+
+  Promise.resolve(
+    supabase.from("gv_requests").insert([{
+      id: req.id,
+      request_type: "password_reset",
+      applicant_or_child_name: req.name,
+      status: "Pending",
+      reason_or_notes: JSON.stringify(req),
+    }])
+  ).catch(() => {});
+
   return { ok: true, request: req };
 }
-
-// ─── Mutations (used by Office/Admin reset modules) ─────────────────────────
 
 export function setStatus(id: string, status: ResetStatus, tempPassword?: string) {
   const rows = read().map((r) => {
     if (r.id === id) {
-      if (status === "Completed") {
-        Promise.resolve(supabase.from("users").update({ must_change_password: true }).eq("login_id", r.loginId)).catch(() => {});
-        Promise.resolve(supabase.from("profiles").update({ must_change_password: true }).eq("login_id", r.loginId)).catch(() => {});
-      }
-      return {
+      const updated = {
         ...r,
         status,
         tempPassword: tempPassword ?? r.tempPassword,
         completedAt: status === "Completed" ? new Date().toISOString() : r.completedAt,
       };
+
+      Promise.resolve(
+        supabase.from("gv_requests").update({
+          status,
+          reason_or_notes: JSON.stringify(updated),
+        }).eq("id", id)
+      ).catch(() => {});
+
+      return updated;
     }
     return r;
   });
@@ -164,4 +237,5 @@ export function setStatus(id: string, status: ResetStatus, tempPassword?: string
 
 export function deleteRequest(id: string) {
   write(read().filter((r) => r.id !== id));
+  Promise.resolve(supabase.from("gv_requests").delete().eq("id", id)).catch(() => {});
 }

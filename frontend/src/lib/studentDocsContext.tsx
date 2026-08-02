@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase";
 
 export type DocStatus = "Submitted" | "Pending";
 
@@ -42,29 +43,93 @@ function load(): Record<string, StudentDocs> {
   return {};
 }
 
+export async function fetchStudentDocsFromSupabase(): Promise<Record<string, StudentDocs>> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "student_docs");
+
+    if (error || !data) return load();
+
+    const recs: Record<string, StudentDocs> = {};
+    data.forEach((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+          meta = JSON.parse(d.reason_or_notes);
+        }
+      } catch {}
+
+      const admNo = meta.admissionNo || d.applicant_or_child_name || d.id;
+      recs[admNo] = {
+        admissionNo: admNo,
+        studentName: meta.studentName || d.applicant_or_child_name || "Student",
+        documents: meta.documents || [],
+        medicalCertificates: meta.medicalCertificates || [],
+      };
+    });
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(recs));
+      } catch {}
+    }
+    return recs;
+  } catch {
+    return load();
+  }
+}
+
 export function StudentDocsProvider({ children }: { children: ReactNode }) {
   const [records, setRecords] = useState<Record<string, StudentDocs>>(() => load());
 
   useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem(KEY, JSON.stringify(records));
-  }, [records]);
+    fetchStudentDocsFromSupabase().then((res) => {
+      if (res && Object.keys(res).length > 0) setRecords(res);
+    });
+  }, []);
+
+  const saveLocalAndRemote = (updatedRecords: Record<string, StudentDocs>, targetAdmNo: string) => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(updatedRecords));
+      } catch {}
+    }
+    const docData = updatedRecords[targetAdmNo];
+    if (docData) {
+      Promise.resolve(
+        supabase.from("gv_requests").upsert([{
+          id: `DOC-${targetAdmNo}`,
+          request_type: "student_docs",
+          applicant_or_child_name: docData.studentName || targetAdmNo,
+          status: "Verified",
+          reason_or_notes: JSON.stringify(docData),
+        }])
+      ).catch(() => {});
+    }
+  };
 
   const upsert: State["upsert"] = useCallback((admissionNo, studentName, documents) => {
-    setRecords((prev) => ({
-      ...prev,
-      [admissionNo]: {
-        admissionNo,
-        studentName,
-        documents,
-        medicalCertificates: prev[admissionNo]?.medicalCertificates ?? [],
-      },
-    }));
+    setRecords((prev) => {
+      const next = {
+        ...prev,
+        [admissionNo]: {
+          admissionNo,
+          studentName,
+          documents,
+          medicalCertificates: prev[admissionNo]?.medicalCertificates ?? [],
+        },
+      };
+      saveLocalAndRemote(next, admissionNo);
+      return next;
+    });
   }, []);
 
   const addMedicalCertificate: State["addMedicalCertificate"] = useCallback((admissionNo, cert) => {
     setRecords((prev) => {
       const existing = prev[admissionNo] ?? { admissionNo, documents: [], medicalCertificates: [] };
-      return {
+      const next = {
         ...prev,
         [admissionNo]: {
           ...existing,
@@ -74,6 +139,8 @@ export function StudentDocsProvider({ children }: { children: ReactNode }) {
           ],
         },
       };
+      saveLocalAndRemote(next, admissionNo);
+      return next;
     });
   }, []);
 

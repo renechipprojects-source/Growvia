@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { subscribeToRealtimeTable } from "./realtimeService";
 
 export interface Activity {
   id: string | number;
@@ -16,9 +17,7 @@ function readActivities(): Activity[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
@@ -32,13 +31,48 @@ function writeActivities(acts: Activity[]) {
   } catch {}
 }
 
+export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .select("*")
+      .eq("message_type", "activity")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return readActivities();
+
+    const mapped: Activity[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
+          meta = JSON.parse(d.content);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        title: d.title || meta.title || "Class Activity",
+        className: meta.className || d.target_audience || "Nursery",
+        cover: meta.cover || "/placeholder.svg",
+        date: d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      };
+    });
+
+    writeActivities(mapped);
+    return mapped;
+  } catch {
+    return readActivities();
+  }
+}
+
 export function createActivity(input: {
   title: string;
   className: string;
   cover?: string;
 }): Activity {
+  const newId = `ACT-${Date.now().toString().slice(-4)}`;
   const newAct: Activity = {
-    id: `ACT-${Date.now().toString().slice(-4)}`,
+    id: newId,
     title: input.title,
     className: input.className,
     cover: input.cover || "/placeholder.svg",
@@ -46,17 +80,26 @@ export function createActivity(input: {
   };
 
   const list = readActivities();
-  writeActivities([newAct, ...list]);
+  const nextList = [newAct, ...list];
+  writeActivities(nextList);
 
+  const meta = {
+    title: input.title,
+    className: input.className,
+    cover: input.cover || "/placeholder.svg",
+  };
 
-
-  try {
-    supabase.from("events").insert([{
+  Promise.resolve(
+    supabase.from("gv_communications").insert([{
+      id: newId,
+      message_type: "activity",
       title: input.title,
-      type: "Activity",
-      date: new Date().toISOString().split("T")[0],
-    }]);
-  } catch {}
+      content: JSON.stringify(meta),
+      target_audience: input.className,
+      author: "Class Teacher",
+      published_date: new Date().toISOString().slice(0, 10),
+    }])
+  ).catch(() => {});
 
   return newAct;
 }
@@ -65,10 +108,25 @@ export function useActivities() {
   const [activities, setActivities] = useState<Activity[]>(readActivities);
 
   useEffect(() => {
+    fetchActivitiesFromSupabase().then((res) => {
+      if (res && res.length > 0) setActivities(res);
+    });
+
+    const unsubscribe = subscribeToRealtimeTable({
+      table: "gv_communications",
+      onPayload: () => {
+        fetchActivitiesFromSupabase().then((res) => {
+          if (res) setActivities(res);
+        });
+      },
+    });
+
     const sync = () => setActivities(readActivities());
     window.addEventListener("sunshine-activities", sync);
     window.addEventListener("storage", sync);
+
     return () => {
+      unsubscribe();
       window.removeEventListener("sunshine-activities", sync);
       window.removeEventListener("storage", sync);
     };

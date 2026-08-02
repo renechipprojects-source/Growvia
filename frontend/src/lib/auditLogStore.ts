@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "./supabase";
 
 export interface AuditLogEntry {
   id: string;
-  timestamp: string; // ISO String
+  timestamp: string;
   user: string;
   role: string;
   module: string;
@@ -13,22 +13,55 @@ export interface AuditLogEntry {
 
 const KEY = "sunshine.auditLogs.v1";
 
-const SEED: AuditLogEntry[] = [
-  { id: "LOG-1001", timestamp: new Date(Date.now() - 3600000 * 24 * 2).toISOString(), user: "Super Admin", role: "admin", module: "System", action: "Login", previousValue: "Offline", newValue: "Session Active" },
-  { id: "LOG-1002", timestamp: new Date(Date.now() - 3600000 * 20).toISOString(), user: "Office Admin", role: "office", module: "Fees", action: "Fee Collected", previousValue: "Pending ₹8,500", newValue: "Paid ₹8,500 (Cash)" },
-  { id: "LOG-1003", timestamp: new Date(Date.now() - 3600000 * 12).toISOString(), user: "Principal", role: "principal", module: "Circulars", action: "Circular Published", previousValue: "Draft", newValue: "Published (All Roles)" },
-  { id: "LOG-1004", timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), user: "Mrs. Priya", role: "teacher", module: "Attendance", action: "Attendance Marked", previousValue: "Unmarked", newValue: "Present: 18, Absent: 2" },
-  { id: "LOG-1005", timestamp: new Date(Date.now() - 1800000).toISOString(), user: "Office Admin", role: "office", module: "Staff", action: "Teacher Assignment Changed", previousValue: "Class Teacher: None", newValue: "Class Teacher: LKG-A" },
-];
-
 export function readAuditLogs(): AuditLogEntry[] {
-  if (typeof window === "undefined") return SEED;
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as AuditLogEntry[];
-  } catch { /* noop */ }
-  window.localStorage.setItem(KEY, JSON.stringify(SEED));
-  return SEED;
+    return raw ? (JSON.parse(raw) as AuditLogEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAuditLogsFromSupabase(): Promise<AuditLogEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "audit_log")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return readAuditLogs();
+
+    const mapped: AuditLogEntry[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+          meta = JSON.parse(d.reason_or_notes);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        timestamp: d.created_at || meta.timestamp || new Date().toISOString(),
+        user: d.applicant_or_child_name || meta.user || "System",
+        role: meta.role || "office",
+        module: d.class_name || meta.module || "System",
+        action: meta.action || d.status || "Action Executed",
+        previousValue: meta.previousValue,
+        newValue: meta.newValue,
+      };
+    });
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(mapped));
+      } catch {}
+    }
+    return mapped;
+  } catch {
+    return readAuditLogs();
+  }
 }
 
 export const getAuditLogs = readAuditLogs;
@@ -41,6 +74,19 @@ export function logAuditEvent(entry: Omit<AuditLogEntry, "id" | "timestamp">) {
     id: `LOG-${Date.now()}`,
     timestamp: new Date().toISOString(),
   };
-  const updated = [newEntry, ...current].slice(0, 200); // keep last 200 logs
-  window.localStorage.setItem(KEY, JSON.stringify(updated));
+  const updated = [newEntry, ...current].slice(0, 200);
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(updated));
+  } catch {}
+
+  Promise.resolve(
+    supabase.from("gv_requests").insert([{
+      id: newEntry.id,
+      request_type: "audit_log",
+      applicant_or_child_name: newEntry.user,
+      class_name: newEntry.module,
+      status: newEntry.action,
+      reason_or_notes: JSON.stringify(newEntry),
+    }])
+  ).catch(() => {});
 }

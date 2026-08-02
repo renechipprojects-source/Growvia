@@ -463,33 +463,23 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
   try {
     const supabasePayload = newHistoryRecords.map((r) => ({
       id: r.id,
-      student_id: r.studentId,
-      from_class: r.fromClass,
-      to_class: r.toClass,
-      from_academic_year: r.fromAcademicYear,
-      to_academic_year: r.toAcademicYear,
-      promoted_by: r.promotedBy,
-      promoted_on: r.promotedOn,
+      request_type: "promotion_history",
+      applicant_or_child_name: r.studentId,
+      class_name: r.toClass,
       status: r.status,
-      notes: r.notes,
+      reason_or_notes: JSON.stringify(r),
     }));
-    Promise.resolve(supabase.from("promotion_history").upsert(supabasePayload)).catch(() => {});
+    Promise.resolve(supabase.from("gv_requests").upsert(supabasePayload)).catch(() => {});
 
     // Update users table in Supabase
     const activePromotedIds = studentIds.filter((sId) => toClass !== "Alumni / Graduated" && toClass !== "Graduated");
     const graduatedIds = studentIds.filter((sId) => toClass === "Alumni / Graduated" || toClass === "Graduated");
 
     if (activePromotedIds.length > 0) {
-      Promise.resolve(supabase.from("users").update({ class_name: toClass, status: "Active" }).in("id", activePromotedIds)).catch(() => {});
-      Promise.resolve(supabase.from("students").update({ class_name: toClass, status: "Active" }).in("id", activePromotedIds)).catch(() => {});
+      Promise.resolve(supabase.from("gv_users").update({ class_name: toClass }).in("id", activePromotedIds)).catch(() => {});
     }
     if (graduatedIds.length > 0) {
-      Promise.resolve(supabase.from("users").update({ status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
-      Promise.resolve(supabase.from("students").update({ status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
-    }
-    if (transferredStudentIds.length > 0) {
-      Promise.resolve(supabase.from("users").update({ status: "TC Issued" }).in("id", transferredStudentIds)).catch(() => {});
-      Promise.resolve(supabase.from("students").update({ status: "TC Issued" }).in("id", transferredStudentIds)).catch(() => {});
+      Promise.resolve(supabase.from("gv_users").update({ role: "alumni" }).in("id", graduatedIds)).catch(() => {});
     }
   } catch {}
 
