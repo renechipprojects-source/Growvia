@@ -208,75 +208,11 @@ export function saveActivityTimeline(records: ActivityTimelineRecord[]) {
 }
 
 function getSeedPromotionHistory(): PromotionHistoryRecord[] {
-  return [
-    {
-      id: "PROM-SEED-1",
-      studentId: "STU1001",
-      fromClass: "Nursery A",
-      toClass: "LKG A",
-      fromAcademicYear: "2025-2026",
-      toAcademicYear: "2026-2027",
-      promotedBy: "Office Staff",
-      promotedOn: "2026-04-05",
-      status: "Promoted",
-      rollNo: 1,
-      notes: "Annual academic progression completed successfully.",
-    },
-    {
-      id: "PROM-SEED-2",
-      studentId: "STU1002",
-      fromClass: "LKG B",
-      toClass: "UKG B",
-      fromAcademicYear: "2025-2026",
-      toAcademicYear: "2026-2027",
-      promotedBy: "Office Staff",
-      promotedOn: "2026-04-05",
-      status: "Promoted",
-      rollNo: 2,
-      notes: "Annual academic progression completed successfully.",
-    },
-  ];
+  return [];
 }
 
 function getSeedTimeline(): ActivityTimelineRecord[] {
-  return [
-    {
-      id: "ACT-1",
-      studentId: "STU1001",
-      title: "Admission Created",
-      description: "Student enrolled in Sunshine Play School",
-      timestamp: "2025-06-01T09:00:00Z",
-      category: "Admission",
-      performedBy: "Office Staff",
-    },
-    {
-      id: "ACT-2",
-      studentId: "STU1001",
-      title: "Assigned to Nursery A",
-      description: "Allocated to Class Nursery Section A",
-      timestamp: "2025-06-05T10:30:00Z",
-      category: "Class Assignment",
-      performedBy: "Office Staff",
-    },
-    {
-      id: "ACT-3",
-      studentId: "STU1001",
-      title: "Fee Paid ₹5,000",
-      description: "Installment #1 paid via Cash",
-      timestamp: "2025-07-15T11:00:00Z",
-      category: "Fee",
-      performedBy: "Office Staff",
-    },
-    {
-      id: "ACT-4",
-      studentId: "STU1001",
-      title: "Promoted to LKG A",
-      description: "Promoted for Academic Year 2026-2027",
-      timestamp: "2026-04-05T14:00:00Z",
-      category: "Promotion",
-      performedBy: "Office Staff",
-    },
-  ];
+  return [];
 }
 
 // ─── 5. EXECUTION, ROLL NUMBERS & CONDITIONAL ROLLBACK ────────────────────────
