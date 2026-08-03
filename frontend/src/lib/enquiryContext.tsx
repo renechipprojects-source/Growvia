@@ -37,7 +37,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
 
   const updateStatus = useCallback((id: string, status: Enquiry["status"]) => {
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
-    Promise.resolve(supabase.from("enquiries").update({ status }).eq("id", id)).catch(() => {});
+    Promise.resolve(supabase.from("gv_requests").update({ status }).eq("id", id)).catch(() => {});
   }, []);
 
   const markConverted = useCallback((id: string) => {
@@ -47,12 +47,12 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
       return next;
     });
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Enrolled" } : e)));
-    Promise.resolve(supabase.from("enquiries").update({ status: "Enrolled" }).eq("id", id)).catch(() => {});
+    Promise.resolve(supabase.from("gv_requests").update({ status: "Enrolled" }).eq("id", id)).catch(() => {});
   }, []);
 
   const dropEnquiry = useCallback((id: string, reason: string) => {
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Dropped" as any, notes: `Dropped: ${reason}` } : e)));
-    Promise.resolve(supabase.from("enquiries").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
+    Promise.resolve(supabase.from("gv_requests").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
   }, []);
 
   const value = useMemo<Ctx>(

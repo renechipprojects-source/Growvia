@@ -72,7 +72,7 @@ export interface Teacher {
 
 export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecord[]; error: any }> {
   try {
-    let query = supabase.from("GV_users").select("*");
+    let query = supabase.from("gv_users").select("*");
     if (roleFilter) {
       query = query.eq("role", roleFilter);
     }
@@ -94,7 +94,7 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
 
 export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase.from("GV_users").select("*").eq("role", "student");
+    let { data, error } = await supabase.from("gv_users").select("*").eq("role", "student");
     if (error || !data || data.length === 0) {
       const fallbackRes = await supabase.from("users").select("*").eq("role", "student");
       if (fallbackRes.data && fallbackRes.data.length > 0) {
@@ -165,7 +165,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
 
 export async function fetchTeachersFromUsers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase.from("GV_users").select("*").eq("role", "teacher");
+    let { data, error } = await supabase.from("gv_users").select("*").eq("role", "teacher");
     if (error || !data || data.length === 0) {
       const fallbackRes = await supabase.from("users").select("*").eq("role", "teacher");
       if (fallbackRes.data && fallbackRes.data.length > 0) {
@@ -221,7 +221,7 @@ export async function saveUserRecord(user: Partial<UserRecord>) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase.from("GV_users").upsert([payload]).select();
+    const { data, error } = await supabase.from("gv_users").upsert([payload]).select();
     Promise.resolve(supabase.from("users").upsert([payload])).catch(() => {});
     return { data, error };
   } catch (err) {

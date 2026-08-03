@@ -41,7 +41,7 @@ function Expenses() {
 
     setItems((prev) => [newExp, ...prev]);
 
-    const { error } = await supabase.from("GV_inventory_expenses").insert([{
+    const { error } = await supabase.from("gv_inventory_expenses").insert([{
       id: newId,
       record_type: "expense",
       title: v.category,

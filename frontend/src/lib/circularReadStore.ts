@@ -28,10 +28,9 @@ function saveReadStore(store: ReadStore, key = READ_STORAGE_KEY) {
 export async function syncReadStoreFromSupabase() {
   try {
     const { data } = await supabase
-      .from("messages")
+      .from("gv_communications")
       .select("*")
-      .eq("sender_id", "SYSTEM")
-      .like("message_text", "READ_ACK:%");
+      .eq("message_type", "message");
 
     if (data && data.length > 0) {
       const readStore = getReadStore(READ_STORAGE_KEY);
@@ -69,7 +68,7 @@ export function markCircularAsRead(circularId: string, roleOrUserId: string) {
     store[circularId] = [...readers, roleOrUserId];
     saveReadStore(store, READ_STORAGE_KEY);
 
-    supabase.from("messages").insert([
+    supabase.from("gv_communications").insert([
       {
         sender_id: "SYSTEM",
         sender_name: "CircularReadStore",
@@ -99,7 +98,7 @@ export function acknowledgeCircular(circularId: string, roleOrUserId: string) {
     store[circularId] = [...acks, roleOrUserId];
     saveReadStore(store, ACK_STORAGE_KEY);
 
-    supabase.from("messages").insert([
+    supabase.from("gv_communications").insert([
       {
         sender_id: "SYSTEM",
         sender_name: "CircularReadStore",

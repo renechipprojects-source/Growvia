@@ -35,7 +35,7 @@ export async function fetchFees(studentId?: string): Promise<{ data: FeeRecord[]
     const devSettings = getDeveloperSettings();
     const activeYear = devSettings.school?.academicYear || "2026-2027";
 
-    let query = supabase.from("GV_fees_payments").select("*").eq("record_type", "fee_schedule");
+    let query = supabase.from("gv_fees_payments").select("*").eq("record_type", "fee_schedule");
     if (studentId) {
       query = query.eq("student_id", studentId);
     }
@@ -82,7 +82,7 @@ export async function fetchFees(studentId?: string): Promise<{ data: FeeRecord[]
 export async function fetchReceiptsFromModule(): Promise<{ data: ReceiptRecord[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_fees_payments")
+      .from("gv_fees_payments")
       .select("*")
       .eq("record_type", "payment_receipt");
 
@@ -156,7 +156,7 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_fees_payments").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_fees_payments").insert([payload]).select();
     Promise.resolve(supabase.from("fees_payments").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {

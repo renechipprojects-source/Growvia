@@ -130,7 +130,7 @@ export function generateParentCredential(
   write(store);
 
   Promise.resolve(
-    supabase.from("profiles").upsert([{
+    supabase.from("gv_users").upsert([{
       login_id: loginId,
       role: "parent",
       full_name: student.parent || "Parent",
@@ -167,7 +167,7 @@ export function setParentStatus(studentId: string, status: CredentialStatus) {
   store.parents[studentId] = { ...existing, status, updatedAt: new Date().toISOString() };
   write(store);
   Promise.resolve(supabase.from("users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
-  Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
+  Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
 // ─── Teacher CRUD ───────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ export async function createTeacherAuthAccount(params: {
 
   try {
     let { data: existingUser } = await supabase
-      .from("GV_users")
+      .from("gv_users")
       .select("id, auth_user_id")
       .eq("login_id", loginId)
       .maybeSingle();
@@ -244,16 +244,16 @@ export async function createTeacherAuthAccount(params: {
 
     if (existingUser) {
       await supabase
-        .from("GV_users")
+        .from("gv_users")
         .update(profilePayload)
         .eq("login_id", loginId);
       Promise.resolve(supabase.from("users").update(profilePayload).eq("login_id", loginId)).catch(() => {});
     } else {
-      await supabase.from("GV_users").upsert([profilePayload]);
+      await supabase.from("gv_users").upsert([profilePayload]);
       Promise.resolve(supabase.from("users").upsert([profilePayload])).catch(() => {});
     }
     // Dual-write profiles for backward compatibility fallback
-    Promise.resolve(supabase.from("profiles").upsert([profilePayload])).catch(() => {});
+    Promise.resolve(supabase.from("gv_users").upsert([profilePayload])).catch(() => {});
   } catch (err) {
     console.warn("Supabase user upsert notice:", err);
   }
@@ -343,7 +343,7 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   if (!existing) return;
   store.teachers[teacherId] = { ...existing, status, updatedAt: new Date().toISOString() };
   write(store);
-  Promise.resolve(supabase.from("profiles").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
+  Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
 // ─── Authentication (used by shared login page) ─────────────────────────

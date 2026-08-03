@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { classesList } from "@/lib/principal-mock-data";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 
@@ -29,23 +28,60 @@ function ClassesPage() {
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
-      if (data && data.length > 0) setStudentsList(data);
+      setStudentsList(data || []);
     });
     fetchTeachers().then(({ data }) => {
-      if (data && data.length > 0) setTeachersList(data as any);
+      setTeachersList((data as any) || []);
     });
   }, []);
 
-  const sections = useMemo(() => Array.from(new Set(classesList.map((c) => c.section))), []);
+  const derivedClassesList = useMemo(() => {
+    const classSet = new Set<string>();
+    studentsList.forEach((s) => classSet.add(`${s.className}_${s.section || "A"}`));
+    teachersList.forEach((t) => {
+      if (t.className) {
+        const parts = t.className.split(" ");
+        const clsName = parts[0] || t.className;
+        const secName = parts[1] || "A";
+        classSet.add(`${clsName}_${secName}`);
+      }
+    });
+
+    if (classSet.size === 0) {
+      classSet.add("Nursery_A");
+      classSet.add("LKG_A");
+      classSet.add("UKG_A");
+      classSet.add("UKG_B");
+    }
+
+    return Array.from(classSet).map((key, idx) => {
+      const [className, section] = key.split("_");
+      const studentsInClass = studentsList.filter((s) => s.className === className && (s.section || "A") === section);
+      const teacher = teachersList.find((t) => t.className?.includes(className) && t.className?.includes(section)) || teachersList[idx % Math.max(1, teachersList.length)];
+
+      return {
+        id: key,
+        name: `${className} ${section}`,
+        className,
+        section,
+        totalStudents: studentsInClass.length,
+        classTeacher: teacher ? teacher.name : "Unassigned",
+        teacherId: teacher ? teacher.id : "",
+        room: `Room 10${idx + 1}`,
+      };
+    });
+  }, [studentsList, teachersList]);
+
+  const sections = useMemo(() => Array.from(new Set(derivedClassesList.map((c) => c.section))), [derivedClassesList]);
 
   const filtered = useMemo(
     () =>
-      classesList.filter((c) => {
+      derivedClassesList.filter((c) => {
         const matchQ = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.classTeacher.toLowerCase().includes(q.toLowerCase());
         const matchS = sec === "all" || c.section === sec;
         return matchQ && matchS;
       }),
-    [q, sec],
+    [derivedClassesList, q, sec],
   );
 
   return (

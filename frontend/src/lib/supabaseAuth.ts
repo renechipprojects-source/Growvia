@@ -26,7 +26,7 @@ export async function triggerServerUserProvisioning(loginId?: string) {
 export async function ensureDeveloperAccount() {
   try {
     let { data: existingUser } = await supabase
-      .from("GV_users")
+      .from("gv_users")
       .select("*")
       .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
       .maybeSingle();
@@ -68,7 +68,7 @@ export async function ensureDeveloperAccount() {
         must_change_password: false,
       };
 
-      await supabase.from("GV_users").upsert([payload], { onConflict: "login_id" });
+      await supabase.from("gv_users").upsert([payload], { onConflict: "login_id" });
     }
   } catch {}
 }
@@ -86,7 +86,7 @@ export async function login(loginId: string, password: string) {
     // Find user profile in primary GV_users table (with fallback to legacy users/profiles tables)
     let profile: any = null;
     let { data: userData } = await supabase
-      .from("GV_users")
+      .from("gv_users")
       .select(`
         id,
         auth_user_id,

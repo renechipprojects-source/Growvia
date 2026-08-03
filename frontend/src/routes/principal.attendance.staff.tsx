@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
-import { staffAttendance as initialStaff } from "@/lib/principal-mock-data";
 
 export const Route = createFileRoute("/principal/attendance/staff")({
   head: () => ({
@@ -34,12 +33,11 @@ function StaffAttendancePage() {
 
   useEffect(() => {
     fetchTeachers().then(({ data }) => {
-      if (data && data.length > 0) setTeachersList(data as any);
+      setTeachersList((data as any) || []);
     });
   }, []);
 
   const staffData = useMemo(() => {
-    if (teachersList.length === 0) return initialStaff;
     return teachersList.map((t, idx) => ({
       id: t.id || `STF-${idx}`,
       name: t.name,

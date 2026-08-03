@@ -205,7 +205,7 @@ function InventoryPage() {
                 <TableCell className="text-xs">{p.date}</TableCell>
                 <TableCell className="font-medium">{p.invoiceNo}</TableCell>
                 <TableCell>{vendorName(p.vendorId)}</TableCell>
-                <TableCell>{itemName(p.itemId)}</TableCell>
+                <TableCell>{itemName(p.itemId || "")}</TableCell>
                 <TableCell>{p.qty}</TableCell>
                 <TableCell>₹{p.unitPrice}</TableCell>
                 <TableCell className="font-semibold">₹{p.total}</TableCell>

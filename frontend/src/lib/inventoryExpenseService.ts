@@ -30,7 +30,7 @@ export interface ExpenseRecord {
 export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemRecord[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_inventory_expenses")
+      .from("gv_inventory_expenses")
       .select("*")
       .eq("record_type", "inventory");
 
@@ -85,7 +85,7 @@ export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemR
 export async function fetchExpensesFromModule(): Promise<{ data: ExpenseRecord[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_inventory_expenses")
+      .from("gv_inventory_expenses")
       .select("*")
       .eq("record_type", "expense");
 
@@ -149,7 +149,7 @@ export async function saveInventoryItemToModule(item: Partial<InventoryItemRecor
   };
 
   try {
-    const { data, error } = await supabase.from("GV_inventory_expenses").upsert([payload]).select();
+    const { data, error } = await supabase.from("gv_inventory_expenses").upsert([payload]).select();
     Promise.resolve(supabase.from("inventory_expenses").upsert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
@@ -172,7 +172,7 @@ export async function recordExpenseToModule(expense: Partial<ExpenseRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_inventory_expenses").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_inventory_expenses").insert([payload]).select();
     Promise.resolve(supabase.from("inventory_expenses").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {

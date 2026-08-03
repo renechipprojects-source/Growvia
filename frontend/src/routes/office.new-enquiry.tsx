@@ -47,7 +47,7 @@ function NewEnquiry() {
                 notes: v.notes,
               });
               if (error) {
-                toast.error(`Error creating enquiry: ${error.message}`);
+                toast.error(`Error creating enquiry: ${typeof error === "string" ? error : (error as any)?.message || "Failed"}`);
                 return;
               }
               toast.success(`Enquiry created for ${v.childName} — synced to Supabase.`);

@@ -221,7 +221,7 @@ function NotebooksTab() {
                 toast.error(`Cannot issue ${qty} — only ${issueTarget.qty} in stock!`);
                 return;
               }
-              issueItem({
+              issueItem?.({
                 itemId: issueTarget.id,
                 issuedTo: issuedTo || "Nursery A",
                 qty,
@@ -589,9 +589,9 @@ function PurchasesTab() {
               <TableCell className="font-medium">{p.invoiceNo}</TableCell>
               <TableCell>{vendors.find((v) => v.id === p.vendorId)?.name ?? "—"}</TableCell>
               <TableCell>{items.find((i) => i.id === p.itemId)?.name ?? "—"}</TableCell>
-              <TableCell className="text-right">{p.qty}</TableCell>
-              <TableCell className="text-right">{currency(p.unitPrice)}</TableCell>
-              <TableCell className="text-right font-semibold">{currency(p.total)}</TableCell>
+              <TableCell className="text-right">{p.qty ?? 0}</TableCell>
+              <TableCell className="text-right">{currency(p.unitPrice ?? 0)}</TableCell>
+              <TableCell className="text-right font-semibold">{currency(p.total ?? 0)}</TableCell>
             </TableRow>
           ))}
           {purchases.length === 0 && (
@@ -760,7 +760,7 @@ function IssuesTab() {
               </TableCell>
               <TableCell className="text-right">
                 {!is.returned && (
-                  <Button size="sm" variant="outline" onClick={() => { returnItem(is.id); toast.success("Item returned"); }}>
+                  <Button size="sm" variant="outline" onClick={() => { returnItem?.(is.id); toast.success("Item returned"); }}>
                     <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
                   </Button>
                 )}
@@ -777,7 +777,7 @@ function IssuesTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>Issue item</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit((d) => {
-            issueItem({ ...d, qty: Number(d.qty) });
+            issueItem?.({ ...d, qty: Number(d.qty) });
             toast.success("Item issued");
             setOpen(false);
           })} className="grid grid-cols-2 gap-3">

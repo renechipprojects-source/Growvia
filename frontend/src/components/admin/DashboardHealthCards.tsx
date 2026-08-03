@@ -20,9 +20,9 @@ export function DashboardHealthCards() {
       try {
         const [adminStats, circularsRes, feesRes, transportRes, inventoryRes] = await Promise.all([
           getAdminDashboardStats(),
-          supabase.from("circulars").select("id", { count: "exact", head: true }),
-          supabase.from("fees").select("id, status").eq("status", "Pending"),
-          supabase.from("students").select("id", { count: "exact", head: true }).not("route_id", "is", null),
+          supabase.from("gv_communications").select("id", { count: "exact", head: true }).eq("message_type", "circular"),
+          supabase.from("gv_fees_payments").select("id, status").eq("status", "Pending"),
+          supabase.from("gv_users").select("id", { count: "exact", head: true }).eq("role", "student"),
           supabase.from("inventory").select("id", { count: "exact", head: true }).lt("stock_quantity", 5),
         ]);
 

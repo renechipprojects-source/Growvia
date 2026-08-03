@@ -18,7 +18,7 @@ export interface MessageRecord {
 export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_communications")
+      .from("gv_communications")
       .select("*")
       .eq("message_type", "circular")
       .order("published_at", { ascending: false });
@@ -66,7 +66,7 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
 export async function fetchMessagesFromModule(userId: string): Promise<{ data: MessageRecord[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_communications")
+      .from("gv_communications")
       .select("*")
       .eq("message_type", "general_message")
       .or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
@@ -131,7 +131,7 @@ export async function publishCircularToModule(circular: Partial<Circular>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_communications").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
     Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
@@ -155,7 +155,7 @@ export async function sendMessageToModule(msg: Partial<MessageRecord>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_communications").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
     Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {

@@ -10,8 +10,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { fetchTeachers } from "@/lib/supabaseService";
-import { type Teacher } from "@/lib/principal-mock-data";
 import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
+
+export interface Teacher {
+  id: string;
+  empId: string;
+  name: string;
+  subject: string;
+  qualification: string;
+  phone: string;
+  email: string;
+  experience: number;
+  classesAssigned: string[];
+  status: "Active" | "Inactive";
+}
 
 export const Route = createFileRoute("/principal/teachers")({
   head: () => ({

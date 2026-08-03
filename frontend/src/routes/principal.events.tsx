@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/principal/PageHeader";
-import {
-  eventsList as seedEvents,
-  ALL_EVENT_AUDIENCES,
-  type EventItem,
-  type EventAudience,
-} from "@/lib/principal-mock-data";
+export type EventAudience = "All" | "Parents" | "Teachers" | "Students" | "Staff";
+export const ALL_EVENT_AUDIENCES: EventAudience[] = ["All", "Parents", "Teachers", "Students", "Staff"];
+
+export interface EventItem {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue?: string;
+  location?: string;
+  type: "Academic" | "Cultural" | "Sports" | "Holiday" | "Other" | "Meeting";
+  description: string;
+  audiences?: EventAudience[];
+  audience?: EventAudience[];
+  image?: string;
+}
 import { MapPin, Clock, Tag, Plus, Pencil, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -59,6 +69,7 @@ const typeColor: Record<EventItem["type"], string> = {
   Sports: "bg-success/15 text-success border-success/30",
   Holiday: "bg-warning/20 text-warning-foreground border-warning/40",
   Meeting: "bg-accent text-accent-foreground border-accent",
+  Other: "bg-muted text-muted-foreground border-border",
 };
 
 const EVENT_TYPES: EventItem["type"][] = ["Academic", "Cultural", "Sports", "Holiday", "Meeting"];
@@ -76,7 +87,7 @@ const emptyForm: FormState = {
 };
 
 function EventsPage() {
-  const [events, setEvents] = useState<EventItem[]>(seedEvents);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -95,29 +106,37 @@ function EventsPage() {
 
   const openEdit = (e: EventItem) => {
     setEditingId(e.id);
+    const aud = e.audience || e.audiences || [];
     setForm({
       title: e.title,
       description: e.description ?? "",
       date: e.date,
       time: e.time,
-      location: e.location,
+      location: e.location || e.venue || "",
       type: e.type,
-      audience: [...e.audience],
+      audience: [...aud],
+      audiences: [...aud],
     });
     setDialogOpen(true);
   };
 
   const toggleAudience = (a: EventAudience, checked: boolean) => {
-    setForm((f) => ({
-      ...f,
-      audience: checked ? [...new Set([...f.audience, a])] : f.audience.filter((x) => x !== a),
-    }));
+    setForm((f) => {
+      const current = f.audience || f.audiences || [];
+      const updated = checked ? [...new Set([...current, a])] : current.filter((x) => x !== a);
+      return {
+        ...f,
+        audience: updated,
+        audiences: updated,
+      };
+    });
   };
 
   const handleSubmit = () => {
     if (!form.title.trim()) return toast.error("Title is required.");
     if (!form.date) return toast.error("Date is required.");
-    if (form.audience.length === 0) return toast.error("Select at least one audience.");
+    const aud = form.audience || form.audiences || [];
+    if (aud.length === 0) return toast.error("Select at least one audience.");
 
     if (editingId) {
       setEvents((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form } : e)));
@@ -204,7 +223,7 @@ function EventsPage() {
                 <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Audience</Label>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {ALL_EVENT_AUDIENCES.map((a) => {
-                    const checked = form.audience.includes(a);
+                    const checked = (form.audience || form.audiences || []).includes(a);
                     return (
                       <label
                         key={a}
@@ -283,7 +302,7 @@ function EventsPage() {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {e.audience.map((a) => (
+                    {(e.audience || e.audiences || []).map((a) => (
                       <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
                     ))}
                   </div>

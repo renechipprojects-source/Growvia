@@ -12,10 +12,29 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ALL_RECIPIENTS, type Circular, type RecipientRole } from "@/lib/principal-mock-data";
-import { createCircular, fetchCirculars, deleteCircular as deleteCircularService } from "@/lib/supabaseService";
+import { createCircular, fetchCirculars, deleteCircular as deleteCircularService, type Circular as SupabaseCircular } from "@/lib/supabaseService";
 import { NotificationService, type Role } from "@/lib/notifications";
 import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
+
+export type RecipientRole = "Admin" | "Teachers" | "Office Staff" | "Parents";
+export const ALL_RECIPIENTS: RecipientRole[] = ["Admin", "Teachers", "Office Staff", "Parents"];
+
+export interface Circular {
+  id: string;
+  title: string;
+  subject: string;
+  description: string;
+  priority: "High" | "Medium" | "Low";
+  publishDate: string;
+  expiryDate: string;
+  recipients: RecipientRole[];
+  status: "Draft" | "Published" | "Scheduled" | "Archived";
+  createdAt: string;
+  history: { at: string; action: string }[];
+  attachment?: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+}
 
 export const Route = createFileRoute("/principal/circulars")({
   head: () => ({

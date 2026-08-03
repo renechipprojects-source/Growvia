@@ -7,7 +7,7 @@ import type { Enquiry } from "./mockData";
 export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveRequest[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_requests")
+      .from("gv_requests")
       .select("*")
       .eq("request_type", "leave");
 
@@ -58,7 +58,7 @@ export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveReque
 export async function fetchEnquiriesFromModule(): Promise<{ data: Enquiry[]; isFromSupabase: boolean }> {
   try {
     let { data, error } = await supabase
-      .from("GV_requests")
+      .from("gv_requests")
       .select("*")
       .eq("request_type", "enquiry");
 
@@ -137,7 +137,7 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_requests").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
     Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
@@ -164,7 +164,7 @@ export async function createEnquiryToModule(enquiry: Partial<Enquiry>) {
   };
 
   try {
-    const { data, error } = await supabase.from("GV_requests").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
     Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {

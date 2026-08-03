@@ -367,7 +367,7 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
   };
 
   // 1. Supabase persistence is the AUTHORITATIVE source of truth. Must succeed before localStorage/state update.
-  const { error } = await supabase.from("GV_system_settings").upsert(payload, { onConflict: "id" });
+  const { error } = await supabase.from("gv_system_settings").upsert(payload, { onConflict: "id" });
 
   if (error) {
     throw new Error(`Failed to save settings to Supabase DB: ${error.message}`);
@@ -494,7 +494,7 @@ export function useDeveloperSettings() {
 
     // Initial Supabase Sync: Primary DB row is authoritative
     supabase
-      .from("GV_system_settings")
+      .from("gv_system_settings")
       .select("*")
       .eq("id", "PRIMARY")
       .maybeSingle()

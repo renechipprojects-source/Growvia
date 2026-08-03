@@ -8,9 +8,36 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { type Student } from "@/lib/principal-mock-data";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+
+export interface Student {
+  id: string;
+  admissionNo: string;
+  name: string;
+  gender: "Male" | "Female";
+  className: string;
+  section: string;
+  rollNo: number;
+  dob: string;
+  bloodGroup: string;
+  address: string;
+  parent: {
+    name: string;
+    phone: string;
+    email: string;
+    occupation: string;
+  };
+  academic: {
+    term: string;
+    average: number;
+    rank: number;
+    remarks: string;
+  };
+  attendance: { present: number; absent: number; late: number; total: number };
+  teacherRemarks: string;
+  avatarSeed?: string;
+}
 
 export const Route = createFileRoute("/principal/students")({
   head: () => ({

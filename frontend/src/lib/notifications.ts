@@ -155,10 +155,10 @@ export function syncLiveDatabaseNotifications() {
         }
       });
 
-      fetchLeaveRequests().then(({ data }) => {
+      fetchLeaveRequests().then(({ data }: any) => {
         if (data && data.length > 0) {
           let updated = false;
-          data.forEach((l) => {
+          data.forEach((l: any) => {
             const notifId = `n-lv-${l.id || l.applicant_name}`;
             if (!store.some((n) => n.id === notifId)) {
               const isPending = l.status === "Pending";

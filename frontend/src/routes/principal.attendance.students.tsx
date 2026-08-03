@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
-import { studentAttendance as initialAttendance } from "@/lib/principal-mock-data";
 import { useLiveAttendance, getStudentAttendanceDetails } from "@/lib/attendanceStore";
 import { AttendanceDetailsModal } from "@/routes/admin.attendance.students";
 
@@ -48,8 +47,7 @@ function StudentAttendancePage() {
   }, []);
 
   const attendanceData = useMemo(() => {
-    const list = studentsList.length > 0 ? studentsList : (initialAttendance as any);
-    return list.map((s: any, idx: number) => {
+    return studentsList.map((s: any, idx: number) => {
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
       const st = live ? live.status : "P";
       return {
