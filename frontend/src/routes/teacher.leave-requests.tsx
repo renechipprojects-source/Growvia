@@ -23,12 +23,6 @@ interface Req {
   remarks?: string;
 }
 
-const SEED: Req[] = [
-  { id: "LV-101", student: "Diya Patel", className: "Nursery A", parent: "Neha Patel", from: "2026-07-24", to: "2026-07-26", reason: "Family wedding out of town", status: "Pending" },
-  { id: "LV-102", student: "Aarav Sharma", className: "Nursery A", parent: "Rohit Sharma", from: "2026-07-23", to: "2026-07-23", reason: "Doctor's appointment", status: "Pending" },
-  { id: "LV-103", student: "Kiara Reddy", className: "Nursery A", parent: "Sneha Reddy", from: "2026-07-18", to: "2026-07-19", reason: "Fever & cold", status: "Approved", remarks: "Get well soon!" },
-];
-
 export const Route = createFileRoute("/teacher/leave-requests")({ component: LeaveRequests });
 
 function LeaveRequests() {
@@ -36,19 +30,16 @@ function LeaveRequests() {
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [localStatuses, setLocalStatuses] = useState<Record<string, "Approved" | "Rejected">>({});
 
-  const allReqs: Req[] = [
-    ...liveRequests.map((r) => ({
-      id: r.id,
-      student: r.studentName,
-      className: `${r.className}-${r.section}`,
-      parent: `${r.studentName}'s Parent`,
-      from: r.from,
-      to: r.to,
-      reason: r.reason,
-      status: (localStatuses[r.id] ?? r.status) as any,
-    })),
-    ...SEED,
-  ];
+  const allReqs: Req[] = liveRequests.map((r) => ({
+    id: r.id,
+    student: r.studentName,
+    className: `${r.className}-${r.section}`,
+    parent: `${r.studentName}'s Parent`,
+    from: r.from,
+    to: r.to,
+    reason: r.reason,
+    status: (localStatuses[r.id] ?? r.status) as any,
+  }));
 
   const act = (id: string, status: "Approved" | "Rejected") => {
     const req = allReqs.find((r) => r.id === id);

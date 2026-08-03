@@ -80,19 +80,19 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
               <Users className="h-4 w-4 text-sky-600" /> Enrolled Student Roster
             </div>
             <div className="space-y-2 pt-1 max-h-48 overflow-y-auto">
-              {(classStudents.length > 0 ? classStudents : [
-                { id: "S-1", name: "Aarav Sharma", admissionNo: "SUN-2026-001", parent: "Mr. Sharma" },
-                { id: "S-2", name: "Kiara Patel", admissionNo: "SUN-2026-002", parent: "Mrs. Patel" },
-                { id: "S-3", name: "Vivaan Rao", admissionNo: "SUN-2026-003", parent: "Dr. Rao" },
-              ]).map((s: any) => (
-                <div key={s.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-100 text-xs">
-                  <div>
-                    <span className="font-semibold text-slate-800">{s.name}</span>
-                    <span className="text-[11px] text-slate-400 block">Admission #{s.admissionNo || s.id}</span>
+              {classStudents.length > 0 ? (
+                classStudents.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-100 text-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">{s.name}</span>
+                      <span className="text-[11px] text-slate-400 block">Admission #{s.admissionNo || s.id}</span>
+                    </div>
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[10px]">Active</Badge>
                   </div>
-                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[10px]">Active</Badge>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-xs text-slate-400 italic p-3 text-center">No students currently enrolled in this class section.</div>
+              )}
             </div>
           </div>
         </div>

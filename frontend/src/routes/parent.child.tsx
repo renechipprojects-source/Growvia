@@ -15,7 +15,7 @@ function ParentChild() {
   const { t } = useT();
   const { getClassTeacher, getSubjectTeachers } = useClassAssignments();
 
-  const classTeacher = getClassTeacher(CHILD.className, CHILD.section || "A")?.teacherName || "Mrs. Priya";
+  const classTeacher = getClassTeacher(CHILD.className, CHILD.section || "A")?.teacherName || "Not assigned";
   const subjectTeachers = getSubjectTeachers(CHILD.className, CHILD.section || "A");
 
   const firstName = CHILD.name.split(" ")[0];

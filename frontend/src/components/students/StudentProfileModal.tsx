@@ -114,7 +114,7 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
                 <div>
                   <span className="text-slate-400 block font-medium">Class Teacher</span>
                   <span className="font-bold text-indigo-700">
-                    {getClassTeacher(student.className || "Nursery", student.section || "A")?.teacherName || "Mrs. Priya"}
+                    {getClassTeacher(student.className || "Nursery", student.section || "A")?.teacherName || "Unassigned"}
                   </span>
                 </div>
                 <div><span className="text-slate-400 block font-medium">Attendance Rate</span><span className="font-bold text-emerald-600">96% Present</span></div>

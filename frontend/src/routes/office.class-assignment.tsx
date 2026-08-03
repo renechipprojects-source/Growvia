@@ -17,18 +17,13 @@ const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as 
 const SECTIONS = ["A", "B", "C"] as const;
 const SUBJECTS = ["English", "Mathematics", "Rhymes & Phonics", "Environmental Studies", "Drawing & Art", "Physical Ed", "General Knowledge"] as const;
 
-const TEACHERS = [
-  { id: "TCH100", name: "Mrs. Priya" },
-  { id: "TCH101", name: "Ms. Anjali" },
-  { id: "TCH102", name: "Mr. Rakesh" },
-  { id: "TCH103", name: "Mrs. Kavitha" },
-];
+import { fetchTeachers } from "@/lib/supabaseService";
 
 type Draft = Omit<ClassAssignment, "id"> & { id?: string };
 
 const EMPTY: Draft = {
-  teacherId: "TCH100",
-  teacherName: "Mrs. Priya",
+  teacherId: "",
+  teacherName: "Select Teacher",
   academicYear: "2026-27",
   role: "class",
   className: "Nursery",
@@ -44,7 +39,17 @@ function ClassAssignmentPage() {
   const { assignments, create, update, remove, toggle, getWorkload } = useClassAssignments();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [liveTeachers, setLiveTeachers] = useState<Array<{ id: string; name: string }>>([]);
   const { setFormEditing, triggerModuleRefresh } = useAutoRefresh();
+
+  useEffect(() => {
+    fetchTeachers().then(({ data }) => {
+      if (data && data.length > 0) {
+        const mapped = data.map((t) => ({ id: t.id, name: t.name }));
+        setLiveTeachers(mapped);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setFormEditing(open);
@@ -68,7 +73,7 @@ function ClassAssignmentPage() {
       toast.error("Subject assignments require a subject.");
       return;
     }
-    const teacher = TEACHERS.find((t) => t.id === draft.teacherId);
+    const teacher = liveTeachers.find((t) => t.id === draft.teacherId);
     const payload: Omit<ClassAssignment, "id"> = {
       teacherId: draft.teacherId,
       teacherName: teacher?.name ?? draft.teacherName,
@@ -125,7 +130,7 @@ function ClassAssignmentPage() {
       {/* 1. Teacher Workload Overview (Monitoring) */}
       <SectionCard title="Teacher Workload Overview">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TEACHERS.map((t) => {
+          {liveTeachers.map((t) => {
             const wl = getWorkload(t.id);
             return (
               <div key={t.id} className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-3">
@@ -269,7 +274,7 @@ function ClassAssignmentPage() {
               <Select value={draft.teacherId} onValueChange={(v) => setDraft((d) => ({ ...d, teacherId: v }))}>
                 <SelectTrigger className="mt-1 rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {TEACHERS.map((t) => (
+                  {liveTeachers.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name} ({t.id})</SelectItem>
                   ))}
                 </SelectContent>

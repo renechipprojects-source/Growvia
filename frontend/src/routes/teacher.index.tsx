@@ -10,14 +10,18 @@ import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useActivities } from "@/lib/activitiesStore";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
+import { getSession } from "@/lib/auth";
+
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
+  const session = getSession();
+  const teacherName = session?.name || "Teacher";
+  const teacherId = session?.linkId || session?.loginId || "TCH100";
   const { activities: liveActivities } = useActivities();
   const { getClassTeacher, getWorkload, assignments } = useClassAssignments();
   
-  // Teacher Mrs. Priya (TCH100) assignments
-  const workload = getWorkload("TCH100");
+  const workload = getWorkload(teacherId);
   const classTeacherOfStr = workload.classTeacherOf || "Nursery-A";
   const [classNameStr, sectionStr = "A"] = classTeacherOfStr.split("-");
   const primaryClass = { className: classNameStr, section: sectionStr };
@@ -49,7 +53,7 @@ function Dash() {
   return (
     <div>
       <PageHeader
-        title="Good morning, Mrs. Priya ☀️"
+        title={`Good morning, ${teacherName} ☀️`}
         subtitle={
           primaryClass
             ? `Your ${primaryClass.className}-${primaryClass.section} class · ${total} students`

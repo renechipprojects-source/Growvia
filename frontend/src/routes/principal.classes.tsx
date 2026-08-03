@@ -47,17 +47,10 @@ function ClassesPage() {
       }
     });
 
-    if (classSet.size === 0) {
-      classSet.add("Nursery_A");
-      classSet.add("LKG_A");
-      classSet.add("UKG_A");
-      classSet.add("UKG_B");
-    }
-
     return Array.from(classSet).map((key, idx) => {
       const [className, section] = key.split("_");
       const studentsInClass = studentsList.filter((s) => s.className === className && (s.section || "A") === section);
-      const teacher = teachersList.find((t) => t.className?.includes(className) && t.className?.includes(section)) || teachersList[idx % Math.max(1, teachersList.length)];
+      const teacher = teachersList.find((t) => t.className?.includes(className) && t.className?.includes(section));
 
       return {
         id: key,

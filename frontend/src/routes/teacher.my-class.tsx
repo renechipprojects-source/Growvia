@@ -13,6 +13,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { getSession } from "@/lib/auth";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/teacher/my-class")({ component: MyClass });
@@ -120,7 +121,7 @@ function MyClass() {
           <div className="grid lg:grid-cols-3 gap-4">
             <SectionCard title="Class information" className="lg:col-span-2">
               <ul className="grid sm:grid-cols-2 gap-2 text-sm">
-                <li className="rounded-2xl bg-white/60 p-3"><b>Class Teacher:</b> Mrs. Priya Menon</li>
+                <li className="rounded-2xl bg-white/60 p-3"><b>Class Teacher:</b> {getSession()?.name || "Assigned Teacher"}</li>
                 <li className="rounded-2xl bg-white/60 p-3"><b>Classroom:</b> Sunflower Room · 1st Floor</li>
                 <li className="rounded-2xl bg-white/60 p-3"><b>Strength:</b> {list.length} students</li>
                 <li className="rounded-2xl bg-white/60 p-3"><b>Homework pending:</b> {classHW.filter((h) => h.status === "Pending").length}</li>
