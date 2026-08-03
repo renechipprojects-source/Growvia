@@ -94,49 +94,13 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
 
 export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase.from("gv_users").select("*").eq("role", "student");
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("users").select("*").eq("role", "student");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    const { data, error } = await supabase.from("gv_users").select("*").eq("role", "student");
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy students table
-      const { data: legacy } = await supabase.from("students").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: Student[] = legacy.map((d: any) => ({
-          id: d.id,
-          rollNo: d.roll_no || 1,
-          admissionNo: d.admission_no || d.id,
-          name: d.name,
-          age: d.age || 4,
-          dob: d.dob || "2020-01-01",
-          className: d.class_name,
-          section: d.section || "A",
-          parent: d.parent_name || "Parent",
-          parentName: d.parent_name,
-          parentId: d.parent_id || "PRT1001",
-          phone: d.phone || "9876543210",
-          gender: d.gender || "Boy",
-          house: d.house || "Red",
-          admissionDate: d.admission_date || "2024-04-01",
-          feeStatus: d.fee_status || "Pending",
-          avatar: d.avatar,
-          attendance: Number(d.attendance_pct || 95),
-          attendancePct: Number(d.attendance_pct || 95),
-          branch: d.branch || "Main Branch",
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: Student[] = data.map((d: any, idx: number) => ({
+    const mapped: Student[] = rows.map((d: any, idx: number) => ({
       id: d.id,
-      rollNo: idx + 1,
+      rollNo: d.roll_no || idx + 1,
       admissionNo: d.admission_no || d.id,
       name: d.full_name,
       age: 4,
@@ -145,11 +109,11 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
       section: d.section || "A",
       parent: d.parent_name || "Parent",
       parentName: d.parent_name || "Parent",
-      parentId: d.parent_id || "PRT1001",
-      phone: d.mobile || "9876543210",
+      parentId: d.parent_id || `PAR-${d.id}`,
+      phone: d.mobile || "",
       gender: (d.gender as any) || "Boy",
       house: (d.house as any) || "Red",
-      admissionDate: d.joining_date || "2024-04-01",
+      admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
       feeStatus: (d.fee_status as any) || "Pending",
       avatar: d.photo_url || undefined,
       attendance: Number(d.attendance_pct || 95),
@@ -165,45 +129,19 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
 
 export async function fetchTeachersFromUsers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase.from("gv_users").select("*").eq("role", "teacher");
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("users").select("*").eq("role", "teacher");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    const { data, error } = await supabase.from("gv_users").select("*").eq("role", "teacher");
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy teachers table
-      const { data: legacy } = await supabase.from("teachers").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: Teacher[] = legacy.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          className: d.class_name,
-          subject: d.subject,
-          email: d.email,
-          phone: d.phone,
-          experience: d.experience || 1,
-          joined: d.joined_date || "2024-01-01",
-          avatar: d.avatar,
-          branch: d.branch || "Main Branch",
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: Teacher[] = data.map((d: any) => ({
+    const mapped: Teacher[] = rows.map((d: any) => ({
       id: d.id,
       name: d.full_name,
       className: d.class_name || "Nursery A",
       subject: d.subject || "General",
       email: d.email,
-      phone: d.mobile || "9876543210",
-      experience: d.experience || 1,
-      joined: d.joining_date || "2024-01-01",
+      phone: d.mobile || "",
+      experience: d.experience || 0,
+      joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
       avatar: d.photo_url || undefined,
       branch: d.branch || "Main Branch",
     }));

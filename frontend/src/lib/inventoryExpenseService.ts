@@ -29,41 +29,15 @@ export interface ExpenseRecord {
 
 export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemRecord[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_inventory_expenses")
       .select("*")
       .eq("record_type", "inventory");
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("inventory_expenses").select("*").eq("record_type", "inventory");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy inventory_items
-      const { data: legacy } = await supabase.from("inventory_items").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: InventoryItemRecord[] = legacy.map((d: any) => ({
-          id: d.id,
-          itemName: d.item_name,
-          category: d.category,
-          quantity: d.quantity,
-          unit: d.unit,
-          minStock: d.min_stock,
-          status: d.quantity === 0 ? "Out of Stock" : d.quantity <= d.min_stock ? "Low Stock" : "In Stock",
-          lastRestocked: new Date(d.updated_at || d.created_at).toISOString().split("T")[0],
-          supplier: d.supplier || "Vendor",
-          notes: d.notes,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: InventoryItemRecord[] = data.map((d: any) => ({
+    const mapped: InventoryItemRecord[] = rows.map((d: any) => ({
       id: d.id,
       itemName: d.title,
       category: d.category,
@@ -84,49 +58,24 @@ export async function fetchInventoryFromModule(): Promise<{ data: InventoryItemR
 
 export async function fetchExpensesFromModule(): Promise<{ data: ExpenseRecord[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_inventory_expenses")
       .select("*")
       .eq("record_type", "expense");
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("inventory_expenses").select("*").eq("record_type", "expense");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy expenses table
-      const { data: legacy } = await supabase.from("expenses").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: ExpenseRecord[] = legacy.map((d: any) => ({
-          id: d.id,
-          category: d.category,
-          amount: Number(d.amount),
-          paymentMethod: d.payment_method || "Cash",
-          expenseDate: d.expense_date,
-          receiptRef: d.receipt_ref || "",
-          notes: d.notes || "",
-          createdBy: d.created_by || "Office Staff",
-          createdAt: d.created_at,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: ExpenseRecord[] = data.map((d: any) => ({
+    const mapped: ExpenseRecord[] = rows.map((d: any) => ({
       id: d.id,
       category: d.category,
       amount: Number(d.amount_or_unit_cost || 0),
-      paymentMethod: d.payment_method || "Cash",
-      expenseDate: d.transaction_date || new Date().toISOString().split("T")[0],
+      paymentMethod: (d.payment_method as any) || "Cash",
+      expenseDate: d.transaction_date || d.created_at?.slice(0, 10),
       receiptRef: d.receipt_ref || "",
       notes: d.notes || "",
       createdBy: d.created_by || "Office Staff",
-      createdAt: d.created_at,
+      createdAt: d.created_at || new Date().toISOString(),
     }));
 
     return { data: mapped, isFromSupabase: true };
@@ -134,6 +83,7 @@ export async function fetchExpensesFromModule(): Promise<{ data: ExpenseRecord[]
     return { data: [], isFromSupabase: false };
   }
 }
+
 
 export async function saveInventoryItemToModule(item: Partial<InventoryItemRecord>) {
   const payload = {

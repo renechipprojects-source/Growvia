@@ -67,7 +67,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
           (session.name && s.parent && s.parent.toLowerCase() === session.name.toLowerCase()) ||
           (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, "")))
       );
-      if (matching.length > 0) return matching;
+      return matching.length > 0 ? matching : [emptyStudent];
     }
     return allStudents.length > 0 ? allStudents : [emptyStudent];
   }, [allStudents, session]);

@@ -17,38 +17,16 @@ export interface MessageRecord {
 
 export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_communications")
       .select("*")
       .eq("message_type", "circular")
       .order("published_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("communications").select("*").eq("message_type", "circular").order("published_at", { ascending: false });
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy circulars table
-      const { data: legacy } = await supabase.from("circulars").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: Circular[] = legacy.map((d: any) => ({
-          id: d.id,
-          title: d.title,
-          content: d.content,
-          published_date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
-          target_audience: d.target_audience || "All",
-          author: d.author || "School Admin",
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: Circular[] = data.map((d: any) => ({
+    const mapped: Circular[] = rows.map((d: any) => ({
       id: d.id,
       title: d.title || "School Circular",
       content: d.body,
@@ -65,50 +43,25 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
 
 export async function fetchMessagesFromModule(userId: string): Promise<{ data: MessageRecord[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_communications")
       .select("*")
       .eq("message_type", "general_message")
       .or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("communications").select("*").eq("message_type", "general_message").or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy messages table
-      const { data: legacy } = await supabase.from("messages").select("*").or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-      if (legacy && legacy.length > 0) {
-        const mapped: MessageRecord[] = legacy.map((d: any) => ({
-          id: d.id,
-          sender_id: d.sender_id,
-          sender_name: d.sender_name,
-          sender_role: d.sender_role,
-          receiver_id: d.receiver_id,
-          receiver_role: d.receiver_role,
-          message_text: d.message_text,
-          sent_at: d.sent_at,
-          read_status: d.read_status,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: MessageRecord[] = data.map((d: any) => ({
+    const mapped: MessageRecord[] = rows.map((d: any) => ({
       id: d.id,
       sender_id: d.sender_id,
-      sender_name: d.sender_name || "Sender",
-      sender_role: d.sender_role || "user",
-      receiver_id: d.recipient_user_id || "all",
-      receiver_role: d.recipient_role || "user",
-      message_text: d.body,
-      sent_at: d.published_at || d.created_at,
-      read_status: !!d.read_status,
+      sender_name: d.sender_name,
+      sender_role: d.sender_role,
+      receiver_id: d.recipient_user_id || "ALL",
+      receiver_role: d.recipient_role || "all",
+      message_text: d.body || "",
+      sent_at: d.created_at || new Date().toISOString(),
+      read_status: Boolean(d.read_status),
     }));
 
     return { data: mapped, isFromSupabase: true };

@@ -25,16 +25,7 @@ export interface TeacherWorkload {
   totalSubjects: number;
 }
 
-let memoryAssignmentsCache: ClassAssignment[] = [
-  { id: "CA-1", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "class", className: "Nursery", section: "A", status: "active" },
-  { id: "CA-2", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "subject", className: "UKG", section: "A", subject: "English", status: "active" },
-  { id: "CA-3", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "subject", className: "UKG", section: "B", subject: "English", status: "active" },
-  { id: "CA-4", teacherId: "TCH100", teacherName: "Mrs. Priya", academicYear: "2026-27", role: "subject", className: "Nursery", section: "A", subject: "Rhymes", status: "active" },
-  { id: "CA-5", teacherId: "TCH101", teacherName: "Ms. Anjali", academicYear: "2026-27", role: "class", className: "LKG", section: "A", status: "active" },
-  { id: "CA-6", teacherId: "TCH101", teacherName: "Ms. Anjali", academicYear: "2026-27", role: "subject", className: "LKG", section: "A", subject: "Drawing & Art", status: "active" },
-  { id: "CA-7", teacherId: "TCH102", teacherName: "Mr. Rakesh", academicYear: "2026-27", role: "class", className: "UKG", section: "B", status: "active" },
-  { id: "CA-8", teacherId: "TCH102", teacherName: "Mr. Rakesh", academicYear: "2026-27", role: "subject", className: "LKG", section: "A", subject: "Mathematics", status: "active" },
-];
+let memoryAssignmentsCache: ClassAssignment[] = [];
 
 export function readAssignments(): ClassAssignment[] {
   return memoryAssignmentsCache;
@@ -47,7 +38,10 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
       .select("*")
       .eq("request_type", "class_assignment");
 
-    if (error || !data || data.length === 0) return memoryAssignmentsCache;
+    if (error || !data) {
+      memoryAssignmentsCache = [];
+      return [];
+    }
 
     const mapped: ClassAssignment[] = data.map((d: any) => {
       let meta: any = {};
@@ -73,7 +67,8 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
     memoryAssignmentsCache = mapped;
     return mapped;
   } catch {
-    return memoryAssignmentsCache;
+    memoryAssignmentsCache = [];
+    return [];
   }
 }
 
@@ -96,7 +91,7 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchAssignmentsFromSupabase().then((res) => {
-      if (res && res.length > 0) setAssignments(res);
+      setAssignments(res || []);
     });
   }, []);
 

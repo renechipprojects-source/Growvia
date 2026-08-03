@@ -6,39 +6,15 @@ import type { Enquiry } from "./mockData";
 
 export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveRequest[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_requests")
       .select("*")
       .eq("request_type", "leave");
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("requests").select("*").eq("request_type", "leave");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy leave_requests table
-      const { data: legacy } = await supabase.from("leave_requests").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: LeaveRequest[] = legacy.map((d: any) => ({
-          id: d.id,
-          applicant_name: d.applicant_name,
-          applicant_role: d.applicant_role,
-          start_date: d.start_date,
-          end_date: d.end_date,
-          reason: d.reason,
-          status: d.status,
-          applied_on: d.applied_on || d.created_at,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: LeaveRequest[] = data.map((d: any) => ({
+    const mapped: LeaveRequest[] = rows.map((d: any) => ({
       id: d.id,
       applicant_name: d.applicant_or_child_name,
       applicant_role: d.leave_type_or_interested_class || "Teacher",
@@ -57,65 +33,32 @@ export async function fetchLeaveRequestsFromModule(): Promise<{ data: LeaveReque
 
 export async function fetchEnquiriesFromModule(): Promise<{ data: Enquiry[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_requests")
       .select("*")
       .eq("request_type", "enquiry");
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("requests").select("*").eq("request_type", "enquiry");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy enquiries table
-      const { data: legacy } = await supabase.from("enquiries").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: Enquiry[] = legacy.map((d: any) => ({
-          id: d.id,
-          childName: d.child_name,
-          parentName: d.parent_name,
-          phone: d.phone,
-          altPhone: d.alt_phone,
-          email: d.email,
-          address: d.address,
-          gender: d.gender,
-          dob: d.dob,
-          previousSchool: d.previous_school,
-          age: d.age,
-          interestedClass: d.interested_class,
-          source: d.source,
-          status: d.status,
-          followUp: d.follow_up,
-          notes: d.notes,
-          createdAt: d.created_at,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: Enquiry[] = data.map((d: any) => ({
+    const mapped: Enquiry[] = rows.map((d: any) => ({
       id: d.id,
       childName: d.applicant_or_child_name,
       parentName: d.parent_name || "Parent",
-      phone: d.phone || "9876543210",
-      altPhone: undefined,
+      phone: d.phone || "",
+      altPhone: "",
       email: d.email || "",
       address: d.address || "",
-      gender: (d.gender as any) || "Boy",
-      dob: d.dob || "2021-01-01",
-      previousSchool: undefined,
-      age: 4,
+      gender: d.gender === "Girl" ? "Girl" : "Boy",
+      dob: d.dob || "2022-01-01",
+      previousSchool: "",
+      age: 3,
       interestedClass: d.leave_type_or_interested_class || "Nursery",
-      source: (d.source as any) || "Walk-in",
-      status: (d.status as any) || "New",
-      followUp: d.follow_up_date || new Date().toISOString().split("T")[0],
+      source: d.source || "Walk-in",
+      status: d.status || "New",
+      followUp: d.follow_up_date || d.created_at?.slice(0, 10),
       notes: d.reason_or_notes || "",
-      createdAt: d.created_at,
+      createdAt: d.created_at || new Date().toISOString(),
     }));
 
     return { data: mapped, isFromSupabase: true };

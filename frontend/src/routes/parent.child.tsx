@@ -41,18 +41,16 @@ function ParentChild() {
           <div className="mt-4 pt-3 border-t border-slate-100">
             <div className="text-xs font-semibold text-slate-600 mb-1.5">Subject Teachers (Office Assigned)</div>
             <div className="space-y-1">
-              {(subjectTeachers.length > 0
-                ? subjectTeachers
-                : [
-                    { subject: "English", teacherName: "Mrs. Priya" },
-                    { subject: "Mathematics", teacherName: "Mr. Rakesh" },
-                  ]
-              ).map((st, i) => (
-                <div key={i} className="text-xs flex justify-between bg-white/70 p-1.5 rounded-lg border border-slate-100">
-                  <span className="text-slate-500">{st.subject}:</span>
-                  <span className="font-semibold text-slate-800">{st.teacherName}</span>
-                </div>
-              ))}
+              {subjectTeachers.length > 0 ? (
+                subjectTeachers.map((st, i) => (
+                  <div key={i} className="text-xs flex justify-between bg-white/70 p-1.5 rounded-lg border border-slate-100">
+                    <span className="text-slate-500">{st.subject}:</span>
+                    <span className="font-semibold text-slate-800">{st.teacherName}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-slate-400 italic p-1.5">No subject teachers assigned yet.</div>
+              )}
             </div>
           </div>
         </SectionCard>

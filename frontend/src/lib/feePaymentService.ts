@@ -40,29 +40,10 @@ export async function fetchFees(studentId?: string): Promise<{ data: FeeRecord[]
       query = query.eq("student_id", studentId);
     }
     const { data, error } = await query;
-    if (error || !data) {
-      const fallbackQuery = supabase.from("fees_payments").select("*").eq("record_type", "fee_schedule");
-      if (studentId) {
-        fallbackQuery.eq("student_id", studentId);
-      }
-      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-      if (!fallbackError && fallbackData) {
-        const mapped: FeeRecord[] = fallbackData.map((d: any) => ({
-          id: d.id,
-          studentId: d.student_id,
-          feeType: d.fee_type,
-          academicYear: d.academic_year || activeYear,
-          amountDue: Number(d.amount_due || 0),
-          amountPaid: Number(d.amount_paid || 0),
-          balance: Number(d.balance || 0),
-          status: d.status as any,
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: FeeRecord[] = data.map((d: any) => ({
+    const mapped: FeeRecord[] = rows.map((d: any) => ({
       id: d.id,
       studentId: d.student_id,
       feeType: d.fee_type,
@@ -81,52 +62,24 @@ export async function fetchFees(studentId?: string): Promise<{ data: FeeRecord[]
 
 export async function fetchReceiptsFromModule(): Promise<{ data: ReceiptRecord[]; isFromSupabase: boolean }> {
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("gv_fees_payments")
       .select("*")
       .eq("record_type", "payment_receipt");
 
-    if (error || !data || data.length === 0) {
-      const fallbackRes = await supabase.from("fees_payments").select("*").eq("record_type", "payment_receipt");
-      if (fallbackRes.data && fallbackRes.data.length > 0) {
-        data = fallbackRes.data;
-        error = null;
-      }
-    }
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    if (error || !data || data.length === 0) {
-      // Fallback query to legacy receipts table
-      const { data: legacy } = await supabase.from("receipts").select("*");
-      if (legacy && legacy.length > 0) {
-        const mapped: ReceiptRecord[] = legacy.map((d: any) => ({
-          id: d.id,
-          studentId: d.student_id,
-          studentName: d.student_name,
-          className: d.class_name,
-          feeType: d.fee_type,
-          amountPaid: Number(d.amount_paid),
-          paymentDate: d.payment_date,
-          paymentMethod: d.payment_method || "Cash",
-          receiptNumber: d.receipt_number,
-          transactionRef: d.transaction_ref,
-          status: d.status || "Verified",
-          recordedBy: d.recorded_by || "Office Staff",
-        }));
-        return { data: mapped, isFromSupabase: true };
-      }
-      return { data: [], isFromSupabase: false };
-    }
-
-    const mapped: ReceiptRecord[] = data.map((d: any) => ({
+    const mapped: ReceiptRecord[] = rows.map((d: any) => ({
       id: d.id,
-      studentId: d.student_id,
+      studentId: d.student_id || "STU-NONE",
       studentName: d.student_name || "Student",
       className: d.class_name || "Nursery",
-      feeType: d.fee_type || "Annual Fee",
+      feeType: d.fee_type || "Term Fee",
       amountPaid: Number(d.amount_paid || 0),
-      paymentDate: d.payment_date || new Date().toISOString().split("T")[0],
+      paymentDate: d.payment_date || d.created_at?.slice(0, 10),
       paymentMethod: (d.payment_method as any) || "Cash",
-      receiptNumber: d.receipt_number || d.id,
+      receiptNumber: d.receipt_number || `RCPT-${d.id}`,
       transactionRef: d.transaction_ref,
       status: (d.status as any) || "Verified",
       recordedBy: d.recorded_by || "Office Staff",

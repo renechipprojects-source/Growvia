@@ -72,9 +72,10 @@ export async function fetchLeaveRequests(): Promise<{ data: LeaveRequest[]; isFr
       .eq("request_type", "leave")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: LeaveRequest[] = data.map((d: any) => ({
+    const mapped: LeaveRequest[] = rows.map((d: any) => ({
       id: d.id,
       applicant_name: d.applicant_or_child_name,
       applicant_role: "student",
@@ -155,9 +156,10 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
       .eq("message_type", "circular")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: Circular[] = data.map((d: any) => {
+    const mapped: Circular[] = rows.map((d: any) => {
       let meta: any = {};
       try {
         if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
@@ -253,9 +255,10 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
       .eq("role", "student")
       .order("admission_no", { ascending: true });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: Student[] = data.map((d: any) => ({
+    const mapped: Student[] = rows.map((d: any) => ({
       id: d.id || d.login_id,
       rollNo: d.roll_no || 1,
       admissionNo: d.admission_no || d.id,
@@ -369,9 +372,10 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
       .eq("role", "teacher")
       .order("full_name", { ascending: true });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: Teacher[] = data.map((d: any) => ({
+    const mapped: Teacher[] = rows.map((d: any) => ({
       id: d.id || d.login_id,
       name: d.full_name,
       className: d.class_name || "Nursery A",
@@ -434,9 +438,10 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
       .eq("request_type", "enquiry")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: Enquiry[] = data.map((d: any) => ({
+    const mapped: Enquiry[] = rows.map((d: any) => ({
       id: d.id,
       childName: d.applicant_or_child_name,
       parentName: d.parent_name || "Parent",
@@ -527,9 +532,10 @@ export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupaba
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: FeeLedgerItem[] = data.map((d: any) =>
+    const mapped: FeeLedgerItem[] = rows.map((d: any) =>
       recalculateFeeLedger({
         id: d.id,
         studentId: d.student_id,
@@ -594,9 +600,10 @@ export async function fetchExpenses(): Promise<{ data: Expense[]; isFromSupabase
       .eq("record_type", "expense")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return { data: [], isFromSupabase: false };
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
-    const mapped: Expense[] = data.map((d: any) => ({
+    const mapped: Expense[] = rows.map((d: any) => ({
       id: d.id,
       category: d.category || "General",
       description: d.title || "Office Expense",

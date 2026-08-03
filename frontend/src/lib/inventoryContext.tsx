@@ -132,7 +132,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         .eq("record_type", "inventory")
         .order("created_at", { ascending: false });
 
-      if (error || !data) return;
+      if (error || !data) {
+        memoryItemsCache = [];
+        setItems([]);
+        return;
+      }
 
       const mapped: InventoryItem[] = data.map((d: any) => ({
         id: d.id,
@@ -148,7 +152,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       memoryItemsCache = mapped;
       setItems(mapped);
-    } catch {}
+    } catch {
+      memoryItemsCache = [];
+      setItems([]);
+    }
   };
 
   useEffect(() => {

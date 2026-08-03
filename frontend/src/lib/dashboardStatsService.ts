@@ -147,7 +147,7 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
     }));
 
     const attendanceRecords = attendanceRes.data || [];
-    let todayAttendancePercent = 95.0;
+    let todayAttendancePercent = 0;
     if (attendanceRecords.length > 0) {
       const presentCount = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present").length;
       todayAttendancePercent = Number(((presentCount / attendanceRecords.length) * 100).toFixed(1));
@@ -285,11 +285,11 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
     const feeData = feesRes.data;
 
     return {
-      childName: child?.full_name || "Aarav Sharma",
-      className: child?.class_name || "Nursery A",
-      attendancePercent: 95.0,
-      totalFeePaid: Number(feeData?.amount_paid || 8500),
-      remainingBalance: Number(feeData?.balance || 3500),
+      childName: child?.full_name || "Student",
+      className: child?.class_name || "Nursery",
+      attendancePercent: 0,
+      totalFeePaid: Number(feeData?.amount_paid || 0),
+      remainingBalance: Number(feeData?.balance || 0),
       recentMessages: messages.map((m: any) => ({
         id: m.id,
         sender: m.sender_name || "Class Teacher",
@@ -301,7 +301,7 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
     return {
       childName: "Student",
       className: "Nursery",
-      attendancePercent: 95.0,
+      attendancePercent: 0,
       totalFeePaid: 0,
       remainingBalance: 0,
       recentMessages: [],
