@@ -5,8 +5,8 @@
   "outputDirectory": "dist/client",
   "rewrites": [
     {
-      "source": "/((?!assets/|favicon.ico|apple-touch-icon.png|site.webmanifest|growvia-logo.png|renechip-logo.png).*)",
-      "destination": "/api/index"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
