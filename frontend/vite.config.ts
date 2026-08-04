@@ -4,7 +4,6 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-// Standalone production Vite configuration for Vercel deployment without Lovable dependencies
 export default defineConfig({
   plugins: [
     tanstackStart({
@@ -15,9 +14,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
 });
