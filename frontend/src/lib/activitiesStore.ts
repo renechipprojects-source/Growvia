@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { subscribeToRealtimeTable } from "./realtimeService";
 
@@ -40,7 +39,7 @@ export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
         if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
           meta = JSON.parse(d.content);
         }
-      } catch {}
+      } catch { }
 
       return {
         id: d.id,
@@ -92,7 +91,7 @@ export function createActivity(input: {
       author: "Class Teacher",
       published_date: new Date().toISOString().slice(0, 10),
     }])
-  ).catch(() => {});
+  ).catch(() => { });
 
   return newAct;
 }

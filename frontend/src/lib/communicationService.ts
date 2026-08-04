@@ -13,9 +13,15 @@ export interface MessageRecord {
   read_status: boolean;
 }
 
-// ─── COMMUNICATIONS SERVICE (Module 4: GV_communications) ───────────────────────
+// ─── COMMUNICATIONS SERVICE (Module 4: GV_communications) ─────────────────────
 
-export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
+/**
+ * Fetch circulars from the GV communications table.
+ */
+export async function fetchCircularsFromModule(): Promise<{
+  data: Circular[];
+  isFromSupabase: boolean;
+}> {
   try {
     const { data, error } = await supabase
       .from("gv_communications")
@@ -23,59 +29,113 @@ export async function fetchCircularsFromModule(): Promise<{ data: Circular[]; is
       .eq("message_type", "circular")
       .order("published_at", { ascending: false });
 
-    if (error) return { data: [], isFromSupabase: false };
+    if (error) {
+      console.error("Error fetching circulars:", error);
+      return {
+        data: [],
+        isFromSupabase: false,
+      };
+    }
+
     const rows = data || [];
 
     const mapped: Circular[] = rows.map((d: any) => ({
       id: d.id,
       title: d.title || "School Circular",
-      content: d.body,
-      published_date: new Date(d.published_at || d.created_at).toISOString().split("T")[0],
+      content: d.body || "",
+      published_date: new Date(
+        d.published_at || d.created_at
+      )
+        .toISOString()
+        .split("T")[0],
       target_audience: d.recipient_role || "All",
       author: d.sender_name || d.sender_id || "School Admin",
     }));
 
-    return { data: mapped, isFromSupabase: true };
-  } catch {
-    return { data: [], isFromSupabase: false };
+    return {
+      data: mapped,
+      isFromSupabase: true,
+    };
+  } catch (error) {
+    console.error("Unexpected error fetching circulars:", error);
+
+    return {
+      data: [],
+      isFromSupabase: false,
+    };
   }
 }
 
-export async function fetchMessagesFromModule(userId: string): Promise<{ data: MessageRecord[]; isFromSupabase: boolean }> {
+/**
+ * Fetch direct/general messages for a particular user.
+ */
+export async function fetchMessagesFromModule(
+  userId: string
+): Promise<{
+  data: MessageRecord[];
+  isFromSupabase: boolean;
+}> {
   try {
     const { data, error } = await supabase
       .from("gv_communications")
       .select("*")
       .eq("message_type", "general_message")
-      .or(`sender_id.eq.${userId},recipient_user_id.eq.${userId}`);
+      .or(
+        `sender_id.eq.${userId},recipient_user_id.eq.${userId}`
+      )
+      .order("created_at", { ascending: true });
 
-    if (error) return { data: [], isFromSupabase: false };
+    if (error) {
+      console.error("Error fetching messages:", error);
+
+      return {
+        data: [],
+        isFromSupabase: false,
+      };
+    }
+
     const rows = data || [];
 
     const mapped: MessageRecord[] = rows.map((d: any) => ({
       id: d.id,
-      sender_id: d.sender_id,
-      sender_name: d.sender_name,
-      sender_role: d.sender_role,
+      sender_id: d.sender_id || "",
+      sender_name: d.sender_name || "",
+      sender_role: d.sender_role || "",
       receiver_id: d.recipient_user_id || "ALL",
       receiver_role: d.recipient_role || "all",
       message_text: d.body || "",
-      sent_at: d.created_at || new Date().toISOString(),
+      sent_at:
+        d.created_at ||
+        d.published_at ||
+        new Date().toISOString(),
       read_status: Boolean(d.read_status),
     }));
 
-    return { data: mapped, isFromSupabase: true };
-  } catch {
-    return { data: [], isFromSupabase: false };
+    return {
+      data: mapped,
+      isFromSupabase: true,
+    };
+  } catch (error) {
+    console.error("Unexpected error fetching messages:", error);
+
+    return {
+      data: [],
+      isFromSupabase: false,
+    };
   }
 }
 
-export async function publishCircularToModule(circular: Partial<Circular>) {
+/**
+ * Publish a circular to GV communications.
+ */
+export async function publishCircularToModule(
+  circular: Partial<Circular>
+) {
   const payload = {
     id: circular.id || `CIR-${Date.now()}`,
     message_type: "circular",
-    title: circular.title,
-    body: circular.content,
+    title: circular.title || "School Circular",
+    body: circular.content || "",
     sender_id: circular.author || "Admin",
     sender_name: circular.author || "School Admin",
     sender_role: "admin",
@@ -84,34 +144,88 @@ export async function publishCircularToModule(circular: Partial<Circular>) {
   };
 
   try {
-    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
-    Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
-    return { data: data ? data[0] : payload, error };
-  } catch (err) {
-    return { data: payload, error: err };
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error publishing circular:", error);
+
+      return {
+        data: payload,
+        error,
+      };
+    }
+
+    return {
+      data: data || payload,
+      error: null,
+    };
+  } catch (error) {
+    console.error(
+      "Unexpected error publishing circular:",
+      error
+    );
+
+    return {
+      data: payload,
+      error,
+    };
   }
 }
 
-export async function sendMessageToModule(msg: Partial<MessageRecord>) {
+/**
+ * Send a direct message to a user.
+ */
+export async function sendMessageToModule(
+  msg: Partial<MessageRecord>
+) {
   const payload = {
     id: msg.id || `MSG-${Date.now()}`,
     message_type: "general_message",
     title: "Direct Message",
-    body: msg.message_text,
-    sender_id: msg.sender_id,
-    sender_name: msg.sender_name,
-    sender_role: msg.sender_role,
-    recipient_user_id: msg.receiver_id,
-    recipient_role: msg.receiver_role,
+    body: msg.message_text || "",
+    sender_id: msg.sender_id || "",
+    sender_name: msg.sender_name || "",
+    sender_role: msg.sender_role || "",
+    recipient_user_id: msg.receiver_id || "ALL",
+    recipient_role: msg.receiver_role || "all",
     read_status: false,
-    published_at: msg.sent_at || new Date().toISOString(),
+    published_at:
+      msg.sent_at || new Date().toISOString(),
   };
 
   try {
-    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
-    Promise.resolve(supabase.from("communications").insert([payload])).catch(() => {});
-    return { data: data ? data[0] : payload, error };
-  } catch (err) {
-    return { data: payload, error: err };
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error sending message:", error);
+
+      return {
+        data: payload,
+        error,
+      };
+    }
+
+    return {
+      data: data || payload,
+      error: null,
+    };
+  } catch (error) {
+    console.error(
+      "Unexpected error sending message:",
+      error
+    );
+
+    return {
+      data: payload,
+      error,
+    };
   }
 }
