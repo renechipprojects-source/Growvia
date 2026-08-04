@@ -58,11 +58,11 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// ─── 1. USERS MODULE (GV_users) ────────────────────────────────────────────────
+// ─── 1. USERS MODULE (gv_users) ────────────────────────────────────────────────
 app.get('/api/users', async (req: Request, res: Response) => {
   try {
     const role = req.query.role as string;
-    let query = supabase.from('GV_users').select('*');
+    let query = supabase.from('gv_users').select('*');
     if (role) {
       query = query.eq('role', role);
     }
@@ -76,7 +76,7 @@ app.get('/api/users', async (req: Request, res: Response) => {
 
 app.get('/api/users/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_users').select('*').eq('id', req.params.id).maybeSingle();
+    const { data, error } = await supabase.from('gv_users').select('*').eq('id', req.params.id).maybeSingle();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -86,7 +86,7 @@ app.get('/api/users/:id', async (req: Request, res: Response) => {
 
 app.post('/api/users', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_users').insert([req.body]).select();
+    const { data, error } = await supabase.from('gv_users').insert([req.body]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -96,7 +96,7 @@ app.post('/api/users', async (req: Request, res: Response) => {
 
 app.put('/api/users/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_users').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_users').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -106,7 +106,7 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/users/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_users').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_users').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -114,11 +114,11 @@ app.delete('/api/users/:id', async (req: Request, res: Response) => {
   }
 });
 
-// ─── 2. REQUESTS MODULE (GV_requests) ─────────────────────────────────────────
+// ─── 2. REQUESTS MODULE (gv_requests) ─────────────────────────────────────────
 app.get('/api/requests', async (req: Request, res: Response) => {
   try {
     const requestType = req.query.request_type as string;
-    let query = supabase.from('GV_requests').select('*');
+    let query = supabase.from('gv_requests').select('*');
     if (requestType) {
       query = query.eq('request_type', requestType);
     }
@@ -132,7 +132,7 @@ app.get('/api/requests', async (req: Request, res: Response) => {
 
 app.get('/api/requests/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_requests').select('*').eq('id', req.params.id).maybeSingle();
+    const { data, error } = await supabase.from('gv_requests').select('*').eq('id', req.params.id).maybeSingle();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -142,7 +142,7 @@ app.get('/api/requests/:id', async (req: Request, res: Response) => {
 
 app.post('/api/requests', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_requests').insert([req.body]).select();
+    const { data, error } = await supabase.from('gv_requests').insert([req.body]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -152,7 +152,7 @@ app.post('/api/requests', async (req: Request, res: Response) => {
 
 app.put('/api/requests/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_requests').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_requests').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -162,7 +162,7 @@ app.put('/api/requests/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/requests/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_requests').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_requests').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -170,11 +170,11 @@ app.delete('/api/requests/:id', async (req: Request, res: Response) => {
   }
 });
 
-// ─── 3. COMMUNICATIONS MODULE (GV_communications) ────────────────────────────
+// ─── 3. COMMUNICATIONS MODULE (gv_communications) ────────────────────────────
 app.get('/api/communications', async (req: Request, res: Response) => {
   try {
     const channel = req.query.channel as string;
-    let query = supabase.from('GV_communications').select('*');
+    let query = supabase.from('gv_communications').select('*');
     if (channel) {
       query = query.eq('channel', channel);
     }
@@ -188,7 +188,7 @@ app.get('/api/communications', async (req: Request, res: Response) => {
 
 app.get('/api/communications/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_communications').select('*').eq('id', req.params.id).maybeSingle();
+    const { data, error } = await supabase.from('gv_communications').select('*').eq('id', req.params.id).maybeSingle();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -198,7 +198,7 @@ app.get('/api/communications/:id', async (req: Request, res: Response) => {
 
 app.post('/api/communications', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_communications').insert([req.body]).select();
+    const { data, error } = await supabase.from('gv_communications').insert([req.body]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -208,7 +208,7 @@ app.post('/api/communications', async (req: Request, res: Response) => {
 
 app.put('/api/communications/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_communications').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_communications').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -218,7 +218,7 @@ app.put('/api/communications/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/communications/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_communications').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_communications').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -226,11 +226,11 @@ app.delete('/api/communications/:id', async (req: Request, res: Response) => {
   }
 });
 
-// ─── 4. FEES MODULE (GV_fees_payments) ────────────────────────────────────────
+// ─── 4. FEES MODULE (gv_fees_payments) ────────────────────────────────────────
 app.get('/api/fees', async (req: Request, res: Response) => {
   try {
     const studentId = req.query.student_id as string;
-    let query = supabase.from('GV_fees_payments').select('*');
+    let query = supabase.from('gv_fees_payments').select('*');
     if (studentId) {
       query = query.eq('student_id', studentId);
     }
@@ -244,7 +244,7 @@ app.get('/api/fees', async (req: Request, res: Response) => {
 
 app.get('/api/fees/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_fees_payments').select('*').eq('id', req.params.id).maybeSingle();
+    const { data, error } = await supabase.from('gv_fees_payments').select('*').eq('id', req.params.id).maybeSingle();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -254,7 +254,7 @@ app.get('/api/fees/:id', async (req: Request, res: Response) => {
 
 app.post('/api/fees', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_fees_payments').insert([req.body]).select();
+    const { data, error } = await supabase.from('gv_fees_payments').insert([req.body]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -264,7 +264,7 @@ app.post('/api/fees', async (req: Request, res: Response) => {
 
 app.put('/api/fees/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_fees_payments').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_fees_payments').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -274,7 +274,7 @@ app.put('/api/fees/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/fees/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_fees_payments').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_fees_payments').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -282,10 +282,10 @@ app.delete('/api/fees/:id', async (req: Request, res: Response) => {
   }
 });
 
-// ─── 5. INVENTORY & EXPENSES MODULE (GV_inventory_expenses) ─────────────────
+// ─── 5. INVENTORY & EXPENSES MODULE (gv_inventory_expenses) ─────────────────
 app.get('/api/inventory', async (_req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_inventory_expenses').select('*').eq('record_type', 'inventory');
+    const { data, error } = await supabase.from('gv_inventory_expenses').select('*').eq('record_type', 'inventory');
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -296,7 +296,7 @@ app.get('/api/inventory', async (_req: Request, res: Response) => {
 app.post('/api/inventory', async (req: Request, res: Response) => {
   try {
     const payload = { ...req.body, record_type: 'inventory' };
-    const { data, error } = await supabase.from('GV_inventory_expenses').insert([payload]).select();
+    const { data, error } = await supabase.from('gv_inventory_expenses').insert([payload]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -306,7 +306,7 @@ app.post('/api/inventory', async (req: Request, res: Response) => {
 
 app.put('/api/inventory/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_inventory_expenses').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_inventory_expenses').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -316,7 +316,7 @@ app.put('/api/inventory/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/inventory/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_inventory_expenses').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_inventory_expenses').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -326,7 +326,7 @@ app.delete('/api/inventory/:id', async (req: Request, res: Response) => {
 
 app.get('/api/expenses', async (_req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_inventory_expenses').select('*').eq('record_type', 'expense');
+    const { data, error } = await supabase.from('gv_inventory_expenses').select('*').eq('record_type', 'expense');
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -337,7 +337,7 @@ app.get('/api/expenses', async (_req: Request, res: Response) => {
 app.post('/api/expenses', async (req: Request, res: Response) => {
   try {
     const payload = { ...req.body, record_type: 'expense' };
-    const { data, error } = await supabase.from('GV_inventory_expenses').insert([payload]).select();
+    const { data, error } = await supabase.from('gv_inventory_expenses').insert([payload]).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ data });
   } catch (err: any) {
@@ -347,7 +347,7 @@ app.post('/api/expenses', async (req: Request, res: Response) => {
 
 app.put('/api/expenses/:id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_inventory_expenses').update(req.body).eq('id', req.params.id).select();
+    const { data, error } = await supabase.from('gv_inventory_expenses').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -357,7 +357,7 @@ app.put('/api/expenses/:id', async (req: Request, res: Response) => {
 
 app.delete('/api/expenses/:id', async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('GV_inventory_expenses').delete().eq('id', req.params.id);
+    const { error } = await supabase.from('gv_inventory_expenses').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ success: true });
   } catch (err: any) {
@@ -365,10 +365,10 @@ app.delete('/api/expenses/:id', async (req: Request, res: Response) => {
   }
 });
 
-// ─── 6. SYSTEM SETTINGS MODULE (GV_system_settings) ─────────────────────────
+// ─── 6. SYSTEM SETTINGS MODULE (gv_system_settings) ─────────────────────────
 app.get('/api/system-settings', async (_req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('GV_system_settings').select('*').eq('id', 'PRIMARY').maybeSingle();
+    const { data, error } = await supabase.from('gv_system_settings').select('*').eq('id', 'PRIMARY').maybeSingle();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
@@ -379,7 +379,7 @@ app.get('/api/system-settings', async (_req: Request, res: Response) => {
 app.put('/api/system-settings', async (req: Request, res: Response) => {
   try {
     const payload = { id: 'PRIMARY', ...req.body };
-    const { data, error } = await supabase.from('GV_system_settings').upsert([payload], { onConflict: 'id' }).select();
+    const { data, error } = await supabase.from('gv_system_settings').upsert([payload], { onConflict: 'id' }).select();
     if (error) return res.status(400).json({ error: error.message });
     return res.json({ data: data?.[0] });
   } catch (err: any) {
@@ -411,7 +411,7 @@ app.post('/api/users/provision', async (_req: Request, res: Response) => {
 
     for (const coreAcc of CORE_ERP_ACCOUNTS) {
       const { data: profile } = await supabase
-        .from('GV_users')
+        .from('gv_users')
         .select('*')
         .eq('login_id', coreAcc.loginId)
         .maybeSingle();
@@ -462,7 +462,7 @@ app.post('/api/users/provision', async (_req: Request, res: Response) => {
           must_change_password: false,
         };
 
-        await supabase.from('GV_users').upsert([payload], { onConflict: 'login_id' });
+        await supabase.from('gv_users').upsert([payload], { onConflict: 'login_id' });
       }
     }
 
