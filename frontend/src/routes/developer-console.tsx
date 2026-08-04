@@ -710,12 +710,12 @@ function DeveloperConsolePage() {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">ERP Application Name</Label>
                 <Input
-                  value={draft.branding.erpName || draft.system.appName}
+                  value={draft.branding.erpName || draft?.system?.appName || ""}
                   onChange={(e) =>
                     setDraft({
                       ...draft,
                       branding: { ...draft.branding, erpName: e.target.value },
-                      system: { ...draft.system, appName: e.target.value },
+                      system: { ...(draft.system || {}), appName: e.target.value },
                     })
                   }
                   className="bg-slate-950 border-slate-800 text-white"
