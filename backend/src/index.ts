@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || '*';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Supabase client initialization (public client with fallback credentials)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nyhnkftlkigoliyogwvp.supabase.co';
@@ -27,7 +27,19 @@ export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
   : supabase;
 
 // Middleware
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+const allowedOrigins = FRONTEND_URL.split(',').map((u) => u.trim());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -46,9 +58,7 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// ─── API ENDPOINTS FOR 6 CONSOLIDATED GV_ TABLES ──────────────────────────────
-
-// 1. User Management Endpoint (GV_users)
+// ─── 1. USERS MODULE (GV_users) ────────────────────────────────────────────────
 app.get('/api/users', async (req: Request, res: Response) => {
   try {
     const role = req.query.role as string;
@@ -57,70 +67,54 @@ app.get('/api/users', async (req: Request, res: Response) => {
       query = query.eq('role', role);
     }
     const { data, error } = await query;
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// 2. Inventory & Expenses Endpoint (GV_inventory_expenses)
-app.get('/api/inventory-expenses', async (req: Request, res: Response) => {
+app.get('/api/users/:id', async (req: Request, res: Response) => {
   try {
-    const recordType = req.query.record_type as string;
-    let query = supabase.from('GV_inventory_expenses').select('*');
-    if (recordType) {
-      query = query.eq('record_type', recordType);
-    }
-    const { data, error } = await query;
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    const { data, error } = await supabase.from('GV_users').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// 3. Fees & Payments Endpoint (GV_fees_payments)
-app.get('/api/fees-payments', async (req: Request, res: Response) => {
+app.post('/api/users', async (req: Request, res: Response) => {
   try {
-    const studentId = req.query.student_id as string;
-    let query = supabase.from('GV_fees_payments').select('*');
-    if (studentId) {
-      query = query.eq('student_id', studentId);
-    }
-    const { data, error } = await query;
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-    return res.json({ data });
+    const { data, error } = await supabase.from('GV_users').insert([req.body]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// 4. Communications Endpoint (GV_communications)
-app.get('/api/communications', async (req: Request, res: Response) => {
+app.put('/api/users/:id', async (req: Request, res: Response) => {
   try {
-    const channel = req.query.channel as string;
-    let query = supabase.from('GV_communications').select('*');
-    if (channel) {
-      query = query.eq('channel', channel);
-    }
-    const { data, error } = await query;
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    const { data, error } = await supabase.from('GV_users').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// 5. Requests Endpoint (GV_requests)
+app.delete('/api/users/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_users').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 2. REQUESTS MODULE (GV_requests) ─────────────────────────────────────────
 app.get('/api/requests', async (req: Request, res: Response) => {
   try {
     const requestType = req.query.request_type as string;
@@ -129,31 +123,271 @@ app.get('/api/requests', async (req: Request, res: Response) => {
       query = query.eq('request_type', requestType);
     }
     const { data, error } = await query;
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// 6. System Settings & Branding Endpoint (GV_system_settings)
-app.get('/api/settings', async (_req: Request, res: Response) => {
+app.get('/api/requests/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_requests').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_requests').insert([req.body]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/requests/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_requests').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/requests/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_requests').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 3. COMMUNICATIONS MODULE (GV_communications) ────────────────────────────
+app.get('/api/communications', async (req: Request, res: Response) => {
+  try {
+    const channel = req.query.channel as string;
+    let query = supabase.from('GV_communications').select('*');
+    if (channel) {
+      query = query.eq('channel', channel);
+    }
+    const { data, error } = await query;
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/communications/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_communications').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/communications', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_communications').insert([req.body]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/communications/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_communications').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/communications/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_communications').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 4. FEES MODULE (GV_fees_payments) ────────────────────────────────────────
+app.get('/api/fees', async (req: Request, res: Response) => {
+  try {
+    const studentId = req.query.student_id as string;
+    let query = supabase.from('GV_fees_payments').select('*');
+    if (studentId) {
+      query = query.eq('student_id', studentId);
+    }
+    const { data, error } = await query;
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/fees/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_fees_payments').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/fees', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_fees_payments').insert([req.body]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/fees/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_fees_payments').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/fees/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_fees_payments').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 5. INVENTORY & EXPENSES MODULE (GV_inventory_expenses) ─────────────────
+app.get('/api/inventory', async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_inventory_expenses').select('*').eq('record_type', 'inventory');
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/inventory', async (req: Request, res: Response) => {
+  try {
+    const payload = { ...req.body, record_type: 'inventory' };
+    const { data, error } = await supabase.from('GV_inventory_expenses').insert([payload]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/inventory/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_inventory_expenses').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/inventory/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_inventory_expenses').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/expenses', async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_inventory_expenses').select('*').eq('record_type', 'expense');
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/expenses', async (req: Request, res: Response) => {
+  try {
+    const payload = { ...req.body, record_type: 'expense' };
+    const { data, error } = await supabase.from('GV_inventory_expenses').insert([payload]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/expenses/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('GV_inventory_expenses').update(req.body).eq('id', req.params.id).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/expenses/:id', async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('GV_inventory_expenses').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 6. SYSTEM SETTINGS MODULE (GV_system_settings) ─────────────────────────
+app.get('/api/system-settings', async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('GV_system_settings').select('*').eq('id', 'PRIMARY').maybeSingle();
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    if (error) return res.status(400).json({ error: error.message });
     return res.json({ data });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// ─── SECURE SERVER-SIDE SUPABASE AUTH USER PROVISIONING ENDPOINTS ─────────────
+app.put('/api/system-settings', async (req: Request, res: Response) => {
+  try {
+    const payload = { id: 'PRIMARY', ...req.body };
+    const { data, error } = await supabase.from('GV_system_settings').upsert([payload], { onConflict: 'id' }).select();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json({ data: data?.[0] });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
-// Core default account definitions for standard ERP roles
+// ─── 7. AUTH USER PROVISIONING ENDPOINTS ──────────────────────────────────────
 const CORE_ERP_ACCOUNTS = [
   { loginId: 'ADM001', email: 'admin@growvia.com', password: 'Admin@123', role: 'admin', name: 'System Administrator' },
   { loginId: 'PRN001', email: 'principal@growvia.com', password: 'Principal@123', role: 'principal', name: 'Principal' },
@@ -163,16 +397,9 @@ const CORE_ERP_ACCOUNTS = [
   { loginId: 'DEV001', email: 'developer@growvia.com', password: 'Dev@123', role: 'developer', name: 'Lead Developer' },
 ];
 
-/**
- * Bulk Provisioning Endpoint:
- * Ensures all core ERP role accounts (Admin, Principal, Office, Teacher, Parent, Developer)
- * and unlinked records in GV_users are provisioned in Supabase Auth and linked via auth_user_id.
- */
-app.post('/api/users/provision', async (req: Request, res: Response) => {
+app.post('/api/users/provision', async (_req: Request, res: Response) => {
   try {
     const results: Array<{ loginId: string; status: string; authUserId?: string; details?: string }> = [];
-
-    // 1. Fetch existing Auth users from Supabase Auth admin API
     const { data: authUserList, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
     const existingAuthUsers = authUserList?.users || [];
 
@@ -182,9 +409,7 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Loop through core accounts
     for (const coreAcc of CORE_ERP_ACCOUNTS) {
-      // Check if profile exists in GV_users
       const { data: profile } = await supabase
         .from('GV_users')
         .select('*')
@@ -195,7 +420,6 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       const targetRole = profile?.role || coreAcc.role;
       const targetName = profile?.full_name || coreAcc.name;
 
-      // Check if Auth user exists in Supabase Auth
       let existingAuthUser = existingAuthUsers.find(
         (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
       );
@@ -203,7 +427,6 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       let authUserId = existingAuthUser?.id;
 
       if (!authUserId) {
-        // Create new Auth user with auto-confirmed email
         const { data: newAuthData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
           email: targetEmail,
           password: coreAcc.password,
@@ -227,7 +450,6 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
         results.push({ loginId: coreAcc.loginId, status: 'existing_auth_confirmed', authUserId });
       }
 
-      // Link auth_user_id to GV_users record
       if (authUserId) {
         const payload = {
           id: authUserId,
@@ -254,89 +476,7 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * Single User Provisioning Endpoint:
- * Called when an admin/office user creates a new staff/student/parent account.
- */
-app.post('/api/users/provision-single', async (req: Request, res: Response) => {
-  try {
-    const { login_id, email, password, role, full_name } = req.body;
-
-    if (!login_id || !email || !password) {
-      return res.status(400).json({ error: 'login_id, email, and password are required' });
-    }
-
-    // Check if Auth user already exists
-    const { data: authUserList } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAuthUser = authUserList?.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
-
-    let authUserId = existingAuthUser?.id;
-
-    if (!authUserId) {
-      const { data: newAuthData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          login_id,
-          role: role || 'parent',
-          full_name: full_name || login_id,
-        },
-      });
-
-      if (createErr) {
-        return res.status(400).json({ error: createErr.message });
-      }
-
-      authUserId = newAuthData?.user?.id;
-    }
-
-    if (authUserId) {
-      await supabase
-        .from('GV_users')
-        .update({ auth_user_id: authUserId, id: authUserId })
-        .eq('login_id', login_id);
-    }
-
-    return res.status(200).json({
-      success: true,
-      authUserId,
-      login_id,
-      message: `User ${login_id} successfully provisioned in Supabase Auth`,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── STORAGE BUCKET PROVISIONING ENDPOINT ─────────────────────────────────────
-app.post('/api/storage/init-bucket', async (_req: Request, res: Response) => {
-  try {
-    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-    const exists = buckets?.some((b) => b.id === 'system-assets' || b.name === 'system-assets');
-
-    if (!exists) {
-      const { data, error } = await supabaseAdmin.storage.createBucket('system-assets', {
-        public: true,
-        fileSizeLimit: 10485760, // 10MB
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/gif', 'image/x-icon'],
-      });
-
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
-      return res.status(200).json({ success: true, message: 'Storage bucket system-assets created successfully', data });
-    }
-
-    return res.status(200).json({ success: true, message: 'Storage bucket system-assets already exists' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── STORAGE FILE UPLOAD ENDPOINT (ADMIN PRIVILEGED) ─────────────────────────
+// ─── 8. STORAGE BUCKET PROVISIONING & UPLOAD ──────────────────────────────────
 app.post('/api/storage/upload', async (req: Request, res: Response) => {
   try {
     const { fileName, fileBase64, contentType } = req.body;
@@ -372,18 +512,6 @@ app.post('/api/storage/upload', async (req: Request, res: Response) => {
     return res.status(500).json({ error: err.message });
   }
 });
-
-// Auto-initialize storage bucket at server start
-supabaseAdmin.storage.listBuckets().then(({ data: buckets }) => {
-  const exists = buckets?.some((b) => b.id === 'system-assets' || b.name === 'system-assets');
-  if (!exists) {
-    supabaseAdmin.storage.createBucket('system-assets', {
-      public: true,
-      fileSizeLimit: 10485760,
-      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/gif', 'image/x-icon'],
-    }).catch(() => {});
-  }
-}).catch(() => {});
 
 // ─── 404 FALLBACK ROUTE HANDLER ────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

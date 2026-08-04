@@ -427,7 +427,7 @@ export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: Develo
   }
 }
 
-const BACKEND_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "https://growvia-backend-2u2p.onrender.com").replace(/\/$/, "");
+import { API_URL as BACKEND_URL } from "./api";
 
 export async function uploadSystemAsset(file: File): Promise<string> {
   const fileExt = file.name.split(".").pop() || "png";
