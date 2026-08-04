@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/client",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon.ico|apple-touch-icon.png|site.webmanifest|growvia-logo.png|renechip-logo.png).*)",
+      "destination": "/api/index"
+    }
+  ]
+}
