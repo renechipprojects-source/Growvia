@@ -252,8 +252,8 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
-      .eq("role", "student")
-      .order("admission_no", { ascending: true });
+      .in("role", ["student", "Student"])
+      .order("created_at", { ascending: false });
 
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
@@ -369,7 +369,7 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
-      .eq("role", "teacher")
+      .in("role", ["teacher", "Teacher"])
       .order("full_name", { ascending: true });
 
     if (error) return { data: [], isFromSupabase: false };
