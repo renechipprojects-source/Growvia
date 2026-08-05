@@ -62,10 +62,10 @@ Run all scripts from the repository root:
 ```
 
 - **Frontend (Vercel)**:
-  - **Root Directory**: `frontend`
-  - **Build Command**: `npm run build`
-  - **Output Directory**: `dist`
-  - **Environment Variables**: `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+  - **Root Directory**: `.` (or `frontend`)
+  - **Build Command**: `npm run frontend:build` (or `npm run build`)
+  - **Output Directory**: `frontend/dist` (or `dist`)
+  - **Environment Variables**: `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 
 - **Backend (Render)**:
   - **Root Directory**: `backend`
@@ -75,9 +75,9 @@ Run all scripts from the repository root:
   - **Environment Variables**: `PORT`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `FRONTEND_URL`
 
 - **Database (Supabase)**:
-  - **6 Consolidated Tables**: `GV_users`, `GV_inventory_expenses`, `GV_fees_payments`, `GV_communications`, `GV_requests`, `GV_system_settings`.
+  - **6 Consolidated Production Tables**: `gv_users`, `gv_inventory_expenses`, `gv_fees_payments`, `gv_communications`, `gv_requests`, `gv_system_settings`.
 
-- **Storage (Cloudflare)**:
+- **Storage (Cloudflare / Supabase Storage)**:
   - Object storage for assets and document uploads.
 
 ---
