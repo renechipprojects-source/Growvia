@@ -540,6 +540,19 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
 
+    const normalizeStatus = (rawStatus: string): Enquiry["status"] => {
+      if (!rawStatus) return "New";
+      const s = rawStatus.toString().trim().toLowerCase();
+      if (s.includes("contact")) return "Contacted";
+      if (s.includes("schedul")) return "Visit Scheduled";
+      if (s.includes("completed") || (s.includes("visit") && !s.includes("schedul"))) return "Visit Completed";
+      if (s.includes("doc")) return "Documents Pending";
+      if (s.includes("approv")) return "Admission Approved";
+      if (s.includes("enroll")) return "Enrolled";
+      if (s.includes("drop") || s.includes("cancel")) return "Dropped";
+      return "New";
+    };
+
     const mapped: Enquiry[] = rows.map((d: any) => ({
       id: d.id,
       childName: d.applicant_or_child_name,
@@ -554,7 +567,7 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
       age: 3,
       interestedClass: d.leave_type_or_interested_class || "Nursery",
       source: d.source || "Walk-in",
-      status: (d.status as any) || "New",
+      status: normalizeStatus(d.status),
       followUp: d.follow_up_date || d.created_at?.slice(0, 10),
       notes: d.reason_or_notes || "",
       createdAt: d.created_at || new Date().toISOString(),

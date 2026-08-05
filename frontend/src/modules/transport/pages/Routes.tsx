@@ -38,6 +38,7 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   useEffect(() => {
     fetchTransportRoutes().then((data) => {
       if (data && data.length > 0) {
+        const stored = getStoredRoutes();
         const mapped: Route[] = data.map((d) => ({
           id: d.id,
           name: d.routeName,
@@ -49,8 +50,18 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
           students: d.assignedStudentsCount,
           status: d.status === "Active" ? "Active" : "Inactive",
         }));
-        setRouteList(mapped);
-        saveStoredRoutes(mapped);
+
+        const mergedMap = new Map<string, Route>();
+        stored.forEach((r) => mergedMap.set(r.id, r));
+        mapped.forEach((r) => {
+          if (!mergedMap.has(r.id)) {
+            mergedMap.set(r.id, r);
+          }
+        });
+
+        const mergedList = Array.from(mergedMap.values());
+        setRouteList(mergedList);
+        saveStoredRoutes(mergedList);
       }
     });
   }, []);
