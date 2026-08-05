@@ -9,6 +9,9 @@
     "frontend:build": "npm --prefix frontend run build && node -e \"import fs from 'node:fs'; fs.mkdirSync('dist', {recursive: true}); fs.cpSync('frontend/dist', 'dist', {recursive: true});\"",
     "backend:dev": "npm --prefix backend run dev",
     "backend:build": "npm --prefix backend run build",
-    "build": "npm run frontend:build"
+    "build": "npm --prefix frontend run build && node -e \"import fs from 'node:fs'; fs.mkdirSync('dist', {recursive: true}); fs.cpSync('frontend/dist', 'dist', {recursive: true});\""
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
   }
 }
