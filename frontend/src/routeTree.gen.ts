@@ -23,6 +23,7 @@ import { Route as AdminCircularsRouteImport } from './routes/admin.circulars'
 import { Route as AdminClassesRouteImport } from './routes/admin.classes'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
+import { Route as AdminExpensesRouteImport } from './routes/admin.expenses'
 import { Route as AdminFeesRouteImport } from './routes/admin.fees'
 import { Route as AdminHealthRouteImport } from './routes/admin.health'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
@@ -64,6 +65,7 @@ import { Route as PrincipalCircularsRouteImport } from './routes/principal.circu
 import { Route as PrincipalClassesRouteImport } from './routes/principal.classes'
 import { Route as PrincipalDashboardRouteImport } from './routes/principal.dashboard'
 import { Route as PrincipalEventsRouteImport } from './routes/principal.events'
+import { Route as PrincipalExpensesRouteImport } from './routes/principal.expenses'
 import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as PrincipalHealthRouteImport } from './routes/principal.health'
 import { Route as PrincipalInventoryRouteImport } from './routes/principal.inventory'
@@ -158,6 +160,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
 const AdminEventsRoute = AdminEventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminExpensesRoute = AdminExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFeesRoute = AdminFeesRouteImport.update({
@@ -366,6 +373,11 @@ const PrincipalEventsRoute = PrincipalEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => PrincipalRoute,
 } as any)
+const PrincipalExpensesRoute = PrincipalExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => PrincipalRoute,
+} as any)
 const PrincipalFeesRoute = PrincipalFeesRouteImport.update({
   id: '/fees',
   path: '/fees',
@@ -508,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/expenses': typeof AdminExpensesRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
@@ -546,6 +559,7 @@ export interface FileRoutesByFullPath {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
@@ -585,6 +599,7 @@ export interface FileRoutesByTo {
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/expenses': typeof AdminExpensesRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
@@ -623,6 +638,7 @@ export interface FileRoutesByTo {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
@@ -668,6 +684,7 @@ export interface FileRoutesById {
   '/admin/classes': typeof AdminClassesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/expenses': typeof AdminExpensesRoute
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
@@ -706,6 +723,7 @@ export interface FileRoutesById {
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
   '/principal/events': typeof PrincipalEventsRoute
+  '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
@@ -752,6 +770,7 @@ export interface FileRouteTypes {
     | '/admin/classes'
     | '/admin/dashboard'
     | '/admin/events'
+    | '/admin/expenses'
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
@@ -790,6 +809,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/expenses'
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
@@ -829,6 +849,7 @@ export interface FileRouteTypes {
     | '/admin/classes'
     | '/admin/dashboard'
     | '/admin/events'
+    | '/admin/expenses'
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
@@ -867,6 +888,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/expenses'
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
@@ -911,6 +933,7 @@ export interface FileRouteTypes {
     | '/admin/classes'
     | '/admin/dashboard'
     | '/admin/events'
+    | '/admin/expenses'
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
@@ -949,6 +972,7 @@ export interface FileRouteTypes {
     | '/principal/classes'
     | '/principal/dashboard'
     | '/principal/events'
+    | '/principal/expenses'
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
@@ -1090,6 +1114,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/admin/events'
       preLoaderRoute: typeof AdminEventsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/expenses': {
+      id: '/admin/expenses'
+      path: '/expenses'
+      fullPath: '/admin/expenses'
+      preLoaderRoute: typeof AdminExpensesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/fees': {
@@ -1379,6 +1410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalEventsRouteImport
       parentRoute: typeof PrincipalRoute
     }
+    '/principal/expenses': {
+      id: '/principal/expenses'
+      path: '/expenses'
+      fullPath: '/principal/expenses'
+      preLoaderRoute: typeof PrincipalExpensesRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
     '/principal/fees': {
       id: '/principal/fees'
       path: '/fees'
@@ -1574,6 +1612,7 @@ interface AdminRouteChildren {
   AdminClassesRoute: typeof AdminClassesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminEventsRoute: typeof AdminEventsRoute
+  AdminExpensesRoute: typeof AdminExpensesRoute
   AdminFeesRoute: typeof AdminFeesRouteWithChildren
   AdminHealthRoute: typeof AdminHealthRoute
   AdminInventoryRoute: typeof AdminInventoryRoute
@@ -1592,6 +1631,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminClassesRoute: AdminClassesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminEventsRoute: AdminEventsRoute,
+  AdminExpensesRoute: AdminExpensesRoute,
   AdminFeesRoute: AdminFeesRouteWithChildren,
   AdminHealthRoute: AdminHealthRoute,
   AdminInventoryRoute: AdminInventoryRoute,
@@ -1688,6 +1728,7 @@ interface PrincipalRouteChildren {
   PrincipalClassesRoute: typeof PrincipalClassesRoute
   PrincipalDashboardRoute: typeof PrincipalDashboardRoute
   PrincipalEventsRoute: typeof PrincipalEventsRoute
+  PrincipalExpensesRoute: typeof PrincipalExpensesRoute
   PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalHealthRoute: typeof PrincipalHealthRoute
   PrincipalInventoryRoute: typeof PrincipalInventoryRoute
@@ -1704,6 +1745,7 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalClassesRoute: PrincipalClassesRoute,
   PrincipalDashboardRoute: PrincipalDashboardRoute,
   PrincipalEventsRoute: PrincipalEventsRoute,
+  PrincipalExpensesRoute: PrincipalExpensesRoute,
   PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalHealthRoute: PrincipalHealthRoute,
   PrincipalInventoryRoute: PrincipalInventoryRoute,

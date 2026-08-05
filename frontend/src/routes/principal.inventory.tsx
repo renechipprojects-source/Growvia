@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { useInventory } from "@/lib/inventoryContext";
-import { useMemo, useState } from "react";
+import { fetchExpenses, type Expense } from "@/lib/supabaseService";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,6 +44,11 @@ function InventoryPage() {
   const { items, categories, vendors, purchases, movements, lowStock } = useInventory();
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
+  const [expensesList, setExpensesList] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    fetchExpenses().then(({ data }) => setExpensesList(data || []));
+  }, []);
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "-";
   const vendorName = (id?: string) => (id ? vendors.find((v) => v.id === id)?.name ?? "-" : "-");
@@ -80,6 +86,7 @@ function InventoryPage() {
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="vendors">Vendors</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="alerts">
             Low Stock {lowStock.length > 0 && <Badge variant="destructive" className="ml-2">{lowStock.length}</Badge>}
@@ -186,6 +193,27 @@ function InventoryPage() {
                 <TableCell className="text-muted-foreground">{m.reason}</TableCell>
               </TableRow>
             ))}
+          </ScrollTable>
+        </TabsContent>
+
+        <TabsContent value="expenses" className="flex-1 min-h-0 flex flex-col mt-3">
+          <ScrollTable columns={["Date", "Description", "Category", "Paid To", "Amount (₹)"]}>
+            {expensesList.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell className="text-xs text-muted-foreground">{e.date}</TableCell>
+                <TableCell className="font-medium">{e.description}</TableCell>
+                <TableCell><Badge variant="outline">{e.category}</Badge></TableCell>
+                <TableCell className="text-xs">{e.paidTo}</TableCell>
+                <TableCell className="font-bold text-right font-mono">₹{e.amount.toLocaleString()}</TableCell>
+              </TableRow>
+            ))}
+            {expensesList.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                  No expenses recorded yet.
+                </TableCell>
+              </TableRow>
+            )}
           </ScrollTable>
         </TabsContent>
 

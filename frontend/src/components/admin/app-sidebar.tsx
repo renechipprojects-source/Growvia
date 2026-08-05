@@ -55,6 +55,7 @@ const groups: Group[] = [
     title: "Fee Management", icon: Wallet,
     items: [
       { title: "Payments", url: "/admin/fees/payments", icon: Wallet },
+      { title: "Operating Expenses", url: "/admin/expenses", icon: Wallet },
     ],
   },
 ];

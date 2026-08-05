@@ -24,8 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { InventoryProvider, useInventory } from "@/lib/inventoryContext";
+import { fetchExpenses, type Expense } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/admin/inventory")({
   component: () => (
@@ -33,13 +34,18 @@ export const Route = createFileRoute("/admin/inventory")({
       <InventoryPage />
     </InventoryProvider>
   ),
-  head: () => ({ meta: [{ title: "Inventory — TinySteps ERP" }] }),
+  head: () => ({ meta: [{ title: "Inventory — Sunshine ERP" }] }),
 });
 
 function InventoryPage() {
   const { items, categories, vendors, purchases, movements, lowStock } = useInventory();
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
+  const [expensesList, setExpensesList] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    fetchExpenses().then(({ data }) => setExpensesList(data || []));
+  }, []);
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "-";
   const vendorName = (id?: string) => (id ? vendors.find((v) => v.id === id)?.name ?? "-" : "-");
@@ -89,6 +95,7 @@ function InventoryPage() {
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="vendors">Vendors</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="alerts">
             Low Stock {lowStock.length > 0 && <Badge variant="destructive" className="ml-2">{lowStock.length}</Badge>}
@@ -229,6 +236,27 @@ function InventoryPage() {
                 <TableCell className="text-muted-foreground">{m.reason}</TableCell>
               </TableRow>
             ))}
+          </ScrollTable>
+        </TabsContent>
+
+        <TabsContent value="expenses" className="mt-3 flex min-h-0 flex-1 flex-col">
+          <ScrollTable columns={["Date", "Description", "Category", "Paid To", "Amount (₹)"]}>
+            {expensesList.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell className="text-xs text-muted-foreground">{e.date}</TableCell>
+                <TableCell className="font-medium">{e.description}</TableCell>
+                <TableCell><Badge variant="outline">{e.category}</Badge></TableCell>
+                <TableCell className="text-xs">{e.paidTo}</TableCell>
+                <TableCell className="font-bold text-right font-mono">₹{e.amount.toLocaleString()}</TableCell>
+              </TableRow>
+            ))}
+            {expensesList.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                  No expenses recorded yet.
+                </TableCell>
+              </TableRow>
+            )}
           </ScrollTable>
         </TabsContent>
 
