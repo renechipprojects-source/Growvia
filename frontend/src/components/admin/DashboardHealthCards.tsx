@@ -22,8 +22,8 @@ export function DashboardHealthCards() {
           getAdminDashboardStats(),
           supabase.from("gv_communications").select("id", { count: "exact", head: true }).eq("message_type", "circular"),
           supabase.from("gv_fees_payments").select("id, status").eq("status", "Pending"),
-          supabase.from("gv_users").select("id", { count: "exact", head: true }).eq("role", "student"),
-          supabase.from("inventory").select("id", { count: "exact", head: true }).lt("stock_quantity", 5),
+          supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["student", "Student"]),
+          supabase.from("gv_inventory_expenses").select("id", { count: "exact", head: true }).eq("record_type", "inventory"),
         ]);
 
         setStats({

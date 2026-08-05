@@ -74,7 +74,7 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
   try {
     let query = supabase.from("gv_users").select("*");
     if (roleFilter) {
-      query = query.eq("role", roleFilter);
+      query = query.ilike("role", roleFilter);
     }
     const { data, error } = await query;
     if (error || !data) {
@@ -129,7 +129,7 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
 
 export async function fetchTeachersFromUsers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase.from("gv_users").select("*").eq("role", "teacher");
+    const { data, error } = await supabase.from("gv_users").select("*").in("role", ["teacher", "Teacher"]);
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
 
