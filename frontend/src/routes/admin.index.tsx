@@ -41,11 +41,9 @@ function Dashboard() {
   }, []);
 
   const totalStudents = studentsList.length;
-  const presentFromLive = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
-  const absentFromLive = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
-  const presentToday = liveTodayRecords.length > 0 ? presentFromLive : (totalStudents > 0 ? Math.round(totalStudents * 0.95) : 0);
-  const absentToday = liveTodayRecords.length > 0 ? absentFromLive : (totalStudents - presentToday);
-  const attendancePct = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
+  const presentToday = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
+  const absentToday = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
+  const attendancePct = totalStudents > 0 && liveTodayRecords.length > 0 ? Math.round((presentToday / liveTodayRecords.length) * 100) : 0;
 
   // Compute upcoming birthdays (Today & Tomorrow)
   const today = new Date();

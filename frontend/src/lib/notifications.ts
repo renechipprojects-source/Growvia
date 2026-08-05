@@ -208,7 +208,7 @@ export function syncLiveDatabaseNotifications() {
 // Run initial sync & set live polling interval on script load
 if (typeof window !== "undefined") {
   syncLiveDatabaseNotifications();
-  setInterval(() => syncLiveDatabaseNotifications(), 4000);
+  setInterval(() => syncLiveDatabaseNotifications(), 15000);
 
   window.addEventListener("storage", (e) => {
     if (e.key === NOTIF_STORAGE_KEY && e.newValue) {

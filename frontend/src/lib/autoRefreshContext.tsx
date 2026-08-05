@@ -143,14 +143,21 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
     throw new Error("useAutoRefresh must be used within an AutoRefreshProvider");
   }
 
+  const refreshFnRef = useRef(refreshFn);
   useEffect(() => {
-    if (module && refreshFn) {
-      try {
-        refreshFn();
-      } catch {}
-      return ctx.registerRefresher(module, refreshFn);
+    refreshFnRef.current = refreshFn;
+  });
+
+  useEffect(() => {
+    if (module) {
+      const callback = () => {
+        if (refreshFnRef.current) {
+          return refreshFnRef.current();
+        }
+      };
+      return ctx.registerRefresher(module, callback);
     }
-  }, [module, refreshFn, ctx]);
+  }, [module, ctx]);
 
   return ctx;
 }

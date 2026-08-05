@@ -12,6 +12,8 @@ import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidge
 
 import { getSession } from "@/lib/auth";
 
+import { useLiveAttendance } from "@/lib/attendanceStore";
+
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
@@ -29,6 +31,8 @@ function Dash() {
   const subjectAssignments = workload.subjectAssignments;
 
   const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { attendance: todayAttendanceRecords } = useLiveAttendance(undefined, todayStr);
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
@@ -37,15 +41,15 @@ function Dash() {
   }, []);
 
   const myClass = studentsList;
-  const recMap = new Map();
+  const recMap = new Map(todayAttendanceRecords.map((r) => [r.studentId, r.status]));
 
   const total = myClass.length;
   const boys = myClass.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
   const girls = myClass.filter((s) => s.gender === "Girl" || (s as any).gender === "Female").length;
-  const presentCount = myClass.filter((s) => recMap.get(s.id) === "Present").length;
-  const absentCount = myClass.filter((s) => recMap.get(s.id) === "Absent").length;
-  const lateCount = myClass.filter((s) => recMap.get(s.id) === "Late").length;
-  const leaveCount = myClass.filter((s) => recMap.get(s.id) === "Leave").length;
+  const presentCount = myClass.filter((s) => recMap.get(s.id) === "P" || recMap.get(s.id) === "Present").length;
+  const absentCount = myClass.filter((s) => recMap.get(s.id) === "A" || recMap.get(s.id) === "Absent").length;
+  const lateCount = myClass.filter((s) => recMap.get(s.id) === "L" || recMap.get(s.id) === "Late").length;
+  const leaveCount = myClass.filter((s) => recMap.get(s.id) === "Lv" || recMap.get(s.id) === "Leave").length;
   const classHomework: any[] = [];
   const hwPending = 0;
   const hwSubmitted = 0;

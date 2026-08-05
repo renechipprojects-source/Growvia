@@ -20,22 +20,50 @@ export interface StudentAttendanceEntry {
 }
 
 const EVENT_NAME = "sunshine-attendance-update";
+const STORAGE_KEY = "sunshine.attendance.cache.v1";
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 let memoryAttendanceCache: StudentAttendanceEntry[] = [];
 
+function loadAttendanceFromStorage(): StudentAttendanceEntry[] {
+  if (memoryAttendanceCache.length > 0) return memoryAttendanceCache;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryAttendanceCache = parsed;
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+  return [];
+}
+
+function saveAttendanceToStorage(list: StudentAttendanceEntry[]) {
+  memoryAttendanceCache = list;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+}
+
 export function getStoredAttendance(): StudentAttendanceEntry[] {
-  return memoryAttendanceCache;
+  return loadAttendanceFromStorage();
 }
 
 export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEntry[]> {
+  const cached = loadAttendanceFromStorage();
   try {
     const { data, error } = await supabase
       .from("gv_requests")
       .select("*")
       .eq("request_type", "attendance");
 
-    if (error || !data) return memoryAttendanceCache;
+    if (error || !data || data.length === 0) return cached;
 
     const mapped: StudentAttendanceEntry[] = data.map((d: any) => {
       let meta: any = {};
@@ -62,10 +90,10 @@ export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEn
       };
     });
 
-    memoryAttendanceCache = mapped;
+    saveAttendanceToStorage(mapped);
     return mapped;
   } catch {
-    return memoryAttendanceCache;
+    return cached;
   }
 }
 
@@ -208,9 +236,20 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
 }
 
 export function useLiveAttendance(studentId?: string, date?: string) {
-  const [data, setData] = useState<StudentAttendanceEntry[]>(() => memoryAttendanceCache);
+  const [data, setData] = useState<StudentAttendanceEntry[]>(() => loadAttendanceFromStorage());
+  const [activeDate, setActiveDate] = useState<string>(() => date || new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!date && todayStr !== activeDate) {
+        setActiveDate(todayStr);
+        fetchAttendanceFromSupabase().then((res) => {
+          if (res) setData(res);
+        });
+      }
+    }, 30000);
+
     fetchAttendanceFromSupabase().then((res) => {
       if (res) setData(res);
     });
@@ -224,21 +263,23 @@ export function useLiveAttendance(studentId?: string, date?: string) {
       },
     });
 
-    const handler = () => setData(memoryAttendanceCache);
+    const handler = () => setData(getStoredAttendance());
     window.addEventListener(EVENT_NAME, handler);
 
     return () => {
+      clearInterval(timer);
       unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
     };
-  }, []);
+  }, [date, activeDate]);
 
   let filtered = data;
   if (studentId) {
     filtered = filtered.filter((i) => i.studentId === studentId);
   }
-  if (date) {
-    filtered = filtered.filter((i) => i.date === date);
+  const filterDate = date || activeDate;
+  if (filterDate) {
+    filtered = filtered.filter((i) => i.date === filterDate);
   }
 
   return {
