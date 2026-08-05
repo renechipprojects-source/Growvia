@@ -281,6 +281,64 @@ function Login() {
               )}
             </Button>
           </form>
+
+          {/* Interactive Quick-Fill Demo Accounts Selector */}
+          <div className="mt-6 pt-5 border-t border-slate-200/80">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2.5">
+              <span>Quick Demo Accounts</span>
+              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">1-Click Fill</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => { setLoginId("ADMIN001"); setPassword("Admin@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">👑 Admin</div>
+                <div className="text-[10px] text-slate-500">ADMIN001</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginId("PRINCIPAL001"); setPassword("Principal@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">🏫 Principal</div>
+                <div className="text-[10px] text-slate-500">PRINCIPAL001</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginId("OFFICE001"); setPassword("Office@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">📋 Office</div>
+                <div className="text-[10px] text-slate-500">OFFICE001</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginId("TCH1001"); setPassword("Teacher@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">👩‍🏫 Teacher</div>
+                <div className="text-[10px] text-slate-500">TCH1001</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginId("PAR1001"); setPassword("Parent@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">👨‍👩‍👧 Parent</div>
+                <div className="text-[10px] text-slate-500">PAR1001</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginId("STU1001"); setPassword("Student@123"); }}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-amber-100 border border-slate-200 text-left transition"
+              >
+                <div className="font-bold text-slate-800">🎓 Student</div>
+                <div className="text-[10px] text-slate-500">STU1001</div>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

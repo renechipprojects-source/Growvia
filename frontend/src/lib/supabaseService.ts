@@ -51,18 +51,7 @@ export interface LeaveRequest {
   applied_on?: string;
 }
 
-export async function saveReceipt(rcpt: any) {
-  try {
-    await supabase.from("gv_fees_payments").insert([{
-      record_type: "payment_receipt",
-      student_name: rcpt.studentName,
-      amount_paid: rcpt.amountPaid,
-      receipt_number: rcpt.receiptNo,
-      payment_method: rcpt.method || "Cash",
-      payment_date: rcpt.date || new Date().toISOString().slice(0, 10),
-    }]);
-  } catch {}
-}
+
 
 export async function fetchLeaveRequests(): Promise<{ data: LeaveRequest[]; isFromSupabase: boolean }> {
   try {
@@ -698,6 +687,130 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
     }]);
   } catch (err) {
     console.warn("Supabase fee save notice:", err);
+  }
+}
+
+export async function saveReceipt(payment: any): Promise<{ data: any; error: string | null }> {
+  try {
+    const receiptNo = payment.receiptNo || `REC-${Date.now().toString().slice(-6)}`;
+    const payload = {
+      id: payment.id || `PAY-${Date.now()}`,
+      record_type: "payment_receipt",
+      student_id: payment.studentId,
+      student_name: payment.studentName,
+      class_name: payment.className || "Nursery",
+      fee_type: payment.feeType || "Term Fee",
+      academic_year: "2026-2027",
+      installment: payment.installmentNo || 1,
+      amount_paid: payment.amount,
+      amount_due: payment.amount,
+      balance: 0,
+      payment_date: payment.date || new Date().toISOString().split("T")[0],
+      payment_method: payment.method || "Cash",
+      receipt_number: receiptNo,
+      transaction_ref: payment.transactionRef || receiptNo,
+      status: "Paid",
+      recorded_by: payment.collectedBy || "Office Staff",
+    };
+
+    const { data, error } = await supabase.from("gv_fees_payments").upsert([payload], { onConflict: "id" }).select();
+    if (error) {
+      try {
+        const res = await fetch(`${API_URL}/api/fees`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          return { data: json.data ? json.data[0] : payload, error: null };
+        }
+      } catch {}
+      return { data: null, error: error.message };
+    }
+    return { data: data ? data[0] : payload, error: null };
+  } catch (err: any) {
+    return { data: null, error: err?.message || "Failed to save receipt." };
+  }
+}
+
+// ─── 5B. TRANSPORT MODULE ──────────────────────────────────────────────────
+
+export interface TransportRoute {
+  id: string;
+  routeName: string;
+  vehicleNo: string;
+  driverName: string;
+  driverPhone: string;
+  capacity: number;
+  assignedStudentsCount: number;
+  monthlyFare: number;
+  status: "Active" | "Maintenance" | "Inactive";
+}
+
+export async function fetchTransportRoutes(): Promise<TransportRoute[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_inventory_expenses")
+      .select("*")
+      .eq("record_type", "transport_route")
+      .order("created_at", { ascending: false });
+
+    if (error || !data || data.length === 0) return [];
+
+    return data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.notes && (d.notes.startsWith("{") || d.notes.startsWith("["))) {
+          meta = JSON.parse(d.notes);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        routeName: d.title || meta.routeName || "Route 1",
+        vehicleNo: d.supplier_or_paid_to || meta.vehicleNo || "KA-01-EXP-1001",
+        driverName: meta.driverName || "Driver",
+        driverPhone: meta.driverPhone || "9876543210",
+        capacity: Number(d.quantity || meta.capacity || 30),
+        assignedStudentsCount: Number(meta.assignedStudentsCount || 15),
+        monthlyFare: Number(d.amount_or_unit_cost || meta.monthlyFare || 1500),
+        status: meta.status || "Active",
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function saveTransportRoute(route: Partial<TransportRoute>): Promise<{ data: any; error: string | null }> {
+  try {
+    const id = route.id || `TR-${Date.now().toString().slice(-6)}`;
+    const payload = {
+      id,
+      record_type: "transport_route",
+      title: route.routeName || "School Route",
+      category: "Transport",
+      amount_or_unit_cost: route.monthlyFare || 1500,
+      quantity: route.capacity || 30,
+      supplier_or_paid_to: route.vehicleNo || "KA-01-EXP-1001",
+      notes: JSON.stringify(route),
+      created_by: "Office Staff",
+    };
+
+    const { data, error } = await supabase.from("gv_inventory_expenses").upsert([payload], { onConflict: "id" }).select();
+    return { data: data ? data[0] : payload, error: error?.message || null };
+  } catch (err: any) {
+    return { data: null, error: err?.message || "Failed to save transport route." };
+  }
+}
+
+export async function deleteTransportRoute(id: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.from("gv_inventory_expenses").delete().eq("id", id);
+    return { error: error?.message || null };
+  } catch (err: any) {
+    return { error: err?.message || "Failed to delete transport route." };
   }
 }
 

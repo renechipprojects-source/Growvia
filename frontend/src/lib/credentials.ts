@@ -129,15 +129,18 @@ export function generateParentCredential(
   store.parents[studentId] = cred;
   write(store);
 
+  const parentUserId = `PAR-${loginId.toUpperCase()}`;
   Promise.resolve(
     supabase.from("gv_users").upsert([{
+      id: parentUserId,
       login_id: loginId,
       role: "parent",
-      full_name: student.parent || "Parent",
-      email: `${loginId.toLowerCase()}@sunshine.edu`,
+      full_name: student.parent || "Parent User",
+      email: `${loginId.toLowerCase()}@growvia.edu`,
       mobile: student.phone || "9876543210",
+      parent_id: parentUserId,
       status: "active",
-    }])
+    }], { onConflict: "login_id" })
   ).catch(() => {});
 
   return cred;

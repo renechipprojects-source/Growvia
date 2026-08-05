@@ -106,7 +106,20 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
       status: a.status,
       reason_or_notes: JSON.stringify(a),
     }));
+
     Promise.resolve(supabase.from("gv_requests").upsert(payloads)).catch(() => {});
+
+    // Also synchronize active Class Teacher allocations with gv_users teacher records
+    newItems.forEach((a) => {
+      if (a.role === "class" && a.status === "active") {
+        const clsString = `${a.className} ${a.section}`.trim();
+        if (a.teacherId && (a.teacherId.startsWith("TCH") || a.teacherId.startsWith("EMP"))) {
+          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId);
+        } else if (a.teacherName) {
+          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("full_name", a.teacherName);
+        }
+      }
+    });
   };
 
   const create: State["create"] = useCallback((a) => {

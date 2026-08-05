@@ -407,10 +407,14 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
     const graduatedIds = studentIds.filter((sId) => toClass === "Alumni / Graduated" || toClass === "Graduated");
 
     if (activePromotedIds.length > 0) {
-      Promise.resolve(supabase.from("gv_users").update({ class_name: toClass }).in("id", activePromotedIds)).catch(() => {});
+      Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).in("id", activePromotedIds)).catch(() => {});
+      activePromotedIds.forEach((sId) => {
+        Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).eq("login_id", sId)).catch(() => {});
+        Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).eq("admission_no", sId)).catch(() => {});
+      });
     }
     if (graduatedIds.length > 0) {
-      Promise.resolve(supabase.from("gv_users").update({ role: "alumni" }).in("id", graduatedIds)).catch(() => {});
+      Promise.resolve(supabase.from("gv_users").update({ role: "alumni", status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
     }
   } catch {}
 

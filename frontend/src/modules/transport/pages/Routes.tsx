@@ -27,9 +27,31 @@ const filters: FilterDef<Route>[] = [
   { key: "status", label: "Status", options: ["Active", "Inactive"], predicate: (r, v) => r.status === v },
 ];
 
+import { fetchTransportRoutes, saveTransportRoute as saveTransportRouteService, deleteTransportRoute as deleteTransportRouteService } from "@/lib/supabaseService";
+import { useEffect } from "react";
+
 export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   const [routeList, setRouteList] = useState<Route[]>(initialRoutes);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetchTransportRoutes().then((data) => {
+      if (data && data.length > 0) {
+        const mapped: Route[] = data.map((d) => ({
+          id: d.id,
+          name: d.routeName,
+          pickupPoints: ["Station A", "Stop B"],
+          dropPoints: ["School Main Gate"],
+          distanceKm: 12,
+          vehicle: d.vehicleNo,
+          driver: d.driverName,
+          students: d.assignedStudentsCount,
+          status: d.status === "Active" ? "Active" : "Inactive",
+        }));
+        setRouteList(mapped);
+      }
+    });
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -54,7 +76,7 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
     setOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name) {
       toast.error("Route name is required.");
       return;
@@ -70,13 +92,26 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
       students: Number(form.students),
       status: "Active",
     };
+
     setRouteList((prev) => [newRoute, ...prev]);
+    await saveTransportRouteService({
+      id: newRoute.id,
+      routeName: newRoute.name,
+      vehicleNo: newRoute.vehicle,
+      driverName: newRoute.driver,
+      capacity: 30,
+      assignedStudentsCount: newRoute.students,
+      monthlyFare: 1500,
+      status: "Active",
+    });
+
     toast.success(`Route ${form.name} created!`);
     setOpen(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     setRouteList((prev) => prev.filter((r) => r.id !== id));
+    await deleteTransportRouteService(id);
     toast.success(`Route ${name} deleted`);
   };
 
