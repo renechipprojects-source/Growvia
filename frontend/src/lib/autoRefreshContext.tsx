@@ -145,6 +145,9 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
 
   useEffect(() => {
     if (module && refreshFn) {
+      try {
+        refreshFn();
+      } catch {}
       return ctx.registerRefresher(module, refreshFn);
     }
   }, [module, refreshFn, ctx]);

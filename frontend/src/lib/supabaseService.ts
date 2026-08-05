@@ -137,65 +137,113 @@ export interface FeeLedgerItem {
 
 // ─── 1. CIRCULARS & NOTICES ──────────────────────────────────────────────
 
-export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
-  try {
-    let rows: any[] = [];
-    const { data, error } = await supabase
-      .from("gv_communications")
-      .select("*")
-      .eq("message_type", "circular")
-      .order("created_at", { ascending: false });
+let circularsCacheMemory: Circular[] = [];
+const CIRCULARS_STORAGE_KEY = "sunshine.circulars.cache.v1";
 
-    if (!error && data && data.length > 0) {
-      rows = data;
-    } else {
-      const { data: allComms } = await supabase.from("gv_communications").select("*");
-      if (allComms && allComms.length > 0) {
-        rows = allComms.filter((c: any) => c.message_type === "circular");
-      } else {
-        try {
-          const res = await fetch(`${API_URL}/api/communications?channel=circular`);
-          if (res.ok) {
-            const json = await res.json();
-            rows = json.data || [];
-          }
-        } catch {}
+function getCachedCircularsList(): Circular[] {
+  if (circularsCacheMemory.length > 0) return circularsCacheMemory;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(CIRCULARS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          circularsCacheMemory = parsed;
+          return parsed;
+        }
       }
-    }
-
-    const mapped: Circular[] = rows.map((d: any) => {
-      let meta: any = {};
-      try {
-        meta = JSON.parse(d.body || "{}");
-      } catch {
-        meta = { description: d.body };
-      }
-
-      return {
-        id: d.id,
-        title: d.title || meta.subject || "School Notice",
-        subject: meta.subject || d.title,
-        description: meta.description || d.body || "",
-        content: meta.description || d.body || "",
-        published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        expiryDate: "2026-12-31",
-        target_audience: d.recipient_role || "All",
-        recipients: meta.recipients || ["Parents", "Teachers"],
-        author: d.sender_name || "Principal Office",
-        priority: d.priority || meta.priority || "Medium",
-        status: meta.status || "Published",
-        attachment: meta.attachmentName,
-        attachmentUrl: d.attachment_url || meta.attachmentUrl,
-        createdAt: d.created_at || new Date().toISOString(),
-        history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
-      };
-    });
-
-    return { data: mapped, isFromSupabase: true };
-  } catch {
-    return { data: [], isFromSupabase: false };
+    } catch {}
   }
+  return [];
+}
+
+function setCachedCircularsList(list: Circular[]) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  circularsCacheMemory = list;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(CIRCULARS_STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+}
+
+export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
+  const cached = getCachedCircularsList();
+
+  const fetchTask = (async () => {
+    try {
+      let rows: any[] = [];
+      const { data, error } = await supabase
+        .from("gv_communications")
+        .select("*")
+        .eq("message_type", "circular")
+        .order("created_at", { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        rows = data;
+      } else {
+        const { data: allComms } = await supabase.from("gv_communications").select("*");
+        if (allComms && allComms.length > 0) {
+          rows = allComms.filter((c: any) => c.message_type === "circular");
+        } else {
+          try {
+            const res = await fetch(`${API_URL}/api/communications?channel=circular`);
+            if (res.ok) {
+              const json = await res.json();
+              rows = json.data || [];
+            }
+          } catch {}
+        }
+      }
+
+      if (rows.length > 0) {
+        const mapped: Circular[] = rows.map((d: any) => {
+          let meta: any = {};
+          try {
+            meta = JSON.parse(d.body || "{}");
+          } catch {
+            meta = { description: d.body };
+          }
+
+          return {
+            id: d.id,
+            title: d.title || meta.subject || "School Notice",
+            subject: meta.subject || d.title,
+            description: meta.description || d.body || "",
+            content: meta.description || d.body || "",
+            published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+            publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+            expiryDate: "2026-12-31",
+            target_audience: d.recipient_role || "All",
+            recipients: meta.recipients || ["Parents", "Teachers"],
+            author: d.sender_name || "Principal Office",
+            priority: d.priority || meta.priority || "Medium",
+            status: meta.status || "Published",
+            attachment: meta.attachmentName,
+            attachmentUrl: d.attachment_url || meta.attachmentUrl,
+            createdAt: d.created_at || new Date().toISOString(),
+            history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
+          };
+        });
+
+        setCachedCircularsList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    } catch {}
+
+    return { data: cached.length > 0 ? cached : [], isFromSupabase: false };
+  })();
+
+  if (cached.length > 0) {
+    fetchTask.catch(() => {});
+    return { data: cached, isFromSupabase: true };
+  }
+
+  const timeoutTask = new Promise<{ data: Circular[]; isFromSupabase: boolean }>((resolve) => {
+    setTimeout(() => resolve({ data: cached, isFromSupabase: false }), 3000);
+  });
+
+  return Promise.race([fetchTask, timeoutTask]);
 }
 
 export async function createCircular(circular: any): Promise<{ data: any | null; error: string | null }> {

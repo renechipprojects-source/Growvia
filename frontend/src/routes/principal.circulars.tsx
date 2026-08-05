@@ -83,6 +83,10 @@ function CircularsPage() {
 
   const { setFormEditing, triggerModuleRefresh } = useAutoRefresh("circulars", reloadCirculars);
 
+  useEffect(() => {
+    reloadCirculars();
+  }, [reloadCirculars]);
+
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [priority, setPriority] = useState("all");

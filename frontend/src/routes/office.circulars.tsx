@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { CircularList } from "@/components/circulars/CircularList";
@@ -15,6 +15,10 @@ function OfficeCircularsPage() {
   const loadCirculars = useCallback(() => {
     return fetchCirculars().then(({ data }) => setCirculars(data || []));
   }, []);
+
+  useEffect(() => {
+    loadCirculars();
+  }, [loadCirculars]);
 
   useAutoRefresh("circulars", loadCirculars);
 
