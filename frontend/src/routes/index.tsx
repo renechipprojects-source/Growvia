@@ -99,6 +99,17 @@ function Login() {
     }
   }
 
+  const schoolName = settings.school?.schoolName || settings.branding?.schoolName || "Sunshine Play School";
+  const academicYear = settings.school?.academicYear || "2026-2027";
+  const welcomeMsg = settings.loginPage?.welcomeMessage || settings.loginPage?.description || "Welcome to Sunshine Play School ERP. Secure single portal access for Admin, Principal, Office, Teachers and Parents.";
+  const motto = settings.branding?.motto || settings.school?.motto || "Play, Learn & Grow Together";
+  const address = settings.branding?.address || settings.school?.address || "123 Sunshine Lane, Playtown, India";
+  const phone = settings.branding?.phone || settings.school?.phone || "+91 98765 43210";
+  const email = settings.branding?.email || settings.school?.email || "contact@sunshineplayschool.edu";
+  const officeHours = settings.branding?.officeHours || settings.school?.officeHours || "8:00 AM - 4:00 PM (Mon - Sat)";
+  const projectName = settings.branding?.projectName || settings.branding?.project_name || "Growvia ERP";
+  const logoUrl = settings.branding?.schoolLogoUrl || settings.school?.schoolLogoUrl || settings.school?.logoUrl || settings.loginPage?.schoolLogoUrl || settings.branding?.logoUrl;
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-100 via-blue-50/50 to-indigo-50/30 text-slate-800 relative overflow-hidden flex items-center justify-center p-4 lg:p-8">
       {/* Background Orbs */}
@@ -113,64 +124,52 @@ function Login() {
               {/* Top Left: School Logo, School Name & Academic Session */}
               <div className="flex flex-col items-start">
                 <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-sm">
-                  {Boolean(settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || settings.school.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl) ? (
-                    <img src={settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || settings.school.logoUrl || settings.loginPage.schoolLogoUrl || settings.branding.logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                  {Boolean(logoUrl) ? (
+                    <img src={logoUrl} alt="School Logo" className="h-full w-full object-cover" />
                   ) : (
-                    <GraduationCap className="h-8 w-8" />
+                    <GraduationCap className="h-8 w-8 text-amber-600" />
                   )}
                 </div>
-                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{settings.school.schoolName || settings.branding.schoolName}</h1>
+                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{schoolName}</h1>
                 <div className="mt-1 text-xs text-amber-600 font-bold uppercase tracking-wider">
-                  ACADEMIC SESSION {settings.school.academicYear}
+                  ACADEMIC SESSION {academicYear}
                 </div>
               </div>
 
-              {/* Top Right: Growvia ERP Developer Branding */}
-              {Boolean(settings.branding.projectLogo || settings.branding.project_logo) && (
-                <div className="flex items-center gap-3 shrink-0 bg-transparent">
-                  <div className="h-16 max-h-16 w-auto flex items-center justify-center bg-transparent border-none p-0 shadow-none shrink-0">
-                    <img
-                      src={settings.branding.projectLogo || settings.branding.project_logo || "/growvia-logo.png"}
-                      alt={settings.branding.projectName || settings.branding.project_name || "Growvia"}
-                      className="h-full w-auto object-contain filter-none opacity-100 shadow-none [image-rendering:auto]"
-                    />
-                  </div>
-                  <span className="text-base font-bold text-slate-900 tracking-tight">
-                    {settings.branding.projectName || settings.branding.project_name || "Growvia"}
-                  </span>
-                </div>
-              )}
+              {/* Top Right: Growvia ERP Branding Badge */}
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white shadow-md border border-slate-800 shrink-0">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <span className="text-sm font-bold tracking-tight">{projectName}</span>
+              </div>
             </div>
 
             <div className="mt-6 space-y-3 text-sm text-slate-600">
               <p className="text-base text-slate-700 leading-relaxed font-medium">
-                {settings.loginPage.welcomeMessage}
+                {welcomeMsg}
               </p>
 
-              {settings.branding.motto && (
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-semibold shadow-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" /> &ldquo;{settings.branding.motto}&rdquo;
-                </div>
-              )}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-semibold shadow-xs">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> &ldquo;{motto}&rdquo;
+              </div>
             </div>
 
-            {/* School Details Metadata (Website & School Code removed as required) */}
+            {/* School Details Metadata */}
             <div className="mt-8 pt-6 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
               <div className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <span className="font-medium text-slate-700">{settings.branding.address}</span>
+                <span className="font-medium text-slate-700">{address}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span className="font-medium text-slate-700">{settings.branding.phone}</span>
+                <span className="font-medium text-slate-700">{phone}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 text-sky-600 shrink-0" />
-                <span className="font-medium text-slate-700">{settings.branding.email}</span>
+                <span className="font-medium text-slate-700">{email}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 text-purple-600 shrink-0" />
-                <span className="font-medium text-slate-700">Office Hours: {settings.branding.officeHours}</span>
+                <span className="font-medium text-slate-700">Office Hours: {officeHours}</span>
               </div>
             </div>
           </div>

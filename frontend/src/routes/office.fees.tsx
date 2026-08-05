@@ -108,6 +108,9 @@ function FeeCollection() {
     };
   }, [feeList]);
 
+  const [classFilter, setClassFilter] = useState<string>("All");
+  const [sectionFilter, setSectionFilter] = useState<string>("All");
+
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     return feeList.filter((f) => {
@@ -117,9 +120,11 @@ function FeeCollection() {
         (f.admissionNo && f.admissionNo.toLowerCase().includes(t)) ||
         f.className.toLowerCase().includes(t);
       const matchStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchClass = classFilter === "All" || f.className.toLowerCase().includes(classFilter.toLowerCase());
+      const matchSection = sectionFilter === "All" || (f.section && f.section.toUpperCase() === sectionFilter.toUpperCase());
+      return matchSearch && matchStatus && matchClass && matchSection;
     });
-  }, [feeList, q, statusFilter]);
+  }, [feeList, q, statusFilter, classFilter, sectionFilter]);
 
   const openRecordPaymentFor = (f: FeeLedgerItem) => {
     setActiveLedger(f);
@@ -263,18 +268,50 @@ function FeeCollection() {
             />
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
-            {["All", "Paid", "Partial", "Pending"].map((st) => (
-              <Button
-                key={st}
-                size="sm"
-                variant={statusFilter === st ? "default" : "outline"}
-                onClick={() => setStatusFilter(st)}
-                className="rounded-full text-xs"
-              >
-                {st}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {/* Class Filter */}
+            <Select value={classFilter} onValueChange={setClassFilter}>
+              <SelectTrigger className="w-[120px] h-9 text-xs bg-white/80 rounded-xl">
+                <SelectValue placeholder="Class: All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Classes</SelectItem>
+                <SelectItem value="Playgroup">Playgroup</SelectItem>
+                <SelectItem value="Nursery">Nursery</SelectItem>
+                <SelectItem value="LKG">LKG</SelectItem>
+                <SelectItem value="UKG">UKG</SelectItem>
+                <SelectItem value="Grade 1">Grade 1</SelectItem>
+                <SelectItem value="Grade 2">Grade 2</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Section Filter */}
+            <Select value={sectionFilter} onValueChange={setSectionFilter}>
+              <SelectTrigger className="w-[100px] h-9 text-xs bg-white/80 rounded-xl">
+                <SelectValue placeholder="Sec: All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Sec</SelectItem>
+                <SelectItem value="A">Sec A</SelectItem>
+                <SelectItem value="B">Sec B</SelectItem>
+                <SelectItem value="C">Sec C</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Status Pills */}
+            <div className="flex items-center gap-1">
+              {["All", "Paid", "Partial", "Pending"].map((st) => (
+                <Button
+                  key={st}
+                  size="sm"
+                  variant={statusFilter === st ? "default" : "outline"}
+                  onClick={() => setStatusFilter(st)}
+                  className="rounded-full text-xs h-8 px-3"
+                >
+                  {st}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
