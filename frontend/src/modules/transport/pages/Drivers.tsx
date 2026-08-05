@@ -28,8 +28,10 @@ const filters: FilterDef<Driver>[] = [
   { key: "status", label: "Status", options: ["Active", "On Leave", "Inactive"], predicate: (r, v) => r.status === v },
 ];
 
+import { getStoredDrivers, saveStoredDrivers } from "../transportStore";
+
 export function DriversPage({ readOnly }: { readOnly?: boolean }) {
-  const [driverList, setDriverList] = useState<Driver[]>(initialDrivers);
+  const [driverList, setDriverList] = useState<Driver[]>(getStoredDrivers);
   const [open, setOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -67,13 +69,17 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
       route: form.route,
       status: "Active",
     };
-    setDriverList((prev) => [newDriver, ...prev]);
+    const next = [newDriver, ...driverList];
+    setDriverList(next);
+    saveStoredDrivers(next);
     toast.success(`Driver ${form.name} registered!`);
     setOpen(false);
   };
 
   const handleDelete = (id: string, name: string) => {
-    setDriverList((prev) => prev.filter((d) => d.id !== id));
+    const next = driverList.filter((d) => d.id !== id);
+    setDriverList(next);
+    saveStoredDrivers(next);
     toast.success(`Driver ${name} removed`);
   };
 

@@ -24,8 +24,20 @@ const columns: Column<Allocation>[] = [
   { key: "fee", header: "Monthly Fee", cell: (a) => currency(a.monthlyFee) },
 ];
 
+import { getStoredAllocations, saveStoredAllocations } from "../transportStore";
+
 export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
-  const [allocationList, setAllocationList] = useState<Allocation[]>(initialAllocations);
+  const [allocationList, setAllocationList] = useState<any[]>(() => {
+    const raw = getStoredAllocations();
+    return raw.map((a: any) => ({
+      ...a,
+      student: a.student || a.studentName || "Student",
+      pickupPoint: a.pickupPoint || a.pickupStop || "School Gate",
+      dropPoint: a.dropPoint || a.dropStop || "Indiranagar",
+      vehicle: a.vehicle || a.vehicleNo || "KA-04-B-1001",
+      driver: a.driver || a.driverName || "Driver",
+    }));
+  });
   const [open, setOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -68,13 +80,17 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
       driver: "Assigned Driver",
       monthlyFee: Number(form.monthlyFee),
     };
-    setAllocationList((prev) => [newAlloc, ...prev]);
+    const next = [newAlloc, ...allocationList];
+    setAllocationList(next);
+    saveStoredAllocations(next);
     toast.success(`Transport allocated for ${form.student}!`);
     setOpen(false);
   };
 
   const handleDelete = (id: string, name: string) => {
-    setAllocationList((prev) => prev.filter((a) => a.id !== id));
+    const next = allocationList.filter((a) => a.id !== id);
+    setAllocationList(next);
+    saveStoredAllocations(next);
     toast.success(`Transport allocation for ${name} removed`);
   };
 

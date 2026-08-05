@@ -120,6 +120,27 @@ export function isNotificationAllowedForRole(n: AppNotification, role: Role): bo
   return allowed.includes(n.module);
 }
 
+const DELETED_NOTIF_KEY = "sunshine.deleted_notifications.v1";
+
+function getDeletedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_NOTIF_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedId(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const set = getDeletedIds();
+    set.add(id);
+    window.localStorage.setItem(DELETED_NOTIF_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
 // Automatically sync live database notifications from Supabase (Only Circulars & Leave/Message events)
 export function syncLiveDatabaseNotifications() {
   if (typeof window === "undefined") return;
@@ -130,6 +151,8 @@ export function syncLiveDatabaseNotifications() {
     window.localStorage.removeItem("sunshine.notifications.v1");
   } catch {}
 
+  const deletedSet = getDeletedIds();
+
   import("./supabaseService")
     .then(({ fetchCirculars, fetchLeaveRequests }) => {
       fetchCirculars().then(({ data }) => {
@@ -137,7 +160,7 @@ export function syncLiveDatabaseNotifications() {
           let updated = false;
           data.forEach((c) => {
             const notifId = `n-cir-${c.id || c.title}`;
-            if (!store.some((n) => n.id === notifId)) {
+            if (!deletedSet.has(notifId) && !store.some((n) => n.id === notifId)) {
               store.unshift({
                 id: notifId,
                 title: `Circular: ${c.title}`,
@@ -160,7 +183,7 @@ export function syncLiveDatabaseNotifications() {
           let updated = false;
           data.forEach((l: any) => {
             const notifId = `n-lv-${l.id || l.applicant_name}`;
-            if (!store.some((n) => n.id === notifId)) {
+            if (!deletedSet.has(notifId) && !store.some((n) => n.id === notifId)) {
               const isPending = l.status === "Pending";
               store.unshift({
                 id: notifId,
@@ -235,11 +258,14 @@ export function markAllRead(role: Role) {
 }
 
 export function removeNotification(id: string) {
+  addDeletedId(id);
   const next = store.filter((n) => n.id !== id);
   saveStore(next);
 }
 
 export function clearAllNotifications(role: Role) {
+  const toDelete = store.filter((n) => isNotificationAllowedForRole(n, role));
+  toDelete.forEach((n) => addDeletedId(n.id));
   const next = store.filter((n) => !isNotificationAllowedForRole(n, role));
   saveStore(next);
 }

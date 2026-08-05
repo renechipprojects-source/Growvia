@@ -71,14 +71,19 @@ function FeeCollection() {
   const [remarks, setRemarks] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
-  // Load students & fees on mount
+  // Load students & fees concurrently in parallel
   const loadData = useCallback(async () => {
-    const { data: stData } = await fetchStudents();
-    const currentStudents = stData || [];
-    setStudents(currentStudents);
-
-    const { data: feData } = await fetchFees();
-    setFeeList(feData || []);
+    try {
+      const [{ data: stData }, { data: feData }] = await Promise.all([
+        fetchStudents(),
+        fetchFees(),
+      ]);
+      setStudents(stData || []);
+      setFeeList(feData || []);
+    } catch {
+      setStudents([]);
+      setFeeList([]);
+    }
   }, []);
 
   const { setFormEditing } = useAutoRefresh("fees", loadData);

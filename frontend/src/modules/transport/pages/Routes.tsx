@@ -28,10 +28,11 @@ const filters: FilterDef<Route>[] = [
 ];
 
 import { fetchTransportRoutes, saveTransportRoute as saveTransportRouteService, deleteTransportRoute as deleteTransportRouteService } from "@/lib/supabaseService";
+import { getStoredRoutes, saveStoredRoutes } from "../transportStore";
 import { useEffect } from "react";
 
 export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
-  const [routeList, setRouteList] = useState<Route[]>(initialRoutes);
+  const [routeList, setRouteList] = useState<Route[]>(getStoredRoutes);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
           status: d.status === "Active" ? "Active" : "Inactive",
         }));
         setRouteList(mapped);
+        saveStoredRoutes(mapped);
       }
     });
   }, []);
@@ -93,7 +95,10 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
       status: "Active",
     };
 
-    setRouteList((prev) => [newRoute, ...prev]);
+    const next = [newRoute, ...routeList];
+    setRouteList(next);
+    saveStoredRoutes(next);
+
     await saveTransportRouteService({
       id: newRoute.id,
       routeName: newRoute.name,
@@ -110,7 +115,9 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    setRouteList((prev) => prev.filter((r) => r.id !== id));
+    const next = routeList.filter((r) => r.id !== id);
+    setRouteList(next);
+    saveStoredRoutes(next);
     await deleteTransportRouteService(id);
     toast.success(`Route ${name} deleted`);
   };

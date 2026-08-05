@@ -31,8 +31,10 @@ const filters: FilterDef<Vehicle>[] = [
   { key: "type", label: "Type", options: ["Bus", "Van", "Mini Bus"], predicate: (r, v) => r.type === v },
 ];
 
+import { getStoredVehicles, saveStoredVehicles } from "../transportStore";
+
 export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
-  const [vehicleList, setVehicleList] = useState<Vehicle[]>(initialVehicles);
+  const [vehicleList, setVehicleList] = useState<Vehicle[]>(getStoredVehicles);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Vehicle | null>(null);
 
@@ -67,9 +69,9 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
     }
 
     if (editing) {
-      setVehicleList((prev) =>
-        prev.map((v) => (v.id === editing.id ? { ...v, ...form } : v))
-      );
+      const next = vehicleList.map((v) => (v.id === editing.id ? { ...v, ...form } : v));
+      setVehicleList(next);
+      saveStoredVehicles(next);
       toast.success(`Vehicle ${form.name} updated!`);
     } else {
       const newVehicle: Vehicle = {
@@ -84,14 +86,18 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
         lastService: new Date().toISOString().split("T")[0],
         nextService: new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0],
       };
-      setVehicleList((prev) => [newVehicle, ...prev]);
+      const next = [newVehicle, ...vehicleList];
+      setVehicleList(next);
+      saveStoredVehicles(next);
       toast.success(`New vehicle ${form.name} added to fleet!`);
     }
     setOpen(false);
   };
 
   const handleDelete = (id: string, name: string) => {
-    setVehicleList((prev) => prev.filter((v) => v.id !== id));
+    const next = vehicleList.filter((v) => v.id !== id);
+    setVehicleList(next);
+    saveStoredVehicles(next);
     toast.success(`Vehicle ${name} removed`);
   };
 
