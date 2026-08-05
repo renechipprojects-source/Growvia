@@ -366,14 +366,37 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
     updated_at: new Date().toISOString(),
   };
 
-  // 1. Supabase persistence is the AUTHORITATIVE source of truth. Must succeed before localStorage/state update.
-  const { error } = await supabase.from("gv_system_settings").upsert(payload, { onConflict: "id" });
+  let isSaved = false;
+  let saveErr = null;
 
-  if (error) {
-    throw new Error(`Failed to save settings to Supabase DB: ${error.message}`);
+  try {
+    const { error } = await supabase.from("gv_system_settings").upsert([payload], { onConflict: "id" });
+    if (!error) {
+      isSaved = true;
+    } else {
+      saveErr = error.message;
+    }
+  } catch (err: any) {
+    saveErr = err?.message;
   }
 
-  // 2. Update localStorage only after successful DB persistence
+  if (!isSaved) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/system-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        isSaved = true;
+        saveErr = null;
+      }
+    } catch (backendErr: any) {
+      if (!saveErr) saveErr = backendErr?.message || "Failed to sync settings with backend server.";
+    }
+  }
+
+  // Always update localStorage and apply dynamic theme so UI updates immediately
   try {
     localStorage.setItem(KEY, JSON.stringify(syncedSettings));
   } catch (err) {
