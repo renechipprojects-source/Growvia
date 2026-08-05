@@ -94,8 +94,51 @@ function FeeCollection() {
         fetchStudents(),
         fetchFees(),
       ]);
+
+      const feeMap = new Map<string, FeeLedgerItem>();
+      (feData || []).forEach((f) => {
+        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+        if (!feeMap.has(key)) {
+          feeMap.set(key, f);
+        }
+      });
+
+      const combined: FeeLedgerItem[] = (stData || []).map((s) => {
+        const key = (s.id || s.admissionNo || s.name).toLowerCase();
+        const existing = feeMap.get(key);
+        if (existing) {
+          return {
+            ...existing,
+            admissionNo: existing.admissionNo || s.admissionNo || s.id,
+            rollNo: existing.rollNo || s.rollNo,
+            section: existing.section || s.section || "A",
+          };
+        }
+        return recalculateFeeLedger({
+          id: `FP-${s.id}`,
+          studentId: s.id,
+          studentName: s.name,
+          admissionNo: s.admissionNo || s.id,
+          className: s.className || "Nursery",
+          section: s.section || "A",
+          rollNo: s.rollNo || 1,
+          originalFee: 12000,
+          discountAmount: 0,
+          paid: 0,
+          status: "Pending",
+        });
+      });
+
+      // Include any additional fee records that didn't match a student row
+      (feData || []).forEach((f) => {
+        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+        if (!combined.some((c) => (c.studentId || c.admissionNo || c.studentName).toLowerCase() === key)) {
+          combined.push(f);
+        }
+      });
+
       setStudents(stData || []);
-      setFeeList(feData || []);
+      setFeeList(combined);
     } catch {
       setStudents([]);
       setFeeList([]);
@@ -105,6 +148,11 @@ function FeeCollection() {
   }, []);
 
   const { setFormEditing } = useAutoRefresh("fees", loadData);
+
+  // Execute immediate data fetch on initial mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     setFormEditing(openRecordModal || openEditFeeModal);
@@ -347,19 +395,19 @@ function FeeCollection() {
       {/* Main Student Fee Table (Full Container Width) */}
       <div className="flex-1 min-h-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col overflow-hidden">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <table className="w-full text-sm min-w-[1050px]">
+          <table className="w-full text-sm border-collapse min-w-full">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold">Admission No</th>
-                <th className="text-left px-3 py-3 font-semibold">Roll No</th>
-                <th className="text-left px-4 py-3 font-semibold">Student Name</th>
-                <th className="text-left px-3 py-3 font-semibold">Class</th>
-                <th className="text-left px-3 py-3 font-semibold">Section</th>
-                <th className="text-right px-4 py-3 font-semibold">Fee Amount</th>
-                <th className="text-right px-4 py-3 font-semibold">Paid Amount</th>
-                <th className="text-right px-4 py-3 font-semibold">Pending Amount</th>
-                <th className="text-center px-4 py-3 font-semibold">Payment Status</th>
-                <th className="text-right px-4 py-3 font-semibold">Actions</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[140px]">Admission No</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[85px]">Roll No</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[220px]">Student Name</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[100px]">Class</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[80px]">Section</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Fee Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Paid Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Pending Amount</th>
+                <th className="text-center px-4 py-3.5 font-bold w-[140px]">Payment Status</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[200px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
