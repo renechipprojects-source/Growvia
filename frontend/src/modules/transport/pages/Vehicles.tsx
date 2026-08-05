@@ -48,6 +48,8 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
     status: "Active" as Vehicle["status"],
   });
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleOpenAdd = () => {
     setEditing(null);
     setForm({
@@ -63,35 +65,42 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   };
 
   const handleSave = () => {
+    if (isSaving) return;
     if (!form.name || !form.number) {
       toast.error("Vehicle name and number are required.");
       return;
     }
 
-    if (editing) {
-      const next = vehicleList.map((v) => (v.id === editing.id ? { ...v, ...form } : v));
-      setVehicleList(next);
-      saveStoredVehicles(next);
-      toast.success(`Vehicle ${form.name} updated!`);
-    } else {
-      const newVehicle: Vehicle = {
-        id: `VEH-${Date.now().toString().slice(-4)}`,
-        number: form.number,
-        name: form.name,
-        type: form.type,
-        capacity: Number(form.capacity),
-        driver: form.driver || "Unassigned",
-        route: form.route || "Unassigned",
-        status: form.status,
-        lastService: new Date().toISOString().split("T")[0],
-        nextService: new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0],
-      };
-      const next = [newVehicle, ...vehicleList];
-      setVehicleList(next);
-      saveStoredVehicles(next);
-      toast.success(`New vehicle ${form.name} added to fleet!`);
+    setIsSaving(true);
+    try {
+      if (editing) {
+        const next = vehicleList.map((v) => (v.id === editing.id ? { ...v, ...form } : v));
+        setVehicleList(next);
+        saveStoredVehicles(next);
+        toast.success(`Vehicle ${form.name} updated!`);
+      } else {
+        const newVehicle: Vehicle = {
+          id: `VEH-${Date.now().toString().slice(-4)}`,
+          number: form.number,
+          name: form.name,
+          type: form.type,
+          capacity: Number(form.capacity),
+          driver: form.driver || "Unassigned",
+          route: form.route || "Unassigned",
+          status: form.status,
+          lastService: new Date().toISOString().split("T")[0],
+          nextService: new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0],
+        };
+        const next = [newVehicle, ...vehicleList];
+        setVehicleList(next);
+        saveStoredVehicles(next);
+        toast.success(`New vehicle ${form.name} added to fleet!`);
+      }
+      setEditing(null);
+      setOpen(false);
+    } finally {
+      setIsSaving(false);
     }
-    setOpen(false);
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -153,7 +162,7 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
       </div>
 
       {/* Add / Edit Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Vehicle" : "Add New Vehicle"}</DialogTitle>
@@ -197,7 +206,7 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save Vehicle</Button>
+            <Button disabled={isSaving} onClick={handleSave}>{isSaving ? "Saving..." : "Save Vehicle"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
