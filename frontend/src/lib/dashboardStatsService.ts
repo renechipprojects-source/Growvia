@@ -72,15 +72,27 @@ import { getDeveloperSettings } from "./developerSettingsStore";
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   try {
     const [studentsRes, teachersRes, enquiriesRes, feesRes, circularsRes] = await Promise.all([
-      supabase.from("gv_users").select("id").in("role", ["student", "Student"]),
-      supabase.from("gv_users").select("id").in("role", ["teacher", "Teacher"]),
+      supabase.from("gv_users").select("id, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
+      supabase.from("gv_users").select("id, role").or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher"),
       supabase.from("gv_requests").select("id").eq("request_type", "enquiry"),
       supabase.from("gv_fees_payments").select("amount_paid"),
       supabase.from("gv_communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
     ]);
 
-    const totalStudents = studentsRes.data?.length || 0;
-    const totalTeachers = teachersRes.data?.length || 0;
+    let studentData = studentsRes.data || [];
+    if (studentData.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, role");
+      if (allUsers) studentData = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));
+    }
+
+    let teacherData = teachersRes.data || [];
+    if (teacherData.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, role");
+      if (allUsers) teacherData = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("teacher"));
+    }
+
+    const totalStudents = studentData.length;
+    const totalTeachers = teacherData.length;
     const totalEnquiries = enquiriesRes.data?.length || 0;
     const feeData = feesRes.data || [];
     const totalFeesCollected = feeData.reduce((acc: number, f: any) => acc + (Number(f.amount_paid) || 0), 0);
@@ -121,15 +133,26 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardStats> {
   try {
     const [studentsRes, teachersRes, circularsRes, attendanceRes] = await Promise.all([
-      supabase.from("gv_users").select("id, class_name").in("role", ["student", "Student"]),
-      supabase.from("gv_users").select("id").in("role", ["teacher", "Teacher"]),
+      supabase.from("gv_users").select("id, class_name, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
+      supabase.from("gv_users").select("id, role").or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher"),
       supabase.from("gv_communications").select("id, title, priority, published_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
 
-    const students = studentsRes.data || [];
+    let students = studentsRes.data || [];
+    if (students.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, class_name, role");
+      if (allUsers) students = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));
+    }
+
+    let teachers = teachersRes.data || [];
+    if (teachers.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, role");
+      if (allUsers) teachers = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("teacher"));
+    }
+
     const totalStudents = students.length;
-    const totalTeachers = teachersRes.data?.length || 0;
+    const totalTeachers = teachers.length;
 
     const circulars = circularsRes.data || [];
     const totalCirculars = circulars.length;
@@ -187,12 +210,16 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   try {
     const [enquiriesRes, studentsRes, feesRes] = await Promise.all([
       supabase.from("gv_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }),
-      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at").in("role", ["student", "Student"]).order("created_at", { ascending: false }),
+      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role").or("role.ilike.%student%,role.eq.student,role.eq.Student").order("created_at", { ascending: false }),
       supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }),
     ]);
 
     const enquiries = enquiriesRes.data || [];
-    const students = studentsRes.data || [];
+    let students = studentsRes.data || [];
+    if (students.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role");
+      if (allUsers) students = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));
+    }
     const fees = feesRes.data || [];
 
     const totalEnquiries = enquiries.length;
@@ -243,12 +270,18 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
 export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats> {
   try {
     const [studentsRes, leaveRes, attendanceRes] = await Promise.all([
-      supabase.from("gv_users").select("id").in("role", ["student", "Student"]),
+      supabase.from("gv_users").select("id, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
       supabase.from("gv_requests").select("id").eq("request_type", "leave").eq("status", "Pending"),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
 
-    const assignedStudents = studentsRes.data?.length || 0;
+    let students = studentsRes.data || [];
+    if (students.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, role");
+      if (allUsers) students = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));
+    }
+
+    const assignedStudents = students.length;
     const pendingLeaveRequests = leaveRes.data?.length || 0;
     const attendanceRecords = attendanceRes.data || [];
     const presentToday = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present").length;
@@ -279,7 +312,7 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
 export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
   try {
     const [studentsRes, messagesRes, feesRes] = await Promise.all([
-      supabase.from("gv_users").select("id, full_name, class_name").in("role", ["student", "Student"]).limit(1).maybeSingle(),
+      supabase.from("gv_users").select("id, full_name, class_name, role").or("role.ilike.%student%,role.eq.student,role.eq.Student").limit(1).maybeSingle(),
       supabase.from("gv_communications").select("id, sender_name, body, created_at").eq("message_type", "message").order("created_at", { ascending: false }).limit(3),
       supabase.from("gv_fees_payments").select("amount_paid, amount_due, balance").limit(1).maybeSingle(),
     ]);
@@ -317,7 +350,11 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
 export async function getAnnualPromotionAndLifecycleStats(targetYear?: string): Promise<AnnualPromotionLifecycleStats> {
   const year = targetYear || getDeveloperSettings().school?.academicYear || "2026-2027";
   try {
-    const { data: students } = await supabase.from("gv_users").select("id, status").in("role", ["student", "Student"]);
+    let { data: students } = await supabase.from("gv_users").select("id, status, role").or("role.ilike.%student%,role.eq.student,role.eq.Student");
+    if (!students || students.length === 0) {
+      const { data: allUsers } = await supabase.from("gv_users").select("id, status, role");
+      if (allUsers) students = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));
+    }
     const list = students || [];
     const totalStudents = list.length;
     const promotedCount = list.filter((s: any) => s.status === "Promoted").length;
