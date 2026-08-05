@@ -27,6 +27,10 @@ function OfficeStudents() {
     });
   }, []);
 
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
+
   useAutoRefresh("students", loadStudents);
 
   const cols: ColumnDef<Student>[] = [

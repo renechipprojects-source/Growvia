@@ -57,13 +57,18 @@ export function subscribeToRealtimeTable({
  * Maps the 6 consolidated Supabase GV_ table names to affected ERP module lists for instant UI refresh.
  */
 export const TABLE_TO_MODULE_MAP: Record<string, ERPModule[]> = {
+  gv_users: ["students", "staff", "attendance", "promotion", "assignments"],
+  gv_inventory_expenses: ["inventory", "reports"],
+  gv_fees_payments: ["fees", "reports"],
+  gv_communications: ["circulars", "messages", "notifications"],
+  gv_requests: ["leaveRequests", "admissions"],
+  gv_system_settings: ["reports"],
   GV_users: ["students", "staff", "attendance", "promotion", "assignments"],
   GV_inventory_expenses: ["inventory", "reports"],
   GV_fees_payments: ["fees", "reports"],
   GV_communications: ["circulars", "messages", "notifications"],
   GV_requests: ["leaveRequests", "admissions"],
   GV_system_settings: ["reports"],
-  // Legacy aliases for backward compatibility
   users: ["students", "staff", "attendance", "promotion"],
   students: ["students"],
   teachers: ["staff"],

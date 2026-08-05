@@ -99,12 +99,12 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
   // Supabase Realtime Table Subscriptions for Instant Cross-Device Sync
   useEffect(() => {
     const tablesToSubscribe = [
-      "GV_users",
-      "GV_inventory_expenses",
-      "GV_fees_payments",
-      "GV_communications",
-      "GV_requests",
-      "GV_system_settings",
+      "gv_users",
+      "gv_inventory_expenses",
+      "gv_fees_payments",
+      "gv_communications",
+      "gv_requests",
+      "gv_system_settings",
     ];
 
     const unsubs = tablesToSubscribe.map((table) => {
@@ -145,10 +145,7 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
 
   useEffect(() => {
     if (module && refreshFn) {
-      const unregister = ctx.registerRefresher(module, refreshFn);
-      // Auto-trigger on initial registration (route change)
-      ctx.triggerModuleRefresh(module);
-      return unregister;
+      return ctx.registerRefresher(module, refreshFn);
     }
   }, [module, refreshFn, ctx]);
 
