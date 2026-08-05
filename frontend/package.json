@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && node -e \"import fs from 'node:fs'; fs.mkdirSync('frontend', {recursive: true}); fs.cpSync('dist', 'frontend/dist', {recursive: true}); fs.mkdirSync('../dist', {recursive: true}); fs.cpSync('dist', '../dist', {recursive: true});\"",
-    "frontend:build": "vite build && node -e \"import fs from 'node:fs'; fs.mkdirSync('frontend', {recursive: true}); fs.cpSync('dist', 'frontend/dist', {recursive: true}); fs.mkdirSync('../dist', {recursive: true}); fs.cpSync('dist', '../dist', {recursive: true});\"",
+    "build": "vite build",
+    "frontend:build": "vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },
