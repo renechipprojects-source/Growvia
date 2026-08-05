@@ -72,16 +72,16 @@ import { getDeveloperSettings } from "./developerSettingsStore";
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   try {
     const [studentsRes, teachersRes, enquiriesRes, feesRes, circularsRes] = await Promise.all([
-      supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["student", "Student"]),
-      supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["teacher", "Teacher"]),
-      supabase.from("gv_requests").select("id", { count: "exact", head: true }).eq("request_type", "enquiry"),
+      supabase.from("gv_users").select("id").in("role", ["student", "Student"]),
+      supabase.from("gv_users").select("id").in("role", ["teacher", "Teacher"]),
+      supabase.from("gv_requests").select("id").eq("request_type", "enquiry"),
       supabase.from("gv_fees_payments").select("amount_paid"),
       supabase.from("gv_communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
     ]);
 
-    const totalStudents = studentsRes.count || 0;
-    const totalTeachers = teachersRes.count || 0;
-    const totalEnquiries = enquiriesRes.count || 0;
+    const totalStudents = studentsRes.data?.length || 0;
+    const totalTeachers = teachersRes.data?.length || 0;
+    const totalEnquiries = enquiriesRes.data?.length || 0;
     const feeData = feesRes.data || [];
     const totalFeesCollected = feeData.reduce((acc: number, f: any) => acc + (Number(f.amount_paid) || 0), 0);
 
@@ -102,7 +102,8 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
       recentActivities,
       systemHealth: "100% Operational",
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getAdminDashboardStats:", err);
     return {
       totalStudents: 0,
       totalTeachers: 0,
@@ -121,14 +122,14 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
   try {
     const [studentsRes, teachersRes, circularsRes, attendanceRes] = await Promise.all([
       supabase.from("gv_users").select("id, class_name").in("role", ["student", "Student"]),
-      supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["teacher", "Teacher"]),
+      supabase.from("gv_users").select("id").in("role", ["teacher", "Teacher"]),
       supabase.from("gv_communications").select("id, title, priority, published_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
 
     const students = studentsRes.data || [];
     const totalStudents = students.length;
-    const totalTeachers = teachersRes.count || 0;
+    const totalTeachers = teachersRes.data?.length || 0;
 
     const circulars = circularsRes.data || [];
     const totalCirculars = circulars.length;
@@ -166,7 +167,8 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
         date: c.published_at ? new Date(c.published_at).toLocaleDateString() : "Today",
       })),
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getPrincipalDashboardStats:", err);
     return {
       totalStudents: 0,
       totalTeachers: 0,
@@ -183,27 +185,23 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
  */
 export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   try {
-    const [enquiriesRes, studentsRes, feesRes, enquiriesCountRes, studentsCountRes, feesSumRes] = await Promise.all([
-      supabase.from("gv_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }).limit(5),
-      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at").in("role", ["student", "Student"]).order("created_at", { ascending: false }).limit(5),
-      supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }).limit(5),
-      supabase.from("gv_requests").select("id", { count: "exact", head: true }).eq("request_type", "enquiry"),
-      supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["student", "Student"]),
-      supabase.from("gv_fees_payments").select("amount_paid, balance"),
+    const [enquiriesRes, studentsRes, feesRes] = await Promise.all([
+      supabase.from("gv_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }),
+      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at").in("role", ["student", "Student"]).order("created_at", { ascending: false }),
+      supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }),
     ]);
 
     const enquiries = enquiriesRes.data || [];
     const students = studentsRes.data || [];
     const fees = feesRes.data || [];
 
-    const totalEnquiries = enquiriesCountRes.count ?? enquiries.length ?? 0;
-    const totalStudents = studentsCountRes.count ?? students.length ?? 0;
+    const totalEnquiries = enquiries.length;
+    const totalStudents = students.length;
 
-    const allFees = feesSumRes.data || fees;
     let totalFeeCollected = 0;
     let pendingFeeBalance = 0;
 
-    allFees.forEach((f: any) => {
+    fees.forEach((f: any) => {
       totalFeeCollected += Number(f.amount_paid || 0);
       pendingFeeBalance += Number(f.balance || 0);
     });
@@ -213,20 +211,21 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
       totalStudents,
       totalFeeCollected,
       pendingFeeBalance,
-      recentAdmissions: students.map((s: any) => ({
+      recentAdmissions: students.slice(0, 5).map((s: any) => ({
         id: s.id,
         name: s.full_name,
         className: s.class_name || "Nursery",
         date: s.created_at ? new Date(s.created_at).toLocaleDateString() : "Today",
       })),
-      recentFeeCollections: fees.filter((f: any) => (f.amount_paid || 0) > 0).map((f: any) => ({
+      recentFeeCollections: fees.filter((f: any) => (f.amount_paid || 0) > 0).slice(0, 5).map((f: any) => ({
         id: f.id,
         studentName: f.student_name || "Student",
         amount: Number(f.amount_paid || 0),
         date: f.created_at ? new Date(f.created_at).toLocaleDateString() : "Today",
       })),
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getOfficeDashboardStats:", err);
     return {
       totalEnquiries: 0,
       totalStudents: 0,
@@ -244,13 +243,13 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
 export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats> {
   try {
     const [studentsRes, leaveRes, attendanceRes] = await Promise.all([
-      supabase.from("gv_users").select("id", { count: "exact", head: true }).in("role", ["student", "Student"]),
-      supabase.from("gv_requests").select("id", { count: "exact", head: true }).eq("request_type", "leave").eq("status", "Pending"),
+      supabase.from("gv_users").select("id").in("role", ["student", "Student"]),
+      supabase.from("gv_requests").select("id").eq("request_type", "leave").eq("status", "Pending"),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
 
-    const assignedStudents = studentsRes.count || 0;
-    const pendingLeaveRequests = leaveRes.count || 0;
+    const assignedStudents = studentsRes.data?.length || 0;
+    const pendingLeaveRequests = leaveRes.data?.length || 0;
     const attendanceRecords = attendanceRes.data || [];
     const presentToday = attendanceRecords.filter((a: any) => a.status === "P" || a.status === "Present").length;
     const absentToday = Math.max(0, assignedStudents - presentToday);
@@ -262,7 +261,8 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
       pendingLeaveRequests,
       recentClassNotes: [],
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getTeacherDashboardStats:", err);
     return {
       assignedStudents: 0,
       presentToday: 0,
@@ -301,7 +301,8 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
         time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
       })),
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getParentDashboardStats:", err);
     return {
       childName: "Student",
       className: "Nursery",
@@ -345,7 +346,8 @@ export async function getAnnualPromotionAndLifecycleStats(targetYear?: string): 
       inactiveStudents: Math.max(0, totalStudents - activeStudents),
       archivedStudents: 0,
     };
-  } catch {
+  } catch (err) {
+    console.error("Error in getAnnualPromotionAndLifecycleStats:", err);
     return {
       academicYear: year,
       studentsEligible: 0,
