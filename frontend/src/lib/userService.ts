@@ -95,14 +95,14 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
 export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
     const { data, error } = await supabase.from("gv_users").select("*").in("role", ["student", "Student"]);
-    if (error || !data || data.length === 0) return { data: mockStudents, isFromSupabase: false };
-    const rows = data;
+    if (error) return { data: [], isFromSupabase: false };
+    const rows = data || [];
 
     const mapped: Student[] = rows.map((d: any, idx: number) => ({
       id: d.id,
       rollNo: d.roll_no || idx + 1,
       admissionNo: d.admission_no || d.id,
-      name: d.full_name || d.name || "Student",
+      name: d.full_name,
       age: 4,
       dob: d.date_of_birth || "2020-01-01",
       className: d.class_name || "Nursery",
@@ -121,9 +121,9 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
       branch: d.branch || "Main Branch",
     }));
 
-    return { data: mapped.length > 0 ? mapped : mockStudents, isFromSupabase: true };
+    return { data: mapped, isFromSupabase: true };
   } catch {
-    return { data: mockStudents, isFromSupabase: false };
+    return { data: [], isFromSupabase: false };
   }
 }
 

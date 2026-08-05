@@ -255,35 +255,37 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
       .in("role", ["student", "Student"])
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      return { data: mockStudents, isFromSupabase: false };
+    if (error) {
+      console.error("Supabase fetchStudents error:", error);
+      return { data: [], isFromSupabase: false };
     }
-    const rows = data;
+    const rows = data || [];
 
     const mapped: Student[] = rows.map((d: any) => ({
       id: d.id || d.login_id,
       rollNo: d.roll_no || 1,
       admissionNo: d.admission_no || d.id,
-      name: d.full_name || d.name || "Student",
+      name: d.full_name || "Student",
       age: d.age || 4,
-      dob: d.date_of_birth || d.dob || "2022-01-01",
-      className: d.class_name || d.className || "Nursery",
+      dob: d.date_of_birth || "2022-01-01",
+      className: d.class_name || "Nursery",
       section: d.section || "A",
-      parent: d.parent_name || d.parent || "Parent",
-      parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
-      phone: d.mobile || d.phone || "9876543210",
+      parent: d.parent_name || "Parent",
+      parentId: d.parent_id || `PAR-${d.id}`,
+      phone: d.mobile || "9876543210",
       gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
       house: d.house || "Red",
       admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      feeStatus: (d.fee_status as any) || d.feeStatus || "Pending",
-      avatar: d.photo_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
-      attendance: Number(d.attendance_pct || d.attendance || 95.0),
+      feeStatus: (d.fee_status as any) || "Pending",
+      avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+      attendance: Number(d.attendance_pct || 95.0),
       branch: d.branch || "Main Branch",
     }));
 
-    return { data: mapped.length > 0 ? mapped : mockStudents, isFromSupabase: true };
-  } catch {
-    return { data: mockStudents, isFromSupabase: false };
+    return { data: mapped, isFromSupabase: true };
+  } catch (err) {
+    console.error("fetchStudents exception:", err);
+    return { data: [], isFromSupabase: false };
   }
 }
 
