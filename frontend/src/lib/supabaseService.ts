@@ -290,20 +290,23 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
 }
 
 export async function createStudent(student: Omit<Student, "id"> & { id?: string }) {
-  const newId = student.id || `STU-${Date.now().toString().slice(-4)}`;
+  const ts = Date.now().toString();
+  const newId = student.id || `STU-${ts.slice(-6)}`;
+  const parentId = student.parentId || `PAR-${ts.slice(-6)}`;
   const payload = {
     id: newId,
     login_id: newId,
-    email: `${newId.toLowerCase()}@sunshine.edu`,
+    email: `${newId.toLowerCase()}@growvia.edu`,
     full_name: student.name,
     role: "student",
     status: "active",
-    admission_no: student.admissionNo || `ADM${Date.now().toString().slice(-4)}`,
+    admission_no: student.admissionNo || `ADM-${ts.slice(-6)}`,
     class_name: student.className || "Nursery",
     section: student.section || "A",
     parent_name: student.parent || "Parent",
-    parent_id: student.parentId || `PAR-${Date.now().toString().slice(-4)}`,
+    parent_id: parentId,
     mobile: student.phone || "9876543210",
+    date_of_birth: student.dob && student.dob.trim() ? student.dob : null,
     gender: ((student.gender as string) === "Female" || student.gender === "Girl") ? "Girl" : "Boy",
     house: student.house || "Red",
     fee_status: student.feeStatus || "Pending",
@@ -312,7 +315,7 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
   };
 
   try {
-    const { data, error } = await supabase.from("gv_users").insert([payload]).select();
+    const { data, error } = await supabase.from("gv_users").upsert([payload], { onConflict: "id" }).select();
     return { data: data ? data[0] : payload, error: error?.message || null };
   } catch (err: any) {
     return { data: null, error: err?.message || "Failed to create student." };
@@ -472,22 +475,23 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
 }
 
 export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) {
-  const newId = `REQ-ENQ-${Date.now().toString().slice(-4)}`;
+  const ts = Date.now().toString();
+  const newId = `REQ-ENQ-${ts.slice(-6)}`;
   const payload = {
     id: newId,
     request_type: "enquiry",
     applicant_or_child_name: enquiry.childName,
     parent_name: enquiry.parentName,
     phone: enquiry.phone,
-    email: enquiry.email,
-    address: enquiry.address,
+    email: enquiry.email && enquiry.email.trim() ? enquiry.email : null,
+    address: enquiry.address && enquiry.address.trim() ? enquiry.address : null,
     gender: enquiry.gender || "Boy",
-    dob: enquiry.dob,
+    dob: enquiry.dob && enquiry.dob.trim() ? enquiry.dob : null,
     leave_type_or_interested_class: enquiry.interestedClass,
     source: enquiry.source || "Walk-in",
     status: enquiry.status || "New",
-    follow_up_date: enquiry.followUp,
-    reason_or_notes: enquiry.notes,
+    follow_up_date: enquiry.followUp && enquiry.followUp.trim() ? enquiry.followUp : null,
+    reason_or_notes: enquiry.notes && enquiry.notes.trim() ? enquiry.notes : null,
   };
 
   const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
