@@ -625,6 +625,60 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
   };
 }
 
+export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
+  try {
+    const [{ data: stData }, { data: feData }] = await Promise.all([
+      fetchStudents(),
+      fetchFees(),
+    ]);
+
+    const feeMap = new Map<string, FeeLedgerItem>();
+    (feData || []).forEach((f) => {
+      const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+      if (!feeMap.has(key)) {
+        feeMap.set(key, f);
+      }
+    });
+
+    const combined: FeeLedgerItem[] = (stData || []).map((s) => {
+      const key = (s.id || s.admissionNo || s.name).toLowerCase();
+      const existing = feeMap.get(key);
+      if (existing) {
+        return {
+          ...existing,
+          admissionNo: existing.admissionNo || s.admissionNo || s.id,
+          rollNo: existing.rollNo || s.rollNo,
+          section: existing.section || s.section || "A",
+        };
+      }
+      return recalculateFeeLedger({
+        id: `FP-${s.id}`,
+        studentId: s.id,
+        studentName: s.name,
+        admissionNo: s.admissionNo || s.id,
+        className: s.className || "Nursery",
+        section: s.section || "A",
+        rollNo: s.rollNo || 1,
+        originalFee: 12000,
+        discountAmount: 0,
+        paid: 0,
+        status: "Pending",
+      });
+    });
+
+    (feData || []).forEach((f) => {
+      const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+      if (!combined.some((c) => (c.studentId || c.admissionNo || c.studentName).toLowerCase() === key)) {
+        combined.push(f);
+      }
+    });
+
+    return { data: combined, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
+}
+
 export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
   try {
     const { data, error } = await supabase

@@ -254,6 +254,7 @@ function GenerateDialog({ studentId, studentsList, onClose, onDone }: { studentI
               generateParentCredential(student.id, {
                 loginIdBasis: basis === "mobile" ? "mobile" : "admission",
                 customLoginId: basis === "custom" ? custom : undefined,
+                student,
               });
               toast.success(`Login issued for ${student.parent}`);
               onDone(student.id);

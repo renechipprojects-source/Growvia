@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
-import { fetchStudents, fetchFees, saveFeeRecord, saveReceipt, recalculateFeeLedger, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
+import { fetchStudents, fetchFees, fetchMergedFeeLedgers, saveFeeRecord, saveReceipt, recalculateFeeLedger, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,61 +86,13 @@ function FeeCollection() {
   const [remarks, setRemarks] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
-  // Load students & fees concurrently in parallel
+  // Load merged live fee ledgers
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: stData }, { data: feData }] = await Promise.all([
-        fetchStudents(),
-        fetchFees(),
-      ]);
-
-      const feeMap = new Map<string, FeeLedgerItem>();
-      (feData || []).forEach((f) => {
-        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
-        if (!feeMap.has(key)) {
-          feeMap.set(key, f);
-        }
-      });
-
-      const combined: FeeLedgerItem[] = (stData || []).map((s) => {
-        const key = (s.id || s.admissionNo || s.name).toLowerCase();
-        const existing = feeMap.get(key);
-        if (existing) {
-          return {
-            ...existing,
-            admissionNo: existing.admissionNo || s.admissionNo || s.id,
-            rollNo: existing.rollNo || s.rollNo,
-            section: existing.section || s.section || "A",
-          };
-        }
-        return recalculateFeeLedger({
-          id: `FP-${s.id}`,
-          studentId: s.id,
-          studentName: s.name,
-          admissionNo: s.admissionNo || s.id,
-          className: s.className || "Nursery",
-          section: s.section || "A",
-          rollNo: s.rollNo || 1,
-          originalFee: 12000,
-          discountAmount: 0,
-          paid: 0,
-          status: "Pending",
-        });
-      });
-
-      // Include any additional fee records that didn't match a student row
-      (feData || []).forEach((f) => {
-        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
-        if (!combined.some((c) => (c.studentId || c.admissionNo || c.studentName).toLowerCase() === key)) {
-          combined.push(f);
-        }
-      });
-
-      setStudents(stData || []);
-      setFeeList(combined);
+      const { data } = await fetchMergedFeeLedgers();
+      setFeeList(data || []);
     } catch {
-      setStudents([]);
       setFeeList([]);
     } finally {
       setLoading(false);
@@ -308,7 +260,7 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-4 p-4 lg:p-6 bg-slate-50/50">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-4 p-3 md:p-4 bg-slate-50/50">
       <div>
         <PageHeader title="Fee Collection & Ledger Management" subtitle="Manage student fee structures, record payments, issue receipts, and track collection analytics." />
       </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
 import { Search, Eye, Wallet, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ function PrincipalFeesOverview() {
   const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
-    fetchFees().then(({ data }) => {
+    fetchMergedFeeLedgers().then(({ data }) => {
       if (data && data.length > 0) setFeeRecords(data);
     });
   }, []);

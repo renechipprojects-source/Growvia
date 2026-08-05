@@ -4,7 +4,7 @@ import { PageHeader, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { fetchFees, recalculateFeeLedger, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchMergedFeeLedgers, recalculateFeeLedger, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/admin/fees/payments")({
   component: PaymentsPage,
@@ -17,7 +17,7 @@ function PaymentsPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchFees().then(({ data }) => {
+    fetchMergedFeeLedgers().then(({ data }) => {
       if (data && data.length > 0) {
         setFeeLedgers(data);
       }
