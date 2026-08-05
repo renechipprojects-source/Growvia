@@ -37,7 +37,7 @@ export const Route = createFileRoute("/office/teacher-credentials")({
 });
 
 function TeacherCredentialsPage() {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   useEffect(() => subscribeCredentials(() => setTick((n) => n + 1)), []);
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -66,7 +66,7 @@ function TeacherCredentialsPage() {
           .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
       })
       .sort((a, b) => a.teacher.name.localeCompare(b.teacher.name));
-  }, [teachers, query, filter]);
+  }, [teachers, query, filter, tick]);
 
   const handleAddStaff = (newTeacher: Teacher) => {
     setTeachers((prev) => [newTeacher, ...prev]);

@@ -38,11 +38,14 @@ export const Route = createFileRoute("/office/parent-credentials")({
 });
 
 function ParentCredentialsPage() {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
 
   useEffect(() => {
-    subscribeCredentials(() => setTick((n) => n + 1));
+    return subscribeCredentials(() => setTick((n) => n + 1));
+  }, []);
+
+  useEffect(() => {
     fetchStudents().then(({ data }) => {
       setStudentsList(data || []);
     });
@@ -66,7 +69,7 @@ function ParentCredentialsPage() {
           .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name));
-  }, [studentsList, query, filter]);
+  }, [studentsList, query, filter, tick]);
 
   const allCreds = listParentCredentials();
   const active = allCreds.filter((c) => c.status === "Active").length;
