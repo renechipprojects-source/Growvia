@@ -395,19 +395,19 @@ function FeeCollection() {
       {/* Main Student Fee Table (Full Container Width) */}
       <div className="flex-1 min-h-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col overflow-hidden">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <table className="w-full text-sm border-collapse min-w-full">
+          <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3.5 font-bold w-[140px]">Admission No</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[85px]">Roll No</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[220px]">Student Name</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[100px]">Class</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[80px]">Section</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Fee Amount</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Paid Amount</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[130px]">Pending Amount</th>
-                <th className="text-center px-4 py-3.5 font-bold w-[140px]">Payment Status</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[200px]">Actions</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[12%]">Admission No</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[6%]">Roll No</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[20%]">Student Name</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[8%]">Class</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[6%]">Section</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Fee Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Paid Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Pending Amount</th>
+                <th className="text-center px-4 py-3.5 font-bold w-[10%]">Payment Status</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[15%]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
