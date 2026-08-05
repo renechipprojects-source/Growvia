@@ -66,8 +66,12 @@ app.use(
         return callback(null, true);
       }
 
-      // Allow only configured frontend origins.
-      if (allowedOrigins.includes(origin)) {
+      // Allow configured origins, Vercel deployments (*.vercel.app), and localhost for development
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+      ) {
         return callback(null, true);
       }
 
