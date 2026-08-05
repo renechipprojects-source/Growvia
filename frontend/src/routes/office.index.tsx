@@ -101,6 +101,7 @@ function Dash() {
             <QuickLink to="/office/students" label="Students & Promotion Wizard" hint="Manage enrolled kids & promotions" />
             <QuickLink to="/office/promotion-mapping" label="Promotion Mapping" hint="Configure progression rules" />
             <QuickLink to="/office/class-assignment" label="Class Assignment" hint="Assign teachers" />
+            <QuickLink to="/developer-console" label="School Logo & System Settings" hint="Change school logo, login page & branding" />
           </div>
         </SectionCard>
       </div>

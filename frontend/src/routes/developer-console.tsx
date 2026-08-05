@@ -24,7 +24,7 @@ import {
 
 export const Route = createFileRoute("/developer-console")({
   beforeLoad: () => {
-    requireAuthGuard("developer");
+    requireAuthGuard(["developer", "super-admin", "office"]);
   },
   component: DeveloperConsolePage,
 });
