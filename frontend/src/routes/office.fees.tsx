@@ -260,13 +260,13 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-4 p-3 md:p-4 bg-slate-50/50">
-      <div>
+    <div className="flex flex-1 h-full min-h-0 flex-col overflow-hidden w-full max-w-none gap-3.5 p-3 md:p-4 bg-slate-50/50">
+      <div className="shrink-0">
         <PageHeader title="Fee Collection & Ledger Management" subtitle="Manage student fee structures, record payments, issue receipts, and track collection analytics." />
       </div>
 
       {/* Clean Icon-Free Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 shrink-0">
         <FeeSummaryCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} accentColor="border-l-purple-500" />
         <FeeSummaryCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} accentColor="border-l-emerald-500" />
         <FeeSummaryCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} accentColor="border-l-amber-500" />
@@ -276,7 +276,7 @@ function FeeCollection() {
       </div>
 
       {/* Professional Filter Bar */}
-      <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-white shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+      <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-white shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3 shrink-0">
         <div className="relative flex-1 w-full">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input

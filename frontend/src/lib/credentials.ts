@@ -398,32 +398,43 @@ export interface AuthResolvedIdentity {
 }
 
 export function authenticateGenerated(loginId: string, password: string): AuthResolvedIdentity | null {
-  const id = loginId.trim();
-  if (!id || !password) return null;
+  const id = loginId.trim().toLowerCase();
+  const pw = password.trim();
+  if (!id || !pw) return null;
   const store = read();
 
-  const parent = Object.values(store.parents).find((c) => c.loginId.toLowerCase() === id.toLowerCase());
+  const parent = Object.values(store.parents).find(
+    (c) =>
+      c.loginId.toLowerCase() === id ||
+      c.studentId.toLowerCase() === id ||
+      `par-${c.loginId.toLowerCase()}` === id
+  );
   if (parent) {
-    if (parent.status !== "Active") return null;
-    if (parent.password !== password) return null;
-    return {
-      role: "parent",
-      name: "Parent User",
-      loginId: parent.loginId,
-      linkId: parent.studentId,
-    };
+    if (parent.status === "Active" && (parent.password === password || parent.password.trim() === pw)) {
+      return {
+        role: "parent",
+        name: "Parent User",
+        loginId: parent.loginId,
+        linkId: parent.studentId,
+      };
+    }
   }
 
-  const teacher = Object.values(store.teachers).find((c) => c.loginId.toLowerCase() === id.toLowerCase());
+  const teacher = Object.values(store.teachers).find(
+    (c) =>
+      c.loginId.toLowerCase() === id ||
+      c.teacherId.toLowerCase() === id ||
+      `tch-${c.loginId.toLowerCase()}` === id
+  );
   if (teacher) {
-    if (teacher.status !== "Active") return null;
-    if (teacher.password !== password) return null;
-    return {
-      role: "teacher",
-      name: "Teacher User",
-      loginId: teacher.loginId,
-      linkId: teacher.teacherId,
-    };
+    if (teacher.status === "Active" && (teacher.password === password || teacher.password.trim() === pw)) {
+      return {
+        role: "teacher",
+        name: "Teacher User",
+        loginId: teacher.loginId,
+        linkId: teacher.teacherId,
+      };
+    }
   }
 
   return null;

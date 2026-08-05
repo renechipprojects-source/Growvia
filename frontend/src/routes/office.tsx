@@ -37,7 +37,7 @@ function OfficeLayout() {
                   <OfficeSidebar />
                   <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
                     <OfficeTopNav />
-                    <main className="flex-1 min-w-0 overflow-y-auto p-0 w-full max-w-none">
+                    <main className="flex-1 min-w-0 overflow-hidden p-0 w-full max-w-none flex flex-col">
                       <Outlet />
                     </main>
                   </SidebarInset>
