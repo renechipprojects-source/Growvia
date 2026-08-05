@@ -295,16 +295,37 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
-      .in("role", ["student", "Student"])
-      .order("created_at", { ascending: false });
+      .or("role.ilike.%student%,role.eq.student,role.eq.Student");
 
     if (!error && data && data.length > 0) {
       rows = data;
     } else {
       const { data: allData } = await supabase.from("gv_users").select("*");
       if (allData && allData.length > 0) {
-        rows = allData.filter((u: any) => u.role === "student" || u.role === "Student");
-      } else {
+        rows = allData.filter((u: any) =>
+          u.role ? u.role.toString().toLowerCase().includes("student") : false
+        );
+      }
+      if (rows.length === 0) {
+        try {
+          const directRes = await fetch(
+            "https://nyhnkftlkigoliyogwvp.supabase.co/rest/v1/gv_users?select=*",
+            {
+              headers: {
+                apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
+                Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
+              },
+            }
+          );
+          if (directRes.ok) {
+            const rawJson = await directRes.json();
+            rows = (rawJson || []).filter((u: any) =>
+              u.role ? u.role.toString().toLowerCase().includes("student") : false
+            );
+          }
+        } catch {}
+      }
+      if (rows.length === 0) {
         try {
           const res = await fetch(`${API_URL}/api/users?role=student`);
           if (res.ok) {
@@ -427,14 +448,42 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
 
 export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
   try {
+    let rows: any[] = [];
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
-      .in("role", ["teacher", "Teacher"])
+      .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
       .order("full_name", { ascending: true });
 
-    if (error) return { data: [], isFromSupabase: false };
-    const rows = data || [];
+    if (!error && data && data.length > 0) {
+      rows = data;
+    } else {
+      const { data: allData } = await supabase.from("gv_users").select("*");
+      if (allData && allData.length > 0) {
+        rows = allData.filter((u: any) =>
+          u.role ? u.role.toString().toLowerCase().includes("teacher") : false
+        );
+      }
+      if (rows.length === 0) {
+        try {
+          const directRes = await fetch(
+            "https://nyhnkftlkigoliyogwvp.supabase.co/rest/v1/gv_users?select=*",
+            {
+              headers: {
+                apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
+                Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
+              },
+            }
+          );
+          if (directRes.ok) {
+            const rawJson = await directRes.json();
+            rows = (rawJson || []).filter((u: any) =>
+              u.role ? u.role.toString().toLowerCase().includes("teacher") : false
+            );
+          }
+        } catch {}
+      }
+    }
 
     const mapped: Teacher[] = rows.map((d: any) => ({
       id: d.id || d.login_id,
