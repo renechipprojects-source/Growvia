@@ -43,11 +43,26 @@ type Receipt = {
   collectedBy: string;
 };
 
+function FeeSummaryCard({ label, value, accentColor }: { label: string; value: string | number; accentColor: string }) {
+  return (
+    <div className={cn("p-4 rounded-2xl border border-slate-200/80 bg-white/90 shadow-xs flex flex-col justify-between h-full min-h-[96px] transition-all hover:shadow-md border-l-4", accentColor)}>
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+      <div className="mt-2 text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-none">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function FeeCollection() {
   const { activeYear } = useAcademicYear();
   const [feeList, setFeeList] = useState<FeeLedgerItem[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [academicYearFilter, setAcademicYearFilter] = useState<string>("2026-2027");
+  const [classFilter, setClassFilter] = useState<string>("All");
+  const [sectionFilter, setSectionFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
   // Selection & Modal states
@@ -73,6 +88,7 @@ function FeeCollection() {
 
   // Load students & fees concurrently in parallel
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       const [{ data: stData }, { data: feData }] = await Promise.all([
         fetchStudents(),
@@ -83,6 +99,8 @@ function FeeCollection() {
     } catch {
       setStudents([]);
       setFeeList([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -112,9 +130,6 @@ function FeeCollection() {
       totalReceipts,
     };
   }, [feeList]);
-
-  const [classFilter, setClassFilter] = useState<string>("All");
-  const [sectionFilter, setSectionFilter] = useState<string>("All");
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -245,195 +260,215 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-3 pr-1">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none gap-4 p-4 lg:p-6 bg-slate-50/50">
       <div>
-        <PageHeader title="Student Fee Ledger Module" subtitle="Single-row student ledgers, editable fee structures, discounts, installment histories, and receipts." />
+        <PageHeader title="Fee Collection & Ledger Management" subtitle="Manage student fee structures, record payments, issue receipts, and track collection analytics." />
       </div>
 
-      <div className="sticky top-0 z-20 space-y-3 bg-background/95 backdrop-blur-md pt-2 pb-2">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} icon={DollarSign} gradient="from-purple-500 to-indigo-500" />
-          <StatCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} icon={Wallet} gradient="from-emerald-500 to-teal-500" />
-          <StatCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} icon={Tag} gradient="from-amber-500 to-orange-500" />
-          <StatCard label="Pending Balance" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} icon={Clock} gradient="from-rose-500 to-orange-500" />
-          <StatCard label="Students Fully Paid" value={summary.fullyPaidCount} icon={CheckCircle} gradient="from-teal-500 to-emerald-500" />
-          <StatCard label="Receipts Generated" value={summary.totalReceipts} icon={FileText} gradient="from-sky-500 to-blue-500" />
+      {/* Clean Icon-Free Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <FeeSummaryCard label="Total Fee Expected" value={`₹${(summary.totalExpected / 100000).toFixed(2)}L`} accentColor="border-l-purple-500" />
+        <FeeSummaryCard label="Total Fee Collected" value={`₹${(summary.totalCollected / 100000).toFixed(2)}L`} accentColor="border-l-emerald-500" />
+        <FeeSummaryCard label="Total Discounts" value={`₹${(summary.totalDiscounts / 1000).toFixed(1)}k`} accentColor="border-l-amber-500" />
+        <FeeSummaryCard label="Pending Balance" value={`₹${(summary.totalPending / 100000).toFixed(2)}L`} accentColor="border-l-rose-500" />
+        <FeeSummaryCard label="Students Fully Paid" value={summary.fullyPaidCount} accentColor="border-l-teal-500" />
+        <FeeSummaryCard label="Receipts Generated" value={summary.totalReceipts} accentColor="border-l-sky-500" />
+      </div>
+
+      {/* Professional Filter Bar */}
+      <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-white shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+        <div className="relative flex-1 w-full">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by student name or admission number…"
+            className="pl-9 bg-slate-50/50 border-slate-200 text-sm rounded-xl focus:bg-white"
+          />
         </div>
 
-        {/* Filter bar */}
-        <div className="p-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by student name, admission no. or class…"
-              className="pl-9 bg-white/80"
-            />
-          </div>
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* Academic Year Filter */}
+          <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+            <SelectTrigger className="w-[130px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
+              <SelectValue placeholder="Session: 2026-27" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2026-2027">2026-2027</SelectItem>
+              <SelectItem value="2025-2026">2025-2026</SelectItem>
+              <SelectItem value="2024-2025">2024-2025</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Class Filter */}
-            <Select value={classFilter} onValueChange={setClassFilter}>
-              <SelectTrigger className="w-[120px] h-9 text-xs bg-white/80 rounded-xl">
-                <SelectValue placeholder="Class: All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Classes</SelectItem>
-                <SelectItem value="Playgroup">Playgroup</SelectItem>
-                <SelectItem value="Nursery">Nursery</SelectItem>
-                <SelectItem value="LKG">LKG</SelectItem>
-                <SelectItem value="UKG">UKG</SelectItem>
-                <SelectItem value="Grade 1">Grade 1</SelectItem>
-                <SelectItem value="Grade 2">Grade 2</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Class Filter */}
+          <Select value={classFilter} onValueChange={setClassFilter}>
+            <SelectTrigger className="w-[125px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
+              <SelectValue placeholder="Class: All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Classes</SelectItem>
+              <SelectItem value="Playgroup">Playgroup</SelectItem>
+              <SelectItem value="Nursery">Nursery</SelectItem>
+              <SelectItem value="LKG">LKG</SelectItem>
+              <SelectItem value="UKG">UKG</SelectItem>
+              <SelectItem value="Grade 1">Grade 1</SelectItem>
+              <SelectItem value="Grade 2">Grade 2</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Section Filter */}
-            <Select value={sectionFilter} onValueChange={setSectionFilter}>
-              <SelectTrigger className="w-[100px] h-9 text-xs bg-white/80 rounded-xl">
-                <SelectValue placeholder="Sec: All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Sec</SelectItem>
-                <SelectItem value="A">Sec A</SelectItem>
-                <SelectItem value="B">Sec B</SelectItem>
-                <SelectItem value="C">Sec C</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Section Filter */}
+          <Select value={sectionFilter} onValueChange={setSectionFilter}>
+            <SelectTrigger className="w-[100px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
+              <SelectValue placeholder="Sec: All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Sec</SelectItem>
+              <SelectItem value="A">Sec A</SelectItem>
+              <SelectItem value="B">Sec B</SelectItem>
+              <SelectItem value="C">Sec C</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Status Pills */}
-            <div className="flex items-center gap-1">
-              {["All", "Paid", "Partial", "Pending"].map((st) => (
-                <Button
-                  key={st}
-                  size="sm"
-                  variant={statusFilter === st ? "default" : "outline"}
-                  onClick={() => setStatusFilter(st)}
-                  className="rounded-full text-xs h-8 px-3"
-                >
-                  {st}
-                </Button>
-              ))}
-            </div>
-          </div>
+          {/* Payment Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[120px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
+              <SelectValue placeholder="Status: All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Statuses</SelectItem>
+              <SelectItem value="Paid">Paid</SelectItem>
+              <SelectItem value="Partial">Partial</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Main Student Fee Ledger Table Section */}
-      <div className="flex-1 min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col overflow-hidden">
-
-        {/* Summary Table */}
+      {/* Main Student Fee Table (Full Container Width) */}
+      <div className="flex-1 min-h-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col overflow-hidden">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <table className="w-full text-sm min-w-[1000px]">
-            <thead className="bg-muted/50 text-xs uppercase text-muted-foreground sticky top-0 z-10 backdrop-blur">
+          <table className="w-full text-sm min-w-[1050px]">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Student Name</th>
-                <th className="text-left px-4 py-3 font-medium">Admission No</th>
-                <th className="text-left px-4 py-3 font-medium">Class</th>
-                <th className="text-left px-4 py-3 font-medium">Total Fee</th>
-                <th className="text-left px-4 py-3 font-medium">Total Paid</th>
-                <th className="text-left px-4 py-3 font-medium">Remaining Balance</th>
-                <th className="text-center px-4 py-3 font-medium">Installments Used</th>
-                <th className="text-left px-4 py-3 font-medium">Payment Status</th>
-                <th className="text-right px-4 py-3 font-medium">Actions</th>
+                <th className="text-left px-4 py-3 font-semibold">Admission No</th>
+                <th className="text-left px-3 py-3 font-semibold">Roll No</th>
+                <th className="text-left px-4 py-3 font-semibold">Student Name</th>
+                <th className="text-left px-3 py-3 font-semibold">Class</th>
+                <th className="text-left px-3 py-3 font-semibold">Section</th>
+                <th className="text-right px-4 py-3 font-semibold">Fee Amount</th>
+                <th className="text-right px-4 py-3 font-semibold">Paid Amount</th>
+                <th className="text-right px-4 py-3 font-semibold">Pending Amount</th>
+                <th className="text-center px-4 py-3 font-semibold">Payment Status</th>
+                <th className="text-right px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-muted/30">
-              {filtered.map((f) => {
-                const origFee = f.originalFee || f.amount || 8500;
-                const discAmt = f.discountAmount || 0;
-                const finalFee = f.finalFee || origFee - discAmt;
-                const paid = (f.payments && f.payments.length > 0)
-                  ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-                  : (f.paid || 0);
-                const remaining = Math.max(0, finalFee - paid);
-                const installmentsUsed = f.payments?.length || (paid > 0 ? 1 : 0);
-
-                let displayStatus = "Unpaid";
-                let statusStyle = "bg-rose-100 text-rose-700 border-rose-200";
-                if (remaining === 0 && finalFee > 0) {
-                  displayStatus = "Paid";
-                  statusStyle = "bg-emerald-100 text-emerald-700 border-emerald-200";
-                } else if (paid > 0) {
-                  displayStatus = "Partially Paid";
-                  statusStyle = "bg-amber-100 text-amber-700 border-amber-200";
-                }
-
-                return (
-                  <tr key={f.id} className="hover:bg-white/60 transition">
-                    <td className="px-4 py-3 font-semibold text-slate-800">{f.studentName}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</td>
-                    <td className="px-4 py-3">{f.className}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold text-emerald-700">₹{paid.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-50">
-                        {installmentsUsed} {installmentsUsed === 1 ? "Txn" : "Txns"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={cn("text-xs font-semibold border", statusStyle)}>
-                        {displayStatus}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openEditFeeFor(f)}>
-                          <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => openDetailsFor(f)}>
-                          <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> View Details
-                        </Button>
-                        {remaining > 0 ? (
-                          <Button
-                            size="sm"
-                            onClick={() => openRecordPaymentFor(f)}
-                            className="h-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full text-xs font-medium px-3"
-                          >
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Collect Fee
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const lastPayment = f.payments && f.payments.length > 0 ? f.payments[f.payments.length - 1] : null;
-                              setReceipt({
-                                receiptNo: lastPayment?.receiptNo || `SUN/26-27/${Math.floor(4000 + Math.random() * 6000)}`,
-                                studentName: f.studentName,
-                                admissionNo: f.admissionNo || f.studentId,
-                                className: f.className,
-                                feeType: lastPayment?.feeType || "Tuition Fee",
-                                amountDue: 0,
-                                amountPaid: paid,
-                                balance: 0,
-                                method: lastPayment?.method || "Cash",
-                                reference: lastPayment?.reference || "",
-                                date: lastPayment?.date || new Date().toISOString().slice(0, 10),
-                                remarks: lastPayment?.remarks || "Fully Paid",
-                                status: "Paid",
-                                collectedBy: lastPayment?.collectedBy || "Office Staff",
-                              });
-                            }}
-                            className="h-8 text-xs font-medium px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                          >
-                            <Printer className="h-3.5 w-3.5 mr-1" /> Print Receipt
-                          </Button>
-                        )}
-                      </div>
-                    </td>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                // Loading Skeleton Rows
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
+                    <td className="px-3 py-4"><div className="h-4 w-10 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-32 bg-slate-200 rounded" /></td>
+                    <td className="px-3 py-4"><div className="h-4 w-16 bg-slate-200 rounded" /></td>
+                    <td className="px-3 py-4"><div className="h-4 w-8 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                    <td className="px-4 py-4"><div className="h-5 w-16 bg-slate-200 rounded-full mx-auto" /></td>
+                    <td className="px-4 py-4"><div className="h-8 w-28 bg-slate-200 rounded-xl ml-auto" /></td>
                   </tr>
-                );
-              })}
-              {filtered.length === 0 && (
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                    No student fee ledger records found matching query.
+                  <td colSpan={10} className="text-center py-12 text-slate-500 font-medium">
+                    No matching fee records found.
                   </td>
                 </tr>
+              ) : (
+                filtered.map((f, idx) => {
+                  const origFee = f.originalFee || f.amount || 8500;
+                  const discAmt = f.discountAmount || 0;
+                  const finalFee = f.finalFee || origFee - discAmt;
+                  const paid = (f.payments && f.payments.length > 0)
+                    ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+                    : (f.paid || 0);
+                  const remaining = Math.max(0, finalFee - paid);
+
+                  let displayStatus = "Pending";
+                  let statusStyle = "bg-rose-50 text-rose-700 border-rose-200";
+                  if (remaining === 0 && finalFee > 0) {
+                    displayStatus = "Paid";
+                    statusStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                  } else if (paid > 0) {
+                    displayStatus = "Partial";
+                    statusStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                  }
+
+                  return (
+                    <tr key={f.id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-600">{f.admissionNo || "ADM-1001"}</td>
+                      <td className="px-3 py-3.5 text-xs text-slate-500 font-medium">#{f.rollNo || (idx + 1)}</td>
+                      <td className="px-4 py-3.5 font-semibold text-slate-900">{f.studentName}</td>
+                      <td className="px-3 py-3.5 text-xs font-medium text-slate-700">{f.className}</td>
+                      <td className="px-3 py-3.5 text-xs font-medium text-slate-700">{f.section || "A"}</td>
+                      <td className="px-4 py-3.5 text-right font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-emerald-600">₹{paid.toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-center">
+                        <Badge className={cn("text-xs font-semibold px-2.5 py-0.5 border rounded-full shadow-2xs", statusStyle)}>
+                          {displayStatus}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => openEditFeeFor(f)}>
+                            <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => openDetailsFor(f)}>
+                            <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> View
+                          </Button>
+                          {remaining > 0 ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openRecordPaymentFor(f)}
+                              className="h-8 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs px-3 shadow-xs"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Collect Fee
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const lastPayment = f.payments && f.payments.length > 0 ? f.payments[f.payments.length - 1] : null;
+                                setReceipt({
+                                  receiptNo: lastPayment?.receiptNo || `SUN/26-27/${Math.floor(4000 + Math.random() * 6000)}`,
+                                  studentName: f.studentName,
+                                  admissionNo: f.admissionNo || f.studentId,
+                                  className: f.className,
+                                  feeType: lastPayment?.feeType || "Tuition Fee",
+                                  amountDue: 0,
+                                  amountPaid: paid,
+                                  balance: 0,
+                                  method: lastPayment?.method || "Cash",
+                                  reference: lastPayment?.reference || "",
+                                  date: lastPayment?.date || new Date().toISOString().slice(0, 10),
+                                  remarks: lastPayment?.remarks || "Fully Paid",
+                                  status: "Paid",
+                                  collectedBy: lastPayment?.collectedBy || "Office Staff",
+                                });
+                              }}
+                              className="h-8 text-xs font-medium px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            >
+                              <Printer className="h-3.5 w-3.5 mr-1" /> Print Receipt
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
