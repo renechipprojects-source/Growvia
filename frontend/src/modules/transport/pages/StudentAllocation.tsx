@@ -63,28 +63,46 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
     setOpen(true);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSave = () => {
+    if (isSaving) return;
     if (!form.student) {
       toast.error("Student name is required.");
       return;
     }
-    const newAlloc: Allocation = {
-      id: `ALC-${Date.now().toString().slice(-4)}`,
-      student: form.student,
-      className: form.className,
-      section: form.section,
-      route: form.route,
-      pickupPoint: form.pickupPoint,
-      dropPoint: form.dropPoint,
-      vehicle: "KA-04-B-1001",
-      driver: "Assigned Driver",
-      monthlyFee: Number(form.monthlyFee),
-    };
-    const next = [newAlloc, ...allocationList];
-    setAllocationList(next);
-    saveStoredAllocations(next);
-    toast.success(`Transport allocated for ${form.student}!`);
-    setOpen(false);
+
+    setIsSaving(true);
+    try {
+      const newAlloc: Allocation = {
+        id: `ALC-${Date.now().toString().slice(-4)}`,
+        student: form.student,
+        className: form.className,
+        section: form.section,
+        route: form.route,
+        pickupPoint: form.pickupPoint,
+        dropPoint: form.dropPoint,
+        vehicle: "KA-04-B-1001",
+        driver: "Assigned Driver",
+        monthlyFee: Number(form.monthlyFee),
+      };
+      const next = [newAlloc, ...allocationList];
+      setAllocationList(next);
+      saveStoredAllocations(next);
+      toast.success(`Transport allocated for ${form.student}!`);
+      setOpen(false);
+      setForm({
+        student: "",
+        className: "Nursery",
+        section: "A",
+        route: "Route 1",
+        pickupPoint: "Main Gate",
+        dropPoint: "School Main Gate",
+        monthlyFee: 1500,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (id: string, name: string) => {

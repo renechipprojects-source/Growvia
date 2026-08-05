@@ -35,8 +35,6 @@ function Dashboard() {
   };
 
   useAutoRefresh("students", loadData);
-  useAutoRefresh("staff", loadData);
-  useAutoRefresh("fees", loadData);
 
   useEffect(() => {
     loadData();

@@ -98,6 +98,15 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
       }
       setEditing(null);
       setOpen(false);
+      setForm({
+        number: "",
+        name: "",
+        type: "Bus",
+        capacity: 30,
+        driver: "Driver Name",
+        route: "Route 1",
+        status: "Active",
+      });
     } finally {
       setIsSaving(false);
     }

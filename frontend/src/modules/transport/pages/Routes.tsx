@@ -89,40 +89,58 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
     setOpen(true);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSave = async () => {
+    if (isSaving) return;
     if (!form.name) {
       toast.error("Route name is required.");
       return;
     }
-    const newRoute: Route = {
-      id: `RT-${Date.now().toString().slice(-4)}`,
-      name: form.name,
-      pickupPoints: form.pickup.split(",").map((s) => s.trim()).filter(Boolean),
-      dropPoints: form.drop.split(",").map((s) => s.trim()).filter(Boolean),
-      distanceKm: Number(form.distanceKm),
-      vehicle: form.vehicle,
-      driver: form.driver,
-      students: Number(form.students),
-      status: "Active",
-    };
 
-    const next = [newRoute, ...routeList];
-    setRouteList(next);
-    saveStoredRoutes(next);
+    setIsSaving(true);
+    try {
+      const newRoute: Route = {
+        id: `RT-${Date.now().toString().slice(-4)}`,
+        name: form.name,
+        pickupPoints: form.pickup.split(",").map((s) => s.trim()).filter(Boolean),
+        dropPoints: form.drop.split(",").map((s) => s.trim()).filter(Boolean),
+        distanceKm: Number(form.distanceKm),
+        vehicle: form.vehicle,
+        driver: form.driver,
+        students: Number(form.students),
+        status: "Active",
+      };
 
-    await saveTransportRouteService({
-      id: newRoute.id,
-      routeName: newRoute.name,
-      vehicleNo: newRoute.vehicle,
-      driverName: newRoute.driver,
-      capacity: 30,
-      assignedStudentsCount: newRoute.students,
-      monthlyFare: 1500,
-      status: "Active",
-    });
+      const next = [newRoute, ...routeList];
+      setRouteList(next);
+      saveStoredRoutes(next);
 
-    toast.success(`Route ${form.name} created!`);
-    setOpen(false);
+      await saveTransportRouteService({
+        id: newRoute.id,
+        routeName: newRoute.name,
+        vehicleNo: newRoute.vehicle,
+        driverName: newRoute.driver,
+        capacity: 30,
+        assignedStudentsCount: newRoute.students,
+        monthlyFare: 1500,
+        status: "Active",
+      });
+
+      toast.success(`Route ${form.name} created!`);
+      setOpen(false);
+      setForm({
+        name: "",
+        pickup: "",
+        drop: "",
+        vehicle: "KA-04-B-1001",
+        driver: "Driver Name",
+        students: 0,
+        distanceKm: 10,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {

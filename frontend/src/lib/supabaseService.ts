@@ -326,79 +326,98 @@ export async function deleteCircular(id: string) {
 
 // ─── 2. STUDENTS ─────────────────────────────────────────────────────────────
 
-export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
-  try {
-    let rows: any[] = [];
-    const { data, error } = await supabase
-      .from("gv_users")
-      .select("*")
-      .or("role.ilike.%student%,role.eq.student,role.eq.Student");
+let studentsCacheMemory: Student[] = [];
+const STUDENTS_STORAGE_KEY = "sunshine.students.cache.v1";
 
-    if (!error && data && data.length > 0) {
-      rows = data;
-    } else {
-      const { data: allData } = await supabase.from("gv_users").select("*");
-      if (allData && allData.length > 0) {
-        rows = allData.filter((u: any) =>
-          u.role ? u.role.toString().toLowerCase().includes("student") : false
-        );
+function getCachedStudentsList(): Student[] {
+  if (studentsCacheMemory.length > 0) return studentsCacheMemory;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STUDENTS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          studentsCacheMemory = parsed;
+          return parsed;
+        }
       }
-      if (rows.length === 0) {
-        try {
-          const directRes = await fetch(
-            "https://nyhnkftlkigoliyogwvp.supabase.co/rest/v1/gv_users?select=*",
-            {
-              headers: {
-                apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
-                Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
-              },
-            }
-          );
-          if (directRes.ok) {
-            const rawJson = await directRes.json();
-            rows = (rawJson || []).filter((u: any) =>
-              u.role ? u.role.toString().toLowerCase().includes("student") : false
-            );
-          }
-        } catch {}
-      }
-      if (rows.length === 0) {
-        try {
-          const res = await fetch(`${API_URL}/api/users?role=student`);
-          if (res.ok) {
-            const json = await res.json();
-            rows = json.data || [];
-          }
-        } catch {}
-      }
-    }
-
-    const mapped: Student[] = rows.map((d: any) => ({
-      id: d.id || d.login_id,
-      rollNo: d.roll_no || 1,
-      admissionNo: d.admission_no || d.id,
-      name: d.full_name || "Student",
-      age: d.age || 4,
-      dob: d.date_of_birth || "2022-01-01",
-      className: d.class_name || "Nursery",
-      section: d.section || "A",
-      parent: d.parent_name || "Parent",
-      parentId: d.parent_id || `PAR-${d.id}`,
-      phone: d.mobile || "9876543210",
-      gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-      house: d.house || "Red",
-      admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      feeStatus: (d.fee_status as any) || "Pending",
-      avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-      attendance: Number(d.attendance_pct || 95.0),
-      branch: d.branch || "Main Branch",
-    }));
-
-    return { data: mapped, isFromSupabase: true };
-  } catch (err) {
-    console.error("fetchStudents exception:", err);
-    return { data: [], isFromSupabase: false };
+    } catch {}
   }
+  return [];
+}
+
+function setCachedStudentsList(list: Student[]) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  studentsCacheMemory = list;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+}
+
+export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
+  const cached = getCachedStudentsList();
+
+  const fetchTask = (async () => {
+    try {
+      let rows: any[] = [];
+      const { data, error } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or("role.ilike.%student%,role.eq.student,role.eq.Student");
+
+      if (!error && data && data.length > 0) {
+        rows = data;
+      } else {
+        const { data: allData } = await supabase.from("gv_users").select("*");
+        if (allData && allData.length > 0) {
+          rows = allData.filter((u: any) =>
+            u.role ? u.role.toString().toLowerCase().includes("student") : false
+          );
+        }
+      }
+
+      if (rows.length > 0) {
+        const mapped: Student[] = rows.map((d: any) => ({
+          id: d.id || d.login_id,
+          rollNo: d.roll_no || 1,
+          admissionNo: d.admission_no || d.id,
+          name: d.full_name || "Student",
+          age: d.age || 4,
+          dob: d.date_of_birth || "2022-01-01",
+          className: d.class_name || "Nursery",
+          section: d.section || "A",
+          parent: d.parent_name || "Parent",
+          parentId: d.parent_id || `PAR-${d.id}`,
+          phone: d.mobile || "9876543210",
+          gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+          house: d.house || "Red",
+          admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+          feeStatus: (d.fee_status as any) || "Pending",
+          avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+          attendance: Number(d.attendance_pct || 95.0),
+          branch: d.branch || "Main Branch",
+        }));
+
+        setCachedStudentsList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    } catch {}
+
+    return { data: cached.length > 0 ? cached : [], isFromSupabase: false };
+  })();
+
+  if (cached.length > 0) {
+    fetchTask.catch(() => {});
+    return { data: cached, isFromSupabase: true };
+  }
+
+  const timeoutTask = new Promise<{ data: Student[]; isFromSupabase: boolean }>((resolve) => {
+    setTimeout(() => resolve({ data: cached, isFromSupabase: false }), 3000);
+  });
+
+  return Promise.race([fetchTask, timeoutTask]);
 }
 
 export async function createStudent(student: Omit<Student, "id"> & { id?: string }) {

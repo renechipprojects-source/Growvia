@@ -53,27 +53,43 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
     setOpen(true);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSave = () => {
+    if (isSaving) return;
     if (!form.name || !form.mobile) {
       toast.error("Driver name and mobile number are required.");
       return;
     }
-    const newDriver: Driver = {
-      id: `DRV-${Date.now().toString().slice(-4)}`,
-      employeeId: `EMP-${Math.floor(100 + Math.random() * 899)}`,
-      name: form.name,
-      mobile: form.mobile,
-      license: form.license || "DL-PENDING",
-      licenseExpiry: "2028-12-31",
-      vehicle: form.vehicle,
-      route: form.route,
-      status: "Active",
-    };
-    const next = [newDriver, ...driverList];
-    setDriverList(next);
-    saveStoredDrivers(next);
-    toast.success(`Driver ${form.name} registered!`);
-    setOpen(false);
+
+    setIsSaving(true);
+    try {
+      const newDriver: Driver = {
+        id: `DRV-${Date.now().toString().slice(-4)}`,
+        employeeId: `EMP-${Math.floor(100 + Math.random() * 899)}`,
+        name: form.name,
+        mobile: form.mobile,
+        license: form.license || "DL-PENDING",
+        licenseExpiry: "2028-12-31",
+        vehicle: form.vehicle,
+        route: form.route,
+        status: "Active",
+      };
+      const next = [newDriver, ...driverList];
+      setDriverList(next);
+      saveStoredDrivers(next);
+      toast.success(`Driver ${form.name} registered!`);
+      setOpen(false);
+      setForm({
+        name: "",
+        mobile: "",
+        license: "",
+        vehicle: "KA-04-B-1001",
+        route: "Route 1",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (id: string, name: string) => {
