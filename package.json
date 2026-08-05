@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "frontend:dev": "npm --prefix frontend run dev",
-    "frontend:build": "npm --prefix frontend run build",
+    "frontend:build": "npm --prefix frontend run build && node -e \"import fs from 'node:fs'; fs.cpSync('frontend/dist', 'dist', { recursive: true });\"",
     "backend:dev": "npm --prefix backend run dev",
     "backend:build": "npm --prefix backend run build",
     "build": "npm run frontend:build && npm run backend:build"
