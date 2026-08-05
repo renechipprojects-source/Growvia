@@ -150,42 +150,53 @@ export interface FeeLedgerItem {
 
 export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
+    let rows: any[] = [];
     const { data, error } = await supabase
       .from("gv_communications")
       .select("*")
       .eq("message_type", "circular")
       .order("created_at", { ascending: false });
 
-    if (error) return { data: [], isFromSupabase: false };
-    const rows = data || [];
+    if (!error && data && data.length > 0) {
+      rows = data;
+    } else {
+      const { data: allComms } = await supabase.from("gv_communications").select("*");
+      if (allComms && allComms.length > 0) {
+        rows = allComms.filter((c: any) => c.message_type === "circular");
+      } else {
+        try {
+          const res = await fetch(`${API_URL}/api/communications?channel=circular`);
+          if (res.ok) {
+            const json = await res.json();
+            rows = json.data || [];
+          }
+        } catch {}
+      }
+    }
 
     const mapped: Circular[] = rows.map((d: any) => {
       let meta: any = {};
       try {
-        if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
-          meta = JSON.parse(d.body);
-        }
-      } catch {}
-
-      const title = d.title || meta.title || "Notice";
-      const subject = meta.subject || title;
-      const description = meta.description || d.body || title;
+        meta = JSON.parse(d.body || "{}");
+      } catch {
+        meta = { description: d.body };
+      }
 
       return {
         id: d.id,
-        title,
-        subject,
-        description,
-        content: description,
-        target_audience: d.recipient_role || "all",
-        recipients: meta.recipients || [d.recipient_role || "Parents"],
-        priority: meta.priority || d.priority || "Medium",
-        published_date: d.published_at?.slice(0, 10) || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-        publishDate: d.published_at?.slice(0, 10) || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-        author: d.sender_name || meta.author || "Principal Office",
+        title: d.title || meta.subject || "School Notice",
+        subject: meta.subject || d.title,
+        description: meta.description || d.body || "",
+        content: meta.description || d.body || "",
+        published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        expiryDate: "2026-12-31",
+        target_audience: d.recipient_role || "All",
+        recipients: meta.recipients || ["Parents", "Teachers"],
+        author: d.sender_name || "Principal Office",
+        priority: d.priority || meta.priority || "Medium",
         status: meta.status || "Published",
         attachment: meta.attachmentName,
-        attachmentName: meta.attachmentName,
         attachmentUrl: d.attachment_url || meta.attachmentUrl,
         createdAt: d.created_at || new Date().toISOString(),
         history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
@@ -224,13 +235,44 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
       published_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
-    if (error) return { data: null, error: error.message };
+    let resultData = null;
+    let resultErr = null;
 
-    pushAdminNotification(`New Circular: ${circular.title}`, "circular");
-    NotificationService.circularPublished(circular.title);
+    try {
+      const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
+      if (!error && data && data.length > 0) {
+        resultData = data[0];
+      } else if (error) {
+        resultErr = error.message;
+      }
+    } catch (e: any) {
+      resultErr = e?.message;
+    }
 
-    return { data: data ? data[0] : payload, error: null };
+    if (!resultData) {
+      try {
+        const res = await fetch(`${API_URL}/api/communications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          resultData = json.data ? (Array.isArray(json.data) ? json.data[0] : json.data) : payload;
+          resultErr = null;
+        }
+      } catch (backendErr: any) {
+        if (!resultErr) resultErr = backendErr?.message || "Failed to publish circular.";
+      }
+    }
+
+    if (resultData) {
+      pushAdminNotification(`New Circular: ${circular.title}`, "circular");
+      NotificationService.circularPublished(circular.title);
+      return { data: resultData, error: null };
+    }
+
+    return { data: null, error: resultErr || "Failed to publish circular." };
   } catch (err: any) {
     return { data: null, error: err?.message || "Failed to save circular." };
   }
