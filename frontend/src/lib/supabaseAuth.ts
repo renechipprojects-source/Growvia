@@ -141,6 +141,24 @@ export async function login(loginId: string, password: string) {
           must_change_password: false,
         };
       } else {
+        // Check generated credentials fallback (Teacher / Parent generated logins)
+        const generatedCred = authenticateGenerated(id, password);
+        if (generatedCred) {
+          return {
+            success: true,
+            user: { id: `GEN-${id}`, email: `${id.toLowerCase()}@growvia.edu` } as any,
+            profile: {
+              id: `GEN-${id}`,
+              auth_user_id: `GEN-${id}`,
+              login_id: id,
+              role: generatedCred.role,
+              full_name: generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
+              email: `${id.toLowerCase()}@growvia.edu`,
+              status: "active",
+              must_change_password: false,
+            },
+          };
+        }
         return {
           success: false,
           error: "Invalid Login ID or password.",
@@ -158,7 +176,7 @@ export async function login(loginId: string, password: string) {
 
     const emailToAuth = (isDev && (profile.email === "developer@growvia.local" || !profile.email))
       ? "developer@growvia.com"
-      : profile.email;
+      : (profile.email || `${id.toLowerCase()}@growvia.edu`);
 
     // Authenticate using Supabase Auth
     let { data, error } = await supabase.auth.signInWithPassword({
@@ -200,13 +218,16 @@ export async function login(loginId: string, password: string) {
 
       // Check generated credentials fallback (Teacher / Parent generated logins)
       const generatedCred = authenticateGenerated(id, password);
-      if (generatedCred && profile) {
+      if (generatedCred) {
         return {
           success: true,
-          user: { id: profile.auth_user_id || profile.id, email: emailToAuth } as any,
+          user: { id: profile?.auth_user_id || profile?.id || `GEN-${id}`, email: emailToAuth } as any,
           profile: {
             ...profile,
-            role: profile.role || generatedCred.role,
+            id: profile?.id || `GEN-${id}`,
+            login_id: id,
+            role: profile?.role || generatedCred.role,
+            full_name: profile?.full_name || generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
           },
         };
       }

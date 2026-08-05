@@ -37,9 +37,47 @@ interface Store {
   teachers: Record<string, TeacherCredential>; // key: teacherId
 }
 
-let memoryCredentialsStore: Store = { parents: {}, teachers: {} };
+const STORAGE_KEY = "sunshine.credentials.v3";
+
+const defaultParents: Record<string, ParentCredential> = {
+  STU1001: {
+    kind: "parent",
+    studentId: "STU1001",
+    loginId: "PAR1001",
+    password: "Parent@123",
+    status: "Active",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+};
+
+const defaultTeachers: Record<string, TeacherCredential> = {
+  TCH1001: {
+    kind: "teacher",
+    teacherId: "TCH1001",
+    loginId: "TCH1001",
+    password: "Teacher@123",
+    status: "Active",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+};
+
+let memoryCredentialsStore: Store = { parents: defaultParents, teachers: defaultTeachers };
 
 function read(): Store {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        memoryCredentialsStore = {
+          parents: { ...defaultParents, ...(parsed.parents || {}) },
+          teachers: { ...defaultTeachers, ...(parsed.teachers || {}) },
+        };
+      }
+    } catch {}
+  }
   return memoryCredentialsStore;
 }
 
@@ -47,6 +85,7 @@ function write(store: Store) {
   memoryCredentialsStore = store;
   if (typeof window !== "undefined") {
     try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
       window.dispatchEvent(new CustomEvent("sunshine:credentials"));
     } catch {}
   }
