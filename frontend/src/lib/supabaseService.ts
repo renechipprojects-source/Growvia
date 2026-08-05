@@ -249,17 +249,29 @@ export async function deleteCircular(id: string) {
 
 export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
+    let rows: any[] = [];
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
       .in("role", ["student", "Student"])
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Supabase fetchStudents error:", error);
-      return { data: [], isFromSupabase: false };
+    if (!error && data && data.length > 0) {
+      rows = data;
+    } else {
+      const { data: allData } = await supabase.from("gv_users").select("*");
+      if (allData && allData.length > 0) {
+        rows = allData.filter((u: any) => u.role === "student" || u.role === "Student");
+      } else {
+        try {
+          const res = await fetch(`${API_URL}/api/users?role=student`);
+          if (res.ok) {
+            const json = await res.json();
+            rows = json.data || [];
+          }
+        } catch {}
+      }
     }
-    const rows = data || [];
 
     const mapped: Student[] = rows.map((d: any) => ({
       id: d.id || d.login_id,
