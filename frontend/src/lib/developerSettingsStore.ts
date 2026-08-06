@@ -180,6 +180,11 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     faviconUrl: "/favicon.ico",
   },
   dashboards: {
+    showCards: true,
+    showCharts: true,
+    showWidgets: true,
+    showQuickActions: true,
+    showStatistics: true,
     showQuickStats: true,
     showRecentActivity: true,
     showAnnouncements: true,

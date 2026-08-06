@@ -811,11 +811,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">KPI metric counters & cards</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showCards}
+                  checked={draft.dashboards?.showCards ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showCards: checked },
+                      dashboards: { ...(draft.dashboards || {}), showCards: checked },
                     })
                   }
                 />
@@ -827,11 +827,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">Bar charts, fee trends & graphs</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showCharts}
+                  checked={draft.dashboards?.showCharts ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showCharts: checked },
+                      dashboards: { ...(draft.dashboards || {}), showCharts: checked },
                     })
                   }
                 />
@@ -843,11 +843,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">Recent activities & quick data grids</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showWidgets}
+                  checked={draft.dashboards?.showWidgets ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showWidgets: checked },
+                      dashboards: { ...(draft.dashboards || {}), showWidgets: checked },
                     })
                   }
                 />
@@ -859,11 +859,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">Shortcuts to common operations</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showQuickActions}
+                  checked={draft.dashboards?.showQuickActions ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showQuickActions: checked },
+                      dashboards: { ...(draft.dashboards || {}), showQuickActions: checked },
                     })
                   }
                 />
@@ -875,11 +875,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">Live circulars & notice board</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showAnnouncements}
+                  checked={draft.dashboards?.showAnnouncements ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showAnnouncements: checked },
+                      dashboards: { ...(draft.dashboards || {}), showAnnouncements: checked },
                     })
                   }
                 />
@@ -891,11 +891,11 @@ function DeveloperConsolePage() {
                   <div className="text-xs text-slate-400">Attendance & financial stats stream</div>
                 </div>
                 <Switch
-                  checked={draft.dashboards.showStatistics}
+                  checked={draft.dashboards?.showStatistics ?? true}
                   onCheckedChange={(checked) =>
                     setDraft({
                       ...draft,
-                      dashboards: { ...draft.dashboards, showStatistics: checked },
+                      dashboards: { ...(draft.dashboards || {}), showStatistics: checked },
                     })
                   }
                 />
