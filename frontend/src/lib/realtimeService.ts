@@ -20,10 +20,16 @@ export function subscribeToRealtimeTable({
   onPayload,
   filter,
 }: RealtimeSubscriptionOptions): () => void {
-  const channelName = `realtime:${table}:${filter || "all"}:${Date.now()}`;
+  const channelKey = `realtime:${table}:${filter || "all"}`;
+
+  if (activeChannels.has(channelKey)) {
+    const existing = activeChannels.get(channelKey);
+    try { supabase.removeChannel(existing); } catch {}
+    activeChannels.delete(channelKey);
+  }
 
   const channel = supabase
-    .channel(channelName)
+    .channel(channelKey)
     .on(
       "postgres_changes" as any,
       {
@@ -43,13 +49,13 @@ export function subscribeToRealtimeTable({
     )
     .subscribe((status: string) => {
       if (status === "SUBSCRIBED") {
-        activeChannels.set(channelName, channel);
+        activeChannels.set(channelKey, channel);
       }
     });
 
   return () => {
-    supabase.removeChannel(channel);
-    activeChannels.delete(channelName);
+    try { supabase.removeChannel(channel); } catch {}
+    activeChannels.delete(channelKey);
   };
 }
 

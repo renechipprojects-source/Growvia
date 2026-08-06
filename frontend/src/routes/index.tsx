@@ -58,7 +58,19 @@ function Login() {
     setErrors({});
 
     try {
-      // First try Supabase auth
+      // 1. Instant local system & generated credentials check (<1ms)
+      const localResult = authenticate(loginId.trim(), password, remember);
+      if (localResult.ok) {
+        const { session } = localResult;
+        toast.success(`Welcome, ${session.name}`);
+        setTimeout(() => {
+          if (session.mustChangePassword) navigate({ to: "/change-password" });
+          else navigate({ to: roleHome(session.role) });
+        }, 100);
+        return;
+      }
+
+      // 2. Fallback to Supabase database lookup for custom database users
       const supaResult = await login(loginId.trim(), password);
       if (supaResult.success && supaResult.profile) {
         writeSession(
@@ -74,25 +86,14 @@ function Login() {
         setTimeout(() => {
           if (supaResult.profile.must_change_password) navigate({ to: "/change-password" });
           else navigate({ to: roleHome(supaResult.profile.role as any) });
-        }, 200);
+        }, 100);
         return;
       }
 
-      // Fallback to local system auth
-      const result = authenticate(loginId, password, remember);
-      if (!result.ok) {
-        setSubmitting(false);
-        const msg = result.reason === "invalid" ? "Invalid Login ID or password." : "Please fill in all fields.";
-        setErrors({ form: msg });
-        toast.error(msg);
-        return;
-      }
-      const { session } = result;
-      toast.success(`Welcome, ${session.name}`);
-      setTimeout(() => {
-        if (session.mustChangePassword) navigate({ to: "/change-password" });
-        else navigate({ to: roleHome(session.role) });
-      }, 200);
+      setSubmitting(false);
+      const msg = supaResult.error || "Invalid Login ID or password.";
+      setErrors({ form: msg });
+      toast.error(msg);
     } catch (err: any) {
       setSubmitting(false);
       toast.error("An error occurred during login. Please try again.");
