@@ -1,5 +1,5 @@
 // Centralized Automatic Refresh & Supabase Realtime Engine for Sunshine Play School ERP
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { subscribeToRealtimeTable, TABLE_TO_MODULE_MAP } from "./realtimeService";
 
 export type ERPModule =
