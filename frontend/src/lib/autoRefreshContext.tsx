@@ -122,16 +122,19 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
     };
   }, [triggerModuleRefresh]);
 
+  const value = useMemo<AutoRefreshContextType>(
+    () => ({
+      registerRefresher,
+      triggerModuleRefresh,
+      triggerAllRefreshes,
+      setFormEditing: setIsFormEditing,
+      isFormEditing,
+    }),
+    [registerRefresher, triggerModuleRefresh, triggerAllRefreshes, isFormEditing]
+  );
+
   return (
-    <AutoRefreshContext.Provider
-      value={{
-        registerRefresher,
-        triggerModuleRefresh,
-        triggerAllRefreshes,
-        setFormEditing: setIsFormEditing,
-        isFormEditing,
-      }}
-    >
+    <AutoRefreshContext.Provider value={value}>
       {children}
     </AutoRefreshContext.Provider>
   );

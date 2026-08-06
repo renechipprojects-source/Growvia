@@ -149,19 +149,22 @@ export function useMessages() {
 
   useEffect(() => {
     fetchMessagesFromSupabase().then((res) => {
-      if (res) setMessages(res);
+      if (res) setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
     });
 
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_communications",
       onPayload: () => {
         fetchMessagesFromSupabase().then((res) => {
-          if (res) setMessages(res);
+          if (res) setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
         });
       },
     });
 
-    const sync = () => setMessages(readMessages());
+    const sync = () => {
+      const stored = readMessages();
+      setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(stored) ? prev : stored));
+    };
     window.addEventListener("sunshine-message", sync);
 
     return () => {

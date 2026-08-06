@@ -86,14 +86,15 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     }
   }, [activeId]);
 
-  const active = kids.find((k) => k.id === activeId) ?? kids[0] ?? emptyStudent;
-
-  const value: ParentState = {
-    household: emptyHousehold,
-    children: kids,
-    activeChild: active,
-    setActiveChildId: setActiveId,
-  };
+  const value = useMemo<ParentState>(
+    () => ({
+      household: emptyHousehold,
+      children: kids,
+      activeChild: active,
+      setActiveChildId: setActiveId,
+    }),
+    [kids, active]
+  );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

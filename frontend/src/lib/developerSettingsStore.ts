@@ -219,30 +219,28 @@ const KEY = "sunshine_dev_settings";
 export function synchronizeLogoFields(settings: DeveloperSettings, targetLogoUrl: string): DeveloperSettings {
   if (!targetLogoUrl) return settings;
 
-  const urlWithCacheBuster = targetLogoUrl.includes("?") ? targetLogoUrl : `${targetLogoUrl}?v=${Date.now()}`;
-
   return {
     ...settings,
     branding: {
       ...settings.branding,
-      schoolLogoUrl: urlWithCacheBuster,
-      logoUrl: urlWithCacheBuster,
-      headerLogoUrl: urlWithCacheBuster,
-      sidebarLogoUrl: urlWithCacheBuster,
+      schoolLogoUrl: targetLogoUrl,
+      logoUrl: targetLogoUrl,
+      headerLogoUrl: targetLogoUrl,
+      sidebarLogoUrl: targetLogoUrl,
     },
     school: {
       ...settings.school,
-      schoolLogoUrl: urlWithCacheBuster,
-      logoUrl: urlWithCacheBuster,
+      schoolLogoUrl: targetLogoUrl,
+      logoUrl: targetLogoUrl,
     },
     loginPage: {
       ...settings.loginPage,
-      schoolLogoUrl: urlWithCacheBuster,
-      logoUrl: urlWithCacheBuster,
+      schoolLogoUrl: targetLogoUrl,
+      logoUrl: targetLogoUrl,
     },
     theme: {
       ...settings.theme,
-      sidebarLogoUrl: urlWithCacheBuster,
+      sidebarLogoUrl: targetLogoUrl,
     },
   };
 }
