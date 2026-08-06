@@ -23,7 +23,7 @@ const allClassesList = classNames.flatMap((name, ci) =>
 
 export const Route = createFileRoute("/admin/classes")({
   component: ClassesPage,
-  head: () => ({ meta: [{ title: "Classes — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Classes — Sunshine Play School" }] }),
 });
 
 function ClassesPage() {

@@ -17,9 +17,9 @@ import {
 export const Route = createFileRoute("/change-password")({
   head: () => ({
     meta: [
-      { title: "Change password — Sunshine ERP" },
+      { title: "Change password — Sunshine Play School" },
       { name: "description", content: "Create a new password before continuing to your dashboard." },
-      { property: "og:title", content: "Change password — Sunshine ERP" },
+      { property: "og:title", content: "Change password — Sunshine Play School" },
       { property: "og:description", content: "Set a new secure password." },
     ],
   }),

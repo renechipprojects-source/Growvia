@@ -34,7 +34,7 @@ export const Route = createFileRoute("/admin/inventory")({
       <InventoryPage />
     </InventoryProvider>
   ),
-  head: () => ({ meta: [{ title: "Inventory — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Inventory — Sunshine Play School" }] }),
 });
 
 function InventoryPage() {

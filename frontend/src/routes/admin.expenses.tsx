@@ -10,7 +10,7 @@ import { Search, Receipt, Wallet, DollarSign, Lock, Building2 } from "lucide-rea
 export const Route = createFileRoute("/admin/expenses")({
   head: () => ({
     meta: [
-      { title: "School Expenses — Sunshine ERP" },
+      { title: "School Expenses — Sunshine Play School" },
       { name: "description", content: "Read-only view of school-wide operating expenses." },
     ],
   }),

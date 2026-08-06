@@ -13,7 +13,7 @@ export const Route = createFileRoute("/parent")({
   },
   head: () => ({
     meta: [
-      { title: "Parent — Sunshine ERP" },
+      { title: "Parent — Sunshine Play School" },
       { name: "description", content: "Stay close to your little one — attendance, diary, photos and fees." },
       { property: "og:title", content: "Parent Portal" },
       { property: "og:description", content: "Every step of the day." },

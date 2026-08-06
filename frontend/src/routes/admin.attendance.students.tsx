@@ -18,7 +18,7 @@ export const Route = createFileRoute("/admin/attendance/students")({
   component: StudentAttendancePage,
   head: () => ({
     meta: [
-      { title: "Student Attendance — Sunshine ERP" },
+      { title: "Student Attendance — Sunshine Play School" },
       { name: "description", content: "View student attendance records submitted by class teachers. Read-only for admins." },
     ],
   }),

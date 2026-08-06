@@ -8,7 +8,7 @@ import { fetchMergedFeeLedgers, recalculateFeeLedger, type FeeLedgerItem } from 
 
 export const Route = createFileRoute("/admin/fees/payments")({
   component: PaymentsPage,
-  head: () => ({ meta: [{ title: "Student Fee Ledger — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Student Fee Ledger — Sunshine Play School" }] }),
 });
 
 function PaymentsPage() {

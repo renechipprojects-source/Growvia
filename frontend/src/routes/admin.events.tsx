@@ -26,7 +26,7 @@ const defaultSampleEvents = [
 
 export const Route = createFileRoute("/admin/events")({
   component: EventsPage,
-  head: () => ({ meta: [{ title: "Events — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Events — Sunshine Play School" }] }),
 });
 
 function EventsPage() {

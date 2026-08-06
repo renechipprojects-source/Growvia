@@ -16,9 +16,9 @@ import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign in — Sunshine Play School ERP" },
-      { name: "description", content: "Secure sign-in for Sunshine Play School ERP. One login for Admin, Principal, Office, Teachers and Parents." },
-      { property: "og:title", content: "Sign in — Sunshine Play School ERP" },
+      { title: "Sign in — Sunshine Play School" },
+      { name: "description", content: "Secure sign-in for Sunshine Play School. One login for Admin, Principal, Office, Teachers and Parents." },
+      { property: "og:title", content: "Sign in — Sunshine Play School" },
       { property: "og:description", content: "One login. Automatic role detection." },
     ],
   }),

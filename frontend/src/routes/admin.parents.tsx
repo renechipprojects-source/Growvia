@@ -20,7 +20,7 @@ export interface Parent {
 
 export const Route = createFileRoute("/admin/parents")({
   component: ParentsPage,
-  head: () => ({ meta: [{ title: "Parents — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Parents — Sunshine Play School" }] }),
 });
 
 function ParentsPage() {

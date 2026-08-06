@@ -1,7 +1,7 @@
 {
-  "name": "Sunshine Play School ERP",
-  "short_name": "Sunshine ERP",
-  "description": "Enterprise Resource Planning system powered by Growvia",
+  "name": "Sunshine Play School",
+  "short_name": "Sunshine Play School",
+  "description": "Institutional Management System powered by Renechip",
   "icons": [
     {
       "src": "/favicon.png",

@@ -32,7 +32,7 @@ export interface AdminStudent {
 
 export const Route = createFileRoute("/admin/students")({
   component: StudentsPage,
-  head: () => ({ meta: [{ title: "Students — Sunshine ERP" }] }),
+  head: () => ({ meta: [{ title: "Students — Sunshine Play School" }] }),
 });
 
 function StudentsPage() {

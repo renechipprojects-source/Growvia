@@ -379,7 +379,7 @@ export function printableSlip({ title, rows, footer }: { title: string; rows: Ar
     td.k{color:#64748b;width:38%}td.v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600}
     .footer{margin-top:20px;font-size:11px;color:#64748b;line-height:1.5}
   </style></head><body>
-  <div class="brand">Sunshine Play School ERP</div>
+  <div class="brand">Sunshine Play School — Growvia</div>
   <h1>${esc(title)}</h1><hr/>
   <table>${rows.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join("")}</table>
   ${footer ? `<div class="footer">${esc(footer)}</div>` : ""}

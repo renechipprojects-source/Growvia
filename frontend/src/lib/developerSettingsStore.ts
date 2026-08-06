@@ -128,7 +128,7 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     schoolName: "Sunshine Play School",
     shortName: "Sunshine Play School",
     tagline: "Nurturing Little Minds with Love & Joy",
-    footer: "© 2026 Sunshine Play School ERP. Powered by Growvia.",
+    footer: "© 2026 Sunshine Play School. Powered by Growvia.",
     primaryColor: "#0f172a",
     accentColor: "#f59e0b",
     schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
@@ -136,24 +136,24 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     sidebarSchoolName: "Sunshine Play School",
     sidebarTitle: "Sunshine Play School",
-    browserTitle: "Sunshine Play School ERP",
+    browserTitle: "Sunshine Play School — Growvia",
     faviconUrl: "/favicon.ico",
-    reportHeader: "Sunshine Play School — Official ERP Document",
+    reportHeader: "Sunshine Play School — Official Document",
     receiptHeader: "Sunshine Play School — Payment Receipt",
-    projectName: "Growvia ERP",
+    projectName: "Growvia",
     projectLogo: "/growvia-logo.png",
     project_logo: "/growvia-logo.png",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
   },
   loginPage: {
     title: "Sunshine Play School",
-    subtitle: "Complete Play School ERP",
-    description: "Welcome to Sunshine Play School ERP. Secure single portal access for Admin, Principal, Office, Teachers, and Parents.",
+    subtitle: "Play School Operations",
+    description: "Welcome to Sunshine Play School. Secure single portal access for Admin, Principal, Office, Teachers, and Parents.",
     schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
     bgImageUrl: "",
     backgroundImage: "",
-    badgeText: "GROWVIA SCHOOL ERP v2.4",
+    badgeText: "GROWVIA v2.4",
     showAcademicSession: true,
     showFeaturesList: true,
   },
@@ -248,7 +248,7 @@ export function synchronizeLogoFields(settings: DeveloperSettings, targetLogoUrl
 export function applyDynamicHeadAndTheme(settings: DeveloperSettings) {
   if (typeof window === "undefined") return;
   try {
-    const bTitle = settings.branding.browserTitle || settings.loginPage.title || "Sunshine Play School ERP";
+    const bTitle = settings.branding.browserTitle || settings.loginPage.title || "Sunshine Play School — Growvia";
     if (bTitle) {
       document.title = bTitle;
     }

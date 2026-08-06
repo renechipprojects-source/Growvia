@@ -16,7 +16,7 @@ export const Route = createFileRoute("/office")({
   },
   head: () => ({
     meta: [
-      { title: "Office — Sunshine ERP" },
+      { title: "Office — Sunshine Play School" },
       { name: "description", content: "Admissions, enquiries, fees, receipts and expenses." },
       { property: "og:title", content: "Office Dashboard" },
       { property: "og:description", content: "Everything administration." },
