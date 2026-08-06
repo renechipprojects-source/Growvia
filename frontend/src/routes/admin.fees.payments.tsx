@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader, StatusBadge } from "@/components/admin/page-primitives";
+import { PageHeader, StatusBadge, StatCard } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { fetchMergedFeeLedgers, recalculateFeeLedger, type FeeLedgerItem } from "@/lib/supabaseService";
+import { Button } from "@/components/ui/button";
+import { Eye, CreditCard, Calendar, CheckCircle2 } from "lucide-react";
+import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
 
 export const Route = createFileRoute("/admin/fees/payments")({
   component: PaymentsPage,
@@ -15,18 +18,45 @@ function PaymentsPage() {
   const [feeLedgers, setFeeLedgers] = useState<FeeLedgerItem[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedLedger, setSelectedLedger] = useState<FeeLedgerItem | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchMergedFeeLedgers().then(({ data }) => {
       if (data && data.length > 0) {
         setFeeLedgers(data);
       }
     });
+  };
+
+  useAutoRefresh("fees", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const todayPayments = useMemo(() => {
+    let total = 0;
+    feeLedgers.forEach((f) => {
+      if (f.payments && f.payments.length > 0) {
+        f.payments.forEach((p: any) => {
+          if (p.date === todayStr || p.created_at?.startsWith(todayStr)) {
+            total += Number(p.amount || 0);
+          }
+        });
+      } else if (f.lastPaymentDate === todayStr) {
+        total += Number(f.paid || 0);
+      }
+    });
+    return total;
+  }, [feeLedgers, todayStr]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const st = filterValues["Status"];
+    const cls = filterValues["Class"];
+    const sec = filterValues["Section"];
     return feeLedgers.filter((ledger) => {
       const matchSearch =
         !q ||
@@ -34,13 +64,15 @@ function PaymentsPage() {
         (ledger.admissionNo && ledger.admissionNo.toLowerCase().includes(q)) ||
         ledger.className.toLowerCase().includes(q);
       const matchStatus = !st || st === "all" || ledger.status === st;
-      return matchSearch && matchStatus;
+      const matchClass = !cls || cls === "all" || ledger.className?.toLowerCase() === cls.toLowerCase();
+      const matchSection = !sec || sec === "all" || ledger.section?.toLowerCase() === sec.toLowerCase();
+      return matchSearch && matchStatus && matchClass && matchSection;
     });
   }, [feeLedgers, search, filterValues]);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) return;
-    const headers = ["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Payment Status", "Last Payment"];
+    const headers = ["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Payment Status"];
     const rows = filtered.map((f) => {
       const finalFee = f.finalFee || (f.originalFee || f.amount || 8500) - (f.discountAmount || 0);
       const paid = (f.payments && f.payments.length > 0)
@@ -62,29 +94,38 @@ function PaymentsPage() {
         remaining,
         instCount,
         status,
-        f.lastPaymentDate || "—",
       ];
     });
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `student_fee_ledger_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `student_fee_ledger_${todayStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
-        title="Student Fee Ledger"
-        description="Read-only view of student fee ledgers, total paid amounts, remaining balances, and installment counts."
+        title="Student Fee Ledger & Today Payments"
+        description="Live daily fee collection ledger, class/section filters, and installment breakdown."
       />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Today's Total Collection" value={`₹${todayPayments.toLocaleString()}`} tone="success" icon={<CreditCard className="h-5 w-5" />} />
+        <StatCard label="Total Students" value={feeLedgers.length} tone="info" icon={<CheckCircle2 className="h-5 w-5" />} />
+        <StatCard label="Active Ledgers" value={filtered.length} icon={<Calendar className="h-5 w-5" />} />
+        <StatCard label="Date" value={todayStr} tone="warning" icon={<Calendar className="h-5 w-5" />} />
+      </div>
+
       <div className="shrink-0">
         <FilterBar
           searchPlaceholder="Search student name, admission no., class..."
           filters={[
+            { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
+            { label: "Section", options: ["A", "B", "C"] },
             { label: "Status", options: ["Paid", "Partial", "Pending"] },
           ]}
           search={search}
@@ -94,9 +135,10 @@ function PaymentsPage() {
           onExport={handleExportCSV}
         />
       </div>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+
+      <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
-          columns={["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Status", "Last Payment"]}
+          columns={["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments", "Status", "Action"]}
           total={filtered.length}
         >
           {filtered.map((f) => {
@@ -127,12 +169,22 @@ function PaymentsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell><StatusBadge status={displayStatus} /></TableCell>
-                <TableCell className="text-xs text-muted-foreground">{f.lastPaymentDate || "—"}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="outline" className="rounded-xl h-8 px-2.5 text-xs" onClick={() => setSelectedLedger(f)}>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View Details
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
         </DataTable>
       </div>
+
+      <PaymentDetailsModal
+        open={!!selectedLedger}
+        onClose={() => setSelectedLedger(null)}
+        ledger={selectedLedger}
+      />
     </div>
   );
 }

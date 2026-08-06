@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance, getStudentAttendanceDetails, type StudentAttendanceEntry } from "@/lib/attendanceStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/admin/attendance/students")({
   component: StudentAttendancePage,
@@ -35,10 +36,16 @@ function StudentAttendancePage() {
 
   const { attendance: liveAttendanceRecords } = useLiveAttendance();
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data }) => {
       setStudentsList(data || []);
     });
+  };
+
+  useAutoRefresh("attendance", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const activeStudents = useMemo(() => {

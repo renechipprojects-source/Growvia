@@ -6,6 +6,7 @@ import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/da
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/attendance/staff")({
@@ -45,10 +46,16 @@ function StaffAttendancePage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  const loadData = () => {
     fetchTeachers().then(({ data }) => {
       setTeachersList(data || []);
     });
+  };
+
+  useAutoRefresh("attendance", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const rows: StaffAttendanceRow[] = useMemo(() => {

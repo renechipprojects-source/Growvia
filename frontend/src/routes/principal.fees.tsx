@@ -3,12 +3,11 @@ import { useEffect, useState, useMemo } from "react";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
 import { Search, Eye, Wallet, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
 
 export const Route = createFileRoute("/principal/fees")({
   head: () => ({
@@ -153,89 +152,11 @@ function PrincipalFeesOverview() {
         </div>
       </div>
 
-      {activeLedger && (() => {
-        const finalFee = activeLedger.finalFee || (activeLedger.originalFee || 8500) - (activeLedger.discountAmount || 0);
-        const paymentsList = activeLedger.payments || [];
-        const paid = paymentsList.reduce((acc, p) => acc + Number(p.amount || 0), activeLedger.paid && paymentsList.length === 0 ? activeLedger.paid : 0);
-        const remaining = Math.max(0, finalFee - paid);
-        const instCount = paymentsList.length || (paid > 0 ? 1 : 0);
-
-        let displayStatus = "Unpaid";
-        let statusStyle = "bg-rose-100 text-rose-700";
-        if (remaining === 0 && finalFee > 0) {
-          displayStatus = "Paid";
-          statusStyle = "bg-emerald-100 text-emerald-700";
-        } else if (paid > 0) {
-          displayStatus = "Partially Paid";
-          statusStyle = "bg-amber-100 text-amber-700";
-        }
-
-        const sortedPayments = [...paymentsList].reverse();
-
-        return (
-          <Dialog open={openModal} onOpenChange={setOpenModal}>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-bold">Fee Ledger & Payment History</DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4 text-xs mt-2">
-                <div className="rounded-xl bg-slate-50 border p-3 flex justify-between items-center">
-                  <div>
-                    <div className="font-bold text-sm text-slate-900">{activeLedger.studentName}</div>
-                    <div className="text-muted-foreground mt-0.5">
-                      Admission No: <span className="font-mono font-semibold text-slate-800">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
-                    </div>
-                  </div>
-                  <Badge className={cn("px-2.5 py-0.5 font-bold text-xs", statusStyle)}>
-                    {displayStatus}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <div className="rounded-lg border p-2 bg-card">
-                    <div className="text-muted-foreground text-[10px]">Total Fee</div>
-                    <div className="font-bold text-sm text-slate-900">₹{finalFee.toLocaleString()}</div>
-                  </div>
-                  <div className="rounded-lg border p-2 bg-card">
-                    <div className="text-muted-foreground text-[10px]">Total Paid</div>
-                    <div className="font-bold text-sm text-emerald-700">₹{paid.toLocaleString()}</div>
-                  </div>
-                  <div className="rounded-lg border p-2 bg-card">
-                    <div className="text-muted-foreground text-[10px]">Remaining Balance</div>
-                    <div className="font-bold text-sm text-rose-600">₹{remaining.toLocaleString()}</div>
-                  </div>
-                  <div className="rounded-lg border p-2 bg-card">
-                    <div className="text-muted-foreground text-[10px]">Installments Used</div>
-                    <div className="font-bold text-sm text-indigo-700">{instCount}</div>
-                  </div>
-                </div>
-
-                <div className="font-semibold text-slate-700 pt-1">Payment History</div>
-                {sortedPayments.length > 0 ? (
-                  <div className="space-y-2">
-                    {sortedPayments.map((p, idx) => (
-                      <div key={p.id || idx} className="rounded-lg border p-2.5 flex justify-between items-center bg-emerald-50/50 border-emerald-200">
-                        <div>
-                          <div className="font-bold text-slate-800">Installment #{p.installmentNo || (sortedPayments.length - idx)}</div>
-                          <div className="text-muted-foreground text-[11px]">Receipt: <span className="font-mono">{p.receiptNo}</span> · Mode: <b>{p.method}</b></div>
-                          <div className="text-muted-foreground text-[11px]">Date: <b>{p.date}</b> · Collected By: <b>{p.collectedBy || "Office Staff"}</b></div>
-                          {p.remarks && <div className="text-slate-500 italic text-[11px]">"{p.remarks}"</div>}
-                        </div>
-                        <div className="text-sm font-bold text-slate-900">₹{Number(p.amount || 0).toLocaleString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-6 text-center text-muted-foreground text-xs bg-slate-50 rounded-lg border border-dashed">
-                    No payment history recorded yet.
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
+      <PaymentDetailsModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        ledger={activeLedger}
+      />
     </div>
   );
 }
