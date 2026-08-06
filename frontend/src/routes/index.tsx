@@ -101,13 +101,13 @@ function Login() {
 
   const schoolName = settings.school?.schoolName || settings.branding?.schoolName || "Sunshine Play School";
   const academicYear = settings.school?.academicYear || "2026-2027";
-  const welcomeMsg = settings.loginPage?.welcomeMessage || settings.loginPage?.description || "Welcome to Sunshine Play School ERP. Secure single portal access for Admin, Principal, Office, Teachers and Parents.";
+  const welcomeMsg = settings.loginPage?.welcomeMessage || settings.loginPage?.description || "Welcome to Sunshine Play School portal. Secure single sign-in access for Admin, Principal, Office, Teachers and Parents.";
   const motto = settings.branding?.motto || settings.school?.motto || "Play, Learn & Grow Together";
   const address = settings.branding?.address || settings.school?.address || "123 Sunshine Lane, Playtown, India";
   const phone = settings.branding?.phone || settings.school?.phone || "+91 98765 43210";
   const email = settings.branding?.email || settings.school?.email || "contact@sunshineplayschool.edu";
   const officeHours = settings.branding?.officeHours || settings.school?.officeHours || "8:00 AM - 4:00 PM (Mon - Sat)";
-  const projectName = settings.branding?.projectName || settings.branding?.project_name || "Growvia ERP";
+  const projectName = "Growvia";
   const logoUrl = settings.branding?.schoolLogoUrl || settings.school?.schoolLogoUrl || settings.school?.logoUrl || settings.loginPage?.schoolLogoUrl || settings.branding?.logoUrl;
 
   return (
@@ -120,28 +120,30 @@ function Login() {
         {/* Left Side — School Branding & Info */}
         <div className="p-8 lg:p-10 lg:col-span-7 bg-gradient-to-br from-white/90 via-slate-50/70 to-blue-50/40 border-b lg:border-b-0 lg:border-r border-slate-200/80 flex flex-col justify-between space-y-6">
           <div>
-            <div className="flex items-start justify-between gap-4">
-              {/* Top Left: School Logo, School Name & Academic Session */}
-              <div className="flex flex-col items-start">
-                <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
+              {/* Top Left: School Logo & Name */}
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-xs">
                   {Boolean(logoUrl) ? (
                     <img src={logoUrl} alt="School Logo" className="h-full w-full object-cover" />
                   ) : (
-                    <GraduationCap className="h-8 w-8 text-amber-600" />
+                    <GraduationCap className="h-7 w-7 text-amber-600" />
                   )}
                 </div>
-                <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{schoolName}</h1>
-                <div className="mt-1 text-xs text-amber-600 font-bold uppercase tracking-wider">
-                  ACADEMIC SESSION {academicYear}
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">{schoolName}</h1>
+                  <div className="text-[11px] text-amber-600 font-bold uppercase tracking-wider">
+                    Session {academicYear}
+                  </div>
                 </div>
               </div>
 
-              {/* Top Right: Growvia ERP Developer Branding Logo */}
-              <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/90 border border-slate-200/80 shadow-md shrink-0">
+              {/* Top Right: Growvia Developer Branding [LOGO] Growvia */}
+              <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-white/90 border border-slate-200/80 shadow-xs shrink-0">
                 <img
                   src={settings.branding?.projectLogo || settings.branding?.project_logo || "/growvia-logo.png"}
-                  alt={projectName}
-                  className="h-7 w-auto object-contain"
+                  alt="Growvia Logo"
+                  className="h-6 w-auto object-contain"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";
                   }}
@@ -276,13 +278,13 @@ function Login() {
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20"
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 cursor-pointer"
             >
               {submitting ? (
                 "Authenticating..."
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  <LogIn className="h-4 w-4" /> Sign In to ERP
+                  <LogIn className="h-4 w-4" /> Sign In
                 </span>
               )}
             </Button>

@@ -150,15 +150,18 @@ export function writeSession(session: Session, remember: boolean = true) {
 
 import { redirect } from "@tanstack/react-router";
 
+import { supabase } from "@/lib/supabase";
+
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(SESSION_KEY);
   window.sessionStorage.removeItem(SESSION_KEY);
   try {
+    supabase.auth.signOut().catch(() => {});
+  } catch {}
+  try {
     window.location.href = "/";
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
 export function isAuthed(role?: Role | Role[]): boolean {
@@ -166,7 +169,9 @@ export function isAuthed(role?: Role | Role[]): boolean {
   if (!s) return false;
   if (!role) return true;
   const roles = Array.isArray(role) ? role : [role];
-  return roles.includes(s.role);
+  const norm = (r: string) => (r === "admin" ? "super-admin" : r);
+  const userNorm = norm(s.role);
+  return roles.some((r) => norm(r) === userNorm || r === s.role);
 }
 
 export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
@@ -175,7 +180,10 @@ export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
     throw redirect({ to: "/" });
   }
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-  if (!roles.includes(s.role)) {
+  const norm = (r: string) => (r === "admin" ? "super-admin" : r);
+  const userNorm = norm(s.role);
+  const match = roles.some((r) => norm(r) === userNorm || r === s.role);
+  if (!match) {
     throw redirect({ to: roleHome(s.role) });
   }
   if (s.mustChangePassword) {
@@ -308,13 +316,16 @@ export function generateTemporaryPassword(): string {
   return out.split("").sort(() => Math.random() - 0.5).join("");
 }
 
-export function roleHome(role: Role): string {
+export function roleHome(role: Role | string): string {
   switch (role) {
+    case "admin":
     case "super-admin": return "/admin";
     case "principal":   return "/principal";
     case "office":      return "/office";
     case "teacher":     return "/teacher";
     case "parent":      return "/parent";
+    case "student":     return "/parent";
     case "developer":   return "/developer-console";
+    default:            return "/";
   }
 }
