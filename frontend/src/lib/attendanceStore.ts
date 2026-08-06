@@ -241,26 +241,40 @@ export function useLiveAttendance(studentId?: string, date?: string) {
 
   useEffect(() => {
     let isMounted = true;
-    const targetDate = date || new Date().toISOString().slice(0, 10);
-    setActiveDate(targetDate);
 
-    fetchAttendanceFromSupabase().then((res) => {
-      if (isMounted && res) {
-        setData((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
+    const refreshData = () => {
+      const targetDate = date || new Date().toISOString().slice(0, 10);
+      setActiveDate(targetDate);
+
+      fetchAttendanceFromSupabase().then((res) => {
+        if (isMounted && res) {
+          setData((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
+        }
+      });
+    };
+
+    // Initial fetch
+    refreshData();
+
+    // 1. Daily midnight & periodic rollover check (every 30 seconds)
+    const rolloverTimer = setInterval(() => {
+      if (isMounted) {
+        const currentToday = new Date().toISOString().slice(0, 10);
+        if (!date && currentToday !== activeDate) {
+          refreshData();
+        }
       }
-    });
+    }, 30000);
 
+    // 2. Realtime subscription: reflects immediately across all associated pages
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_requests",
       onPayload: () => {
-        fetchAttendanceFromSupabase().then((res) => {
-          if (isMounted && res) {
-            setData((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
-          }
-        });
+        if (isMounted) refreshData();
       },
     });
 
+    // 3. Local tab event sync
     const handler = () => {
       if (isMounted) setData(getStoredAttendance());
     };
@@ -268,6 +282,7 @@ export function useLiveAttendance(studentId?: string, date?: string) {
 
     return () => {
       isMounted = false;
+      clearInterval(rolloverTimer);
       unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
     };
