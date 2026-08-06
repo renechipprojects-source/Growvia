@@ -230,19 +230,21 @@ export function subscribe(l: Listener) {
 }
 
 export function listForRole(role: Role): AppNotification[] {
+  const deletedSet = getDeletedIds();
   const cached = listCache.get(role);
-  if (cached) return cached;
+  if (cached) return cached.filter((n) => !deletedSet.has(n.id));
   const next = store
-    .filter((n) => isNotificationAllowedForRole(n, role))
+    .filter((n) => !deletedSet.has(n.id) && isNotificationAllowedForRole(n, role))
     .sort((a, b) => b.timestamp - a.timestamp);
   listCache.set(role, next);
   return next;
 }
 
 export function unreadCountForRole(role: Role): number {
+  const deletedSet = getDeletedIds();
   const cached = unreadCache.get(role);
   if (cached !== undefined) return cached;
-  const n = store.filter((x) => isNotificationAllowedForRole(x, role) && !x.read).length;
+  const n = store.filter((x) => !deletedSet.has(x.id) && isNotificationAllowedForRole(x, role) && !x.read).length;
   unreadCache.set(role, n);
   return n;
 }
