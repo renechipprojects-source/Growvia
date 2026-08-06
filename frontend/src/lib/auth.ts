@@ -20,7 +20,7 @@ const SYS_KEY = "sunshine.systemUsers.v1";
 const TEMP_KEY = "sunshine.tempFlags.v1";
 const SESSION_KEY = "sunshine.auth";
 
-export type SystemRole = "super-admin" | "principal" | "office" | "developer";
+export type SystemRole = "super-admin" | "principal" | "office";
 
 export interface SystemUser {
   loginId: string;
@@ -33,7 +33,6 @@ const DEFAULT_USERS: SystemUser[] = [
   { loginId: "ADMIN001",     password: "Admin@123",     role: "super-admin", name: "System Administrator" },
   { loginId: "PRINCIPAL001", password: "Principal@123", role: "principal",   name: "Principal" },
   { loginId: "OFFICE001",    password: "Office@123",    role: "office",      name: "Office Staff" },
-  { loginId: "DEV001",       password: "Dev@123",       role: "developer",   name: "Lead Developer" },
 ];
 
 function readSystemUsers(): SystemUser[] {
@@ -73,12 +72,6 @@ export function findSystemUserByLoginId(loginId: string): SystemUser | undefined
   return readSystemUsers().find(
     (u) =>
       u.loginId.toLowerCase() === id ||
-      (u.role === "developer" &&
-        (id === "developer" ||
-          id === "dev@sunshineschool.edu" ||
-          id === "dev@sunshine.edu" ||
-          id === "developer@sunshineschool.edu" ||
-          id === "developer@sunshine.edu")) ||
       (u.role === "super-admin" && id === "admin@sunshineschool.edu") ||
       (u.role === "principal" && id === "principal@sunshineschool.edu") ||
       (u.role === "office" && id === "office@sunshineschool.edu")
@@ -325,7 +318,6 @@ export function roleHome(role: Role | string): string {
     case "teacher":     return "/teacher";
     case "parent":      return "/parent";
     case "student":     return "/parent";
-    case "developer":   return "/developer-console";
     default:            return "/";
   }
 }
