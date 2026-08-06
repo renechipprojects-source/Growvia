@@ -420,22 +420,35 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
   return Promise.race([fetchTask, timeoutTask]);
 }
 
-export async function createStudent(student: Omit<Student, "id"> & { id?: string }) {
+export async function createStudent(student: Omit<Student, "id"> & {
+  id?: string;
+  fatherName?: string;
+  motherName?: string;
+  guardianName?: string;
+  occupation?: string;
+  address?: string;
+  email?: string;
+}) {
   const ts = Date.now().toString();
   const newId = student.id || `STU-${ts.slice(-6)}`;
   const parentId = student.parentId || `PAR-${ts.slice(-6)}`;
   const payload = {
     id: newId,
     login_id: newId,
-    email: `${newId.toLowerCase()}@growvia.edu`,
+    email: student.email || `${newId.toLowerCase()}@growvia.edu`,
     full_name: student.name,
     role: "student",
     status: "active",
     admission_no: student.admissionNo || `ADM-${ts.slice(-6)}`,
     class_name: student.className || "Nursery",
     section: student.section || "A",
-    parent_name: student.parent || "Parent",
+    parent_name: student.parent || student.fatherName || student.motherName || student.guardianName || "Parent",
     parent_id: parentId,
+    father_name: student.fatherName || student.parent || "",
+    mother_name: student.motherName || "",
+    guardian_name: student.guardianName || "",
+    occupation: student.occupation || "Service / Business",
+    address: student.address || "",
     mobile: student.phone || "9876543210",
     date_of_birth: student.dob && student.dob.trim() ? student.dob : null,
     gender: ((student.gender as string) === "Female" || student.gender === "Girl") ? "Girl" : "Boy",
@@ -447,6 +460,24 @@ export async function createStudent(student: Omit<Student, "id"> & { id?: string
 
   try {
     const { data, error } = await supabase.from("gv_users").upsert([payload], { onConflict: "id" }).select();
+
+    // Also upsert parent user profile in gv_users
+    const parentPayload = {
+      id: parentId,
+      login_id: parentId,
+      email: student.email || `${parentId.toLowerCase()}@growvia.edu`,
+      full_name: student.parent || student.fatherName || "Parent User",
+      role: "parent",
+      status: "active",
+      mobile: student.phone || "9876543210",
+      father_name: student.fatherName || "",
+      mother_name: student.motherName || "",
+      guardian_name: student.guardianName || "",
+      occupation: student.occupation || "Service / Business",
+      address: student.address || "",
+    };
+    await supabase.from("gv_users").upsert([parentPayload], { onConflict: "id" }).catch(() => {});
+
     return { data: data ? data[0] : payload, error: error?.message || null };
   } catch (err: any) {
     return { data: null, error: err?.message || "Failed to create student." };
