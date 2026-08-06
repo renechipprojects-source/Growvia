@@ -20,43 +20,46 @@ export function subscribeToRealtimeTable({
   onPayload,
   filter,
 }: RealtimeSubscriptionOptions): () => void {
-  const channelKey = `realtime:${table}:${filter || "all"}`;
+  const channelKey = `rt_${table}_${filter || "all"}_${Math.random().toString(36).substring(7)}`;
 
-  if (activeChannels.has(channelKey)) {
-    const existing = activeChannels.get(channelKey);
-    try { supabase.removeChannel(existing); } catch {}
-    activeChannels.delete(channelKey);
-  }
-
-  const channel = supabase
-    .channel(channelKey)
-    .on(
-      "postgres_changes" as any,
-      {
-        event: "*",
-        schema: "public",
-        table: table,
-        filter: filter,
-      },
-      (payload: any) => {
-        onPayload({
-          eventType: payload.eventType,
-          new: payload.new,
-          old: payload.old,
+  try {
+    const channel = supabase
+      .channel(channelKey)
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "*",
+          schema: "public",
           table: table,
-        });
-      }
-    )
-    .subscribe((status: string) => {
-      if (status === "SUBSCRIBED") {
-        activeChannels.set(channelKey, channel);
-      }
-    });
+          filter: filter,
+        },
+        (payload: any) => {
+          try {
+            onPayload({
+              eventType: payload.eventType,
+              new: payload.new,
+              old: payload.old,
+              table: table,
+            });
+          } catch {}
+        }
+      )
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          activeChannels.set(channelKey, channel);
+        }
+      });
 
-  return () => {
-    try { supabase.removeChannel(channel); } catch {}
-    activeChannels.delete(channelKey);
-  };
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+      activeChannels.delete(channelKey);
+    };
+  } catch (err) {
+    console.warn("Realtime subscription notice:", err);
+    return () => {};
+  }
 }
 
 /**

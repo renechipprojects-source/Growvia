@@ -412,11 +412,17 @@ export function subscribeToPromotionAndLifecycleUpdates(callback: (data: AnnualP
     getAnnualPromotionAndLifecycleStats().then(callback).catch(() => {});
   };
   handler();
-  const channel = supabase.channel("promotion_updates_realtime")
-    .on("postgres_changes", { event: "*", schema: "public", table: "gv_users" }, handler)
-    .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  const channelKey = `promotion_rt_${Math.random().toString(36).substring(7)}`;
+  try {
+    const channel = supabase.channel(channelKey)
+      .on("postgres_changes", { event: "*", schema: "public", table: "gv_users" }, handler)
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  } catch {
+    return () => {};
+  }
 }

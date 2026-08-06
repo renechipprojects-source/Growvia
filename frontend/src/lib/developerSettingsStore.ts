@@ -417,9 +417,10 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
 }
 
 export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: DeveloperSettings) => void): () => void {
+  const channelKey = `sys_settings_rt_${Math.random().toString(36).substring(7)}`;
   try {
     const channel = supabase
-      .channel("system_settings_realtime_sync")
+      .channel(channelKey)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "gv_system_settings" },
@@ -452,7 +453,7 @@ export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: Develo
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      try { supabase.removeChannel(channel); } catch {}
     };
   } catch {
     return () => {};
