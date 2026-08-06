@@ -290,3 +290,54 @@ export function useLiveAttendance(studentId?: string, date?: string) {
     getStudentAttendanceDetails,
   };
 }
+
+export async function fetchStaffAttendanceFromSupabase(): Promise<Record<string, { status: string; checkIn: string; checkOut: string }>> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "staff_attendance");
+
+    if (error || !data) return {};
+
+    const out: Record<string, { status: string; checkIn: string; checkOut: string }> = {};
+    data.forEach((d: any) => {
+      try {
+        const meta = d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))
+          ? JSON.parse(d.reason_or_notes)
+          : {};
+        const sId = meta.staffId || d.applicant_or_child_name || d.id;
+        out[sId] = {
+          status: d.status || meta.status || "Present",
+          checkIn: meta.checkIn || "08:30 AM",
+          checkOut: meta.checkOut || "04:30 PM",
+        };
+      } catch {}
+    });
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export async function saveStaffAttendanceRecord(staffId: string, staffName: string, status: string, checkIn = "08:30 AM", checkOut = "04:30 PM") {
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const id = `ATT-STF-${staffId}-${dateStr}`;
+  const payload = {
+    id,
+    request_type: "staff_attendance",
+    applicant_or_child_name: staffName,
+    status: status,
+    reason_or_notes: JSON.stringify({
+      staffId,
+      staffName,
+      date: dateStr,
+      status,
+      checkIn,
+      checkOut,
+    }),
+  };
+  try {
+    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+  } catch {}
+}

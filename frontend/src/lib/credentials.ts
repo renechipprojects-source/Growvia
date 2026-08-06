@@ -169,18 +169,38 @@ export function generateParentCredential(
   write(store);
 
   const parentUserId = `PAR-${loginId.toUpperCase()}`;
+  const parentPayload = {
+    id: parentUserId,
+    auth_user_id: parentUserId,
+    login_id: loginId,
+    role: "parent",
+    full_name: student.parent || "Parent User",
+    email: `${loginId.toLowerCase()}@growvia.edu`,
+    mobile: student.phone || "9876543210",
+    status: "active",
+    must_change_password: false,
+  };
+
   Promise.resolve(
-    supabase.from("gv_users").upsert([{
-      id: parentUserId,
-      login_id: loginId,
-      role: "parent",
-      full_name: student.parent || "Parent User",
-      email: `${loginId.toLowerCase()}@growvia.edu`,
-      mobile: student.phone || "9876543210",
-      parent_id: parentUserId,
-      status: "active",
-    }], { onConflict: "login_id" })
+    supabase.from("gv_users").upsert([parentPayload], { onConflict: "login_id" })
   ).catch(() => {});
+
+  // Trigger backend Supabase Auth provisioning
+  try {
+    import("./api").then(({ API_URL }) => {
+      fetch(`${API_URL}/api/users/provision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          login_id: loginId,
+          password: cred.password,
+          role: "parent",
+          email: `${loginId.toLowerCase()}@growvia.edu`,
+          full_name: student.parent || "Parent User",
+        }),
+      }).catch(() => {});
+    });
+  } catch {}
 
   return cred;
 }
@@ -346,6 +366,22 @@ export function generateTeacherCredential(
       mobile: teacher.phone,
     })
   ).catch(() => {});
+
+  try {
+    import("./api").then(({ API_URL }) => {
+      fetch(`${API_URL}/api/users/provision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          login_id: loginId,
+          password,
+          role: "teacher",
+          email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
+          full_name: teacher.name || "Teacher User",
+        }),
+      }).catch(() => {});
+    });
+  } catch {}
 
   return cred;
 }

@@ -769,36 +769,93 @@ export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupaba
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
 
-    const mapped: FeeLedgerItem[] = rows.map((d: any) =>
-      recalculateFeeLedger({
-        id: d.id,
-        studentId: d.student_id,
-        studentName: d.student_name,
-        className: d.class_name,
-        originalFee: Number(d.amount_due || 12000),
-        finalFee: Number(d.amount_due || 12000),
-        amount: Number(d.amount_due || 12000),
-        paid: Number(d.amount_paid || 0),
-        status: (d.status as any) || "Pending",
-        payments: d.receipt_number
-          ? [
-              {
-                id: d.id,
-                studentId: d.student_id,
-                receiptNo: d.receipt_number,
-                amount: Number(d.amount_paid || 0),
-                date: d.payment_date || d.created_at?.slice(0, 10),
-                method: d.payment_method || "Cash",
-                feeType: d.fee_type || "Term Fee",
-                installmentNo: 1,
-                collectedBy: d.recorded_by || "Office Staff",
-              },
-            ]
-          : [],
-      })
-    );
+    const studentLedgerMap = new Map<string, {
+      studentId: string;
+      studentName: string;
+      className: string;
+      originalFee: number;
+      discountAmount: number;
+      payments: PaymentTransaction[];
+    }>();
+
+    rows.forEach((d: any) => {
+      const key = (d.student_id || d.student_name || "unknown").toLowerCase();
+      if (!studentLedgerMap.has(key)) {
+        studentLedgerMap.set(key, {
+          studentId: d.student_id || key,
+          studentName: d.student_name || "Student",
+          className: d.class_name || "Nursery",
+          originalFee: Number(d.amount_due || 12000),
+          discountAmount: 0,
+          payments: [],
+        });
+      }
+      const ledger = studentLedgerMap.get(key)!;
+      if (d.receipt_number || d.amount_paid) {
+        const receiptNo = d.receipt_number || `REC-${d.id}`;
+        if (!ledger.payments.some((p) => p.receiptNo === receiptNo || p.id === d.id)) {
+          ledger.payments.push({
+            id: d.id,
+            studentId: d.student_id,
+            receiptNo,
+            amount: Number(d.amount_paid || 0),
+            date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            method: d.payment_method || "Cash",
+            feeType: d.fee_type || "Term Fee",
+            installmentNo: d.installment || 1,
+            collectedBy: d.recorded_by || "Office Staff",
+          });
+        }
+      }
+    });
+
+    const mapped: FeeLedgerItem[] = Array.from(studentLedgerMap.values()).map((item) => {
+      const totalPaid = item.payments.reduce((sum, p) => sum + p.amount, 0);
+      return recalculateFeeLedger({
+        id: `FP-${item.studentId}`,
+        studentId: item.studentId,
+        studentName: item.studentName,
+        className: item.className,
+        originalFee: item.originalFee,
+        discountAmount: item.discountAmount,
+        paid: totalPaid,
+        payments: item.payments,
+      });
+    });
 
     return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
+}
+
+export async function fetchReceipts(): Promise<{ data: any[]; isFromSupabase: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_fees_payments")
+      .select("*")
+      .order("payment_date", { ascending: false });
+
+    if (error || !data) return { data: [], isFromSupabase: false };
+
+    const receipts = data.map((d: any) => ({
+      receiptNo: d.receipt_number || `REC-${d.id}`,
+      studentName: d.student_name || "Student",
+      admissionNo: d.student_id || "ADM",
+      className: d.class_name || "Nursery",
+      feeType: d.fee_type || "Term Fee",
+      amountDue: Number(d.amount_due || 0),
+      amountPaid: Number(d.amount_paid || 0),
+      balance: Number(d.balance || 0),
+      method: d.payment_method || "Cash",
+      reference: d.transaction_ref || d.receipt_number || "REF",
+      date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      remarks: d.recorded_by ? `Recorded by ${d.recorded_by}` : "Paid",
+      status: d.status || "Paid",
+      collectedBy: d.recorded_by || "Office Staff",
+    }));
+
+    return { data: receipts, isFromSupabase: true };
   } catch {
     return { data: [], isFromSupabase: false };
   }

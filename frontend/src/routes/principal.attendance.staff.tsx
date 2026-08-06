@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
+import { fetchStaffAttendanceFromSupabase, saveStaffAttendanceRecord } from "@/lib/attendanceStore";
 
 export const Route = createFileRoute("/principal/attendance/staff")({
   head: () => ({
@@ -23,31 +24,55 @@ function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" }) 
     "Half Day": "bg-warning/20 text-warning-foreground border-warning/40",
     Leave: "bg-muted text-muted-foreground border-border",
   };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${map[s]}`}>{s}</span>;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${map[s] || map.Present}`}>{s}</span>;
 }
 
 function StaffAttendancePage() {
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
+  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("all");
 
-  useEffect(() => {
+  const loadData = () => {
     fetchTeachers().then(({ data }) => {
       setTeachersList((data as any) || []);
     });
+    fetchStaffAttendanceFromSupabase().then((res) => {
+      setLiveAttendanceMap(res || {});
+    });
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
-  const staffData = useMemo(() => {
-    return teachersList.map((t, idx) => ({
-      id: t.id || `STF-${idx}`,
-      name: t.name,
-      department: (t as any).department || (idx % 3 === 0 ? "Academic" : idx % 3 === 1 ? "Administration" : "Sports"),
-      checkIn: "08:30 AM",
-      checkOut: "04:30 PM",
-      workingHours: "8h 00m",
-      status: (idx % 10 === 4 ? "Absent" : idx % 12 === 8 ? "Leave" : "Present") as "Present" | "Absent" | "Half Day" | "Leave",
+  const handleStatusChange = (staffId: string, staffName: string, newStatus: string) => {
+    setLiveAttendanceMap((prev) => ({
+      ...prev,
+      [staffId]: {
+        status: newStatus,
+        checkIn: prev[staffId]?.checkIn || "08:30 AM",
+        checkOut: prev[staffId]?.checkOut || "04:30 PM",
+      },
     }));
-  }, [teachersList]);
+    saveStaffAttendanceRecord(staffId, staffName, newStatus);
+  };
+
+  const staffData = useMemo(() => {
+    return teachersList.map((t, idx) => {
+      const sId = t.id || `STF-${idx}`;
+      const rec = liveAttendanceMap[sId] || liveAttendanceMap[t.name];
+      return {
+        id: sId,
+        name: t.name,
+        department: (t as any).department || (idx % 3 === 0 ? "Academic" : idx % 3 === 1 ? "Administration" : "Sports"),
+        checkIn: rec?.checkIn || "08:30 AM",
+        checkOut: rec?.checkOut || "04:30 PM",
+        workingHours: "8h 00m",
+        status: (rec?.status || "Present") as "Present" | "Absent" | "Half Day" | "Leave",
+      };
+    });
+  }, [teachersList, liveAttendanceMap]);
 
   const departments = useMemo(() => Array.from(new Set(staffData.map((s) => s.department))), [staffData]);
   const filtered = useMemo(

@@ -914,7 +914,7 @@ const CORE_ERP_ACCOUNTS = [
   },
 ];
 
-app.post('/api/users/provision', async (_req: Request, res: Response) => {
+app.post('/api/users/provision', async (req: Request, res: Response) => {
   try {
     if (!SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(403).json({
@@ -922,6 +922,18 @@ app.post('/api/users/provision', async (_req: Request, res: Response) => {
           'SUPABASE_SERVICE_ROLE_KEY environment variable is required on server to provision Auth users.',
       });
     }
+
+    const { login_id, email, password, role, name, full_name } = req.body || {};
+
+    const targetAccounts = (login_id && password)
+      ? [{
+          loginId: login_id,
+          email: email || `${String(login_id).toLowerCase()}@growvia.edu`,
+          password: password,
+          role: role || 'teacher',
+          name: full_name || name || 'User Account',
+        }]
+      : CORE_ERP_ACCOUNTS;
 
     const results: Array<{
       loginId: string;
@@ -944,7 +956,7 @@ app.post('/api/users/provision', async (_req: Request, res: Response) => {
     const existingAuthUsers =
       authUserList?.users || [];
 
-    for (const coreAcc of CORE_ERP_ACCOUNTS) {
+    for (const coreAcc of targetAccounts) {
       const { data: profile } = await supabase
         .from('gv_users')
         .select('*')
@@ -1009,12 +1021,13 @@ app.post('/api/users/provision', async (_req: Request, res: Response) => {
           authUserId,
           {
             email_confirm: true,
+            password: coreAcc.password,
           }
         );
 
         results.push({
           loginId: coreAcc.loginId,
-          status: 'existing_auth_confirmed',
+          status: 'existing_auth_updated',
           authUserId,
         });
       }

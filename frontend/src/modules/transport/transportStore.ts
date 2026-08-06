@@ -7,6 +7,43 @@ const DRIVERS_KEY = "sunshine.transport.drivers.v1";
 const ROUTES_KEY = "sunshine.transport.routes.v1";
 const ALLOCATIONS_KEY = "sunshine.transport.allocations.v1";
 
+// ─── SUPABASE DATABASE SYNC ──────────────────────────────────────────────────
+export async function syncTransportFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from("gv_inventory_expenses")
+      .select("*")
+      .in("record_type", ["transport_vehicle", "transport_driver", "transport_route", "transport_allocation"]);
+
+    if (error || !data || data.length === 0) return;
+
+    const vehicles: Vehicle[] = [];
+    const drivers: Driver[] = [];
+    const routes: Route[] = [];
+    const allocations: StudentAllocation[] = [];
+
+    data.forEach((d: any) => {
+      try {
+        const meta = d.notes && (d.notes.startsWith("{") || d.notes.startsWith("[")) ? JSON.parse(d.notes) : {};
+        if (d.record_type === "transport_vehicle") {
+          vehicles.push({ id: d.id, name: d.title, number: d.supplier_or_paid_to || meta.number || "BUS-1", capacity: d.quantity || meta.capacity || 30, status: meta.status || "Active" });
+        } else if (d.record_type === "transport_driver") {
+          drivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "9876543210", licenseNo: meta.licenseNo || "LIC-100", vehicle: meta.vehicle || "BUS-1", status: meta.status || "Active" });
+        } else if (d.record_type === "transport_route") {
+          routes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"] });
+        } else if (d.record_type === "transport_allocation") {
+          allocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "Nursery", section: meta.section || "A", routeName: meta.routeName || "Route 1", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "Stop 1", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 1500, status: meta.status || "Active" });
+        }
+      } catch {}
+    });
+
+    if (vehicles.length > 0) saveStoredVehicles(vehicles);
+    if (drivers.length > 0) saveStoredDrivers(drivers);
+    if (routes.length > 0) saveStoredRoutes(routes);
+    if (allocations.length > 0) saveStoredAllocations(allocations);
+  } catch {}
+}
+
 // ─── VEHICLES ────────────────────────────────────────────────────────────────
 export function getStoredVehicles(): Vehicle[] {
   if (typeof window === "undefined") return seedVehicles;
