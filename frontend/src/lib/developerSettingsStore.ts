@@ -123,6 +123,8 @@ export interface DeveloperSettings {
   };
 }
 
+const DEFAULT_SUNSHINE_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='28' fill='%23f59e0b'/><g stroke='%23f59e0b' stroke-width='6' stroke-linecap='round'><line x1='50' y1='10' x2='50' y2='2'/><line x1='50' y1='90' x2='50' y2='98'/><line x1='10' y1='50' x2='2' y2='50'/><line x1='90' y1='50' x2='98' y2='50'/><line x1='22' y1='22' x2='16' y2='16'/><line x1='78' y1='78' x2='84' y2='84'/><line x1='22' y1='78' x2='16' y2='84'/><line x1='78' y1='22' x2='84' y2='16'/></g></svg>";
+
 export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   branding: {
     schoolName: "Sunshine Play School",
@@ -131,9 +133,9 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     footer: "© 2026 Sunshine Play School. Powered by Growvia.",
     primaryColor: "#0f172a",
     accentColor: "#f59e0b",
-    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    schoolLogoUrl: DEFAULT_SUNSHINE_LOGO,
     headerLogoUrl: "/renechip-logo.png",
-    sidebarLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    sidebarLogoUrl: DEFAULT_SUNSHINE_LOGO,
     sidebarSchoolName: "Sunshine Play School",
     sidebarTitle: "Sunshine Play School",
     browserTitle: "Sunshine Play School — Growvia",
@@ -143,14 +145,14 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
     projectName: "Growvia",
     projectLogo: "/growvia-logo.png",
     project_logo: "/growvia-logo.png",
-    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    logoUrl: DEFAULT_SUNSHINE_LOGO,
   },
   loginPage: {
     title: "Sunshine Play School",
     subtitle: "Play School Operations",
-    description: "Welcome to Sunshine Play School. Secure single portal access for Admin, Principal, Office, Teachers, and Parents.",
-    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
-    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    description: "Welcome to Sunshine Play School portal. Secure single portal access for Admin, Principal, Office, Teachers, and Parents.",
+    schoolLogoUrl: DEFAULT_SUNSHINE_LOGO,
+    logoUrl: DEFAULT_SUNSHINE_LOGO,
     bgImageUrl: "",
     backgroundImage: "",
     badgeText: "GROWVIA v2.4",
@@ -159,8 +161,8 @@ export const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
   },
   school: {
     schoolName: "Sunshine Play School",
-    schoolLogoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
-    logoUrl: "https://api.dicebear.com/9.x/shapes/svg?seed=SunshineLogo",
+    schoolLogoUrl: DEFAULT_SUNSHINE_LOGO,
+    logoUrl: DEFAULT_SUNSHINE_LOGO,
     academicYear: "2026-2027",
     address: "123 Sunshine Lane, Playtown, India",
     phone: "+91 98765 43210",
@@ -304,6 +306,13 @@ export function getDeveloperSettings(): DeveloperSettings {
       features: { ...DEFAULT_DEV_SETTINGS.features, ...(parsed.features || {}) },
     };
 
+    // Purge legacy dark box dicebear shape URLs if cached
+    if (mergedBranding.schoolLogoUrl?.includes("dicebear.com")) {
+      mergedBranding.schoolLogoUrl = DEFAULT_SUNSHINE_LOGO;
+      mergedBranding.sidebarLogoUrl = DEFAULT_SUNSHINE_LOGO;
+      mergedBranding.logoUrl = DEFAULT_SUNSHINE_LOGO;
+    }
+
     const logoUrl =
       merged.branding.schoolLogoUrl ||
       merged.school.schoolLogoUrl ||
@@ -413,7 +422,7 @@ export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: Develo
       .channel("system_settings_realtime_sync")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "GV_system_settings" },
+        { event: "*", schema: "public", table: "gv_system_settings" },
         (payload: any) => {
           let remoteSettings: DeveloperSettings | null = null;
           if (payload?.new?.content) {
