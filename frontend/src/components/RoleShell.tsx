@@ -77,17 +77,15 @@ function RoleShellInner({ role }: { role: Role }) {
   const sidebarContent = (compact: boolean) => (
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
-        <div className="flex shrink-0 items-center justify-center h-12 w-12">
-          {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
-            <img
-              src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
-              alt="Logo"
-              className="h-12 w-12 object-contain"
-            />
-          ) : (
-            <theme.icon className="h-8 w-8 text-slate-800" />
-          )}
-        </div>
+        {(() => {
+          const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl;
+          const hasCustomLogo = Boolean(logo) && !logo.includes("data:image/svg");
+          return hasCustomLogo ? (
+            <div className="flex shrink-0 items-center justify-center">
+              <img src={logo} alt="Logo" className="h-10 w-auto max-w-[100px] object-contain" />
+            </div>
+          ) : null;
+        })()}
         {!compact && (
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-widest text-muted-foreground truncate">

@@ -124,13 +124,11 @@ function Login() {
             <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
               {/* Top Left: School Logo & Name */}
               <div className="flex items-center gap-4">
-                <div className="flex shrink-0 items-center justify-center h-16 w-16">
-                  {Boolean(logoUrl) ? (
-                    <img src={logoUrl} alt="School Logo" className="h-16 w-16 object-contain" />
-                  ) : (
-                    <GraduationCap className="h-10 w-10 text-amber-600" />
-                  )}
-                </div>
+                {Boolean(logoUrl) && !logoUrl.includes("data:image/svg") && (
+                  <div className="flex shrink-0 items-center justify-center">
+                    <img src={logoUrl} alt="School Logo" className="h-14 w-auto max-w-[120px] object-contain" />
+                  </div>
+                )}
                 <div>
                   <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">{schoolName}</h1>
                   <div className="text-[11px] text-amber-600 font-bold uppercase tracking-wider">

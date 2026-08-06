@@ -85,17 +85,15 @@ export function AppSidebar() {
     <Sidebar className="border-r border-slate-200/90 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
       <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex shrink-0 items-center justify-center h-12 w-12">
-            {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
-              <img
-                src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
-                alt="Logo"
-                className="h-12 w-12 object-contain"
-              />
-            ) : (
-              <Sparkles className="h-8 w-8 text-indigo-600" />
-            )}
-          </div>
+          {(() => {
+            const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl;
+            const hasCustomLogo = Boolean(logo) && !logo.includes("data:image/svg");
+            return hasCustomLogo ? (
+              <div className="flex shrink-0 items-center justify-center">
+                <img src={logo} alt="Logo" className="h-10 w-auto max-w-[100px] object-contain" />
+              </div>
+            ) : null;
+          })()}
           <div>
             <div className="text-sm font-bold tracking-tight text-slate-900">
               {settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}
