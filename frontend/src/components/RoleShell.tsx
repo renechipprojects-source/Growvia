@@ -77,11 +77,15 @@ function RoleShellInner({ role }: { role: Role }) {
   const sidebarContent = (compact: boolean) => (
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
-        <div className={cn("h-11 w-11 shrink-0 rounded-2xl bg-gradient-to-br grid place-items-center text-white shadow-lg overflow-hidden", theme.gradient)}>
-          {settings.branding.sidebarLogoUrl ? (
-            <img src={settings.branding.sidebarLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+        <div className="flex shrink-0 items-center justify-center h-12 w-12">
+          {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
+            <img
+              src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
+              alt="Logo"
+              className="h-12 w-12 object-contain"
+            />
           ) : (
-            <theme.icon className="h-5 w-5" />
+            <theme.icon className="h-8 w-8 text-slate-800" />
           )}
         </div>
         {!compact && (

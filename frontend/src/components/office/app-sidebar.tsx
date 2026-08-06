@@ -111,12 +111,16 @@ export function OfficeSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/office" className="flex items-center gap-2 px-2 py-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-slate-950 font-bold overflow-hidden">
+        <Link to="/office" className="flex items-center gap-3 px-2 py-2">
+          <div className="flex shrink-0 items-center justify-center h-12 w-12">
             {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
-              <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl} alt="Logo" className="h-full w-full object-cover" />
+              <img
+                src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
+                alt="Logo"
+                className="h-12 w-12 object-contain"
+              />
             ) : (
-              <Building2 className="h-5 w-5" />
+              <Building2 className="h-8 w-8 text-amber-600" />
             )}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">

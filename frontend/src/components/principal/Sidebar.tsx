@@ -118,11 +118,15 @@ export function PrincipalSidebar({
       >
         <div className="flex items-center justify-between px-4 h-16 border-b border-slate-200/80">
           <div className={cn("flex items-center gap-2.5 min-w-0", isCompact && "justify-center w-full")}>
-            <div className="w-9 h-9 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md overflow-hidden">
+            <div className="flex shrink-0 items-center justify-center h-12 w-12">
               {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
-                <img src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                <img
+                  src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
+                  alt="School Logo"
+                  className="h-12 w-12 object-contain"
+                />
               ) : (
-                <School className="w-5 h-5 text-white" />
+                <School className="w-8 h-8 text-indigo-600" />
               )}
             </div>
             {!isCompact && (

@@ -123,12 +123,12 @@ function Login() {
           <div>
             <div className="flex items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
               {/* Top Left: School Logo & Name */}
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-center text-amber-600 overflow-hidden shrink-0 shadow-xs">
+              <div className="flex items-center gap-4">
+                <div className="flex shrink-0 items-center justify-center h-16 w-16">
                   {Boolean(logoUrl) ? (
-                    <img src={logoUrl} alt="School Logo" className="h-full w-full object-cover" />
+                    <img src={logoUrl} alt="School Logo" className="h-16 w-16 object-contain" />
                   ) : (
-                    <GraduationCap className="h-7 w-7 text-amber-600" />
+                    <GraduationCap className="h-10 w-10 text-amber-600" />
                   )}
                 </div>
                 <div>
