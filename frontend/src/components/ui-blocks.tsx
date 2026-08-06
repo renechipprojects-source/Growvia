@@ -54,12 +54,11 @@ export function SectionCard({
   );
 }
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function PageHeader({ title, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="shrink-0 w-full max-w-none mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="shrink-0 w-full max-w-none mb-3 flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
       </div>
       {action}
     </div>

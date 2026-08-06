@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 export function PageHeader({
   title,
-  description,
   actions,
 }: {
   title: string;
@@ -10,14 +9,11 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="shrink-0 w-full max-w-none grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 pb-4">
+    <div className="shrink-0 w-full max-w-none grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 pb-3">
       <div className="min-w-0">
-        <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           {title}
         </h1>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
