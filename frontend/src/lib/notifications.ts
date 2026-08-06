@@ -230,9 +230,9 @@ export function subscribe(l: Listener) {
 }
 
 export function listForRole(role: Role): AppNotification[] {
-  const deletedSet = getDeletedIds();
   const cached = listCache.get(role);
-  if (cached) return cached.filter((n) => !deletedSet.has(n.id));
+  if (cached) return cached;
+  const deletedSet = getDeletedIds();
   const next = store
     .filter((n) => !deletedSet.has(n.id) && isNotificationAllowedForRole(n, role))
     .sort((a, b) => b.timestamp - a.timestamp);
