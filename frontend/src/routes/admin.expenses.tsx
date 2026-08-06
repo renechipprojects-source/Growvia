@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import { PageHeader, StatusBadge } from "@/components/admin/page-primitives";
+import { PageHeader } from "@/components/admin/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchExpenses, type Expense } from "@/lib/supabaseService";
-import { Search, Receipt, Wallet, DollarSign, Lock, Building2 } from "lucide-react";
+import { Search, Lock, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/admin/expenses")({
   head: () => ({
@@ -21,6 +23,8 @@ function AdminExpensesOverview() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   useEffect(() => {
     fetchExpenses().then(({ data }) => {
@@ -49,6 +53,11 @@ function AdminExpensesOverview() {
 
   const totalExpense = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
   const avgExpense = useMemo(() => (expenses.length > 0 ? totalExpense / expenses.length : 0), [expenses, totalExpense]);
+
+  const handleRowClick = (exp: Expense) => {
+    setSelectedExpense(exp);
+    setIsDetailsOpen(true);
+  };
 
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-4 p-3 md:p-4 bg-slate-50/50">
@@ -111,7 +120,7 @@ function AdminExpensesOverview() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50/60 transition-colors">
+                <tr key={e.id} onClick={() => handleRowClick(e)} className="hover:bg-slate-50/60 cursor-pointer transition-colors">
                   <td className="px-4 py-3 text-xs font-medium text-slate-500">{e.date}</td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{e.description}</td>
                   <td className="px-4 py-3">
@@ -136,6 +145,81 @@ function AdminExpensesOverview() {
           </table>
         </div>
       </div>
+
+      {/* Expense Details Dialog */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600" />
+              Expense Details
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedExpense && (
+            <div className="space-y-4 py-2">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Category</span>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    {selectedExpense.category}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Total Amount</span>
+                  <span className="text-lg font-bold text-rose-600">
+                    ₹{selectedExpense.amount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block">Purpose / Description</span>
+                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.description}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Recipient (Paid To)</span>
+                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.paidTo}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Transaction Date</span>
+                  <span className="font-semibold text-slate-800">{selectedExpense.date}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Payment Method</span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedExpense.paymentMethod || "Bank Transfer"}
+                  </span>
+                </div>
+              </div>
+
+              {selectedExpense.category === "Salary" && (
+                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-xs space-y-1">
+                  <div className="font-bold text-indigo-900">Salary Disbursement Details</div>
+                  <div className="text-indigo-700">Salary Recipient: <span className="font-semibold">{selectedExpense.paidTo}</span></div>
+                  <div className="text-indigo-700">Disbursed Amount: <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span></div>
+                </div>
+              )}
+
+              {selectedExpense.notes && (
+                <div className="text-xs">
+                  <span className="text-slate-400 font-medium block">Additional Notes</span>
+                  <p className="mt-1 p-3 rounded-xl bg-slate-50 text-slate-700 border border-slate-100 leading-relaxed">
+                    {selectedExpense.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsOpen(false)} className="w-full rounded-xl">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
