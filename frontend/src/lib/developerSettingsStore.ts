@@ -543,13 +543,13 @@ export function useDeveloperSettings() {
               localStorage.setItem(KEY, JSON.stringify(parsedSettings));
             } catch {}
             applyDynamicHeadAndTheme(parsedSettings);
-            setSettings(parsedSettings);
+            setSettings((prev) => (JSON.stringify(prev) === JSON.stringify(parsedSettings) ? prev : parsedSettings));
           } catch {}
         }
       });
 
     const unsubRealtime = subscribeToDeveloperSettingsRealtime((remoteSettings) => {
-      setSettings(remoteSettings);
+      setSettings((prev) => (JSON.stringify(prev) === JSON.stringify(remoteSettings) ? prev : remoteSettings));
     });
 
     return () => {

@@ -240,38 +240,38 @@ export function useLiveAttendance(studentId?: string, date?: string) {
   const [activeDate, setActiveDate] = useState<string>(() => date || new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (!date && todayStr !== activeDate) {
-        setActiveDate(todayStr);
-        fetchAttendanceFromSupabase().then((res) => {
-          if (res) setData(res);
-        });
-      }
-    }, 30000);
+    let isMounted = true;
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    setActiveDate(targetDate);
 
     fetchAttendanceFromSupabase().then((res) => {
-      if (res) setData(res);
+      if (isMounted && res) {
+        setData((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
+      }
     });
 
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_requests",
       onPayload: () => {
         fetchAttendanceFromSupabase().then((res) => {
-          if (res) setData(res);
+          if (isMounted && res) {
+            setData((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
+          }
         });
       },
     });
 
-    const handler = () => setData(getStoredAttendance());
+    const handler = () => {
+      if (isMounted) setData(getStoredAttendance());
+    };
     window.addEventListener(EVENT_NAME, handler);
 
     return () => {
-      clearInterval(timer);
+      isMounted = false;
       unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
     };
-  }, [date, activeDate]);
+  }, [date]);
 
   let filtered = data;
   if (studentId) {
