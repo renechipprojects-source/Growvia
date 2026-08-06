@@ -3,8 +3,27 @@ import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, User, Phone, Mail, Briefcase, MapPin, Baby } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchStudents } from "@/lib/supabaseService";
+
+const OCCUPATIONS = [
+  "Software Engineer",
+  "Business Executive",
+  "Doctor / Physician",
+  "Chartered Accountant",
+  "Architect",
+  "Government Service Officer",
+  "Entrepreneur",
+  "Civil Engineer",
+];
+
+function getOccupation(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  return OCCUPATIONS[Math.abs(hash) % OCCUPATIONS.length];
+}
 
 export interface Parent {
   id: string;
@@ -27,6 +46,7 @@ function ParentsPage() {
   const [parentList, setParentList] = useState<Parent[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
 
   useEffect(() => {
     fetchStudents().then(({ data }) => {
@@ -38,7 +58,7 @@ function ParentsPage() {
           name: parentName,
           email: `${parentName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@sunshine-parents.com`,
           phone: s.phone || "+91 98765 43210",
-          occupation: "Parent / Guardian",
+          occupation: s.parentOccupation || s.occupation || getOccupation(parentName),
           children: [s.name],
           preferredChannel: "WhatsApp",
           emergencyContact: s.phone || "+91 98765 43210",
@@ -93,7 +113,7 @@ function ParentsPage() {
         />
       </div>
       <div className="mt-2 flex min-h-0 flex-1 flex-col w-full max-w-none">
-        <DataTable columns={["Parent", "Phone", "Email", "Occupation", "Children", "Preferred"]} total={filtered.length}>
+        <DataTable columns={["Parent", "Phone", "Email", "Occupation", "Children", "Action"]} total={filtered.length}>
           {filtered.map((p) => (
             <TableRow key={p.id}>
               <TableCell>
@@ -104,13 +124,69 @@ function ParentsPage() {
               </TableCell>
               <TableCell className="text-xs">{p.phone}</TableCell>
               <TableCell className="text-xs">{p.email}</TableCell>
-              <TableCell className="text-sm">{p.occupation}</TableCell>
+              <TableCell className="text-sm font-medium text-slate-700">{p.occupation}</TableCell>
               <TableCell className="text-xs">{p.children.join(", ")}</TableCell>
-              <TableCell><Badge variant="outline">{p.preferredChannel}</Badge></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setSelectedParent(p)}>
+                  <Eye className="mr-1.5 h-3.5 w-3.5" /> View Profile
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </DataTable>
       </div>
+
+      <Dialog open={!!selectedParent} onOpenChange={(o) => !o && setSelectedParent(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Parent Profile</DialogTitle>
+          </DialogHeader>
+          {selectedParent && (
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-4 border-b pb-4">
+                <Avatar className="h-14 w-14 border">
+                  <AvatarImage src={selectedParent.avatar} />
+                  <AvatarFallback>{selectedParent.name[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">{selectedParent.name}</h3>
+                  <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium mt-0.5">
+                    <Briefcase className="h-3.5 w-3.5" /> {selectedParent.occupation}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex items-center gap-2.5 text-slate-600">
+                  <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span>{selectedParent.phone}</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-slate-600">
+                  <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span className="truncate">{selectedParent.email}</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-slate-600">
+                  <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span>Sunshine Play School Campus Residency, Block B</span>
+                </div>
+              </div>
+
+              <div className="border-t pt-3 space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Baby className="h-4 w-4 text-indigo-500" /> Enrolled Children
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedParent.children.map((child) => (
+                    <div key={child} className="bg-slate-100 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800">
+                      {child}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

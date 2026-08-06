@@ -118,12 +118,6 @@ function StudentsPage() {
         <PageHeader
           title="Students"
           description="Manage student profiles, enrollment, and health records."
-          actions={
-            <Button variant="outline" size="sm" onClick={handleAutoAssignRollNumbers} className="gap-2">
-              <SortAsc className="h-4 w-4" />
-              Auto-Assign Alphabetical Roll No
-            </Button>
-          }
         />
       </div>
 

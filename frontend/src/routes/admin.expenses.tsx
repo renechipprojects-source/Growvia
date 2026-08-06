@@ -64,12 +64,7 @@ function AdminExpensesOverview() {
       <div className="shrink-0">
         <PageHeader
           title="Operating Expenses"
-          subtitle="Read-only system audit of school expenditures and outlays."
-          actions={
-            <Badge variant="outline" className="px-3 py-1 bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1.5 text-xs font-semibold">
-              <Lock className="w-3.5 h-3.5" /> Read-Only View (Office Managed)
-            </Badge>
-          }
+          subtitle="System audit of school expenditures and outlays."
         />
       </div>
 
@@ -111,11 +106,12 @@ function AdminExpensesOverview() {
           <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3.5 font-bold w-[15%]">Date</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[30%]">Description</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Category</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[20%]">Paid To</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[17%]">Amount (₹)</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[12%]">Date</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[28%]">Description</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[16%]">Category</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Paid To</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[14%]">Amount (₹)</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[12%]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -131,6 +127,11 @@ function AdminExpensesOverview() {
                   <td className="px-4 py-3 text-slate-600 text-xs">{e.paidTo}</td>
                   <td className="px-4 py-3 text-right font-bold text-slate-900 font-mono">
                     ₹{e.amount.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button size="sm" variant="outline" className="rounded-xl h-8 px-2.5 text-xs">
+                      View Details
+                    </Button>
                   </td>
                 </tr>
               ))}

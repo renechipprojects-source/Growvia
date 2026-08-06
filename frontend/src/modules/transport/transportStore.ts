@@ -17,30 +17,62 @@ export async function syncTransportFromSupabase() {
 
     if (error || !data || data.length === 0) return;
 
-    const vehicles: Vehicle[] = [];
-    const drivers: Driver[] = [];
-    const routes: Route[] = [];
-    const allocations: StudentAllocation[] = [];
+    const remoteVehicles: Vehicle[] = [];
+    const remoteDrivers: Driver[] = [];
+    const remoteRoutes: Route[] = [];
+    const remoteAllocations: StudentAllocation[] = [];
 
     data.forEach((d: any) => {
       try {
         const meta = d.notes && (d.notes.startsWith("{") || d.notes.startsWith("[")) ? JSON.parse(d.notes) : {};
         if (d.record_type === "transport_vehicle") {
-          vehicles.push({ id: d.id, name: d.title, number: d.supplier_or_paid_to || meta.number || "BUS-1", capacity: d.quantity || meta.capacity || 30, status: meta.status || "Active" });
+          remoteVehicles.push({ id: d.id, name: d.title, number: d.supplier_or_paid_to || meta.number || "BUS-1", capacity: d.quantity || meta.capacity || 30, status: meta.status || "Active" });
         } else if (d.record_type === "transport_driver") {
-          drivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "9876543210", licenseNo: meta.licenseNo || "LIC-100", vehicle: meta.vehicle || "BUS-1", status: meta.status || "Active" });
+          remoteDrivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "9876543210", licenseNo: meta.licenseNo || "LIC-100", vehicle: meta.vehicle || "BUS-1", status: meta.status || "Active" });
         } else if (d.record_type === "transport_route") {
-          routes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"] });
+          remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"] });
         } else if (d.record_type === "transport_allocation") {
-          allocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "Nursery", section: meta.section || "A", routeName: meta.routeName || "Route 1", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "Stop 1", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 1500, status: meta.status || "Active" });
+          remoteAllocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "Nursery", section: meta.section || "A", routeName: meta.routeName || "Route 1", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "Stop 1", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 1500, status: meta.status || "Active" });
         }
       } catch {}
     });
 
-    if (vehicles.length > 0) saveStoredVehicles(vehicles);
-    if (drivers.length > 0) saveStoredDrivers(drivers);
-    if (routes.length > 0) saveStoredRoutes(routes);
-    if (allocations.length > 0) saveStoredAllocations(allocations);
+    if (remoteVehicles.length > 0) {
+      const current = getStoredVehicles();
+      const merged = [...current];
+      remoteVehicles.forEach((rv) => {
+        if (!merged.some((cv) => cv.id === rv.id)) merged.push(rv);
+      });
+      localStorage.setItem(VEHICLES_KEY, JSON.stringify(merged));
+    }
+    if (remoteDrivers.length > 0) {
+      const current = getStoredDrivers();
+      const merged = [...current];
+      remoteDrivers.forEach((rd) => {
+        if (!merged.some((cd) => cd.id === rd.id)) merged.push(rd);
+      });
+      localStorage.setItem(DRIVERS_KEY, JSON.stringify(merged));
+    }
+    if (remoteRoutes.length > 0) {
+      const current = getStoredRoutes();
+      const merged = [...current];
+      remoteRoutes.forEach((rr) => {
+        if (!merged.some((cr) => cr.id === rr.id)) merged.push(rr);
+      });
+      localStorage.setItem(ROUTES_KEY, JSON.stringify(merged));
+    }
+    if (remoteAllocations.length > 0) {
+      const current = getStoredAllocations();
+      const merged = [...current];
+      remoteAllocations.forEach((ra) => {
+        if (!merged.some((ca) => ca.id === ra.id)) merged.push(ra);
+      });
+      localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(merged));
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
+    }
   } catch {}
 }
 
@@ -59,6 +91,7 @@ export function saveStoredVehicles(list: Vehicle[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(VEHICLES_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
 
   // Sync to Supabase gv_inventory_expenses
