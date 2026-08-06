@@ -1,33 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { fetchStudents, fetchTeachers, fetchCirculars, fetchEvents } from "@/lib/supabaseService";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState, useMemo } from "react";
+import { fetchStudents, fetchTeachers, fetchFees, type Student } from "@/lib/supabaseService";
 import {
   Users,
   GraduationCap,
   BookOpen,
   CalendarCheck,
   UserCheck,
-  CalendarDays,
-  TrendingUp,
-  Megaphone,
-  Bell,
-  Activity,
-  ClipboardList,
-  ArrowRight,
+  CreditCard,
+  UserPlus,
   Bus,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
-import { AnnualPromotionLifecycleSection } from "@/components/promotion/AnnualPromotionLifecycleSection";
 import { Badge } from "@/components/ui/badge";
-
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLiveAttendance } from "@/lib/attendanceStore";
-
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
-
 import { requireAuthGuard } from "@/lib/auth";
-
 import { getPrincipalDashboardStats } from "@/lib/dashboardStatsService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { AnnualPromotionLifecycleSection } from "@/components/promotion/AnnualPromotionLifecycleSection";
 
 export const Route = createFileRoute("/principal/dashboard")({
   beforeLoad: () => {
@@ -35,8 +28,8 @@ export const Route = createFileRoute("/principal/dashboard")({
   },
   head: () => ({
     meta: [
-      { title: "Principal Dashboard | Bright Bloom" },
-      { name: "description", content: "Overview of school operations, attendance, circulars and events." },
+      { title: "Principal Dashboard | Sunshine Play School" },
+      { name: "description", content: "Overview of school operations, attendance, circulars and enrollment." },
     ],
   }),
   component: DashboardPage,
@@ -54,7 +47,6 @@ function StatCard({
   value: string | number;
   sub?: string;
   gradient?: string;
-  tint?: string;
 }) {
   return (
     <div className="group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl p-5 shadow-lg shadow-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 min-w-0">
@@ -74,27 +66,17 @@ function StatCard({
 }
 
 function DashboardPage() {
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalTeachers: 0,
-    todayAttendancePercent: 0,
-    totalCirculars: 0,
-    classStrengthBreakdown: [] as any[],
-    recentCirculars: [] as any[],
-  });
-  const [eventsList, setEventsList] = useState<any[]>([]);
-  const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const [teachersCount, setTeachersCount] = useState(0);
+  const [paymentsList, setPaymentsList] = useState<any[]>([]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const { attendance: liveToday } = useLiveAttendance(undefined, todayStr);
 
   const loadData = () => {
-    getPrincipalDashboardStats().then((data) => {
-      setStats(data);
-    });
-    fetchEvents().then(({ data }) => {
-      setEventsList(data || []);
-    });
+    fetchStudents().then(({ data }) => setStudentsList(data || []));
+    fetchTeachers().then(({ data }) => setTeachersCount(data?.length || 0));
+    fetchFees().then(({ data }) => setPaymentsList(data || []));
   };
 
   useAutoRefresh("students", loadData);
@@ -103,145 +85,117 @@ function DashboardPage() {
     loadData();
   }, []);
 
-  const totalClasses = 4;
+  const totalStudents = studentsList.length;
   const studentPresentCount = liveToday.filter((r) => r.status === "P" || r.status === "L").length;
-  const staffPresentCount = stats.totalTeachers > 0 ? Math.round(stats.totalTeachers * 0.92) : 0;
   const studentAttendancePct = liveToday.length > 0 ? Math.round((studentPresentCount / liveToday.length) * 100) : 0;
-  const staffAttendancePct = stats.totalTeachers > 0 ? Math.round((staffPresentCount / stats.totalTeachers) * 100) : 0;
-  const upcoming = eventsList.slice(0, 4);
+
+  // Filter Today's Payments only
+  const todayPayments = useMemo(() => {
+    return paymentsList.filter((p) => {
+      const pDate = p.payment_date || p.paymentDate || p.created_at?.slice(0, 10);
+      return pDate === todayStr || p.status === "Paid";
+    });
+  }, [paymentsList, todayStr]);
+
+  // Filter Today's Admissions only
+  const todayAdmissions = useMemo(() => {
+    return studentsList.filter((s) => {
+      const aDate = s.admissionDate?.slice(0, 10);
+      return aDate === todayStr;
+    });
+  }, [studentsList, todayStr]);
 
   return (
     <div className="w-full max-w-none flex flex-1 min-h-0 flex-col overflow-y-auto space-y-6 pr-1">
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 auto-rows-fr">
-        <StatCard icon={GraduationCap} label="Total Students" value={stats.totalStudents} sub="Enrolled" gradient="from-blue-500 to-sky-500" />
-        <StatCard icon={Users} label="Total Teachers" value={stats.totalTeachers} sub="Active staff" gradient="from-purple-500 to-indigo-500" />
-        <StatCard icon={BookOpen} label="Total Classes" value={totalClasses} sub="Across sections" gradient="from-emerald-500 to-teal-500" />
-        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} gradient="from-amber-500 to-orange-500" />
-        <StatCard icon={UserCheck} label="Staff Attendance" value={`${staffAttendancePct}%`} sub={`${staffPresentCount} on duty`} gradient="from-sky-500 to-cyan-500" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub={`${totalStudents} Enrolled`} gradient="from-blue-500 to-sky-500" />
+        <StatCard icon={Users} label="Total Teachers" value={teachersCount} sub={`${teachersCount} Active staff`} gradient="from-purple-500 to-indigo-500" />
+        <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} gradient="from-emerald-500 to-teal-500" />
         <Link to="/principal/transport">
-          <StatCard icon={Bus} label="Transport Fleet" value="4 Buses" sub="Active routes" gradient="from-cyan-500 to-teal-500" />
+          <StatCard icon={Bus} label="Transport Fleet" value="4 Vehicles" sub="Active routes" gradient="from-amber-500 to-orange-500" />
         </Link>
       </div>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 auto-rows-fr">
-
-        {/* Read-Only Academic Promotion & Lifecycle Statistics */}
-        <div className="xl:col-span-3 min-w-0">
-          <AnnualPromotionLifecycleSection readOnly={true} />
-        </div>
-
-        {/* Circulars */}
-        <div className="xl:col-span-2 min-w-0">
-          <RecentCircularWidget role="principal" viewAllLink="/principal/circulars" />
-        </div>
-
-        {/* Notifications */}
-        <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
-          <SectionHeading icon={Bell} title="Live Recent Notifications" />
-          <ul className="mt-4 space-y-3 max-h-72 overflow-y-auto pr-1">
-            {liveNotifications.map((n) => (
-              <li key={n.id} className="flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Bell className="w-4 h-4" />
+      {/* Main Grid: Today's Payments & Admissions */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Today's Payments */}
+        <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Today's Payments</CardTitle>
+              <CardDescription>Fee receipts recorded today.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/principal/fees">View all</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {todayPayments.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">No payments recorded today.</div>
+            ) : (
+              todayPayments.slice(0, 6).map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white/60 p-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{p.student_name || p.studentName || "Student Payment"}</div>
+                      <div className="text-xs text-muted-foreground">{p.receipt_number || p.id} · Today</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-emerald-600">₹{(p.amount_paid || p.amount || 0).toLocaleString()}</div>
+                    <Badge variant="outline" className="text-[10px]">Paid</Badge>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{n.text}</div>
-                  <div className="text-xs text-muted-foreground">{n.time || "Just now"}</div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Today's Admissions */}
+        <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Today's Admissions</CardTitle>
+              <CardDescription>Newly enrolled student profiles today.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/principal/students">View all</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {todayAdmissions.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">No new admissions recorded today.</div>
+            ) : (
+              todayAdmissions.slice(0, 6).map((s) => (
+                <div key={s.id} className="flex items-center gap-3 rounded-xl border p-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={s.avatar || "/avatars/student.svg"} />
+                    <AvatarFallback>{s.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.className}-{s.section} · {s.admissionNo}</div>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Upcoming events */}
-        <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
-          <SectionHeading icon={CalendarDays} title="Upcoming Events" to="/principal/events" />
-          <ul className="mt-4 space-y-3">
-            {upcoming.map((e) => (
-              <li key={e.id} className="flex items-center gap-3">
-                <div className="w-12 shrink-0 rounded-lg bg-primary/10 text-primary text-center py-1.5">
-                  <div className="text-[10px] uppercase font-medium">{new Date(e.date).toLocaleDateString("en", { month: "short" })}</div>
-                  <div className="text-lg font-semibold leading-tight">{new Date(e.date).getDate()}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{e.title}</div>
-                  <div className="text-xs text-muted-foreground">{e.time} · {e.location}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Read-Only Academic Promotion & Lifecycle Statistics */}
+      <div className="w-full">
+        <AnnualPromotionLifecycleSection readOnly={true} />
+      </div>
 
-        {/* Recent activities */}
-        <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
-          <SectionHeading icon={Activity} title="Recent Student Activities" />
-          <div className="py-6 text-center text-xs text-slate-400 font-medium">No recent student activities recorded.</div>
-        </div>
-
-        {/* Leaves */}
-        <div className="card-elevated p-5 min-w-0 h-full flex flex-col">
-          <SectionHeading icon={ClipboardList} title="Pending Leave Requests" />
-          <div className="py-6 text-center text-xs text-slate-400 font-medium">No pending leave requests.</div>
-        </div>
-
-        {/* Overview */}
-        <div className="card-elevated p-5 xl:col-span-3 min-w-0">
-          <SectionHeading icon={TrendingUp} title="Quick School Overview" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <MiniStat label="Avg. Attendance" value="94.2%" trend="+1.4%" positive />
-            <MiniStat label="Fee Collection" value="87%" trend="+3.1%" positive />
-            <MiniStat label="Active Circulars" value={String(stats.totalCirculars || stats.recentCirculars.length)} trend="This week" />
-            <MiniStat label="Open Issues" value="4" trend="-2 today" positive />
-          </div>
-        </div>
+      {/* Principal Circulars Manager & Broadcast Widget */}
+      <div className="w-full">
+        <RecentCircularWidget role="principal" viewAllLink="/principal/circulars" />
       </div>
     </div>
   );
-}
-
-function SectionHeading({
-  icon: Icon,
-  title,
-  to,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  to?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <Icon className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-sm">{title}</h3>
-      </div>
-      {to && (
-        <Link to={to} className="text-xs text-primary hover:underline flex items-center gap-1">
-          View all <ArrowRight className="w-3 h-3" />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-function MiniStat({ label, value, trend, positive }: { label: string; value: string; trend?: string; positive?: boolean }) {
-  return (
-    <div className="rounded-lg bg-muted/40 border border-border p-4">
-      <div className="text-xs text-muted-foreground font-medium">{label}</div>
-      <div className="text-xl font-semibold mt-1">{value}</div>
-      {trend && (
-        <div className={`text-[11px] mt-1 ${positive ? "text-success" : "text-muted-foreground"}`}>{trend}</div>
-      )}
-    </div>
-  );
-}
-
-function PriorityBadge({ priority }: { priority: "Low" | "Medium" | "High" }) {
-  const cls = {
-    High: "bg-destructive/10 text-destructive border-destructive/30",
-    Medium: "bg-warning/15 text-warning-foreground border-warning/40",
-    Low: "bg-muted text-muted-foreground border-border",
-  }[priority];
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`}>{priority}</span>;
 }
