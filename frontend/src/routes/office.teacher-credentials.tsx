@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { fetchTeachers, createTeacher, type Teacher } from "@/lib/supabaseService";
+import { fetchTeachers, createTeacher, updateTeacher, type Teacher } from "@/lib/supabaseService";
 import {
   listTeacherCredentials,
   getTeacherCredential,
@@ -13,16 +13,19 @@ import {
 import { printableSlip } from "@/routes/office.parent-credentials";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff, KeyRound, Printer, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, Copy, Check } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Printer, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, Copy, Check, Camera, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/teacher-credentials")({
   head: () => ({
@@ -41,13 +44,70 @@ function TeacherCredentialsPage() {
   useEffect(() => subscribeCredentials(() => setTick((n) => n + 1)), []);
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  useEffect(() => {
+  const loadTeachersList = () => {
     fetchTeachers().then(({ data }) => {
       setTeachers(data || []);
     });
+  };
+
+  useEffect(() => {
+    loadTeachersList();
   }, []);
 
+  useAutoRefresh("staff", loadTeachersList);
+
   const [query, setQuery] = useState("");
+
+  // Edit Staff Photo Modal State
+  const [editingStaff, setEditingStaff] = useState<Teacher | null>(null);
+  const [staffPhotoPreview, setStaffPhotoPreview] = useState<string>("");
+
+  const handleStaffPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setStaffPhotoPreview(compressedDataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveStaffPhoto = async () => {
+    if (!editingStaff || !staffPhotoPreview) return;
+    await updateTeacher(editingStaff.id, { avatar: staffPhotoPreview });
+    toast.success(`Photo updated for ${editingStaff.name}!`);
+    setEditingStaff(null);
+    setStaffPhotoPreview("");
+    loadTeachersList();
+  };
   const [filter, setFilter] = useState<"all" | "issued" | "not_issued" | "inactive">("all");
   const [genFor, setGenFor] = useState<string | null>(null);
   const [viewFor, setViewFor] = useState<string | null>(null);
@@ -139,7 +199,19 @@ function TeacherCredentialsPage() {
                 <tr key={teacher.id} className="border-t border-white/60 hover:bg-white/40">
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <img src={teacher.avatar} className="h-8 w-8 rounded-full bg-white" alt="" />
+                      <div className="relative group/avatar">
+                        <img src={teacher.avatar} className="h-8 w-8 rounded-full bg-white object-cover border shadow-sm" alt="" />
+                        <button
+                          onClick={() => {
+                            setEditingStaff(teacher);
+                            setStaffPhotoPreview(teacher.avatar || "");
+                          }}
+                          title="Edit Staff Photo"
+                          className="absolute -bottom-1 -right-1 w-4.5 h-4.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow text-[8px] transition-transform hover:scale-110"
+                        >
+                          <Camera className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
                       <div>
                         <div className="font-medium">{teacher.name}</div>
                         <div className="text-xs text-muted-foreground">{teacher.email}</div>
@@ -160,6 +232,17 @@ function TeacherCredentialsPage() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1.5 justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-xs text-indigo-600 hover:text-indigo-800"
+                        onClick={() => {
+                          setEditingStaff(teacher);
+                          setStaffPhotoPreview(teacher.avatar || "");
+                        }}
+                      >
+                        <Camera className="h-3.5 w-3.5 mr-1" /> Photo
+                      </Button>
                       {!cred ? (
                         <Button size="sm" onClick={() => setGenFor(teacher.id)} className="h-8 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full">
                           <UserPlus className="h-3.5 w-3.5 mr-1" /> Generate
@@ -197,6 +280,55 @@ function TeacherCredentialsPage() {
         </div>
       </SectionCard>
 
+      <AddTeacherModal
+        open={openAddModal}
+        onClose={() => setOpenAddModal(false)}
+        onCreated={loadTeachersList}
+      />
+
+      {/* Office Edit Staff Photo Dialog */}
+      <Dialog open={!!editingStaff} onOpenChange={(open) => !open && setEditingStaff(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Staff Profile Photo — {editingStaff?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <Avatar className="h-28 w-28 border-4 border-white shadow-lg">
+              <AvatarImage src={staffPhotoPreview} className="object-cover" />
+              <AvatarFallback className="text-xl font-bold bg-indigo-100 text-indigo-700">
+                {editingStaff?.name[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-center space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Upload new staff photo from local device</Label>
+              <p className="text-[11px] text-slate-500 max-w-xs">
+                Select an image file (JPG, PNG, WEBP). This change will update live across all portals for this staff member.
+              </p>
+            </div>
+            <input
+              type="file"
+              id="office-edit-staff-photo"
+              accept="image/*"
+              className="hidden"
+              onChange={handleStaffPhotoSelect}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => document.getElementById("office-edit-staff-photo")?.click()}
+              className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200"
+            >
+              <Upload className="w-4 h-4 mr-1.5" /> Select Local Image File
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingStaff(null)}>Cancel</Button>
+            <Button onClick={handleSaveStaffPhoto} className="bg-indigo-600 text-white">Save Photo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <AddStaffDialog open={addStaffOpen} onClose={() => setAddStaffOpen(false)} onAdd={handleAddStaff} />
       <GenerateDialog teacherId={genFor} teachersList={teachers} onClose={() => setGenFor(null)} onDone={(id) => { setGenFor(null); setViewFor(id); }} />
       <ViewDialog teacherId={viewFor} teachersList={teachers} onClose={() => setViewFor(null)} />

@@ -1,14 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
-import { UserCheck, BookOpen, NotebookPen, DollarSign, ImageIcon, ArrowRight, Users } from "lucide-react";
+import { UserCheck, BookOpen, NotebookPen, DollarSign, ImageIcon, ArrowRight, Users, Camera, Upload } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useParent } from "@/lib/parentContext";
 import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
-import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchFees, updateStudent, type FeeLedgerItem } from "@/lib/supabaseService";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/parent/")({ component: Dash });
@@ -28,6 +29,47 @@ function Dash() {
     });
   }, [child]);
 
+  const handleParentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        
+        updateStudent(child.id, { avatar: compressedDataUrl }).then(() => {
+          toast.success(`Updated photo for ${child.name}!`);
+        });
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const dueAmount = feeRecord ? Math.max(0, (feeRecord.finalFee || feeRecord.amount || 0) - (feeRecord.paid || 0)) : 0;
   const childHW: any[] = [];
   const className = t(`className.${child.className}`, child.className);
@@ -38,9 +80,35 @@ function Dash() {
 
       {/* Child cover card */}
       <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-pink-100 via-fuchsia-100 to-purple-100 border border-white/60 shadow-lg p-6 flex items-center gap-5 mb-6">
-        <img src={child.avatar} className="h-20 w-20 rounded-3xl bg-white shadow" alt="" />
+        <div className="relative group shrink-0">
+          <img src={child.avatar} className="h-20 w-20 rounded-3xl bg-white shadow object-cover" alt="" />
+          <input
+            type="file"
+            id="parent-child-photo-input"
+            accept="image/*"
+            className="hidden"
+            onChange={handleParentPhotoUpload}
+          />
+          <button
+            type="button"
+            onClick={() => document.getElementById("parent-child-photo-input")?.click()}
+            className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-full shadow-md transition-transform hover:scale-110"
+            title="Update Child Photo"
+          >
+            <Camera className="w-3.5 h-3.5" />
+          </button>
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs uppercase tracking-widest text-pink-700">{t("dash.myLittleOne")}</div>
+          <div className="text-xs uppercase tracking-widest text-pink-700 flex items-center gap-2">
+            <span>{t("dash.myLittleOne")}</span>
+            <button
+              type="button"
+              onClick={() => document.getElementById("parent-child-photo-input")?.click()}
+              className="text-[11px] text-pink-600 underline hover:text-pink-800 font-medium"
+            >
+              Update Photo
+            </button>
+          </div>
           <div className="text-2xl font-bold">{child.name}</div>
           <div className="text-sm text-muted-foreground">
             {className}-{child.section} · {t("label.age")} {child.age} · {t("label.roll")} {String(child.rollNo).padStart(2, "0")} · {child.house} {t("label.house")}

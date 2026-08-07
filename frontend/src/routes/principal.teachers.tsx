@@ -54,6 +54,7 @@ function TeachersPage() {
           email: t.email || "",
           experience: t.experience || 1,
           classesAssigned: [t.className || "Nursery A"],
+          avatar: t.avatar,
           status: "Active",
         }));
         setItems(mapped);
@@ -98,9 +99,12 @@ function TeachersPage() {
               className="rounded-xl border bg-card p-4 hover:shadow-md transition-all cursor-pointer hover:border-primary/50 group relative"
             >
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-full gradient-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0">
-                  {t.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </div>
+                <Avatar className="h-12 w-12 rounded-full border shrink-0 shadow-sm">
+                  <AvatarImage src={(t as any).avatar} alt={t.name} className="object-cover" />
+                  <AvatarFallback className="bg-indigo-100 text-indigo-700 font-semibold">
+                    {t.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-medium truncate group-hover:text-primary transition-colors flex items-center gap-1">

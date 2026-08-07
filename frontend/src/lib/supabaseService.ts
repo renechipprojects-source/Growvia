@@ -486,6 +486,16 @@ export async function createStudent(student: Omit<Student, "id"> & {
 }
 
 export async function updateStudent(id: string, updates: Partial<Student>) {
+  const currentList = getCachedStudentsList();
+  const updatedList = currentList.map((s) => {
+    if (s.id === id || s.admissionNo === id) {
+      return { ...s, ...updates };
+    }
+    return s;
+  });
+  setCachedStudentsList(updatedList);
+  notifyAutoRefresh("students");
+
   try {
     const payload: Record<string, any> = {};
     if (updates.name) payload.full_name = updates.name;
@@ -494,8 +504,12 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
     if (updates.parent) payload.parent_name = updates.parent;
     if (updates.phone) payload.mobile = updates.phone;
     if (updates.feeStatus) payload.fee_status = updates.feeStatus;
+    if (updates.avatar) {
+      payload.photo_url = updates.avatar;
+      payload.avatar_url = updates.avatar;
+    }
 
-    const { data, error } = await supabase.from("gv_users").update(payload).eq("id", id).select();
+    const { data, error } = await supabase.from("gv_users").update(payload).or(`id.eq.${id},login_id.eq.${id}`).select();
     return { data, error: error?.message || null };
   } catch (err: any) {
     return { data: null, error: err?.message || "Failed to update student." };
@@ -506,7 +520,6 @@ export async function deleteStudent(id: string) {
   try {
     const { error } = await supabase.from("gv_users").delete().eq("id", id);
     if (!error) {
-      // Invalidate & refresh cached student list
       fetchStudents();
     }
     return { error: error?.message || null };
@@ -528,11 +541,14 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
       const s = sorted[i];
       const newRoll = i + 1;
       await supabase.from("gv_users").update({ roll_no: newRoll }).eq("id", s.id);
+      s.rollNo = newRoll;
       updatedCount++;
     }
-    return { count: updatedCount, error: null };
-  } catch (err) {
-    return { count: 0, error: err };
+    setCachedStudentsList(students);
+    notifyAutoRefresh("students");
+    return { count: updatedCount };
+  } catch (err: any) {
+    return { count: 0, error: err?.message };
   }
 }
 
@@ -592,18 +608,21 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
       }
 
       if (rows.length > 0) {
-        const mapped: Teacher[] = rows.map((d: any) => ({
-          id: d.id || d.login_id,
-          name: d.full_name || "Teacher",
-          className: d.class_name || "Nursery A",
-          subject: d.subject || "General",
-          email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
-          phone: d.mobile || "9876543210",
-          experience: d.experience || 2,
-          joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-          avatar: d.photo_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
-          branch: d.branch || "Main Branch",
-        }));
+        const mapped: Teacher[] = rows.map((d: any) => {
+          const cachedMatch = cached.find((c) => c.id === d.id || c.name === d.full_name);
+          return {
+            id: d.id || d.login_id,
+            name: d.full_name || "Teacher",
+            className: d.class_name || "Nursery A",
+            subject: d.subject || "General",
+            email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+            phone: d.mobile || "9876543210",
+            experience: d.experience || 2,
+            joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+            avatar: d.photo_url || d.avatar_url || d.avatar || cachedMatch?.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+            branch: d.branch || "Main Branch",
+          };
+        });
 
         setCachedTeachersList(mapped);
         return { data: mapped, isFromSupabase: true };
@@ -622,6 +641,23 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
 
 export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string }) {
   const newId = teacher.id || `TCH-${Date.now().toString().slice(-4)}`;
+  const newTeachObj: Teacher = {
+    id: newId,
+    name: teacher.name,
+    className: teacher.className || "Nursery A",
+    subject: teacher.subject || "General",
+    email: teacher.email || `${newId.toLowerCase()}@sunshine.edu`,
+    phone: teacher.phone || "9876543210",
+    experience: teacher.experience || 1,
+    joined: new Date().toISOString().split("T")[0],
+    avatar: teacher.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(teacher.name)}`,
+    branch: teacher.branch || "Main Branch",
+  };
+
+  const localList = getCachedTeachersList();
+  setCachedTeachersList([newTeachObj, ...localList.filter((t) => t.id !== newId)]);
+  notifyAutoRefresh("staff");
+
   const payload = {
     id: newId,
     login_id: newId,
@@ -635,13 +671,45 @@ export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string
     mobile: teacher.phone || "9876543210",
     experience: teacher.experience || 1,
     branch: teacher.branch || "Main Branch",
+    photo_url: teacher.avatar,
+    avatar_url: teacher.avatar,
   };
 
   try {
     const { data, error } = await supabase.from("gv_users").insert([payload]).select();
-    return { data: data ? data[0] : payload, error: error?.message || null };
+    return { data: data ? data[0] : newTeachObj, error: error?.message || null };
   } catch (err: any) {
-    return { data: null, error: err?.message || "Failed to create teacher." };
+    return { data: newTeachObj, error: null };
+  }
+}
+
+export async function updateTeacher(id: string, updates: Partial<Teacher>) {
+  const currentList = getCachedTeachersList();
+  const updatedList = currentList.map((t) => {
+    if (t.id === id) {
+      return { ...t, ...updates };
+    }
+    return t;
+  });
+  setCachedTeachersList(updatedList);
+  notifyAutoRefresh("staff");
+
+  try {
+    const payload: Record<string, any> = {};
+    if (updates.name) payload.full_name = updates.name;
+    if (updates.className) payload.class_name = updates.className;
+    if (updates.subject) payload.subject = updates.subject;
+    if (updates.phone) payload.mobile = updates.phone;
+    if (updates.email) payload.email = updates.email;
+    if (updates.avatar) {
+      payload.photo_url = updates.avatar;
+      payload.avatar_url = updates.avatar;
+    }
+
+    const { data, error } = await supabase.from("gv_users").update(payload).or(`id.eq.${id},login_id.eq.${id}`).select();
+    return { data, error: error?.message || null };
+  } catch (err: any) {
+    return { data: null, error: err?.message || "Failed to update staff." };
   }
 }
 

@@ -2,16 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
 import { DataTable } from "@/components/DataTable";
 import { type Student } from "@/lib/mockData";
-import { fetchStudents } from "@/lib/supabaseService";
+import { fetchStudents, updateStudent } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
 import { useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, GraduationCap, Users, User } from "lucide-react";
+import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
@@ -23,6 +25,10 @@ function OfficeStudents() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedParent, setSelectedParent] = useState<Student | null>(null);
   const [openPromotionModal, setOpenPromotionModal] = useState(false);
+
+  // Photo Edit Modal State
+  const [editingPhotoStudent, setEditingPhotoStudent] = useState<Student | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
 
   const loadStudents = useCallback(() => {
     return fetchStudents().then(({ data: fetched }) => {
@@ -36,6 +42,58 @@ function OfficeStudents() {
 
   useAutoRefresh("students", loadStudents);
 
+  const handleOpenPhotoEdit = (s: Student) => {
+    setEditingPhotoStudent(s);
+    setPhotoPreview(s.avatar || "");
+  };
+
+  const handleLocalPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setPhotoPreview(compressedDataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSavePhoto = async () => {
+    if (!editingPhotoStudent || !photoPreview) return;
+    await updateStudent(editingPhotoStudent.id, { avatar: photoPreview });
+    toast.success(`Photo updated for ${editingPhotoStudent.name}!`);
+    setEditingPhotoStudent(null);
+    setPhotoPreview("");
+    loadStudents();
+  };
+
   const cols: ColumnDef<Student>[] = [
     { header: "ID", accessorKey: "id" },
     {
@@ -44,7 +102,16 @@ function OfficeStudents() {
         const s = c.row.original;
         return (
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9"><AvatarImage src={s.avatar} /><AvatarFallback>{s.name ? s.name[0] : "S"}</AvatarFallback></Avatar>
+            <div className="relative group/avatar">
+              <Avatar className="h-9 w-9 border"><AvatarImage src={s.avatar} /><AvatarFallback>{s.name ? s.name[0] : "S"}</AvatarFallback></Avatar>
+              <button
+                onClick={() => handleOpenPhotoEdit(s)}
+                title="Change Photo (Office Only)"
+                className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow text-[10px] transition-transform hover:scale-110"
+              >
+                <Camera className="w-3 h-3" />
+              </button>
+            </div>
             <div><div className="font-medium">{s.name}</div><div className="text-xs text-muted-foreground">{s.parent}</div></div>
           </div>
         );
@@ -66,9 +133,14 @@ function OfficeStudents() {
       cell: (c) => {
         const s = c.row.original;
         return (
-          <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
-            <Eye className="mr-1.5 h-3.5 w-3.5" /> View Profile
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
+              <Eye className="mr-1.5 h-3.5 w-3.5" /> View Profile
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs text-indigo-600 hover:text-indigo-800" onClick={() => handleOpenPhotoEdit(s)}>
+              <Camera className="mr-1 h-3.5 w-3.5" /> Edit Photo
+            </Button>
+          </div>
         );
       },
     },
@@ -179,6 +251,49 @@ function OfficeStudents() {
         onClose={() => setOpenPromotionModal(false)}
         onPromoteSuccess={loadStudents}
       />
+
+      {/* Office Edit Student Photo Dialog */}
+      <Dialog open={!!editingPhotoStudent} onOpenChange={(open) => !open && setEditingPhotoStudent(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Student Profile Photo — {editingPhotoStudent?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <Avatar className="h-28 w-28 border-4 border-white shadow-lg">
+              <AvatarImage src={photoPreview} className="object-cover" />
+              <AvatarFallback className="text-xl font-bold bg-indigo-100 text-indigo-700">
+                {editingPhotoStudent?.name[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-center space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Upload new photo from local device</Label>
+              <p className="text-[11px] text-slate-500 max-w-xs">
+                Select an image file (JPG, PNG, WEBP). This change will update instantly across all portals and Parent Portal.
+              </p>
+            </div>
+            <input
+              type="file"
+              id="office-edit-student-photo"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLocalPhotoSelect}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => document.getElementById("office-edit-student-photo")?.click()}
+              className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200"
+            >
+              <Upload className="w-4 h-4 mr-1.5" /> Select Local Image File
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPhotoStudent(null)}>Cancel</Button>
+            <Button onClick={handleSavePhoto} className="bg-indigo-600 text-white">Save Photo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
