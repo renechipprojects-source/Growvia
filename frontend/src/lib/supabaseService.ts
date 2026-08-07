@@ -357,53 +357,62 @@ function setCachedStudentsList(list: Student[]) {
 }
 
 export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
-  try {
-    let rows: any[] = [];
-    const { data, error } = await supabase
-      .from("gv_users")
-      .select("*")
-      .or("role.ilike.%student%,role.eq.student,role.eq.Student");
-
-    if (!error && data && data.length > 0) {
-      rows = data;
-    } else {
-      const { data: allData } = await supabase.from("gv_users").select("*");
-      if (allData && allData.length > 0) {
-        rows = allData.filter((u: any) =>
-          u.role ? u.role.toString().toLowerCase().includes("student") : false
-        );
-      }
-    }
-
-    if (rows.length > 0) {
-      const mapped: Student[] = rows.map((d: any) => ({
-        id: d.id || d.login_id,
-        rollNo: d.roll_no || 1,
-        admissionNo: d.admission_no || d.id,
-        name: d.full_name || "Student",
-        age: d.age || 4,
-        dob: d.date_of_birth || "2022-01-01",
-        className: d.class_name || "Nursery",
-        section: d.section || "A",
-        parent: d.parent_name || "Parent",
-        parentId: d.parent_id || `PAR-${d.id}`,
-        phone: d.mobile || "9876543210",
-        gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-        house: d.house || "Red",
-        admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        feeStatus: (d.fee_status as any) || "Pending",
-        avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-        attendance: Number(d.attendance_pct || 95.0),
-        branch: d.branch || "Main Branch",
-      }));
-
-      setCachedStudentsList(mapped);
-      return { data: mapped, isFromSupabase: true };
-    }
-  } catch {}
-
   const cached = getCachedStudentsList();
-  return { data: cached, isFromSupabase: false };
+
+  const revalidate = async () => {
+    try {
+      let rows: any[] = [];
+      const { data, error } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or("role.ilike.%student%,role.eq.student,role.eq.Student");
+
+      if (!error && data && data.length > 0) {
+        rows = data;
+      } else {
+        const { data: allData } = await supabase.from("gv_users").select("*");
+        if (allData && allData.length > 0) {
+          rows = allData.filter((u: any) =>
+            u.role ? u.role.toString().toLowerCase().includes("student") : false
+          );
+        }
+      }
+
+      if (rows.length > 0) {
+        const mapped: Student[] = rows.map((d: any) => ({
+          id: d.id || d.login_id,
+          rollNo: d.roll_no || 1,
+          admissionNo: d.admission_no || d.id,
+          name: d.full_name || "Student",
+          age: d.age || 4,
+          dob: d.date_of_birth || "2022-01-01",
+          className: d.class_name || "Nursery",
+          section: d.section || "A",
+          parent: d.parent_name || "Parent",
+          parentId: d.parent_id || `PAR-${d.id}`,
+          phone: d.mobile || "9876543210",
+          gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+          house: d.house || "Red",
+          admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+          feeStatus: (d.fee_status as any) || "Pending",
+          avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+          attendance: Number(d.attendance_pct || 95.0),
+          branch: d.branch || "Main Branch",
+        }));
+
+        setCachedStudentsList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    } catch {}
+    return { data: cached, isFromSupabase: false };
+  };
+
+  if (cached.length > 0) {
+    revalidate().catch(() => {});
+    return { data: cached, isFromSupabase: true };
+  }
+
+  return await revalidate();
 }
 
 export async function createStudent(student: Omit<Student, "id"> & {
@@ -418,53 +427,33 @@ export async function createStudent(student: Omit<Student, "id"> & {
   const ts = Date.now().toString();
   const newId = student.id || `STU-${ts.slice(-6)}`;
   const parentId = student.parentId || `PAR-${ts.slice(-6)}`;
+
   const payload = {
     id: newId,
     login_id: newId,
-    email: student.email || `${newId.toLowerCase()}@growvia.edu`,
+    admission_no: student.admissionNo || newId,
+    roll_no: student.rollNo || 1,
     full_name: student.name,
     role: "student",
-    status: "active",
-    admission_no: student.admissionNo || `ADM-${ts.slice(-6)}`,
     class_name: student.className || "Nursery",
     section: student.section || "A",
-    parent_name: student.parent || student.fatherName || student.motherName || student.guardianName || "Parent",
+    parent_name: student.parent || student.fatherName || student.motherName || "Parent",
     parent_id: parentId,
-    father_name: student.fatherName || student.parent || "",
-    mother_name: student.motherName || "",
-    guardian_name: student.guardianName || "",
-    occupation: student.occupation || "Service / Business",
-    address: student.address || "",
     mobile: student.phone || "9876543210",
-    date_of_birth: student.dob && student.dob.trim() ? student.dob : null,
-    gender: ((student.gender as string) === "Female" || student.gender === "Girl") ? "Girl" : "Boy",
+    gender: student.gender || "Boy",
     house: student.house || "Red",
     fee_status: student.feeStatus || "Pending",
-    attendance_pct: student.attendance || 95.0,
-    branch: student.branch || "Main Branch",
+    status: "active",
   };
 
   try {
-    const { data, error } = await supabase.from("gv_users").upsert([payload], { onConflict: "id" }).select();
-
-    // Also upsert parent user profile in gv_users
-    const parentPayload = {
-      id: parentId,
-      login_id: parentId,
-      email: student.email || `${parentId.toLowerCase()}@growvia.edu`,
-      full_name: student.parent || student.fatherName || "Parent User",
-      role: "parent",
-      status: "active",
-      mobile: student.phone || "9876543210",
-      father_name: student.fatherName || "",
-      mother_name: student.motherName || "",
-      guardian_name: student.guardianName || "",
-      occupation: student.occupation || "Service / Business",
-      address: student.address || "",
-    };
-    await supabase.from("gv_users").upsert([parentPayload], { onConflict: "id" }).catch(() => {});
-
-    return { data: data ? data[0] : payload, error: error?.message || null };
+    const { data, error } = await supabase.from("gv_users").insert([payload]).select();
+    const result = { data: data ? data[0] : payload, error: error?.message || null };
+    if (!error) {
+      // Invalidate & refresh cached student list
+      fetchStudents();
+    }
+    return result;
   } catch (err: any) {
     return { data: null, error: err?.message || "Failed to create student." };
   }
@@ -490,6 +479,10 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
 export async function deleteStudent(id: string) {
   try {
     const { error } = await supabase.from("gv_users").delete().eq("id", id);
+    if (!error) {
+      // Invalidate & refresh cached student list
+      fetchStudents();
+    }
     return { error: error?.message || null };
   } catch (err: any) {
     return { error: err?.message || "Failed to delete student." };
@@ -519,62 +512,86 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
 
 // ─── 3. TEACHERS & STAFF ──────────────────────────────────────────────────
 
-export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
-  try {
-    let rows: any[] = [];
-    const { data, error } = await supabase
-      .from("gv_users")
-      .select("*")
-      .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
-      .order("full_name", { ascending: true });
+let teachersCacheMemory: Teacher[] = [];
+const TEACHERS_STORAGE_KEY = "sunshine.teachers.cache.v1";
 
-    if (!error && data && data.length > 0) {
-      rows = data;
-    } else {
-      const { data: allData } = await supabase.from("gv_users").select("*");
-      if (allData && allData.length > 0) {
-        rows = allData.filter((u: any) =>
-          u.role ? u.role.toString().toLowerCase().includes("teacher") : false
-        );
+function getCachedTeachersList(): Teacher[] {
+  if (teachersCacheMemory.length > 0) return teachersCacheMemory;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(TEACHERS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          teachersCacheMemory = parsed;
+          return parsed;
+        }
       }
-      if (rows.length === 0) {
-        try {
-          const directRes = await fetch(
-            "https://nyhnkftlkigoliyogwvp.supabase.co/rest/v1/gv_users?select=*",
-            {
-              headers: {
-                apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
-                Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4",
-              },
-            }
-          );
-          if (directRes.ok) {
-            const rawJson = await directRes.json();
-            rows = (rawJson || []).filter((u: any) =>
-              u.role ? u.role.toString().toLowerCase().includes("teacher") : false
-            );
-          }
-        } catch {}
-      }
-    }
-
-    const mapped: Teacher[] = rows.map((d: any) => ({
-      id: d.id || d.login_id,
-      name: d.full_name,
-      className: d.class_name || "Nursery A",
-      subject: d.subject || "General",
-      email: d.email || `${d.full_name.toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
-      phone: d.mobile || "9876543210",
-      experience: d.experience || 2,
-      joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      avatar: d.photo_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name)}`,
-      branch: d.branch || "Main Branch",
-    }));
-
-    return { data: mapped, isFromSupabase: true };
-  } catch {
-    return { data: [], isFromSupabase: false };
+    } catch {}
   }
+  return [];
+}
+
+function setCachedTeachersList(list: Teacher[]) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  teachersCacheMemory = list;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+}
+
+export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
+  const cached = getCachedTeachersList();
+
+  const revalidate = async () => {
+    try {
+      let rows: any[] = [];
+      const { data, error } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
+        .order("full_name", { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        rows = data;
+      } else {
+        const { data: allData } = await supabase.from("gv_users").select("*");
+        if (allData && allData.length > 0) {
+          rows = allData.filter((u: any) =>
+            u.role ? u.role.toString().toLowerCase().includes("teacher") : false
+          );
+        }
+      }
+
+      if (rows.length > 0) {
+        const mapped: Teacher[] = rows.map((d: any) => ({
+          id: d.id || d.login_id,
+          name: d.full_name || "Teacher",
+          className: d.class_name || "Nursery A",
+          subject: d.subject || "General",
+          email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+          phone: d.mobile || "9876543210",
+          experience: d.experience || 2,
+          joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+          avatar: d.photo_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+          branch: d.branch || "Main Branch",
+        }));
+
+        setCachedTeachersList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    } catch {}
+    return { data: cached, isFromSupabase: false };
+  };
+
+  if (cached.length > 0) {
+    revalidate().catch(() => {});
+    return { data: cached, isFromSupabase: true };
+  }
+
+  return await revalidate();
 }
 
 export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string }) {
@@ -725,53 +742,95 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
   };
 }
 
-export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
-  try {
-    const [{ data: stData }, { data: feData }] = await Promise.all([
-      fetchStudents(),
-      fetchFees(),
-    ]);
+let feeLedgersCacheMemory: FeeLedgerItem[] = [];
+const FEE_LEDGERS_STORAGE_KEY = "sunshine.fee_ledgers.cache.v1";
 
-    const feeMap = new Map<string, FeeLedgerItem>();
-    (feData || []).forEach((f) => {
-      const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
-      if (!feeMap.has(key)) {
-        feeMap.set(key, f);
+function getCachedFeeLedgersList(): FeeLedgerItem[] {
+  if (feeLedgersCacheMemory.length > 0) return feeLedgersCacheMemory;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(FEE_LEDGERS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          feeLedgersCacheMemory = parsed;
+          return parsed;
+        }
       }
-    });
-
-    const combined: FeeLedgerItem[] = (stData || []).map((s) => {
-      const key = (s.id || s.admissionNo || s.name).toLowerCase();
-      const existing = feeMap.get(key);
-      if (existing) {
-        return recalculateFeeLedger({
-          ...existing,
-          admissionNo: existing.admissionNo || s.admissionNo || s.id,
-          studentName: s.name || existing.studentName,
-          className: s.className || existing.className,
-          section: s.section || existing.section || "A",
-          rollNo: existing.rollNo || s.rollNo,
-        });
-      }
-      return recalculateFeeLedger({
-        id: `FP-${s.id}`,
-        studentId: s.id,
-        studentName: s.name,
-        admissionNo: s.admissionNo || s.id,
-        className: s.className || "Nursery",
-        section: s.section || "A",
-        rollNo: s.rollNo || 1,
-        originalFee: 12000,
-        discountAmount: 0,
-        paid: s.feeStatus === "Paid" ? 12000 : 0,
-        status: s.feeStatus === "Paid" ? "Paid" : "Pending",
-      });
-    });
-
-    return { data: combined, isFromSupabase: true };
-  } catch {
-    return { data: [], isFromSupabase: false };
+    } catch {}
   }
+  return [];
+}
+
+function setCachedFeeLedgersList(list: FeeLedgerItem[]) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  feeLedgersCacheMemory = list;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(FEE_LEDGERS_STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+  }
+}
+
+export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
+  const cached = getCachedFeeLedgersList();
+
+  const revalidate = async () => {
+    try {
+      const [{ data: stData }, { data: feData }] = await Promise.all([
+        fetchStudents(),
+        fetchFees(),
+      ]);
+
+      const feeMap = new Map<string, FeeLedgerItem>();
+      (feData || []).forEach((f) => {
+        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+        if (!feeMap.has(key)) {
+          feeMap.set(key, f);
+        }
+      });
+
+      const combined: FeeLedgerItem[] = (stData || []).map((s) => {
+        const key = (s.id || s.admissionNo || s.name).toLowerCase();
+        const existing = feeMap.get(key);
+        if (existing) {
+          return recalculateFeeLedger({
+            ...existing,
+            admissionNo: existing.admissionNo || s.admissionNo || s.id,
+            studentName: s.name || existing.studentName,
+            className: s.className || existing.className,
+            section: s.section || existing.section || "A",
+            rollNo: existing.rollNo || s.rollNo,
+          });
+        }
+        return recalculateFeeLedger({
+          id: `FP-${s.id}`,
+          studentId: s.id,
+          studentName: s.name,
+          admissionNo: s.admissionNo || s.id,
+          className: s.className || "Nursery",
+          section: s.section || "A",
+          rollNo: s.rollNo || 1,
+          originalFee: 12000,
+          discountAmount: 0,
+          paid: s.feeStatus === "Paid" ? 12000 : 0,
+          status: s.feeStatus === "Paid" ? "Paid" : "Pending",
+        });
+      });
+
+      setCachedFeeLedgersList(combined);
+      return { data: combined, isFromSupabase: true };
+    } catch {
+      return { data: cached, isFromSupabase: false };
+    }
+  };
+
+  if (cached.length > 0) {
+    revalidate().catch(() => {});
+    return { data: cached, isFromSupabase: true };
+  }
+
+  return await revalidate();
 }
 
 export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {

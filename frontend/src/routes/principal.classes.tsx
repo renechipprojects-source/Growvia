@@ -27,11 +27,9 @@ function ClassesPage() {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
   useEffect(() => {
-    fetchStudents().then(({ data }) => {
-      setStudentsList(data || []);
-    });
-    fetchTeachers().then(({ data }) => {
-      setTeachersList((data as any) || []);
+    Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
+      setStudentsList(st || []);
+      setTeachersList((tc as any) || []);
     });
   }, []);
 

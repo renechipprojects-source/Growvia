@@ -34,11 +34,9 @@ function ClassesPage() {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
   useEffect(() => {
-    fetchStudents().then(({ data }) => {
-      if (data && data.length > 0) setStudentsList(data);
-    });
-    fetchTeachers().then(({ data }) => {
-      if (data && data.length > 0) setTeachersList(data);
+    Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
+      if (st && st.length > 0) setStudentsList(st);
+      if (tc && tc.length > 0) setTeachersList(tc);
     });
   }, []);
 
