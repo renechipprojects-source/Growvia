@@ -5,26 +5,15 @@ import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/da
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Eye, Plus, Pencil, Trash2, GraduationCap, DoorOpen } from "lucide-react";
+import { Eye, DoorOpen } from "lucide-react";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
-import {
-  getStoredMasterClasses,
-  addMasterClass,
-  updateMasterClass,
-  deleteMasterClass,
-  subscribeMasterClasses,
-  type MasterClassItem,
-} from "@/lib/masterClassesStore";
+import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
-import { toast } from "sonner";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/classes")({
   component: OfficeClassesPage,
-  head: () => ({ meta: [{ title: "Classes Management — Office Portal" }] }),
+  head: () => ({ meta: [{ title: "Classes Overview — Office Portal" }] }),
 });
 
 function OfficeClassesPage() {
@@ -35,17 +24,6 @@ function OfficeClassesPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
-  // Add / Edit Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingClass, setEditingClass] = useState<MasterClassItem | null>(null);
-  const [form, setForm] = useState({
-    name: "Nursery",
-    section: "A",
-    classTeacher: "Ananya Sen",
-    room: "Room 101",
-    capacity: 30,
-  });
-
   const loadData = () => {
     setClassesList(getStoredMasterClasses());
     Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
@@ -53,6 +31,9 @@ function OfficeClassesPage() {
       setTeachersList((tc as any) || []);
     });
   };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();
@@ -69,62 +50,11 @@ function OfficeClassesPage() {
     });
   }, [classesList, search, filterValues]);
 
-  const handleOpenAdd = () => {
-    setEditingClass(null);
-    setForm({
-      name: "Nursery",
-      section: "A",
-      classTeacher: teachersList[0]?.name || "Ananya Sen",
-      room: "Room 101",
-      capacity: 30,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (c: MasterClassItem) => {
-    setEditingClass(c);
-    setForm({
-      name: c.name,
-      section: c.section,
-      classTeacher: c.classTeacher,
-      room: c.room,
-      capacity: c.capacity,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleSave = () => {
-    if (!form.name.trim()) {
-      toast.error("Class name is required.");
-      return;
-    }
-    if (editingClass) {
-      updateMasterClass(editingClass.id, form);
-      toast.success(`Updated ${form.name} Section ${form.section}`);
-    } else {
-      addMasterClass(form);
-      toast.success(`Added new class ${form.name} Section ${form.section}`);
-    }
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: string, fullName: string) => {
-    if (confirm(`Are you sure you want to delete ${fullName}?`)) {
-      deleteMasterClass(id);
-      toast.success(`Deleted ${fullName}`);
-    }
-  };
-
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
-        title="Class Management"
-        description="Master school classes, sections, assigned class teachers, and student capacity."
-        actions={
-          <Button onClick={handleOpenAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold px-4 py-2">
-            <Plus className="mr-1.5 h-4 w-4" /> Add New Class
-          </Button>
-        }
+        title="Classes Overview"
+        description="View live school classes, sections, assigned class teachers, and student strength."
       />
 
       <div className="shrink-0">
@@ -175,8 +105,10 @@ function OfficeClassesPage() {
                 <TableCell>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
                     <Avatar className="h-7 w-7 border">
-                      <AvatarImage src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.classTeacher)}`} />
-                      <AvatarFallback>{c.classTeacher[0] || "T"}</AvatarFallback>
+                      {c.classTeacher && !c.classTeacher.includes("Unassigned") && (
+                        <AvatarImage src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.classTeacher)}`} />
+                      )}
+                      <AvatarFallback className="bg-indigo-50 text-indigo-700 font-bold">{c.classTeacher[0] || "T"}</AvatarFallback>
                     </Avatar>
                     <span>{c.classTeacher}</span>
                   </div>
@@ -187,17 +119,9 @@ function OfficeClassesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-600 hover:text-indigo-600" onClick={() => setSelectedClass(fullClassInfo)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-600 hover:text-indigo-600" onClick={() => handleOpenEdit(c)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" onClick={() => handleDelete(c.id, c.fullName)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setSelectedClass(fullClassInfo)}>
+                    <Eye className="w-4 h-4 mr-1" /> View Class
+                  </Button>
                 </TableCell>
               </TableRow>
             );
@@ -211,87 +135,6 @@ function OfficeClassesPage() {
         classInfo={selectedClass}
         studentsList={studentsList}
       />
-
-      {/* Add / Edit Class Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-indigo-600" />
-              {editingClass ? "Edit Class Details" : "Add New Class & Section"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-2 text-xs">
-            <div>
-              <Label className="font-semibold text-slate-700">Class Name / Grade</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Nursery, Playgroup, Grade 1"
-                className="mt-1 bg-white rounded-xl"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="font-semibold text-slate-700">Section</Label>
-                <Input
-                  value={form.section}
-                  onChange={(e) => setForm((f) => ({ ...f, section: e.target.value.toUpperCase() }))}
-                  placeholder="A, B, C..."
-                  className="mt-1 bg-white rounded-xl uppercase"
-                />
-              </div>
-              <div>
-                <Label className="font-semibold text-slate-700">Classroom No.</Label>
-                <Input
-                  value={form.room}
-                  onChange={(e) => setForm((f) => ({ ...f, room: e.target.value }))}
-                  placeholder="Room 101"
-                  className="mt-1 bg-white rounded-xl"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="font-semibold text-slate-700">Assigned Class Teacher</Label>
-              <Select value={form.classTeacher} onValueChange={(v) => setForm((f) => ({ ...f, classTeacher: v }))}>
-                <SelectTrigger className="mt-1 bg-white rounded-xl">
-                  <SelectValue placeholder="Select class teacher" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teachersList.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>
-                      {t.name} ({t.subject || "Teacher"})
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Unassigned">Unassigned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className="font-semibold text-slate-700">Student Capacity</Label>
-              <Input
-                type="number"
-                value={form.capacity}
-                onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value || 30) }))}
-                className="mt-1 bg-white rounded-xl"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" className="rounded-xl" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl" onClick={handleSave}>
-              Save Class
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

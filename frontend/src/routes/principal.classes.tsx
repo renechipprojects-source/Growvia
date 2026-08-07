@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
 import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/principal/classes")({
   head: () => ({
@@ -35,6 +36,9 @@ function ClassesPage() {
       setTeachersList((tc as any) || []);
     });
   };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();

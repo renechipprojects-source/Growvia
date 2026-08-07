@@ -175,8 +175,7 @@ function ClassesPage() {
                 <TableCell>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
                     <Avatar className="h-7 w-7 border">
-                      <AvatarImage src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.classTeacher)}`} />
-                      <AvatarFallback>{c.classTeacher[0] || "T"}</AvatarFallback>
+                      <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold">{c.classTeacher[0] || "T"}</AvatarFallback>
                     </Avatar>
                     <span>{c.classTeacher}</span>
                   </div>
