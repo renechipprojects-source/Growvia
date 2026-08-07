@@ -49,7 +49,11 @@ function ClassesPage() {
 
     return Array.from(classSet).map((key, idx) => {
       const [className, section] = key.split("_");
-      const studentsInClass = studentsList.filter((s) => s.className === className && (s.section || "A") === section);
+      const studentsInClass = studentsList.filter(
+        (s) =>
+          s.className?.trim().toLowerCase() === className.trim().toLowerCase() &&
+          (s.section ? s.section.trim().toUpperCase() : "A") === section.trim().toUpperCase()
+      );
       const teacher = teachersList.find((t) => t.className?.includes(className) && t.className?.includes(section));
 
       return {

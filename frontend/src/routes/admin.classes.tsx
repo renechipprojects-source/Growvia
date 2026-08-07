@@ -75,8 +75,8 @@ function ClassesPage() {
           {filtered.map((c, idx) => {
             const count = studentsList.filter(
               (s) =>
-                (s.className?.toLowerCase() === c.name.toLowerCase() || (s as any).class_name?.toLowerCase() === c.name.toLowerCase()) &&
-                (s.section?.toUpperCase() === c.section || !s.section)
+                (s.className?.trim().toLowerCase() === c.name.trim().toLowerCase() || (s as any).class_name?.trim().toLowerCase() === c.name.trim().toLowerCase()) &&
+                ((s.section ? s.section.trim().toUpperCase() : "A") === c.section)
             ).length;
             const teacher = teachersList[idx % teachersList.length] ?? teachersList[0] ?? { name: "Assigned Teacher", avatar: "/avatars/teacher.svg" };
             const fullClassInfo = { ...c, strength: count, classTeacher: teacher.name || "Ananya Sen" };
