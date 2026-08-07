@@ -63,16 +63,21 @@ function Login() {
       if (localResult.ok) {
         const { session } = localResult;
         toast.success(`Welcome, ${session.name}`);
-        setTimeout(() => {
-          if (session.mustChangePassword) navigate({ to: "/change-password" });
-          else navigate({ to: roleHome(session.role) });
-        }, 100);
+        const targetUrl = session.mustChangePassword ? "/change-password" : roleHome(session.role);
+        navigate({ to: targetUrl }).catch(() => {});
+        window.location.href = targetUrl;
         return;
       }
 
-      // 2. Fallback to Supabase database lookup for custom database users
-      const supaResult = await login(loginId.trim(), password);
-      if (supaResult.success && supaResult.profile) {
+      // 2. Fallback to Supabase database lookup with 3s timeout
+      const loginPromise = login(loginId.trim(), password);
+      const timeoutPromise = new Promise<{ success: false; error: string }>((resolve) =>
+        setTimeout(() => resolve({ success: false, error: "Network timeout during authentication." }), 3000)
+      );
+
+      const supaResult: any = await Promise.race([loginPromise, timeoutPromise]);
+
+      if (supaResult && supaResult.success && supaResult.profile) {
         writeSession(
           {
             loginId: supaResult.profile.login_id,
@@ -83,15 +88,14 @@ function Login() {
           remember
         );
         toast.success(`Welcome, ${supaResult.profile.full_name}`);
-        setTimeout(() => {
-          if (supaResult.profile.must_change_password) navigate({ to: "/change-password" });
-          else navigate({ to: roleHome(supaResult.profile.role as any) });
-        }, 100);
+        const targetUrl = supaResult.profile.must_change_password ? "/change-password" : roleHome(supaResult.profile.role as any);
+        navigate({ to: targetUrl }).catch(() => {});
+        window.location.href = targetUrl;
         return;
       }
 
       setSubmitting(false);
-      const msg = supaResult.error || "Invalid Login ID or password.";
+      const msg = supaResult?.error || "Invalid Login ID or password.";
       setErrors({ form: msg });
       toast.error(msg);
     } catch (err: any) {
