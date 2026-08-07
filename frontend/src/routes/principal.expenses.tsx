@@ -107,15 +107,15 @@ function PrincipalExpensesOverview() {
 
       {/* Expenses Table Container */}
       <div className="flex-1 min-h-[400px] max-h-[calc(100vh-270px)] rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto max-h-[calc(100vh-260px)]">
           <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50/95 backdrop-blur-md border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-20">
               <tr>
-                <th className="text-left px-4 py-3.5 font-bold w-[15%]">Date</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[30%]">Description</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Category</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[20%]">Paid To</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[17%]">Amount (₹)</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-left px-4 py-3.5 font-bold w-[15%]">Date</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-left px-4 py-3.5 font-bold w-[30%]">Description</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-left px-4 py-3.5 font-bold w-[18%]">Category</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-left px-4 py-3.5 font-bold w-[20%]">Paid To</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-right px-4 py-3.5 font-bold w-[17%]">Amount (₹)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

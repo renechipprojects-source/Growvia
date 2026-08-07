@@ -149,16 +149,16 @@ function StudentsPage() {
           </div>
         </div>
 
-        <div className="mt-3 flex-1 min-h-0 overflow-y-auto rounded-lg border">
+        <div className="mt-3 flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-260px)] rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
-              <thead className="bg-slate-100/90 text-xs uppercase text-slate-600 sticky top-0 z-10 backdrop-blur-md border-b">
+              <thead className="bg-slate-100/95 text-xs uppercase text-slate-600 sticky top-0 z-20 backdrop-blur-md border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Student</th>
-                  <th className="text-left px-4 py-3 font-medium">Admission No.</th>
-                  <th className="text-left px-4 py-3 font-medium">Class</th>
-                  <th className="text-left px-4 py-3 font-medium">Roll</th>
-                  <th className="text-left px-4 py-3 font-medium">Parent</th>
-                  <th className="text-right px-4 py-3 font-medium">Action</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Student</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Admission No.</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Class</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Roll</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Parent</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-right px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>

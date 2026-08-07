@@ -139,10 +139,10 @@ function StudentAttendancePage() {
             <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-slate-100/95 backdrop-blur-md text-xs uppercase text-muted-foreground sticky top-0 z-20">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Student</th>
-                  <th className="text-left px-4 py-3 font-medium">Class & Sec</th>
-                  <th className="text-left px-4 py-3 font-medium">Today Status</th>
-                  <th className="text-right px-4 py-3 font-medium">Action</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Student</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Class & Sec</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Today Status</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-right px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>

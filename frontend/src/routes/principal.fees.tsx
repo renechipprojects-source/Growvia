@@ -72,19 +72,19 @@ function PrincipalFeesOverview() {
           />
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border bg-card">
+        <div className="flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-260px)] rounded-xl border bg-card">
           <table className="w-full text-xs min-w-[900px]">
             <thead className="bg-slate-100/95 uppercase text-muted-foreground sticky top-0 backdrop-blur-md z-20">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold">Student Name</th>
-                <th className="text-left px-4 py-3 font-semibold">Admission No</th>
-                <th className="text-left px-4 py-3 font-semibold">Class</th>
-                <th className="text-left px-4 py-3 font-semibold">Total Fee</th>
-                <th className="text-left px-4 py-3 font-semibold">Total Paid</th>
-                <th className="text-left px-4 py-3 font-semibold">Remaining Balance</th>
-                <th className="text-center px-4 py-3 font-semibold">Installments Used</th>
-                <th className="text-left px-4 py-3 font-semibold">Status</th>
-                <th className="text-right px-4 py-3 font-semibold">Action</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Student Name</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Admission No</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Class</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Total Fee</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Total Paid</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Remaining Balance</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-center px-4 py-3 font-semibold">Installments Used</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-semibold">Status</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-right px-4 py-3 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-muted/30">

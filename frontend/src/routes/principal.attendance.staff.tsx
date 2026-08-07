@@ -104,16 +104,16 @@ function StaffAttendancePage() {
           </Select>
         </div>
 
-        <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-260px)] rounded-lg border">
             <table className="w-full text-sm min-w-[720px]">
               <thead className="bg-slate-100/95 backdrop-blur-md text-xs uppercase text-muted-foreground sticky top-0 z-20">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Staff</th>
-                  <th className="text-left px-4 py-3 font-medium">Department</th>
-                  <th className="text-left px-4 py-3 font-medium">Check In</th>
-                  <th className="text-left px-4 py-3 font-medium">Check Out</th>
-                  <th className="text-left px-4 py-3 font-medium">Working Hours</th>
-                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Staff</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Department</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check In</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check Out</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Working Hours</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>

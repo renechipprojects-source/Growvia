@@ -122,20 +122,20 @@ function ReceiptsPage() {
       </div>
 
       {/* Receipts Table */}
-      <div className="rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-lg flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="overflow-y-auto overflow-x-auto flex-1 max-h-[calc(100vh-260px)]">
           <table className="w-full text-sm text-left">
             <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-xs uppercase text-slate-600 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-3.5 font-bold">Receipt No</th>
-                <th className="px-5 py-3.5 font-bold">Student Name</th>
-                <th className="px-5 py-3.5 font-bold">Class</th>
-                <th className="px-5 py-3.5 font-bold">Fee Type</th>
-                <th className="px-5 py-3.5 font-bold">Amount Paid</th>
-                <th className="px-5 py-3.5 font-bold">Mode</th>
-                <th className="px-5 py-3.5 font-bold">Date</th>
-                <th className="px-5 py-3.5 font-bold">Collected By</th>
-                <th className="px-5 py-3.5 font-bold text-right">Action</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Receipt No</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Student Name</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Class</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Fee Type</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Amount Paid</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Mode</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Date</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold">Collected By</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md px-5 py-3.5 font-bold text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

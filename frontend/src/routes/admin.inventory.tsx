@@ -88,22 +88,23 @@ function AdminInventoryPage() {
 
       {/* Full Width Inventory Table */}
       <div className="flex-1 min-h-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-y-auto overflow-x-auto flex-1 max-h-[calc(100vh-260px)]">
           <table className="w-full text-left text-sm border-collapse">
             <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
               <tr>
-                <th className="py-3.5 px-4">Item Name</th>
-                <th className="py-3.5 px-4">SKU / Code</th>
-                <th className="py-3.5 px-4">In Stock</th>
-                <th className="py-3.5 px-4">Min Stock</th>
-                <th className="py-3.5 px-4">Unit Price</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">Item Name</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">SKU / Code</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">In Stock</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">Min Stock</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">Unit Price</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4">Status</th>
+                <th className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     No items in live inventory matching your search.
                   </td>
                 </tr>

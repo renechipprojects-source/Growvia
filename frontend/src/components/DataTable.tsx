@@ -75,7 +75,7 @@ export function DataTable<T>({
                     <th
                       key={h.id}
                       onClick={h.column.getToggleSortingHandler()}
-                      className="px-4 py-3 font-medium text-muted-foreground cursor-pointer whitespace-nowrap"
+                      className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-4 py-3 font-medium text-muted-foreground cursor-pointer whitespace-nowrap border-b border-slate-200"
                     >
                       {flexRender(h.column.columnDef.header, h.getContext())}
                       {h.column.getIsSorted() === "asc" ? " ↑" : h.column.getIsSorted() === "desc" ? " ↓" : ""}
