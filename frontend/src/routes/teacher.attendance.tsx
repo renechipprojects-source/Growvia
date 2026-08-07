@@ -12,7 +12,8 @@ import { NotificationService } from "@/lib/notifications";
 import { getClassAssignments, getSubjectAssignments, type TeacherAssignment } from "@/lib/teacherContext";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Badge } from "@/components/ui/badge";
-import { saveAttendance } from "@/lib/attendanceStore";
+import { useLiveAttendance, saveAttendance } from "@/lib/attendanceStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { z } from "zod";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 
@@ -39,6 +40,7 @@ function assignmentLabel(a: TeacherAssignment) {
 }
 
 function Att() {
+  const { triggerModuleRefresh } = useAutoRefresh();
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
   const assignments: TeacherAssignment[] = [...getClassAssignments(), ...getSubjectAssignments()];
@@ -57,12 +59,21 @@ function Att() {
     throw notFound();
   }
 
-  const [date, setDate] = useState("2026-07-22");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [localSearch, setLocalSearch] = useState("");
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
-  useEffect(() => {
+  const { attendance: liveAttendanceRecords } = useLiveAttendance(undefined, date);
+
+  const loadData = () => {
     fetchStudents().then(({ data }) => setAllStudents(data || []));
+  };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("attendance", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const headerQuery = useSearchQuery();
@@ -77,15 +88,15 @@ function Att() {
   }, [allStudents, cls, sec]);
 
   const seed = useMemo(() => {
-    const recs: any[] = [];
-    const map = new Map(recs.map((r) => [r.studentId, r.status]));
+    const existingForDate = liveAttendanceRecords.filter((r) => r.date === date);
+    const map = new Map(existingForDate.map((r) => [r.studentId, r.status]));
     const out: Record<string, Status> = {};
     for (const s of list) {
       const st = map.get(s.id);
-      out[s.id] = st === "Absent" ? "A" : st === "Late" ? "L" : st === "Leave" ? "Lv" : "P";
+      out[s.id] = (st as Status) || "P";
     }
     return out;
-  }, [list, date]);
+  }, [list, date, liveAttendanceRecords]);
 
   const [state, setState] = useState<Record<string, Status>>(seed);
   useEffect(() => { setState(seed); }, [seed]);
@@ -110,16 +121,25 @@ function Att() {
           title="Attendance"
           subtitle={`${date} · ${active.type === "subject" ? `${active.subject} · ` : ""}${cls}-${sec} · ${counts.P}/${counts.total} present (${pct}%)`}
           action={
-            <Button
-              onClick={() => {
-                saveAttendance(cls, sec, date, state, list, "Meenakshi Sundaram (Class Teacher)");
-                NotificationService.attendanceMarked(`${cls}-${sec}`);
-                toast.success(`Attendance saved for ${cls}-${sec} (${counts.P} Present)`);
-              }}
-              className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full"
-            >
-              Save
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-36 h-9 text-xs font-medium bg-white"
+              />
+              <Button
+                onClick={async () => {
+                  await saveAttendance(cls, sec, date, state, list, "Class Teacher");
+                  triggerModuleRefresh("attendance");
+                  NotificationService.attendanceMarked(`${cls}-${sec}`);
+                  toast.success(`Attendance saved for ${cls}-${sec} (${counts.P} Present)`);
+                }}
+                className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full"
+              >
+                Save
+              </Button>
+            </div>
           }
         />
       </div>

@@ -69,9 +69,20 @@ function DashboardPage() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersCount, setTeachersCount] = useState(0);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const { attendance: liveToday } = useLiveAttendance(undefined, todayStr);
+  // Dynamic daily refresh check (resets at midnight / date change)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nowStr = new Date().toISOString().slice(0, 10);
+      if (nowStr !== currentDateStr) {
+        setCurrentDateStr(nowStr);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [currentDateStr]);
+
+  const { attendance: liveToday } = useLiveAttendance(undefined, currentDateStr);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => setStudentsList(data || []));
@@ -80,10 +91,13 @@ function DashboardPage() {
   };
 
   useAutoRefresh("students", loadData);
+  useAutoRefresh("attendance", loadData);
+  useAutoRefresh("staff", loadData);
+  useAutoRefresh("fees", loadData);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentDateStr]);
 
   const totalStudents = studentsList.length;
   const studentPresentCount = liveToday.filter((r) => r.status === "P" || r.status === "L").length;

@@ -72,8 +72,10 @@ function Dashboard() {
       });
   };
 
-  // Register real-time auto refresh for students & fees modules
+  // Register real-time auto refresh for students, attendance & fees modules
   useAutoRefresh("students", loadData);
+  useAutoRefresh("attendance", loadData);
+  useAutoRefresh("staff", loadData);
   useAutoRefresh("fees", loadData);
 
   useEffect(() => {
