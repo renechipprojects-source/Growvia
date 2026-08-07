@@ -293,12 +293,6 @@ function TeacherCredentialsPage() {
         </div>
       </SectionCard>
 
-      <AddTeacherModal
-        open={openAddModal}
-        onClose={() => setOpenAddModal(false)}
-        onCreated={loadTeachersList}
-      />
-
       {/* Office Edit Staff Photo Dialog */}
       <Dialog open={!!editingStaff} onOpenChange={(open) => !open && setEditingStaff(null)}>
         <DialogContent className="max-w-md">
@@ -364,6 +358,14 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
       <div className="text-2xl font-bold mt-1">{value}</div>
     </div>
   );
+}
+function generatePassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  let pass = "";
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
 }
 
 function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherId: string | null; teachersList: Teacher[]; onClose: () => void; onDone: (id: string) => void }) {

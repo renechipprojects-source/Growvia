@@ -197,6 +197,15 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
   );
 }
 
+function generatePassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  let pass = "";
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+}
+
 function GenerateDialog({ studentId, studentsList, onClose, onDone }: { studentId: string | null; studentsList: Student[]; onClose: () => void; onDone: (id: string) => void }) {
   const student = studentId ? studentsList.find((s) => s.id === studentId) : undefined;
   const [basis, setBasis] = useState<"admission" | "mobile" | "custom">("admission");

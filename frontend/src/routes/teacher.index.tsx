@@ -139,48 +139,56 @@ function Dash() {
           )}
         </SectionCard>
       </div>
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatMini icon={Users} label="Total Students" value={total} sub={`${boys}B / ${girls}G`} tone="sky" />
+        <StatMini icon={UserCheck} label="Present Today" value={presentCount} tone="emerald" />
+        <StatMini icon={UserX} label="Absent / Leave" value={absentCount + leaveCount} tone="rose" />
+        <StatMini icon={Clock} label="Late Arrivals" value={lateCount} tone="amber" />
+      </div>
 
-      <div className="mt-6 grid lg:grid-cols-3 gap-4">
-        <SectionCard
-          title="My class today"
-          className="lg:col-span-2"
-          action={
-            <Badge className="bg-sky-100 text-sky-700">
-              <ClipboardCheck className="h-3 w-3 mr-1" /> {presentCount}/{total} present
-            </Badge>
-          }
-        >
-          {/* Fixed height with internal scrolling — never grows and breaks layout */}
-          <div className="h-[420px] overflow-y-auto pr-1 -mr-1">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-              {myClass.map((s) => {
-                const status = recMap.get(s.id);
-                const isAbsent = status === "Absent" || status === "Leave";
-                return (
-                  <div
-                    key={s.id}
-                    className={`rounded-2xl p-2 text-center ${
-                      isAbsent ? "bg-rose-50/70" : status === "Late" ? "bg-amber-50/70" : "bg-sky-50/70"
-                    }`}
-                  >
-                    <img src={s.avatar} className="h-12 w-12 rounded-full mx-auto bg-white" alt="" />
-                    <div className="mt-1 text-xs font-medium truncate">{s.name.split(" ")[0]}</div>
-                    <div className="text-[10px] text-muted-foreground">Roll {String(s.rollNo).padStart(2, "0")}</div>
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Class Roster Cards */}
+        <div className="lg:col-span-2 space-y-4">
+          <SectionCard
+            title="Class Roster & Today's Attendance"
+            action={
+              <Badge className="bg-sky-100 text-sky-700">
+                {presentCount}/{total} Present ({total ? Math.round((presentCount / total) * 100) : 0}%)
+              </Badge>
+            }
+          >
+            <div className="h-[420px] overflow-y-auto pr-1 -mr-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+                {myClass.map((s) => {
+                  const rawStatus = recMap.get(s.id);
+                  const isAbsent = rawStatus === "A" || rawStatus === "Lv" || rawStatus === "Absent" || rawStatus === "Leave";
+                  const isLate = rawStatus === "L" || rawStatus === "Late";
+                  const displayStatus = rawStatus === "P" ? "Present" : rawStatus === "A" ? "Absent" : rawStatus === "L" ? "Late" : rawStatus === "Lv" ? "Leave" : rawStatus || "Not Marked";
+
+                  return (
                     <div
-                      className={`text-[10px] mt-0.5 ${
-                        status === "Absent" ? "text-rose-600" :
-                        status === "Leave" ? "text-purple-600" :
-                        status === "Late" ? "text-amber-700" : "text-emerald-600"
+                      key={s.id}
+                      className={`rounded-2xl p-2 text-center ${
+                        isAbsent ? "bg-rose-50/70" : isLate ? "bg-amber-50/70" : rawStatus === "P" ? "bg-emerald-50/70" : "bg-slate-50/70"
                       }`}
                     >
-                      {status ?? "—"}
+                      <img src={s.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(s.name)}`} className="h-12 w-12 rounded-full mx-auto bg-white" alt="" />
+                      <div className="mt-1 text-xs font-medium truncate">{s.name.split(" ")[0]}</div>
+                      <div className="text-[10px] text-muted-foreground">Roll {String(s.rollNo || 1).padStart(2, "0")}</div>
+                      <div
+                        className={`text-[10px] mt-0.5 font-medium ${
+                          isAbsent ? "text-rose-600" : isLate ? "text-amber-700" : rawStatus === "P" ? "text-emerald-600" : "text-slate-400"
+                        }`}
+                      >
+                        {displayStatus}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
         <SectionCard title="Homework due">
           <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
             {classHomework.slice(0, 8).map((h) => (
