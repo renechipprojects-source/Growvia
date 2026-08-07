@@ -162,14 +162,6 @@ function ParentCredentialsPage() {
                             <Eye className="h-3.5 w-3.5 mr-1" /> View
                           </Button>
                           <Button size="sm" variant="outline" className="h-8 rounded-full" onClick={() => {
-                            const c = resetParentPassword(student.id);
-                            toast.success("New password generated");
-                            setViewFor(student.id);
-                            return c;
-                          }}>
-                            <KeyRound className="h-3.5 w-3.5 mr-1" /> Reset
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8 rounded-full" onClick={() => {
                             const next = cred.status === "Active" ? "Inactive" : "Active";
                             setParentStatus(student.id, next);
                             toast.success(`Login ${next.toLowerCase()}`);
@@ -209,24 +201,33 @@ function GenerateDialog({ studentId, studentsList, onClose, onDone }: { studentI
   const student = studentId ? studentsList.find((s) => s.id === studentId) : undefined;
   const [basis, setBasis] = useState<"admission" | "mobile" | "custom">("admission");
   const [custom, setCustom] = useState("");
+  const [password, setPassword] = useState("");
 
-  useEffect(() => { if (student) { setBasis("admission"); setCustom(""); } }, [student]);
+  useEffect(() => {
+    if (student) {
+      setBasis("admission");
+      setCustom("");
+      setPassword(generatePassword());
+    }
+  }, [student]);
 
   if (!student) return null;
 
   const previewId =
-    basis === "custom" ? (custom.trim() || suggestParentLoginId(student))
-    : basis === "mobile" ? alternativeParentLoginId(student)
-    : suggestParentLoginId(student);
+    basis === "custom"
+      ? (custom.trim() || suggestParentLoginId(student))
+      : basis === "mobile"
+      ? alternativeParentLoginId(student)
+      : suggestParentLoginId(student);
 
   return (
     <Dialog open={!!studentId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Generate parent login</DialogTitle>
-          <DialogDescription>{student.name} · {student.admissionNo} · {student.parent}</DialogDescription>
+          <DialogDescription>{student.parent} · Child: {student.name} ({student.className})</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4 py-2">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Login ID based on</div>
             <Select value={basis} onValueChange={(v) => setBasis(v as typeof basis)}>
@@ -244,19 +245,44 @@ function GenerateDialog({ studentId, studentsList, onClose, onDone }: { studentI
               <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. NEHA2026" className="bg-white" />
             </div>
           )}
+
+          <div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center justify-between">
+              <span>Password (Editable)</span>
+              <button
+                type="button"
+                onClick={() => setPassword(generatePassword())}
+                className="text-[11px] text-sky-600 hover:underline flex items-center gap-1 font-normal"
+              >
+                <RefreshCw className="w-3 h-3" /> Regenerate Random
+              </button>
+            </div>
+            <Input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Type custom password"
+              className="bg-white font-mono"
+            />
+          </div>
+
           <div className="rounded-2xl bg-slate-50 p-3 text-sm">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Preview</div>
-            <div className="mt-1 font-mono">{previewId}</div>
-            <div className="text-xs text-muted-foreground mt-2">A strong password will be generated automatically.</div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Preview Summary</div>
+            <div className="mt-1 font-mono text-xs">Login ID: <span className="font-bold text-slate-900">{previewId}</span></div>
+            <div className="mt-0.5 font-mono text-xs">Password: <span className="font-bold text-slate-900">{password}</span></div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
           <Button
             onClick={() => {
+              if (!password.trim()) {
+                toast.error("Password cannot be empty");
+                return;
+              }
               generateParentCredential(student.id, {
                 loginIdBasis: basis === "mobile" ? "mobile" : "admission",
                 customLoginId: basis === "custom" ? custom : undefined,
+                password: password.trim(),
                 student,
               });
               toast.success(`Login issued for ${student.parent}`);
@@ -298,10 +324,10 @@ function ViewDialog({ studentId, studentsList, onClose }: { studentId: string | 
       rows: [
         ["Student", `${student.name} · ${student.className}-${student.section}`],
         ["Admission No", student.admissionNo],
-        ["Parent", student.parent],
-        ["Mobile", student.phone],
+        ["Parent / Guardian", student.parent],
         ["Login ID", cred.loginId],
         ["Password", cred.password],
+        ["Status", cred.status],
         ["Issued on", new Date(cred.updatedAt).toLocaleString()],
       ],
       footer: "Please change your password after first login. Keep these credentials confidential.",
@@ -316,7 +342,7 @@ function ViewDialog({ studentId, studentsList, onClose }: { studentId: string | 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Parent login credentials</DialogTitle>
-          <DialogDescription>{student.name} · {student.parent}</DialogDescription>
+          <DialogDescription>{student.parent} · Student: {student.name}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <CredField label="Login ID" value={cred.loginId} onCopy={() => copy(cred.loginId, "id")} copied={copied === "id"} />
@@ -338,13 +364,6 @@ function ViewDialog({ studentId, studentsList, onClose }: { studentId: string | 
         <DialogFooter>
           <Button variant="outline" className="rounded-full" onClick={printSlip}>
             <Printer className="h-4 w-4 mr-2" /> Print
-          </Button>
-          <Button variant="outline" className="rounded-full" onClick={() => {
-            resetParentPassword(student.id);
-            toast.success("Password reset");
-            setReveal(true);
-          }}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Reset password
           </Button>
           <Button onClick={onClose} className="rounded-full bg-gradient-to-r from-sky-500 to-blue-500 text-white">Done</Button>
         </DialogFooter>

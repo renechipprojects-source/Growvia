@@ -273,13 +273,6 @@ function TeacherCredentialsPage() {
                             <Eye className="h-3.5 w-3.5 mr-1" /> View
                           </Button>
                           <Button size="sm" variant="outline" className="h-8 rounded-full" onClick={() => {
-                            resetTeacherPassword(teacher.id);
-                            toast.success("New password generated");
-                            setViewFor(teacher.id);
-                          }}>
-                            <KeyRound className="h-3.5 w-3.5 mr-1" /> Reset
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8 rounded-full" onClick={() => {
                             const next = cred.status === "Active" ? "Inactive" : "Active";
                             setTeacherStatus(teacher.id, next);
                             toast.success(`Login ${next.toLowerCase()}`);
@@ -377,7 +370,16 @@ function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherI
   const teacher = teacherId ? teachersList.find((t) => t.id === teacherId) : undefined;
   const [mode, setMode] = useState<"auto" | "custom">("auto");
   const [custom, setCustom] = useState("");
-  useEffect(() => { if (teacher) { setMode("auto"); setCustom(""); } }, [teacher]);
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (teacher) {
+      setMode("auto");
+      setCustom("");
+      setPassword(generatePassword());
+    }
+  }, [teacher]);
+
   if (!teacher) return null;
 
   const previewId = mode === "custom" ? (custom.trim() || suggestTeacherLoginId(teacher)) : suggestTeacherLoginId(teacher);
@@ -389,7 +391,7 @@ function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherI
           <DialogTitle>Generate teacher login</DialogTitle>
           <DialogDescription>{teacher.name} · {teacher.id} · {teacher.className}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4 py-2">
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Login ID</div>
             <Select value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
@@ -403,17 +405,46 @@ function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherI
           {mode === "custom" && (
             <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. PRIYA.T" className="bg-white" />
           )}
+
+          {/* Editable Password Field */}
+          <div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center justify-between">
+              <span>Password (Editable)</span>
+              <button
+                type="button"
+                onClick={() => setPassword(generatePassword())}
+                className="text-[11px] text-sky-600 hover:underline flex items-center gap-1 font-normal"
+              >
+                <RefreshCw className="w-3 h-3" /> Regenerate Random
+              </button>
+            </div>
+            <Input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Type custom password"
+              className="bg-white font-mono"
+            />
+          </div>
+
           <div className="rounded-2xl bg-slate-50 p-3 text-sm">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Preview</div>
-            <div className="mt-1 font-mono">{previewId}</div>
-            <div className="text-xs text-muted-foreground mt-2">A strong password will be generated automatically.</div>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">Preview Summary</div>
+            <div className="mt-1 font-mono text-xs">Login ID: <span className="font-bold text-slate-900">{previewId}</span></div>
+            <div className="mt-0.5 font-mono text-xs">Password: <span className="font-bold text-slate-900">{password}</span></div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
           <Button
             onClick={() => {
-              generateTeacherCredential(teacher.id, { customLoginId: mode === "custom" ? custom : undefined, teacher });
+              if (!password.trim()) {
+                toast.error("Password cannot be empty");
+                return;
+              }
+              generateTeacherCredential(teacher.id, {
+                customLoginId: mode === "custom" ? custom : undefined,
+                password: password.trim(),
+                teacher,
+              });
               toast.success(`Login issued for ${teacher.name}`);
               onDone(teacher.id);
             }}
@@ -449,57 +480,46 @@ function ViewDialog({ teacherId, teachersList, onClose }: { teacherId: string | 
     const w = window.open("", "_blank", "width=520,height=640");
     if (!w) { toast.error("Popup blocked — allow popups to print"); return; }
     w.document.write(printableSlip({
-      title: "Teacher Portal — Login Credentials",
+      title: "Teacher Login Slip — Sunshine ERP",
       rows: [
-        ["Teacher", teacher.name],
+        ["Teacher Name", teacher.name],
         ["Employee ID", teacher.id],
         ["Class / Subject", `${teacher.className} · ${teacher.subject}`],
         ["Login ID", cred.loginId],
         ["Password", cred.password],
         ["Status", cred.status],
-        ["Issued on", new Date(cred.updatedAt).toLocaleString()],
       ],
-      footer: "Please change your password after first login. Keep these credentials confidential.",
+      footer: "Direct parents/staff to the Sunshine Portal sign-in page to log in using these issued credentials.",
     }));
     w.document.close();
     w.focus();
-    setTimeout(() => w.print(), 200);
+    w.print();
   };
 
   return (
     <Dialog open={!!teacherId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Teacher login credentials</DialogTitle>
-          <DialogDescription>{teacher.name} · {teacher.id}</DialogDescription>
+          <DialogTitle>Teacher login details</DialogTitle>
+          <DialogDescription>{teacher.name} · {teacher.id} · {teacher.className}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <Field label="Login ID" value={cred.loginId} onCopy={() => copy(cred.loginId, "id")} copied={copied === "id"} />
           <Field
             label="Password"
-            value={reveal ? cred.password : "•".repeat(cred.password.length)}
+            value={reveal ? cred.password : "••••••••••••"}
             onCopy={() => copy(cred.password, "pw")}
             copied={copied === "pw"}
             trailing={
-              <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setReveal((v) => !v)}>
+              <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setReveal((r) => !r)}>
                 {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             }
           />
-          <div className="text-xs text-muted-foreground">
-            Status: <span className="font-medium">{cred.status}</span> · Updated {new Date(cred.updatedAt).toLocaleString()}
-          </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" className="rounded-full" onClick={printSlip}>
             <Printer className="h-4 w-4 mr-2" /> Print
-          </Button>
-          <Button variant="outline" className="rounded-full" onClick={() => {
-            resetTeacherPassword(teacher.id);
-            toast.success("Password reset");
-            setReveal(true);
-          }}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Reset password
           </Button>
           <Button onClick={onClose} className="rounded-full bg-gradient-to-r from-sky-500 to-blue-500 text-white">Done</Button>
         </DialogFooter>
@@ -594,5 +614,19 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AddTeacherModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  return (
+    <AddStaffDialog
+      open={open}
+      onClose={onClose}
+      onAdd={async (newTeacher) => {
+        await createTeacher(newTeacher);
+        toast.success(`Registered staff member ${newTeacher.name}!`);
+        onCreated();
+      }}
+    />
   );
 }

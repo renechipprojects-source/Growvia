@@ -89,7 +89,6 @@ const access: Group = {
   items: [
     { title: "Parent Logins", url: "/office/parent-credentials", icon: KeyRound },
     { title: "Teacher Logins", url: "/office/teacher-credentials", icon: ShieldCheck },
-    { title: "Password Reset Requests", url: "/office/password-resets", icon: KeyRound },
   ],
 };
 
