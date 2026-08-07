@@ -141,7 +141,19 @@ function addDeletedId(id: string) {
   } catch {}
 }
 
-// Automatically sync live database notifications from Supabase (Only Circulars & Leave/Message events)
+import { supabase } from "./supabase";
+
+const saveNotifToSupabase = (n: AppNotification) => {
+  const payload = {
+    id: `notif_${n.id}`,
+    request_type: "app_notification",
+    applicant_or_child_name: n.title,
+    reason_or_notes: JSON.stringify(n),
+  };
+  Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
+};
+
+// Automatically sync live database notifications from Supabase
 export function syncLiveDatabaseNotifications() {
   if (typeof window === "undefined") return;
 
@@ -152,6 +164,30 @@ export function syncLiveDatabaseNotifications() {
   } catch {}
 
   const deletedSet = getDeletedIds();
+
+  // Sync custom saved notifications from gv_requests
+  supabase
+    .from("gv_requests")
+    .select("*")
+    .eq("request_type", "app_notification")
+    .then(({ data }) => {
+      if (data && data.length > 0) {
+        let updated = false;
+        data.forEach((row: any) => {
+          try {
+            if (row.reason_or_notes && (row.reason_or_notes.startsWith("{") || row.reason_or_notes.startsWith("["))) {
+              const n: AppNotification = JSON.parse(row.reason_or_notes);
+              if (!deletedSet.has(n.id) && !store.some((x) => x.id === n.id)) {
+                store.unshift(n);
+                updated = true;
+              }
+            }
+          } catch {}
+        });
+        if (updated) saveStore([...store]);
+      }
+    })
+    .catch(() => {});
 
   import("./supabaseService")
     .then(({ fetchCirculars, fetchLeaveRequests }) => {
@@ -301,6 +337,7 @@ export function notify(input: NotifyInput) {
   };
   const next = [n, ...store];
   saveStore(next);
+  saveNotifToSupabase(n);
   return n;
 }
 

@@ -91,6 +91,55 @@ function write(store: Store) {
   }
 }
 
+export function saveCredToSupabase(cred: AnyCredential) {
+  const key = cred.kind === "parent" ? cred.studentId : cred.teacherId;
+  const payload = {
+    id: `cred_${cred.kind}_${key}`,
+    request_type: "generated_credential",
+    applicant_or_child_name: cred.loginId,
+    status: cred.status,
+    reason_or_notes: JSON.stringify(cred),
+  };
+  Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
+}
+
+export async function syncCredentialsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "generated_credential");
+
+    if (!error && data && data.length > 0) {
+      const store = read();
+      let updated = false;
+
+      data.forEach((row: any) => {
+        try {
+          if (row.reason_or_notes && (row.reason_or_notes.startsWith("{") || row.reason_or_notes.startsWith("["))) {
+            const cred: AnyCredential = JSON.parse(row.reason_or_notes);
+            if (cred.kind === "parent" && cred.studentId) {
+              store.parents[cred.studentId] = cred;
+              updated = true;
+            } else if (cred.kind === "teacher" && cred.teacherId) {
+              store.teachers[cred.teacherId] = cred;
+              updated = true;
+            }
+          }
+        } catch {}
+      });
+
+      if (updated) {
+        write(store);
+      }
+    }
+  } catch {}
+}
+
+if (typeof window !== "undefined") {
+  syncCredentialsFromSupabase();
+}
+
 // ─── Suggestions ────────────────────────────────────────────────────────────
 
 export function suggestParentLoginId(student: Partial<Student>): string {
@@ -167,6 +216,7 @@ export function generateParentCredential(
 
   store.parents[studentId] = cred;
   write(store);
+  saveCredToSupabase(cred);
 
   const parentUserId = `PAR-${loginId.toUpperCase()}`;
   const parentPayload = {
@@ -219,6 +269,7 @@ export function resetParentPassword(studentId: string): ParentCredential {
   };
   store.parents[studentId] = updated;
   write(store);
+  saveCredToSupabase(updated);
   return updated;
 }
 
@@ -226,8 +277,10 @@ export function setParentStatus(studentId: string, status: CredentialStatus) {
   const store = read();
   const existing = store.parents[studentId];
   if (!existing) return;
-  store.parents[studentId] = { ...existing, status, updatedAt: new Date().toISOString() };
+  const updated = { ...existing, status, updatedAt: new Date().toISOString() };
+  store.parents[studentId] = updated;
   write(store);
+  saveCredToSupabase(updated);
   Promise.resolve(supabase.from("users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
   Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
@@ -355,6 +408,7 @@ export function generateTeacherCredential(
 
   store.teachers[teacherId] = cred;
   write(store);
+  saveCredToSupabase(cred);
 
   Promise.resolve(
     createTeacherAuthAccount({
@@ -401,6 +455,7 @@ export function resetTeacherPassword(teacherId: string): TeacherCredential {
   };
   store.teachers[teacherId] = updated;
   write(store);
+  saveCredToSupabase(updated);
 
   Promise.resolve(
     createTeacherAuthAccount({
@@ -419,8 +474,10 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   const store = read();
   const existing = store.teachers[teacherId];
   if (!existing) return;
-  store.teachers[teacherId] = { ...existing, status, updatedAt: new Date().toISOString() };
+  const updated = { ...existing, status, updatedAt: new Date().toISOString() };
+  store.teachers[teacherId] = updated;
   write(store);
+  saveCredToSupabase(updated);
   Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
