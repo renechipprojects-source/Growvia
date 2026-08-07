@@ -45,6 +45,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { signOut } from "@/lib/auth";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
 type Group = { title: string; icon: React.ComponentType<{ className?: string }>; items: Item[] };
