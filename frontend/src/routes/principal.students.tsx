@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
 
 export interface Student {
   id: string;
@@ -89,8 +90,11 @@ function StudentsPage() {
     });
   };
 
+  const [masterClasses, setMasterClasses] = useState<MasterClassItem[]>(getStoredMasterClasses);
+
   useEffect(() => {
     loadData();
+    return subscribeMasterClasses(() => setMasterClasses(getStoredMasterClasses()));
   }, []);
 
   const handleAutoAssignRollNumbers = async () => {
@@ -102,6 +106,16 @@ function StudentsPage() {
 
   const classOptions = useMemo(() => {
     const set = new Set<string>();
+
+    masterClasses.forEach((m) => {
+      if (m.name) {
+        set.add(m.name.trim());
+        if (m.section) {
+          set.add(`${m.name.trim()} - Section ${m.section.trim().toUpperCase()}`);
+        }
+      }
+    });
+
     items.forEach((s) => {
       if (s.className) {
         set.add(s.className.trim());
@@ -110,9 +124,10 @@ function StudentsPage() {
         }
       }
     });
+
     ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"].forEach((c) => set.add(c));
     return Array.from(set).sort();
-  }, [items]);
+  }, [masterClasses, items]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -131,7 +146,12 @@ function StudentsPage() {
       const sClassNorm = normalize(s.className || "");
       const sFullNorm = normalize(`${s.className || ""} ${s.section || ""}`);
 
-      return sClassNorm.includes(targetClsNorm) || targetClsNorm.includes(sClassNorm) || sFullNorm.includes(targetClsNorm);
+      return (
+        sClassNorm.includes(targetClsNorm) ||
+        targetClsNorm.includes(sClassNorm) ||
+        sFullNorm.includes(targetClsNorm) ||
+        targetClsNorm.includes(sFullNorm)
+      );
     });
   }, [items, query, cls]);
 

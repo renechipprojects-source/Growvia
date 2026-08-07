@@ -48,23 +48,33 @@ function ClassesPage() {
   const derivedClassesList = useMemo(() => {
     const normalize = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
 
+    const getEffectiveSection = (s: { className?: string; section?: string }) => {
+      const sec = (s.section || "").trim().toUpperCase();
+      if (sec) return sec;
+      const cls = (s.className || "").trim().toUpperCase();
+      if (cls.endsWith(" B") || cls.endsWith("-B") || cls.endsWith("SECTION B")) return "B";
+      if (cls.endsWith(" C") || cls.endsWith("-C") || cls.endsWith("SECTION C")) return "C";
+      if (cls.endsWith(" A") || cls.endsWith("-A") || cls.endsWith("SECTION A")) return "A";
+      return "A";
+    };
+
+    const getEffectiveClassName = (s: { className?: string }) => {
+      let cls = (s.className || "").trim();
+      return cls.replace(/[\s\-_]*(section\s*)?[a-c]$/i, "").trim();
+    };
+
     return masterClasses.map((m) => {
-      const targetNameNorm = normalize(m.name);
-      const targetSecNorm = m.section.trim().toUpperCase();
+      const mClassNorm = normalize(m.name);
+      const mSec = m.section.trim().toUpperCase();
 
       const studentsInClass = studentsList.filter((s) => {
-        const sRawClass = (s.className || "").trim();
-        const sRawSec = (s.section || "").trim().toUpperCase();
-        const sNormFull = normalize(`${sRawClass} ${sRawSec}`);
-        const sNormClass = normalize(sRawClass);
-        const targetNormFull = normalize(`${m.name} ${m.section}`);
+        const sClassNorm = normalize(getEffectiveClassName(s));
+        const sSec = getEffectiveSection(s);
 
-        if (sNormFull === targetNormFull || sNormClass === targetNormFull) return true;
+        const classMatches = sClassNorm === mClassNorm || sClassNorm.includes(mClassNorm) || mClassNorm.includes(sClassNorm);
+        const secMatches = sSec === mSec;
 
-        const nameMatches = sNormClass.includes(targetNameNorm) || targetNameNorm.includes(sNormClass);
-        const secMatches = !sRawSec || sRawSec === targetSecNorm || sNormClass.endsWith(targetSecNorm.toLowerCase());
-
-        return nameMatches && secMatches;
+        return classMatches && secMatches;
       });
 
       const teacher = teachersList.find((t) => t.name === m.classTeacher) ||
