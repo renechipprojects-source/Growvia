@@ -89,23 +89,14 @@ export function markCircularAsRead(circularId: string, roleOrUserId: string) {
 export function markAllCircularsAsRead(role: string, circulars: any[] = []) {
   if (!role) return;
   const store = getReadStore(READ_STORAGE_KEY);
+  store[`__ALL_READ__${role}`] = "true";
 
   if (Array.isArray(circulars) && circulars.length > 0) {
     circulars.forEach((c) => {
       if (c && (c.id || c.title)) {
         const id = c.id || c.title;
-        const readers = store[id] || [];
-        if (!readers.includes(role)) {
-          store[id] = [...readers, role];
-        }
-      }
-    });
-  } else {
-    // If no specific circular list passed, mark all existing keys in store as read for this role
-    Object.keys(store).forEach((key) => {
-      const readers = store[key] || [];
-      if (!readers.includes(role)) {
-        store[key] = [...readers, role];
+        store[id] = Array.from(new Set([...(store[id] || []), role, "all"]));
+        store[`n-cir-${id}`] = Array.from(new Set([...(store[`n-cir-${id}`] || []), role, "all"]));
       }
     });
   }
@@ -119,6 +110,7 @@ export function markAllCircularsAsRead(role: string, circulars: any[] = []) {
 export function isCircularRead(circularId: string, roleOrUserId: string): boolean {
   if (!circularId || !roleOrUserId) return false;
   const store = getReadStore(READ_STORAGE_KEY);
+  if (store[`__ALL_READ__${roleOrUserId}`] === "true") return true;
   const readers = store[circularId] || [];
   return readers.includes(roleOrUserId) || readers.includes("all");
 }
@@ -155,9 +147,16 @@ export function isCircularAcknowledged(circularId: string, roleOrUserId: string)
 
 export function getUnreadCountForRole(circulars: any[], role: string): number {
   if (!Array.isArray(circulars) || circulars.length === 0) return 0;
+  const store = getReadStore(READ_STORAGE_KEY);
+  if (store[`__ALL_READ__${role}`] === "true") return 0;
+
   return circulars.filter((c) => {
     const isTarget = isCircularTargetedToRole(c, role);
-    const read = isCircularRead(c.id, role);
+    const read =
+      isCircularRead(c.id, role) ||
+      isCircularRead(c.title, role) ||
+      isCircularRead(`n-cir-${c.id}`, role) ||
+      isCircularRead(`n-cir-${c.title}`, role);
     return isTarget && !read;
   }).length;
 }

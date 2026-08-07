@@ -100,17 +100,38 @@ function StudentsPage() {
     loadData();
   };
 
-  const classes = useMemo(() => Array.from(new Set(items.map((s) => s.className))), [items]);
+  const classOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((s) => {
+      if (s.className) {
+        set.add(s.className.trim());
+        if (s.section) {
+          set.add(`${s.className.trim()} - Section ${s.section.trim().toUpperCase()}`);
+        }
+      }
+    });
+    ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"].forEach((c) => set.add(c));
+    return Array.from(set).sort();
+  }, [items]);
 
   const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    const normalize = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
+    const targetClsNorm = cls === "all" ? "" : normalize(cls);
+
     return items.filter((s) => {
-      const q = query.toLowerCase();
       const matchQ = !q ||
         s.name.toLowerCase().includes(q) ||
         s.admissionNo.toLowerCase().includes(q) ||
         s.parent.name.toLowerCase().includes(q);
-      const matchC = cls === "all" || s.className === cls;
-      return matchQ && matchC;
+
+      if (!matchQ) return false;
+      if (!targetClsNorm) return true;
+
+      const sClassNorm = normalize(s.className || "");
+      const sFullNorm = normalize(`${s.className || ""} ${s.section || ""}`);
+
+      return sClassNorm.includes(targetClsNorm) || targetClsNorm.includes(sClassNorm) || sFullNorm.includes(targetClsNorm);
     });
   }, [items, query, cls]);
 
@@ -119,7 +140,7 @@ function StudentsPage() {
       <div>
         <PageHeader
           title="Students"
-          description="View-only student directory. Search or filter to find a student and open their profile."
+          description="View-only student directory. Search or filter by class to find a student and open their profile."
         />
       </div>
 
@@ -136,12 +157,12 @@ function StudentsPage() {
               />
             </div>
             <Select value={cls} onValueChange={setCls}>
-              <SelectTrigger className="md:w-56">
+              <SelectTrigger className="md:w-64">
                 <SelectValue placeholder="Filter by class" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {classes.map((c) => (
+                <SelectItem value="all">All Classes & Sections</SelectItem>
+                {classOptions.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>

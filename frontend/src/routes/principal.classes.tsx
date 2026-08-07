@@ -46,12 +46,27 @@ function ClassesPage() {
   }, []);
 
   const derivedClassesList = useMemo(() => {
+    const normalize = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
+
     return masterClasses.map((m) => {
-      const studentsInClass = studentsList.filter(
-        (s) =>
-          s.className?.trim().toLowerCase() === m.name.trim().toLowerCase() &&
-          (s.section ? s.section.trim().toUpperCase() : "A") === m.section.toUpperCase()
-      );
+      const targetNameNorm = normalize(m.name);
+      const targetSecNorm = m.section.trim().toUpperCase();
+
+      const studentsInClass = studentsList.filter((s) => {
+        const sRawClass = (s.className || "").trim();
+        const sRawSec = (s.section || "").trim().toUpperCase();
+        const sNormFull = normalize(`${sRawClass} ${sRawSec}`);
+        const sNormClass = normalize(sRawClass);
+        const targetNormFull = normalize(`${m.name} ${m.section}`);
+
+        if (sNormFull === targetNormFull || sNormClass === targetNormFull) return true;
+
+        const nameMatches = sNormClass.includes(targetNameNorm) || targetNameNorm.includes(sNormClass);
+        const secMatches = !sRawSec || sRawSec === targetSecNorm || sNormClass.endsWith(targetSecNorm.toLowerCase());
+
+        return nameMatches && secMatches;
+      });
+
       const teacher = teachersList.find((t) => t.name === m.classTeacher) ||
         teachersList.find((t) => t.className?.toLowerCase().includes(m.name.toLowerCase()) && t.className?.toUpperCase().includes(m.section.toUpperCase()));
 
