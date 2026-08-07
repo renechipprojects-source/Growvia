@@ -93,6 +93,7 @@ const access: Group = {
 };
 
 const operations: Item[] = [
+  { title: "Staff Attendance", url: "/office/staff-attendance", icon: UserCheck },
   { title: "Circulars", url: "/office/circulars", icon: Megaphone },
   { title: "Inventory", url: "/office/inventory", icon: Boxes },
   { title: "Transport", url: "/office/transport", icon: Bus },

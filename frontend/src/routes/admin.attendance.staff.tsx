@@ -237,18 +237,7 @@ function StaffAttendancePage() {
               <TableCell className="font-mono text-xs">{r.checkOut ?? "—"}</TableCell>
               <TableCell className="font-mono text-xs">{r.workingHours}</TableCell>
               <TableCell>
-                <Select value={r.status} onValueChange={(val) => handleStatusChange(r.id, r.name, val as StaffStatus)}>
-                  <SelectTrigger className="w-[120px] h-8 text-xs font-semibold bg-white border-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Not Marked">Not Marked</SelectItem>
-                    <SelectItem value="Present">Present</SelectItem>
-                    <SelectItem value="Late">Late</SelectItem>
-                    <SelectItem value="Absent">Absent</SelectItem>
-                    <SelectItem value="Leave">Leave</SelectItem>
-                  </SelectContent>
-                </Select>
+                <StatusPill status={r.status} />
               </TableCell>
             </TableRow>
           ))}
@@ -259,6 +248,14 @@ function StaffAttendancePage() {
 }
 
 function StatusPill({ status }: { status: StaffStatus }) {
+  if (status === "Not Marked") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-normal text-slate-500">
+        <span className="h-2 w-2 rounded-full bg-slate-400" />
+        Not Marked
+      </span>
+    );
+  }
   const dot =
     status === "Present"
       ? "bg-emerald-500"
