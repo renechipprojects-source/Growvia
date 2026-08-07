@@ -22,7 +22,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff, KeyRound, Printer, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, Copy, Check, Camera, Upload } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Printer, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, Copy, Check, Camera, Upload, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
@@ -61,6 +61,7 @@ function TeacherCredentialsPage() {
   // Edit Staff Photo Modal State
   const [editingStaff, setEditingStaff] = useState<Teacher | null>(null);
   const [staffPhotoPreview, setStaffPhotoPreview] = useState<string>("");
+  const [isSavingStaffPhoto, setIsSavingStaffPhoto] = useState(false);
 
   const handleStaffPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,42 +72,61 @@ function TeacherCredentialsPage() {
     }
     const reader = new FileReader();
     reader.onload = (event) => {
+      const rawDataUrl = event.target?.result as string;
+      setStaffPhotoPreview(rawDataUrl); // Set instant preview so save works right away!
+
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_SIZE = 300;
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height = Math.round((height * MAX_SIZE) / width);
-            width = MAX_SIZE;
+        try {
+          const canvas = document.createElement("canvas");
+          const MAX_SIZE = 300;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
           }
-        } else {
-          if (height > MAX_SIZE) {
-            width = Math.round((width * MAX_SIZE) / height);
-            height = MAX_SIZE;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        setStaffPhotoPreview(compressedDataUrl);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setStaffPhotoPreview(compressedDataUrl);
+        } catch {}
       };
-      img.src = event.target?.result as string;
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };
 
   const handleSaveStaffPhoto = async () => {
-    if (!editingStaff || !staffPhotoPreview) return;
-    await updateTeacher(editingStaff.id, { avatar: staffPhotoPreview });
-    toast.success(`Photo updated for ${editingStaff.name}!`);
-    setEditingStaff(null);
-    setStaffPhotoPreview("");
-    loadTeachersList();
+    if (!editingStaff) {
+      toast.error("No staff member selected.");
+      return;
+    }
+    if (!staffPhotoPreview) {
+      toast.error("Please select a local staff image file first.");
+      return;
+    }
+    try {
+      setIsSavingStaffPhoto(true);
+      await updateTeacher(editingStaff.id, { avatar: staffPhotoPreview });
+      toast.success(`Staff photo saved successfully for ${editingStaff.name}!`);
+      setEditingStaff(null);
+      setStaffPhotoPreview("");
+      loadTeachersList();
+    } catch (err: any) {
+      toast.error("Failed to save staff photo: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsSavingStaffPhoto(false);
+    }
   };
   const [filter, setFilter] = useState<"all" | "issued" | "not_issued" | "inactive">("all");
   const [genFor, setGenFor] = useState<string | null>(null);
@@ -324,7 +344,15 @@ function TeacherCredentialsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingStaff(null)}>Cancel</Button>
-            <Button onClick={handleSaveStaffPhoto} className="bg-indigo-600 text-white">Save Photo</Button>
+            <Button onClick={handleSaveStaffPhoto} disabled={isSavingStaffPhoto} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow">
+              {isSavingStaffPhoto ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Saving Photo...
+                </>
+              ) : (
+                "Save Photo"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

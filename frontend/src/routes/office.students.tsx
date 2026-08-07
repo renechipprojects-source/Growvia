@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2 } from "lucide-react";
+import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -29,11 +29,10 @@ function OfficeStudents() {
   // Photo Edit Modal State
   const [editingPhotoStudent, setEditingPhotoStudent] = useState<Student | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
   const loadStudents = useCallback(() => {
-    return fetchStudents().then(({ data: fetched }) => {
-      setData(fetched || []);
-    });
+    fetchStudents().then(({ data }) => setData(data || []));
   }, []);
 
   useEffect(() => {
@@ -56,42 +55,61 @@ function OfficeStudents() {
     }
     const reader = new FileReader();
     reader.onload = (event) => {
+      const rawDataUrl = event.target?.result as string;
+      setPhotoPreview(rawDataUrl); // Immediately populate preview so Save button works instantly!
+
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_SIZE = 300;
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height = Math.round((height * MAX_SIZE) / width);
-            width = MAX_SIZE;
+        try {
+          const canvas = document.createElement("canvas");
+          const MAX_SIZE = 300;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
           }
-        } else {
-          if (height > MAX_SIZE) {
-            width = Math.round((width * MAX_SIZE) / height);
-            height = MAX_SIZE;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        setPhotoPreview(compressedDataUrl);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setPhotoPreview(compressedDataUrl);
+        } catch {}
       };
-      img.src = event.target?.result as string;
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };
 
   const handleSavePhoto = async () => {
-    if (!editingPhotoStudent || !photoPreview) return;
-    await updateStudent(editingPhotoStudent.id, { avatar: photoPreview });
-    toast.success(`Photo updated for ${editingPhotoStudent.name}!`);
-    setEditingPhotoStudent(null);
-    setPhotoPreview("");
-    loadStudents();
+    if (!editingPhotoStudent) {
+      toast.error("No student selected.");
+      return;
+    }
+    if (!photoPreview) {
+      toast.error("Please select a local image file first.");
+      return;
+    }
+    try {
+      setIsSavingPhoto(true);
+      await updateStudent(editingPhotoStudent.id, { avatar: photoPreview });
+      toast.success(`Photo saved successfully for ${editingPhotoStudent.name}!`);
+      setEditingPhotoStudent(null);
+      setPhotoPreview("");
+      loadStudents();
+    } catch (err: any) {
+      toast.error("Failed to save photo: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsSavingPhoto(false);
+    }
   };
 
   const cols: ColumnDef<Student>[] = [
@@ -290,7 +308,15 @@ function OfficeStudents() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingPhotoStudent(null)}>Cancel</Button>
-            <Button onClick={handleSavePhoto} className="bg-indigo-600 text-white">Save Photo</Button>
+            <Button onClick={handleSavePhoto} disabled={isSavingPhoto} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow">
+              {isSavingPhoto ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Saving Photo...
+                </>
+              ) : (
+                "Save Photo"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

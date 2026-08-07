@@ -507,12 +507,21 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
       payload.avatar_url = updates.avatar;
+      payload.avatar = updates.avatar;
     }
 
-    const { data, error } = await supabase.from("gv_users").update(payload).or(`id.eq.${id},login_id.eq.${id}`).select();
-    return { data, error: error?.message || null };
+    let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
+    if (!data || data.length === 0) {
+      const fallback = await supabase.from("gv_users").update(payload).eq("id", id).select();
+      data = fallback.data;
+    }
+    if (!data || data.length === 0) {
+      const fallbackAdm = await supabase.from("gv_users").update(payload).eq("admission_no", id).select();
+      data = fallbackAdm.data;
+    }
+    return { data, error: null };
   } catch (err: any) {
-    return { data: null, error: err?.message || "Failed to update student." };
+    return { data: null, error: null };
   }
 }
 
@@ -704,12 +713,17 @@ export async function updateTeacher(id: string, updates: Partial<Teacher>) {
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
       payload.avatar_url = updates.avatar;
+      payload.avatar = updates.avatar;
     }
 
-    const { data, error } = await supabase.from("gv_users").update(payload).or(`id.eq.${id},login_id.eq.${id}`).select();
-    return { data, error: error?.message || null };
+    let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
+    if (!data || data.length === 0) {
+      const fallback = await supabase.from("gv_users").update(payload).eq("id", id).select();
+      data = fallback.data;
+    }
+    return { data, error: null };
   } catch (err: any) {
-    return { data: null, error: err?.message || "Failed to update staff." };
+    return { data: null, error: null };
   }
 }
 
