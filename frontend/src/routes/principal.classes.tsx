@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
+import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 
 export const Route = createFileRoute("/principal/classes")({
@@ -20,52 +21,49 @@ export const Route = createFileRoute("/principal/classes")({
 });
 
 function ClassesPage() {
+  const [masterClasses, setMasterClasses] = useState<MasterClassItem[]>(getStoredMasterClasses);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
   const [q, setQ] = useState("");
   const [sec, setSec] = useState("all");
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
+    setMasterClasses(getStoredMasterClasses());
     Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
       setStudentsList(st || []);
       setTeachersList((tc as any) || []);
     });
+  };
+
+  useEffect(() => {
+    loadData();
+    return subscribeMasterClasses(() => setMasterClasses(getStoredMasterClasses()));
   }, []);
 
   const derivedClassesList = useMemo(() => {
-    const classSet = new Set<string>();
-    studentsList.forEach((s) => classSet.add(`${s.className}_${s.section || "A"}`));
-    teachersList.forEach((t) => {
-      if (t.className) {
-        const parts = t.className.split(" ");
-        const clsName = parts[0] || t.className;
-        const secName = parts[1] || "A";
-        classSet.add(`${clsName}_${secName}`);
-      }
-    });
-
-    return Array.from(classSet).map((key, idx) => {
-      const [className, section] = key.split("_");
+    return masterClasses.map((m) => {
       const studentsInClass = studentsList.filter(
         (s) =>
-          s.className?.trim().toLowerCase() === className.trim().toLowerCase() &&
-          (s.section ? s.section.trim().toUpperCase() : "A") === section.trim().toUpperCase()
+          s.className?.trim().toLowerCase() === m.name.trim().toLowerCase() &&
+          (s.section ? s.section.trim().toUpperCase() : "A") === m.section.toUpperCase()
       );
-      const teacher = teachersList.find((t) => t.className?.includes(className) && t.className?.includes(section));
+      const teacher = teachersList.find((t) => t.name === m.classTeacher) ||
+        teachersList.find((t) => t.className?.toLowerCase().includes(m.name.toLowerCase()) && t.className?.toUpperCase().includes(m.section.toUpperCase()));
 
       return {
-        id: key,
-        name: `${className} ${section}`,
-        className,
-        section,
+        id: m.id,
+        name: `${m.name} ${m.section}`,
+        className: m.name,
+        section: m.section,
         totalStudents: studentsInClass.length,
-        classTeacher: teacher ? teacher.name : "Unassigned",
+        capacity: m.capacity,
+        classTeacher: m.classTeacher || (teacher ? teacher.name : "Unassigned"),
         teacherId: teacher ? teacher.id : "",
-        room: `Room 10${idx + 1}`,
+        room: m.room,
       };
     });
-  }, [studentsList, teachersList]);
+  }, [masterClasses, studentsList, teachersList]);
 
   const sections = useMemo(() => Array.from(new Set(derivedClassesList.map((c) => c.section))), [derivedClassesList]);
 
@@ -73,7 +71,7 @@ function ClassesPage() {
     () =>
       derivedClassesList.filter((c) => {
         const matchQ = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.classTeacher.toLowerCase().includes(q.toLowerCase());
-        const matchS = sec === "all" || c.section === sec;
+        const matchS = sec === "all" || c.section.toUpperCase() === sec.toUpperCase();
         return matchQ && matchS;
       }),
     [derivedClassesList, q, sec],

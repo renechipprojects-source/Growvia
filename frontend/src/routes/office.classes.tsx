@@ -22,12 +22,12 @@ import {
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/admin/classes")({
-  component: ClassesPage,
-  head: () => ({ meta: [{ title: "Classes — Sunshine Play School" }] }),
+export const Route = createFileRoute("/office/classes")({
+  component: OfficeClassesPage,
+  head: () => ({ meta: [{ title: "Classes Management — Office Portal" }] }),
 });
 
-function ClassesPage() {
+function OfficeClassesPage() {
   const [classesList, setClassesList] = useState<MasterClassItem[]>(getStoredMasterClasses);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -118,7 +118,7 @@ function ClassesPage() {
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
-        title="Classes Management"
+        title="Class Management"
         description="Master school classes, sections, assigned class teachers, and student capacity."
         actions={
           <Button onClick={handleOpenAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold px-4 py-2">

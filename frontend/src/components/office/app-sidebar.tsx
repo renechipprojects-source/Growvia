@@ -65,6 +65,7 @@ const students: Group = {
   icon: Baby,
   items: [
     { title: "Students", url: "/office/students", icon: Baby },
+    { title: "Classes", url: "/office/classes", icon: GraduationCap },
     { title: "Class Assignment", url: "/office/class-assignment", icon: UserCheck },
     { title: "Promotion Mapping", url: "/office/promotion-mapping", icon: GraduationCap },
   ],

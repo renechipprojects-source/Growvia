@@ -34,6 +34,7 @@ import { Route as OfficeIndexRouteImport } from './routes/office.index'
 import { Route as OfficeAdmissionsRouteImport } from './routes/office.admissions'
 import { Route as OfficeCircularsRouteImport } from './routes/office.circulars'
 import { Route as OfficeClassAssignmentRouteImport } from './routes/office.class-assignment'
+import { Route as OfficeClassesRouteImport } from './routes/office.classes'
 import { Route as OfficeEnquiriesRouteImport } from './routes/office.enquiries'
 import { Route as OfficeExpensesRouteImport } from './routes/office.expenses'
 import { Route as OfficeFeesRouteImport } from './routes/office.fees'
@@ -214,6 +215,11 @@ const OfficeCircularsRoute = OfficeCircularsRouteImport.update({
 const OfficeClassAssignmentRoute = OfficeClassAssignmentRouteImport.update({
   id: '/class-assignment',
   path: '/class-assignment',
+  getParentRoute: () => OfficeRoute,
+} as any)
+const OfficeClassesRoute = OfficeClassesRouteImport.update({
+  id: '/classes',
+  path: '/classes',
   getParentRoute: () => OfficeRoute,
 } as any)
 const OfficeEnquiriesRoute = OfficeEnquiriesRouteImport.update({
@@ -524,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
+  '/office/classes': typeof OfficeClassesRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
   '/office/fees': typeof OfficeFeesRoute
@@ -602,6 +609,7 @@ export interface FileRoutesByTo {
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
+  '/office/classes': typeof OfficeClassesRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
   '/office/fees': typeof OfficeFeesRoute
@@ -686,6 +694,7 @@ export interface FileRoutesById {
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
   '/office/class-assignment': typeof OfficeClassAssignmentRoute
+  '/office/classes': typeof OfficeClassesRoute
   '/office/enquiries': typeof OfficeEnquiriesRoute
   '/office/expenses': typeof OfficeExpensesRoute
   '/office/fees': typeof OfficeFeesRoute
@@ -771,6 +780,7 @@ export interface FileRouteTypes {
     | '/office/admissions'
     | '/office/circulars'
     | '/office/class-assignment'
+    | '/office/classes'
     | '/office/enquiries'
     | '/office/expenses'
     | '/office/fees'
@@ -849,6 +859,7 @@ export interface FileRouteTypes {
     | '/office/admissions'
     | '/office/circulars'
     | '/office/class-assignment'
+    | '/office/classes'
     | '/office/enquiries'
     | '/office/expenses'
     | '/office/fees'
@@ -932,6 +943,7 @@ export interface FileRouteTypes {
     | '/office/admissions'
     | '/office/circulars'
     | '/office/class-assignment'
+    | '/office/classes'
     | '/office/enquiries'
     | '/office/expenses'
     | '/office/fees'
@@ -1178,6 +1190,13 @@ declare module '@tanstack/react-router' {
       path: '/class-assignment'
       fullPath: '/office/class-assignment'
       preLoaderRoute: typeof OfficeClassAssignmentRouteImport
+      parentRoute: typeof OfficeRoute
+    }
+    '/office/classes': {
+      id: '/office/classes'
+      path: '/classes'
+      fullPath: '/office/classes'
+      preLoaderRoute: typeof OfficeClassesRouteImport
       parentRoute: typeof OfficeRoute
     }
     '/office/enquiries': {
@@ -1631,6 +1650,7 @@ interface OfficeRouteChildren {
   OfficeAdmissionsRoute: typeof OfficeAdmissionsRoute
   OfficeCircularsRoute: typeof OfficeCircularsRoute
   OfficeClassAssignmentRoute: typeof OfficeClassAssignmentRoute
+  OfficeClassesRoute: typeof OfficeClassesRoute
   OfficeEnquiriesRoute: typeof OfficeEnquiriesRoute
   OfficeExpensesRoute: typeof OfficeExpensesRoute
   OfficeFeesRoute: typeof OfficeFeesRoute
@@ -1653,6 +1673,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeAdmissionsRoute: OfficeAdmissionsRoute,
   OfficeCircularsRoute: OfficeCircularsRoute,
   OfficeClassAssignmentRoute: OfficeClassAssignmentRoute,
+  OfficeClassesRoute: OfficeClassesRoute,
   OfficeEnquiriesRoute: OfficeEnquiriesRoute,
   OfficeExpensesRoute: OfficeExpensesRoute,
   OfficeFeesRoute: OfficeFeesRoute,
