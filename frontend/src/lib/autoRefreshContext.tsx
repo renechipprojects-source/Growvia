@@ -30,7 +30,14 @@ const AutoRefreshContext = createContext<AutoRefreshContextType | null>(null);
 
 export function AutoRefreshProvider({ children }: { children: React.ReactNode }) {
   const refreshersRef = useRef<Map<ERPModule, Set<() => Promise<void> | void>>>(new Map());
-  const [isFormEditing, setIsFormEditing] = useState(false);
+  const [isFormEditing, setIsFormEditingState] = useState(false);
+  const isFormEditingRef = useRef(false);
+
+  const setIsFormEditing = useCallback((editing: boolean) => {
+    isFormEditingRef.current = editing;
+    setIsFormEditingState(editing);
+  }, []);
+
   const isRefreshingRef = useRef<Map<ERPModule, boolean>>(new Map());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,31 +56,28 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  const triggerModuleRefresh = useCallback(
-    (module: ERPModule) => {
-      if (isFormEditing) return; // Never refresh while editing forms
-      if (isRefreshingRef.current.get(module)) return; // Prevent duplicate API calls
+  const triggerModuleRefresh = useCallback((module: ERPModule) => {
+    if (isFormEditingRef.current) return; // Never refresh while editing forms
+    if (isRefreshingRef.current.get(module)) return; // Prevent duplicate API calls
 
-      const fns = refreshersRef.current.get(module);
-      if (!fns || fns.size === 0) return;
+    const fns = refreshersRef.current.get(module);
+    if (!fns || fns.size === 0) return;
 
-      isRefreshingRef.current.set(module, true);
+    isRefreshingRef.current.set(module, true);
 
-      Promise.all(Array.from(fns).map((fn) => Promise.resolve(fn())))
-        .catch((err) => console.warn(`AutoRefresh error in ${module}:`, err))
-        .finally(() => {
-          isRefreshingRef.current.set(module, false);
-        });
-    },
-    [isFormEditing]
-  );
+    Promise.all(Array.from(fns).map((fn) => Promise.resolve(fn())))
+      .catch((err) => console.warn(`AutoRefresh error in ${module}:`, err))
+      .finally(() => {
+        isRefreshingRef.current.set(module, false);
+      });
+  }, []);
 
   const triggerAllRefreshes = useCallback(() => {
-    if (isFormEditing) return;
+    if (isFormEditingRef.current) return;
     refreshersRef.current.forEach((_, module) => {
       triggerModuleRefresh(module);
     });
-  }, [isFormEditing, triggerModuleRefresh]);
+  }, [triggerModuleRefresh]);
 
   // Window Focus & Tab Visibility Event Listeners
   useEffect(() => {

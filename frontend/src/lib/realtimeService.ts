@@ -21,6 +21,7 @@ export function subscribeToRealtimeTable({
   filter,
 }: RealtimeSubscriptionOptions): () => void {
   const channelKey = `rt_${table}_${filter || "all"}_${Math.random().toString(36).substring(7)}`;
+  let isUnsubscribed = false;
 
   try {
     const channel = supabase
@@ -34,6 +35,7 @@ export function subscribeToRealtimeTable({
           filter: filter,
         },
         (payload: any) => {
+          if (isUnsubscribed) return;
           try {
             onPayload({
               eventType: payload.eventType,
@@ -45,12 +47,17 @@ export function subscribeToRealtimeTable({
         }
       )
       .subscribe((status: string) => {
-        if (status === "SUBSCRIBED") {
+        if (status === "SUBSCRIBED" && !isUnsubscribed) {
           activeChannels.set(channelKey, channel);
+        } else if (isUnsubscribed) {
+          try {
+            supabase.removeChannel(channel);
+          } catch {}
         }
       });
 
     return () => {
+      isUnsubscribed = true;
       try {
         supabase.removeChannel(channel);
       } catch {}
