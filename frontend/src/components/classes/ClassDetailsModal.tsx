@@ -20,10 +20,26 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
   const roomStr = classInfo.room || "Room 101";
   const strengthCount = classInfo.strength || classInfo.enrolled || 10;
 
-  // Filter students belonging to this class
-  const classStudents = studentsList.filter(
-    (s) => (s.className === classNameStr || s.className === classInfo.id) && (!s.section || s.section === sectionStr)
-  );
+  const norm = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
+  const baseNameNorm = norm(classInfo.className || classNameStr);
+  const targetSec = sectionStr.trim().toUpperCase();
+
+  const classStudents = Array.isArray(classInfo.students) && classInfo.students.length > 0
+    ? classInfo.students
+    : Array.isArray(classInfo.matchedStudents) && classInfo.matchedStudents.length > 0
+    ? classInfo.matchedStudents
+    : studentsList.filter((s) => {
+        const sRaw = (s.className || s.class_name || "").trim();
+        const sNorm = norm(sRaw);
+        const classMatches = sNorm.includes(baseNameNorm) || baseNameNorm.includes(sNorm) || sNorm.startsWith(baseNameNorm);
+        let sSec = (s.section || "").trim().toUpperCase();
+        if (!sSec) {
+          if (/\b(b|sec-b|section-b)\b/i.test(sRaw) || sRaw.endsWith(" B")) sSec = "B";
+          else if (/\b(c|sec-c|section-c)\b/i.test(sRaw) || sRaw.endsWith(" C")) sSec = "C";
+          else sSec = "A";
+        }
+        return classMatches && sSec === targetSec;
+      });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

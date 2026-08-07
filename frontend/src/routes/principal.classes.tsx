@@ -68,10 +68,18 @@ function ClassesPage() {
       const mSec = m.section.trim().toUpperCase();
 
       const studentsInClass = studentsList.filter((s) => {
-        const sClassNorm = normalize(getEffectiveClassName(s));
-        const sSec = getEffectiveSection(s);
+        const sRaw = (s.className || (s as any).class_name || "").trim();
+        const sNorm = normalize(sRaw);
 
-        const classMatches = sClassNorm === mClassNorm || sClassNorm.includes(mClassNorm) || mClassNorm.includes(sClassNorm);
+        const classMatches = sNorm.includes(mClassNorm) || mClassNorm.includes(sNorm) || sNorm.startsWith(mClassNorm);
+
+        let sSec = (s.section || "").trim().toUpperCase();
+        if (!sSec) {
+          if (/\b(b|sec-b|section-b)\b/i.test(sRaw) || sRaw.endsWith(" B")) sSec = "B";
+          else if (/\b(c|sec-c|section-c)\b/i.test(sRaw) || sRaw.endsWith(" C")) sSec = "C";
+          else sSec = "A";
+        }
+
         const secMatches = sSec === mSec;
 
         return classMatches && secMatches;
@@ -86,6 +94,7 @@ function ClassesPage() {
         className: m.name,
         section: m.section,
         totalStudents: studentsInClass.length,
+        matchedStudents: studentsInClass,
         capacity: m.capacity,
         classTeacher: m.classTeacher || (teacher ? teacher.name : "Unassigned"),
         teacherId: teacher ? teacher.id : "",
@@ -127,13 +136,9 @@ function ClassesPage() {
 
         <div className="mt-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-1">
           {filtered.map((c, idx) => {
-            const matchedStudents = studentsList.filter(
-              (s) =>
-                (s.className?.toLowerCase() === c.name.toLowerCase() || (s as any).class_name?.toLowerCase() === c.name.toLowerCase()) &&
-                (s.section?.toUpperCase() === c.section || !s.section)
-            );
-            const count = matchedStudents.length;
-            const teacher = teachersList[idx % (teachersList.length || 1)]?.name ?? c.classTeacher ?? "Assigned Teacher";
+            const matchedStudents = c.matchedStudents;
+            const count = c.totalStudents;
+            const teacher = c.classTeacher && c.classTeacher !== "Unassigned" ? c.classTeacher : teachersList[idx % (teachersList.length || 1)]?.name ?? "Assigned Teacher";
 
             return (
               <div

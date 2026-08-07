@@ -64,12 +64,7 @@ function PrincipalExpensesOverview() {
       <div className="shrink-0">
         <PageHeader
           title="Operating Expenses"
-          subtitle="Read-only view of all recorded school expenditures and vendor outlays."
-          action={
-            <Badge variant="outline" className="px-3 py-1 bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1.5 text-xs font-semibold">
-              <Lock className="w-3.5 h-3.5" /> Read-Only View (Office Managed)
-            </Badge>
-          }
+          subtitle="Overview of all recorded school expenditures and vendor outlays."
         />
       </div>
 
