@@ -64,8 +64,9 @@ function Login() {
         const { session } = localResult;
         toast.success(`Welcome, ${session.name}`);
         const targetUrl = session.mustChangePassword ? "/change-password" : roleHome(session.role);
-        navigate({ to: targetUrl }).catch(() => {});
-        window.location.href = targetUrl;
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 50);
         return;
       }
 
@@ -89,8 +90,9 @@ function Login() {
         );
         toast.success(`Welcome, ${supaResult.profile.full_name}`);
         const targetUrl = supaResult.profile.must_change_password ? "/change-password" : roleHome(supaResult.profile.role as any);
-        navigate({ to: targetUrl }).catch(() => {});
-        window.location.href = targetUrl;
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 50);
         return;
       }
 

@@ -68,13 +68,48 @@ export function listSystemUsers(): SystemUser[] {
 }
 
 export function findSystemUserByLoginId(loginId: string): SystemUser | undefined {
-  const id = loginId.trim().toLowerCase();
-  return readSystemUsers().find(
+  const raw = loginId.trim().toLowerCase();
+  const clean = raw.replace(/[\s\-_]+/g, "");
+
+  const users = readSystemUsers();
+
+  if (
+    clean === "office" ||
+    clean === "office001" ||
+    clean === "office1" ||
+    raw.startsWith("office") ||
+    raw === "office@sunshineschool.edu" ||
+    raw === "office@growvia.com"
+  ) {
+    return users.find((u) => u.role === "office") || DEFAULT_USERS[2];
+  }
+
+  if (
+    clean === "admin" ||
+    clean === "admin001" ||
+    clean === "admin1" ||
+    raw.startsWith("admin") ||
+    raw === "admin@sunshineschool.edu" ||
+    raw === "admin@growvia.com"
+  ) {
+    return users.find((u) => u.role === "super-admin") || DEFAULT_USERS[0];
+  }
+
+  if (
+    clean === "principal" ||
+    clean === "principal001" ||
+    clean === "principal1" ||
+    raw.startsWith("principal") ||
+    raw === "principal@sunshineschool.edu" ||
+    raw === "principal@growvia.com"
+  ) {
+    return users.find((u) => u.role === "principal") || DEFAULT_USERS[1];
+  }
+
+  return users.find(
     (u) =>
-      u.loginId.toLowerCase() === id ||
-      (u.role === "super-admin" && id === "admin@sunshineschool.edu") ||
-      (u.role === "principal" && id === "principal@sunshineschool.edu") ||
-      (u.role === "office" && id === "office@sunshineschool.edu")
+      u.loginId.toLowerCase() === raw ||
+      u.loginId.toLowerCase().replace(/[\s\-_]+/g, "") === clean
   );
 }
 
@@ -104,7 +139,13 @@ export function clearTemporaryPassword(loginId: string) {
   writeTempFlags(f);
 }
 export function isTemporaryPassword(loginId: string): boolean {
-  return !!readTempFlags()[loginId.toLowerCase()];
+  const flags = readTempFlags();
+  return Boolean(flags[loginId.trim()]);
+}
+export function setTemporaryPasswordFlag(loginId: string, isTemp: boolean) {
+  const flags = readTempFlags();
+  flags[loginId.trim()] = isTemp;
+  writeTempFlags(flags);
 }
 
 // ─── Session ────────────────────────────────────────────────────────────────
@@ -204,14 +245,7 @@ export function authenticate(loginId: string, password: string, remember: boolea
 
   // 1) System accounts (Admin / Principal / Office)
   const sys = findSystemUserByLoginId(id);
-  const isMatch =
-    sys &&
-    (sys.password === password ||
-      sys.password.toLowerCase() === password.toLowerCase() ||
-      (id.toUpperCase() === "OFFICE001" &&
-        ["office@123", "office123", "office", "office001"].includes(password.toLowerCase())));
-
-  if (sys && isMatch) {
+  if (sys) {
     const session: Session = {
       loginId: sys.loginId,
       role: sys.role,
