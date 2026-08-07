@@ -13,12 +13,13 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   Receipt as ReceiptIcon, Printer, Search, Plus, CheckCircle, Clock,
-  DollarSign, Wallet, FileText, Eye, Edit3, Tag, Sparkles
+  DollarSign, Wallet, FileText, Eye, Edit3, Tag, Sparkles, Bus, GraduationCap
 } from "lucide-react";
 import { NotificationService } from "@/lib/notifications";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { useAcademicYear } from "@/lib/academicYearContext";
+import { getStoredAllocations, getStoredRoutes } from "@/modules/transport/transportStore";
 
 export const Route = createFileRoute("/office/fees")({ component: FeeCollection });
 
@@ -146,13 +147,33 @@ function FeeCollection() {
     });
   }, [feeList, q, statusFilter, classFilter, sectionFilter]);
 
+  const handleFeeTypeChange = (selectedType: string) => {
+    setFeeType(selectedType);
+    if (!activeLedger) return;
+
+    if (selectedType === "Transport Fee" || selectedType === "Bus Fee") {
+      const allocations = getStoredAllocations();
+      const studentAlloc = allocations.find(
+        (a) =>
+          a.studentId === activeLedger.studentId ||
+          a.studentName?.toLowerCase() === activeLedger.studentName?.toLowerCase()
+      );
+      if (studentAlloc && studentAlloc.monthlyFee) {
+        setAmountPaid(String(Number(studentAlloc.monthlyFee)));
+      } else {
+        setAmountPaid("1500");
+      }
+    } else if (selectedType === "Tuition Fee") {
+      const remaining = Math.max(0, (activeLedger.finalFee || activeLedger.amount || 0) - (activeLedger.paid || 0));
+      setAmountPaid(String(remaining || activeLedger.finalFee || 12000));
+    }
+  };
+
   const openRecordPaymentFor = (f: FeeLedgerItem) => {
     setActiveLedger(f);
-    const plan = f.totalInstallments || 3;
-    setInstallmentPlan(plan);
+    setFeeType("Tuition Fee");
     const remaining = Math.max(0, (f.finalFee || f.amount || 0) - (f.paid || 0));
-    const instAmt = Math.min(remaining, Math.round((f.finalFee || f.amount || 0) / plan));
-    setAmountPaid(String(instAmt > 0 ? instAmt : remaining));
+    setAmountPaid(String(remaining));
     setReference("");
     setRemarks("");
     setOpenRecordModal(true);
@@ -227,7 +248,6 @@ function FeeCollection() {
 
     const updatedLedger = recalculateFeeLedger({
       ...activeLedger,
-      totalInstallments: installmentPlan,
       payments: [...(activeLedger.payments || []), newTxn],
     });
 
@@ -350,15 +370,16 @@ function FeeCollection() {
           <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3.5 font-bold w-[12%]">Admission No</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[6%]">Roll No</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[20%]">Student Name</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[8%]">Class</th>
-                <th className="text-left px-3 py-3.5 font-bold w-[6%]">Section</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Fee Amount</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Paid Amount</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[11%]">Pending Amount</th>
-                <th className="text-center px-4 py-3.5 font-bold w-[10%]">Payment Status</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[11%]">Admission No</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[5%]">Roll</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Student Name</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[7%]">Class</th>
+                <th className="text-left px-3 py-3.5 font-bold w-[5%]">Sec</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[10%]">Fee Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[10%]">Paid Amount</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[10%]">Pending Amount</th>
+                <th className="text-center px-3 py-3.5 font-bold w-[10%]">Installments</th>
+                <th className="text-center px-4 py-3.5 font-bold w-[9%]">Status</th>
                 <th className="text-right px-4 py-3.5 font-bold w-[15%]">Actions</th>
               </tr>
             </thead>
@@ -375,13 +396,14 @@ function FeeCollection() {
                     <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                    <td className="px-3 py-4"><div className="h-4 w-16 bg-slate-200 rounded mx-auto" /></td>
                     <td className="px-4 py-4"><div className="h-5 w-16 bg-slate-200 rounded-full mx-auto" /></td>
                     <td className="px-4 py-4"><div className="h-8 w-28 bg-slate-200 rounded-xl ml-auto" /></td>
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-500 font-medium">
+                  <td colSpan={11} className="text-center py-12 text-slate-500 font-medium">
                     No matching fee records found.
                   </td>
                 </tr>
@@ -394,6 +416,7 @@ function FeeCollection() {
                     ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
                     : (f.paid || 0);
                   const remaining = Math.max(0, finalFee - paid);
+                  const instCount = f.payments && f.payments.length > 0 ? f.payments.length : paid > 0 ? 1 : 0;
 
                   let displayStatus = "Pending";
                   let statusStyle = "bg-rose-50 text-rose-700 border-rose-200";
@@ -415,6 +438,11 @@ function FeeCollection() {
                       <td className="px-4 py-3.5 text-right font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-right font-semibold text-emerald-600">₹{paid.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-right font-semibold text-rose-600">₹{remaining.toLocaleString()}</td>
+                      <td className="px-3 py-3.5 text-center">
+                        <Badge variant="outline" className="text-xs font-semibold bg-indigo-50/60 text-indigo-700 border-indigo-200">
+                          {instCount > 0 ? `${instCount} Installment${instCount > 1 ? "s" : ""}` : "0 Paid"}
+                        </Badge>
+                      </td>
                       <td className="px-4 py-3.5 text-center">
                         <Badge className={cn("text-xs font-semibold px-2.5 py-0.5 border rounded-full shadow-2xs", statusStyle)}>
                           {displayStatus}
@@ -689,7 +717,7 @@ function FeeCollection() {
       <Dialog open={openRecordModal} onOpenChange={setOpenRecordModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Record Installment Payment</DialogTitle>
+            <DialogTitle>Collect & Record Fee Payment</DialogTitle>
           </DialogHeader>
 
           {activeLedger && (
@@ -700,31 +728,70 @@ function FeeCollection() {
                 <div className="text-rose-700 font-medium mt-1">Pending Balance: ₹{Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0)).toLocaleString()}</div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Installment Plan</Label>
-                  <Select value={String(installmentPlan)} onValueChange={(v) => setInstallmentPlan(Number(v))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>{INSTALLMENT_OPTIONS.map((opt) => <SelectItem key={opt} value={String(opt)}>{opt} Installments</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Fee Type</Label>
-                  <Select value={feeType} onValueChange={setFeeType}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>{FEE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label className="text-xs font-semibold">Fee Type / Category</Label>
+                <Select value={feeType} onValueChange={handleFeeTypeChange}>
+                  <SelectTrigger className="mt-1 bg-white font-medium"><SelectValue /></SelectTrigger>
+                  <SelectContent>{FEE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
+
+              {/* LIVE FEE COMPONENT CARD */}
+              {(feeType === "Transport Fee" || feeType === "Bus Fee") && (
+                <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 to-blue-50/90 p-3 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-900 flex items-center gap-1.5">
+                      <Bus className="w-4 h-4 text-indigo-600" /> Bus Transport Fee (Live)
+                    </span>
+                    <Badge className="bg-indigo-100 text-indigo-700 text-[10px] font-bold">Distance Based</Badge>
+                  </div>
+                  {(() => {
+                    const studentAlloc = getStoredAllocations().find(
+                      (a) =>
+                        a.studentId === activeLedger.studentId ||
+                        a.studentName?.toLowerCase() === activeLedger.studentName?.toLowerCase()
+                    );
+                    if (studentAlloc) {
+                      return (
+                        <div className="text-[11px] text-slate-700 space-y-0.5 pt-1">
+                          <div><span className="font-semibold text-slate-900">Assigned Route:</span> {studentAlloc.routeName}</div>
+                          <div><span className="font-semibold text-slate-900">Pickup Stop:</span> {studentAlloc.pickupStop}</div>
+                          <div><span className="font-semibold text-slate-900">Configured Distance Fee:</span> <span className="font-bold text-indigo-700">₹{Number(studentAlloc.monthlyFee || 1500).toLocaleString()} / month</span></div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="text-[11px] text-slate-600 pt-1 italic">
+                        No custom route assigned on Transport Page. Using standard distance fee (₹1,500).
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {feeType === "Tuition Fee" && (
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50/90 to-teal-50/90 p-3 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                      <GraduationCap className="w-4 h-4 text-emerald-600" /> Academic Tuition Fee
+                    </span>
+                    <Badge className="bg-emerald-100 text-emerald-700 text-[10px] font-bold">Core Academic</Badge>
+                  </div>
+                  <div className="text-[11px] text-slate-700 space-y-0.5 pt-1">
+                    <div><span className="font-semibold text-slate-900">Class & Section:</span> {activeLedger.className} - {activeLedger.section || "A"}</div>
+                    <div><span className="font-semibold text-slate-900">Total Tuition Fee:</span> <span className="font-bold text-emerald-700">₹{(activeLedger.finalFee || activeLedger.amount || 12000).toLocaleString()}</span></div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Amount Paying Now (₹)</Label>
-                  <Input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className="mt-1 font-semibold text-emerald-700" />
+                  <Input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} className="mt-1 font-semibold text-emerald-700 bg-white" />
                 </div>
                 <div>
                   <Label className="text-xs">Payment Date</Label>
-                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 bg-white" />
                 </div>
               </div>
 
@@ -732,19 +799,19 @@ function FeeCollection() {
                 <div>
                   <Label className="text-xs">Payment Method</Label>
                   <Select value={method} onValueChange={(v: any) => setMethod(v)}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label className="text-xs">Ref / Txn No. (optional)</Label>
-                  <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="UPI ID / Cheque" className="mt-1" />
+                  <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="UPI ID / Cheque" className="mt-1 bg-white" />
                 </div>
               </div>
 
               <div>
                 <Label className="text-xs">Remarks / Notes</Label>
-                <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Installment 2 paid" rows={2} className="mt-1" />
+                <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Fee payment" rows={2} className="mt-1 bg-white" />
               </div>
             </div>
           )}
