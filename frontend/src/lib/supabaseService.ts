@@ -6,6 +6,15 @@ import { NotificationService } from "./notifications";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
+export function notifyAutoRefresh(moduleName: string) {
+  if (typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new CustomEvent(`sunshine-auto-refresh-${moduleName}`));
+      window.dispatchEvent(new CustomEvent("sunshine-auto-refresh"));
+    } catch {}
+  }
+}
+
 export interface Circular {
   id?: string;
   title: string;
