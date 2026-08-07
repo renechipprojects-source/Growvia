@@ -118,13 +118,8 @@ function ClassesPage() {
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
-        title="Classes Management"
+        title="Classes Overview"
         description="Master school classes, sections, assigned class teachers, and student capacity."
-        actions={
-          <Button onClick={handleOpenAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold px-4 py-2">
-            <Plus className="mr-1.5 h-4 w-4" /> Add New Class
-          </Button>
-        }
       />
 
       <div className="shrink-0">
