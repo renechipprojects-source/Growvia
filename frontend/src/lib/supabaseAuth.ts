@@ -29,7 +29,7 @@ export async function login(loginId: string, password: string) {
 
     // 1. Instant local check for system users & generated credentials (0ms)
     const sysUser = findSystemUserByLoginId(id);
-    if (sysUser) {
+    if (sysUser && (sysUser.password === password || sysUser.password.trim() === password.trim())) {
       return {
         success: true,
         user: { id: sysUser.loginId, email: `${sysUser.loginId.toLowerCase()}@sunshine.edu` } as any,

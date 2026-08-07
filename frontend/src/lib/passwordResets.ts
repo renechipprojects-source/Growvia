@@ -1,6 +1,6 @@
 import type { Role } from "@/lib/roleConfig";
-import { findSystemUserByLoginId } from "@/lib/auth";
-import { listParentCredentials, listTeacherCredentials } from "@/lib/credentials";
+import { findSystemUserByLoginId, setTemporaryPasswordFor, generateTemporaryPassword, markTemporaryPassword } from "@/lib/auth";
+import { listParentCredentials, listTeacherCredentials, generateParentCredential, generateTeacherCredential } from "@/lib/credentials";
 import { supabase } from "@/lib/supabase";
 
 export type ResetStatus = "Pending" | "In Progress" | "Completed";
@@ -232,4 +232,97 @@ export function setStatus(id: string, status: ResetStatus, tempPassword?: string
 export function deleteRequest(id: string) {
   write(read().filter((r) => r.id !== id));
   Promise.resolve(supabase.from("gv_requests").delete().eq("id", id)).catch(() => {});
+}
+
+export function processUnifiedPasswordReset(
+  role: Role,
+  identifier: string,
+  newPassword?: string
+): CreateResult | CreateErr {
+  const id = identifier.trim();
+  if (!id) return { ok: false, error: "Please enter your Login ID or registered identifier." };
+
+  const tempPwd = newPassword || generateTemporaryPassword();
+
+  if (role === "office" || role === "principal" || role === "super-admin" || role === "admin") {
+    const sys = findSystemUserByLoginId(id);
+    if (!sys) return { ok: false, error: "No system account found for that login ID." };
+    if (sys.role === "super-admin") {
+      return { ok: false, error: "Admin account cannot self-reset. Contact ERP Administrator." };
+    }
+    setTemporaryPasswordFor(sys.loginId, tempPwd);
+    const req: ResetRequest = {
+      id: makeId(),
+      role: sys.role,
+      name: sys.name,
+      loginId: sys.loginId,
+      identifier: sys.loginId,
+      requestedAt: new Date().toISOString(),
+      status: "Completed",
+      tempPassword: tempPwd,
+      completedAt: new Date().toISOString(),
+    };
+    const rows = read();
+    rows.push(req);
+    write(rows);
+    return { ok: true, request: req };
+  }
+
+  if (role === "teacher") {
+    let cred = listTeacherCredentials().find(
+      (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.teacherId.toLowerCase() === id.toLowerCase()
+    );
+    if (!cred) {
+      cred = generateTeacherCredential(id, { customLoginId: id, password: tempPwd });
+    } else {
+      generateTeacherCredential(cred.teacherId, { customLoginId: cred.loginId, password: tempPwd });
+    }
+    markTemporaryPassword(cred.loginId);
+    const req: ResetRequest = {
+      id: makeId(),
+      role: "teacher",
+      name: "Teacher",
+      loginId: cred.loginId,
+      identifier: id,
+      employeeId: cred.teacherId,
+      requestedAt: new Date().toISOString(),
+      status: "Completed",
+      tempPassword: tempPwd,
+      completedAt: new Date().toISOString(),
+    };
+    const rows = read();
+    rows.push(req);
+    write(rows);
+    return { ok: true, request: req };
+  }
+
+  if (role === "parent") {
+    let cred = listParentCredentials().find(
+      (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.studentId.toLowerCase() === id.toLowerCase()
+    );
+    if (!cred) {
+      cred = generateParentCredential(id, { customLoginId: id, password: tempPwd });
+    } else {
+      generateParentCredential(cred.studentId, { customLoginId: cred.loginId, password: tempPwd });
+    }
+    markTemporaryPassword(cred.loginId);
+    const req: ResetRequest = {
+      id: makeId(),
+      role: "parent",
+      name: "Parent",
+      loginId: cred.loginId,
+      identifier: id,
+      admissionNo: cred.studentId,
+      requestedAt: new Date().toISOString(),
+      status: "Completed",
+      tempPassword: tempPwd,
+      completedAt: new Date().toISOString(),
+    };
+    const rows = read();
+    rows.push(req);
+    write(rows);
+    return { ok: true, request: req };
+  }
+
+  return { ok: false, error: "Invalid role specified." };
 }

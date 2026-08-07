@@ -244,7 +244,7 @@ export function authenticate(loginId: string, password: string, remember: boolea
 
   // 1) System accounts (Admin / Principal / Office)
   const sys = findSystemUserByLoginId(id);
-  if (sys) {
+  if (sys && (sys.password === password || sys.password.trim() === password.trim())) {
     const session: Session = {
       loginId: sys.loginId,
       role: sys.role,

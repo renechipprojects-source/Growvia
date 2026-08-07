@@ -325,6 +325,23 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
 }
 
 export async function deleteCircular(id: string) {
+  circularsCacheMemory = circularsCacheMemory.filter((c) => c.id !== id);
+  const localList = getCachedCircularsList().filter((c) => c.id !== id);
+  setCachedCircularsList(localList);
+
+  try {
+    const rawAlerts = localStorage.getItem("sunshine.alerts.v1");
+    if (rawAlerts) {
+      const alerts = JSON.parse(rawAlerts);
+      if (Array.isArray(alerts)) {
+        const updatedAlerts = alerts.filter((a: any) => a.id !== `AL-${id}` && a.id !== id);
+        localStorage.setItem("sunshine.alerts.v1", JSON.stringify(updatedAlerts));
+      }
+    }
+  } catch {}
+
+  notifyAutoRefresh("circulars");
+
   try {
     const { error } = await supabase.from("gv_communications").delete().eq("id", id);
     return { error: error?.message || null };
@@ -516,7 +533,6 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
       payload.avatar_url = updates.avatar;
-      payload.avatar = updates.avatar;
     }
 
     let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
@@ -722,7 +738,6 @@ export async function updateTeacher(id: string, updates: Partial<Teacher>) {
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
       payload.avatar_url = updates.avatar;
-      payload.avatar = updates.avatar;
     }
 
     let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();

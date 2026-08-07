@@ -4,14 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, KeyRound, ShieldAlert } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldAlert, CheckCircle2, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  requestSystemReset,
-  requestTeacherReset,
-  requestParentReset,
-} from "@/lib/passwordResets";
+import { processUnifiedPasswordReset, type ResetRequest } from "@/lib/passwordResets";
+import type { Role } from "@/lib/roleConfig";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
@@ -48,7 +45,7 @@ function ForgotPassword() {
             </div>
             <div>
               <div className="text-lg font-bold">Reset your password</div>
-              <div className="text-sm text-slate-600">Choose your role and submit a request.</div>
+              <div className="text-sm text-slate-600">Unified password recovery service for all ERP user roles.</div>
             </div>
           </div>
 
@@ -63,41 +60,41 @@ function ForgotPassword() {
 
             <TabsContent value="teacher" className="mt-6">
               <IdentifierForm
+                role="teacher"
                 title="Teacher password reset"
-                subtitle="Your request will be sent to the Office Staff for verification."
+                subtitle="Enter your Login ID or Employee ID to generate a secure temporary password."
                 label="Login ID or Employee ID"
-                placeholder="e.g. TCH100"
-                onSubmit={(v) => requestTeacherReset(v)}
+                placeholder="e.g. TCH1001"
               />
             </TabsContent>
 
             <TabsContent value="parent" className="mt-6">
               <IdentifierForm
+                role="parent"
                 title="Parent password reset"
-                subtitle="Your request will be sent to the Office Staff for verification."
+                subtitle="Enter your Admission Number, Mobile Number, or Parent Login ID."
                 label="Admission Number or Mobile Number"
-                placeholder="e.g. SUN/26-2001 or 9012345678"
-                onSubmit={(v) => requestParentReset(v)}
+                placeholder="e.g. STU1001 or 9876543210"
               />
             </TabsContent>
 
             <TabsContent value="office" className="mt-6">
               <IdentifierForm
+                role="office"
                 title="Office Staff password reset"
-                subtitle="Your request will be sent to the Admin for verification."
+                subtitle="Enter your Office Login ID to reset your password."
                 label="Login ID"
                 placeholder="e.g. OFFICE001"
-                onSubmit={(v) => requestSystemReset(v)}
               />
             </TabsContent>
 
             <TabsContent value="principal" className="mt-6">
               <IdentifierForm
+                role="principal"
                 title="Principal password reset"
-                subtitle="Your request will be sent to the Admin for verification."
+                subtitle="Enter your Principal Login ID to reset your password."
                 label="Login ID"
                 placeholder="e.g. PRINCIPAL001"
-                onSubmit={(v) => requestSystemReset(v)}
               />
             </TabsContent>
 
@@ -106,8 +103,8 @@ function ForgotPassword() {
                 <div className="flex items-start gap-2">
                   <ShieldAlert className="mt-0.5 h-4 w-4" />
                   <div>
-                    <div className="font-semibold">Admin cannot self-reset.</div>
-                    <div className="mt-1">Please contact the ERP System Owner to reset the Admin password.</div>
+                    <div className="font-semibold">Admin self-reset restricted.</div>
+                    <div className="mt-1">Please contact the ERP System Administrator to update System Admin credentials.</div>
                   </div>
                 </div>
               </div>
@@ -125,41 +122,82 @@ function ForgotPassword() {
 }
 
 function IdentifierForm({
+  role,
   title,
   subtitle,
   label,
   placeholder,
-  onSubmit,
 }: {
+  role: Role;
   title: string;
   subtitle: string;
   label: string;
   placeholder: string;
-  onSubmit: (value: string) => { ok: true; request: { id: string } } | { ok: false; error: string };
 }) {
+  const navigate = useNavigate();
   const [value, setValue] = useState("");
-  const [submitted, setSubmitted] = useState<null | string>(null);
+  const [resultRequest, setResultRequest] = useState<ResetRequest | null>(null);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const result = onSubmit(value);
+    const result = processUnifiedPasswordReset(role, value);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    setSubmitted(result.request.id);
-    toast.success("Reset request submitted.");
+    setResultRequest(result.request);
+    toast.success("Password reset successfully!");
   }
 
-  if (submitted) {
+  if (resultRequest) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-        <div className="font-semibold">Request received</div>
-        <div className="mt-1">
-          Your password reset request has been logged.
-          Please contact the office if you need urgent assistance.
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-sm text-emerald-950 space-y-3 shadow-sm">
+        <div className="flex items-center gap-2 font-bold text-emerald-900">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Password Reset Successful
         </div>
-        <div className="mt-2 text-xs text-emerald-800/80">Request ID: <span className="font-mono">{submitted}</span></div>
+        <p className="text-xs text-emerald-800 leading-relaxed">
+          Your account credentials have been updated and synchronized with the database. You can now log in immediately.
+        </p>
+        <div className="p-3.5 bg-white rounded-xl border border-emerald-200 font-mono text-xs space-y-1.5">
+          <div className="flex justify-between">
+            <span className="text-slate-500">Account Role:</span>
+            <span className="font-bold text-slate-900 uppercase">{resultRequest.role}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">Login ID:</span>
+            <span className="font-bold text-indigo-700">{resultRequest.loginId}</span>
+          </div>
+          {resultRequest.tempPassword && (
+            <div className="flex justify-between border-t pt-1.5 mt-1.5">
+              <span className="text-slate-500">Temporary Password:</span>
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{resultRequest.tempPassword}</span>
+            </div>
+          )}
+        </div>
+        <div className="pt-2 flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (resultRequest.tempPassword) {
+                navigator.clipboard.writeText(resultRequest.tempPassword);
+                toast.success("Password copied to clipboard!");
+              }
+            }}
+            className="bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-100 rounded-xl"
+          >
+            <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy Password
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => navigate({ to: "/" })}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow"
+          >
+            Sign In Now
+          </Button>
+        </div>
       </div>
     );
   }
@@ -167,21 +205,23 @@ function IdentifierForm({
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <div className="text-base font-semibold">{title}</div>
-        <div className="text-sm text-slate-600">{subtitle}</div>
+        <div className="text-base font-semibold text-slate-900">{title}</div>
+        <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
       </div>
       <div>
-        <Label htmlFor="identifier">{label}</Label>
+        <Label htmlFor="identifier" className="text-xs font-semibold text-slate-700">{label}</Label>
         <Input
           id="identifier"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
-          className="mt-1.5"
+          className="mt-1.5 bg-white border-slate-200 text-sm rounded-xl"
           autoFocus
         />
       </div>
-      <Button type="submit" className="w-full rounded-xl">Submit reset request</Button>
+      <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md py-2.5">
+        Reset Password Now
+      </Button>
     </form>
   );
 }
