@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
 import { fetchStaffAttendanceFromSupabase, saveStaffAttendanceRecord } from "@/lib/attendanceStore";
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { toast } from "sonner";
+
 export const Route = createFileRoute("/principal/attendance/staff")({
   head: () => ({
     meta: [
@@ -17,12 +20,13 @@ export const Route = createFileRoute("/principal/attendance/staff")({
   component: StaffAttendancePage,
 });
 
-function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" }) {
+function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" | "Late" }) {
   const map = {
     Present: "bg-success/15 text-success border-success/30",
+    Late: "bg-warning/20 text-warning-foreground border-warning/40",
     Absent: "bg-destructive/10 text-destructive border-destructive/30",
     "Half Day": "bg-warning/20 text-warning-foreground border-warning/40",
-    Leave: "bg-muted text-muted-foreground border-border",
+    Leave: "bg-purple-100 text-purple-700 border-purple-300",
   };
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${map[s] || map.Present}`}>{s}</span>;
 }
@@ -42,34 +46,46 @@ function StaffAttendancePage() {
     });
   };
 
+  useAutoRefresh("attendance", loadData);
+  useAutoRefresh("staff", loadData);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const handleStatusChange = (staffId: string, staffName: string, newStatus: string) => {
+    const checkIn = newStatus === "Absent" || newStatus === "Leave" ? "—" : "08:30 AM";
+    const checkOut = newStatus === "Absent" || newStatus === "Leave" ? "—" : "04:30 PM";
+
     setLiveAttendanceMap((prev) => ({
       ...prev,
       [staffId]: {
         status: newStatus,
-        checkIn: prev[staffId]?.checkIn || "08:30 AM",
-        checkOut: prev[staffId]?.checkOut || "04:30 PM",
+        checkIn,
+        checkOut,
       },
     }));
-    saveStaffAttendanceRecord(staffId, staffName, newStatus);
+    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn, checkOut);
+    toast.success(`Updated attendance for ${staffName} to ${newStatus}`);
   };
 
   const staffData = useMemo(() => {
     return teachersList.map((t, idx) => {
       const sId = t.id || `STF-${idx}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[t.name];
+      const status = rec?.status || "Present";
+      const checkIn = status === "Absent" || status === "Leave" ? "—" : rec?.checkIn || "08:30 AM";
+      const checkOut = status === "Absent" || status === "Leave" ? "—" : rec?.checkOut || "04:30 PM";
+      const workingHours = status === "Present" || status === "Late" ? "8h 00m" : status === "Half Day" ? "4h 00m" : "0h 00m";
+
       return {
         id: sId,
         name: t.name,
         department: (t as any).department || (idx % 3 === 0 ? "Academic" : idx % 3 === 1 ? "Administration" : "Sports"),
-        checkIn: rec?.checkIn || "08:30 AM",
-        checkOut: rec?.checkOut || "04:30 PM",
-        workingHours: "8h 00m",
-        status: (rec?.status || "Present") as "Present" | "Absent" | "Half Day" | "Leave",
+        checkIn,
+        checkOut,
+        workingHours,
+        status,
       };
     });
   }, [teachersList, liveAttendanceMap]);
@@ -126,7 +142,19 @@ function StaffAttendancePage() {
                     <td className="px-4 py-3">{r.checkIn}</td>
                     <td className="px-4 py-3">{r.checkOut}</td>
                     <td className="px-4 py-3">{r.workingHours}</td>
-                    <td className="px-4 py-3"><StatusBadge s={r.status} /></td>
+                    <td className="px-4 py-3">
+                      <Select value={r.status} onValueChange={(val) => handleStatusChange(r.id, r.name, val)}>
+                        <SelectTrigger className="w-[120px] h-8 text-xs font-semibold bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Present">Present</SelectItem>
+                          <SelectItem value="Late">Late</SelectItem>
+                          <SelectItem value="Absent">Absent</SelectItem>
+                          <SelectItem value="Leave">Leave</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (

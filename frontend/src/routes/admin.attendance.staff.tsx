@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { CalendarCheck, UserCheck, UserX, Clock, Download } from "lucide-react";
 import { PageHeader, StatCard } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
+import { fetchStaffAttendanceFromSupabase, saveStaffAttendanceRecord } from "@/lib/attendanceStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/attendance/staff")({
   component: StaffAttendancePage,
@@ -19,7 +22,7 @@ export const Route = createFileRoute("/admin/attendance/staff")({
   }),
 });
 
-type StaffStatus = "Present" | "Late" | "Absent";
+type StaffStatus = "Present" | "Late" | "Absent" | "Leave";
 
 interface StaffAttendanceRow {
   id: string;
@@ -43,38 +46,65 @@ const DEPARTMENTS: Record<string, string> = {
 
 function StaffAttendancePage() {
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
+  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     fetchTeachers().then(({ data }) => {
       setTeachersList(data || []);
     });
-  };
+    fetchStaffAttendanceFromSupabase().then((res) => {
+      setLiveAttendanceMap(res || {});
+    });
+  }, []);
 
   useAutoRefresh("attendance", loadData);
+  useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
+
+  const handleStatusChange = (staffId: string, staffName: string, newStatus: StaffStatus) => {
+    const checkIn = newStatus === "Absent" || newStatus === "Leave" ? null : "08:30 AM";
+    const checkOut = newStatus === "Absent" || newStatus === "Leave" ? null : "04:30 PM";
+
+    setLiveAttendanceMap((prev) => ({
+      ...prev,
+      [staffId]: {
+        status: newStatus,
+        checkIn: checkIn || "",
+        checkOut: checkOut || "",
+      },
+    }));
+    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn || "—", checkOut || "—");
+    toast.success(`Updated attendance for ${staffName} to ${newStatus}`);
+  };
 
   const rows: StaffAttendanceRow[] = useMemo(() => {
     return teachersList.map((s, i) => {
-      const status: StaffStatus = "Present";
+      const sId = s.id || `STF-${i}`;
+      const rec = liveAttendanceMap[sId] || liveAttendanceMap[s.name];
+      const status: StaffStatus = (rec?.status as StaffStatus) || "Present";
+      const checkIn = status === "Absent" || status === "Leave" ? null : rec?.checkIn || "08:30 AM";
+      const checkOut = status === "Absent" || status === "Leave" ? null : rec?.checkOut || "04:30 PM";
+      const workingHours = status === "Present" || status === "Late" ? "8h 00m" : "0h 00m";
+
       return {
-        id: s.id,
+        id: sId,
         name: s.name,
-        employeeId: s.id,
+        employeeId: sId,
         department: DEPARTMENTS[(s as any).role || "Teacher"] ?? "Academics",
         designation: (s as any).role || "Teacher",
-        checkIn: "08:45 AM",
-        checkOut: "05:00 PM",
-        workingHours: "8h 15m",
+        checkIn,
+        checkOut,
+        workingHours,
         status,
-        avatar: s.avatar || "/avatars/teacher.svg",
+        avatar: s.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(s.name)}`,
       };
     });
-  }, [teachersList]);
+  }, [teachersList, liveAttendanceMap]);
 
   const departments = useMemo(
     () => Array.from(new Set(rows.map((r) => r.department))),
@@ -182,7 +212,17 @@ function StaffAttendancePage() {
               <TableCell className="font-mono text-xs">{r.checkOut ?? "—"}</TableCell>
               <TableCell className="font-mono text-xs">{r.workingHours}</TableCell>
               <TableCell>
-                <StatusPill status={r.status} />
+                <Select value={r.status} onValueChange={(val) => handleStatusChange(r.id, r.name, val as StaffStatus)}>
+                  <SelectTrigger className="w-[120px] h-8 text-xs font-semibold bg-white border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Present">Present</SelectItem>
+                    <SelectItem value="Late">Late</SelectItem>
+                    <SelectItem value="Absent">Absent</SelectItem>
+                    <SelectItem value="Leave">Leave</SelectItem>
+                  </SelectContent>
+                </Select>
               </TableCell>
             </TableRow>
           ))}
