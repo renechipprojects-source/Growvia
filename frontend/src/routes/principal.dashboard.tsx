@@ -107,17 +107,17 @@ function DashboardPage() {
   const todayPayments = useMemo(() => {
     return paymentsList.filter((p) => {
       const pDate = p.payment_date || p.paymentDate || p.created_at?.slice(0, 10);
-      return pDate === todayStr || p.status === "Paid";
+      return pDate === currentDateStr || p.status === "Paid";
     });
-  }, [paymentsList, todayStr]);
+  }, [paymentsList, currentDateStr]);
 
   // Filter Today's Admissions only
   const todayAdmissions = useMemo(() => {
     return studentsList.filter((s) => {
       const aDate = s.admissionDate?.slice(0, 10);
-      return aDate === todayStr;
+      return aDate === currentDateStr;
     });
-  }, [studentsList, todayStr]);
+  }, [studentsList, currentDateStr]);
 
   return (
     <div className="w-full max-w-none flex flex-1 min-h-0 flex-col overflow-y-auto space-y-6 pr-1">
