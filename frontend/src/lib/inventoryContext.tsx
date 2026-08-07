@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "./supabase";
 
 export interface InventoryCategory {

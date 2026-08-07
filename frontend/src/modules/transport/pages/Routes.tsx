@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPinned, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,6 @@ const filters: FilterDef<Route>[] = [
 
 import { fetchTransportRoutes, saveTransportRoute as saveTransportRouteService, deleteTransportRoute as deleteTransportRouteService } from "@/lib/supabaseService";
 import { getStoredRoutes, saveStoredRoutes } from "../transportStore";
-import { useEffect } from "react";
 
 export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   const [routeList, setRouteList] = useState<Route[]>(getStoredRoutes);

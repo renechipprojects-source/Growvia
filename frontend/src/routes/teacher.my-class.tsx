@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Baby, Cake, ShieldCheck, Users, UserCheck, UserX, BookOpen, Sparkles, MessageSquarePlus, Search, Award, TrendingDown } from "lucide-react";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";

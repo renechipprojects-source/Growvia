@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Power, BookOpen, GraduationCap, UserCheck, BarChart3, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useClassAssignments, type ClassAssignment, type AssignmentRole } from "@/lib/classAssignmentContext";
 
 export const Route = createFileRoute("/office/class-assignment")({ component: ClassAssignmentPage });
@@ -32,7 +32,6 @@ const EMPTY: Draft = {
   status: "active",
 };
 
-import { useEffect } from "react";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 function ClassAssignmentPage() {
