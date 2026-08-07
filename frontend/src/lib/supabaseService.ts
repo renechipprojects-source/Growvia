@@ -379,26 +379,29 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
       }
 
       if (rows.length > 0) {
-        const mapped: Student[] = rows.map((d: any) => ({
-          id: d.id || d.login_id,
-          rollNo: d.roll_no || 1,
-          admissionNo: d.admission_no || d.id,
-          name: d.full_name || "Student",
-          age: d.age || 4,
-          dob: d.date_of_birth || "2022-01-01",
-          className: d.class_name || "Nursery",
-          section: d.section || "A",
-          parent: d.parent_name || "Parent",
-          parentId: d.parent_id || `PAR-${d.id}`,
-          phone: d.mobile || "9876543210",
-          gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-          house: d.house || "Red",
-          admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-          feeStatus: (d.fee_status as any) || "Pending",
-          avatar: d.photo_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-          attendance: Number(d.attendance_pct || 95.0),
-          branch: d.branch || "Main Branch",
-        }));
+        const mapped: Student[] = rows.map((d: any) => {
+          const cachedMatch = cached.find((c) => c.id === d.id || c.admissionNo === d.admission_no || c.name === d.full_name);
+          return {
+            id: d.id || d.login_id,
+            rollNo: d.roll_no || 1,
+            admissionNo: d.admission_no || d.id,
+            name: d.full_name || "Student",
+            age: d.age || 4,
+            dob: d.date_of_birth || "2022-01-01",
+            className: d.class_name || "Nursery",
+            section: d.section || "A",
+            parent: d.parent_name || "Parent",
+            parentId: d.parent_id || `PAR-${d.id}`,
+            phone: d.mobile || "9876543210",
+            gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+            house: d.house || "Red",
+            admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+            feeStatus: (d.fee_status as any) || "Pending",
+            avatar: d.photo_url || d.avatar_url || d.avatar || cachedMatch?.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+            attendance: Number(d.attendance_pct || 95.0),
+            branch: d.branch || "Main Branch",
+          };
+        });
 
         setCachedStudentsList(mapped);
         return { data: mapped, isFromSupabase: true };
@@ -470,6 +473,8 @@ export async function createStudent(student: Omit<Student, "id"> & {
     house: student.house || "Red",
     fee_status: student.feeStatus || "Pending",
     status: "active",
+    photo_url: student.avatar,
+    avatar_url: student.avatar,
   };
 
   try {

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ClipboardCheck, LinkIcon, HeartPulse, Upload, FileText } from "lucide-react";
+import { ClipboardCheck, LinkIcon, HeartPulse, Upload, FileText, User, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useEnquiries } from "@/lib/enquiryContext";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
@@ -77,6 +77,52 @@ function Admissions() {
   const enquiry = enquiryId ? getEnquiry(enquiryId) : undefined;
   const alreadyConverted = enquiryId ? isConverted(enquiryId) : false;
 
+  const [photoBase64, setPhotoBase64] = useState<string>("");
+
+  const handleLocalPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file (JPG, PNG, WEBP).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setPhotoBase64(compressedDataUrl);
+        toast.success("Local student photo attached!");
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const defaults = useMemo<Partial<Values>>(() => ({
     className: enquiry?.interestedClass ?? "",
     childName: enquiry?.childName ?? "",
@@ -130,7 +176,7 @@ function Admissions() {
 
     const { error } = await createStudent({
       admissionNo: v.admissionNo || autoAdmissionNo(),
-      rollNo: 0, // Unallocated on admission; assigned alphabetically by teacher after section allocation
+      rollNo: 0,
       name: v.childName,
       age: parseInt(v.age || "3", 10),
       dob: v.dob || "2022-01-01",
@@ -149,7 +195,7 @@ function Admissions() {
       house: "Red",
       admissionDate: v.admissionDate || new Date().toISOString().split("T")[0],
       feeStatus: "Pending",
-      avatar: `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(v.childName)}`,
+      avatar: photoBase64 || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(v.childName)}`,
       attendance: 100,
       branch: "Main Branch",
     });
@@ -158,6 +204,7 @@ function Admissions() {
     toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
     triggerModuleRefresh("students");
     triggerModuleRefresh("admissions");
+    setPhotoBase64("");
     reset();
     navigate({ to: "/office/students" });
   };
@@ -189,6 +236,60 @@ function Admissions() {
               onSubmit={handleSubmit(onSubmit)}
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
+              {/* Student Photo Upload (Local Only) */}
+              <div className="md:col-span-2 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 to-purple-50/60 p-4 flex flex-col md:flex-row items-center gap-4">
+                <div className="relative shrink-0">
+                  {photoBase64 ? (
+                    <img
+                      src={photoBase64}
+                      alt="Student Photo"
+                      className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-slate-200 border-4 border-white shadow-md flex items-center justify-center text-slate-400">
+                      <User className="w-9 h-9" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-1">
+                  <Label className="font-semibold text-slate-800 text-sm flex items-center gap-1.5 justify-center md:justify-start">
+                    <Upload className="w-4 h-4 text-indigo-600" /> Student Photo (Upload from Local Device)
+                  </Label>
+                  <p className="text-xs text-slate-500">
+                    Select a local image file (JPG, PNG, WEBP). This photo will display across all student lists and in the Parent Portal upon login.
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+                    <input
+                      type="file"
+                      id="student-photo-file-input"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLocalPhotoSelect}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="bg-white hover:bg-slate-50 text-indigo-700 border-indigo-200 text-xs shadow-sm"
+                      onClick={() => document.getElementById("student-photo-file-input")?.click()}
+                    >
+                      <Upload className="w-3.5 h-3.5 mr-1.5" /> Choose Local Photo File
+                    </Button>
+                    {photoBase64 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-rose-600 hover:text-rose-800 text-xs"
+                        onClick={() => setPhotoBase64("")}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <Field label="Admission Number" error={errors.admissionNo?.message}>
                 <Input {...register("admissionNo")} className="bg-white/70" readOnly />
               </Field>

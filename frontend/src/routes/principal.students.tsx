@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Eye, SortAsc } from "lucide-react";
@@ -85,6 +86,7 @@ function StudentsPage() {
         attendance: { present: 95, absent: 5, late: 0, total: 100 },
         teacherRemarks: "Active in class",
         avatarSeed: s.name,
+        avatar: s.avatar,
       }));
       setItems(mapped);
     });
@@ -211,9 +213,12 @@ function StudentsPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full gradient-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
-                          {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                        </div>
+                        <Avatar className="h-9 w-9 border shadow-sm shrink-0">
+                          <AvatarImage src={s.avatar} alt={s.name} className="object-cover" />
+                          <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                            {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <div className="font-medium group-hover:text-primary transition-colors">{s.name}</div>
                           <div className="text-xs text-muted-foreground">{s.gender} · {s.bloodGroup}</div>
