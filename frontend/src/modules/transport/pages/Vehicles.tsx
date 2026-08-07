@@ -122,8 +122,8 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   return (
     <div className="w-full max-w-none space-y-6">
       <PageHeader
-        title="Vehicles"
-        description="Fleet, drivers and vehicle status."
+        title="Buses & Vehicles"
+        description="School bus details, seating capacity, and maintenance status."
         actions={!readOnly ? <Button onClick={handleOpenAdd}><Plus className="mr-2 h-4 w-4" />Add Vehicle</Button> : undefined}
       />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

@@ -1,4 +1,4 @@
-import { Bus, MapPinned, GraduationCap } from "lucide-react";
+import { Bus, MapPinned } from "lucide-react";
 import { ModuleLayout, type NavItem } from "./components/ModuleLayout";
 import { VehiclesPage } from "./pages/Vehicles";
 import { DriversPage } from "./pages/Drivers";
@@ -6,41 +6,93 @@ import { RoutesPage } from "./pages/Routes";
 import { StudentAllocationPage } from "./pages/StudentAllocation";
 import { useState } from "react";
 
-function VehicleAndDriverMerged({ readOnly }: { readOnly?: boolean }) {
-  const [subTab, setSubTab] = useState<"vehicles" | "drivers">("vehicles");
+function RoutesAndStudentsMerged({ readOnly }: { readOnly?: boolean }) {
+  const [subTab, setSubTab] = useState<"routes" | "students">("routes");
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 border-b pb-2">
+      <div className="flex items-center gap-2 border-b border-border/60 pb-2">
         <button
-          onClick={() => setSubTab("vehicles")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            subTab === "vehicles" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
+          onClick={() => setSubTab("routes")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            subTab === "routes"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-muted/40 text-muted-foreground hover:bg-muted"
           }`}
         >
-          Fleet Vehicles
+          Bus Routes & Stops
         </button>
         <button
-          onClick={() => setSubTab("drivers")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            subTab === "drivers" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
+          onClick={() => setSubTab("students")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            subTab === "students"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-muted/40 text-muted-foreground hover:bg-muted"
           }`}
         >
-          Drivers Roster
+          Student Bus Assignments
         </button>
       </div>
 
-      {subTab === "vehicles" ? <VehiclesPage readOnly={readOnly} /> : <DriversPage readOnly={readOnly} />}
+      {subTab === "routes" ? <RoutesPage readOnly={readOnly} /> : <StudentAllocationPage readOnly={readOnly} />}
+    </div>
+  );
+}
+
+function BusesAndDriversMerged({ readOnly }: { readOnly?: boolean }) {
+  const [subTab, setSubTab] = useState<"buses" | "drivers">("buses");
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+        <button
+          onClick={() => setSubTab("buses")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            subTab === "buses"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-muted/40 text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Buses & Vehicles
+        </button>
+        <button
+          onClick={() => setSubTab("drivers")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            subTab === "drivers"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-muted/40 text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Drivers & Staff
+        </button>
+      </div>
+
+      {subTab === "buses" ? <VehiclesPage readOnly={readOnly} /> : <DriversPage readOnly={readOnly} />}
     </div>
   );
 }
 
 export function TransportModule({ readOnly = false }: { readOnly?: boolean } = {}) {
   const nav: NavItem[] = [
-    { key: "vehicles-drivers", label: "Vehicle & Driver", icon: <Bus className="h-4 w-4" />, page: <VehicleAndDriverMerged readOnly={readOnly} /> },
-    { key: "routes", label: "Routes", icon: <MapPinned className="h-4 w-4" />, page: <RoutesPage readOnly={readOnly} /> },
-    { key: "assignments", label: "Assignments", icon: <GraduationCap className="h-4 w-4" />, page: <StudentAllocationPage readOnly={readOnly} /> },
+    {
+      key: "routes-students",
+      label: "Bus Routes & Students",
+      icon: <MapPinned className="h-4 w-4" />,
+      page: <RoutesAndStudentsMerged readOnly={readOnly} />,
+    },
+    {
+      key: "buses-drivers",
+      label: "Buses & Drivers",
+      icon: <Bus className="h-4 w-4" />,
+      page: <BusesAndDriversMerged readOnly={readOnly} />,
+    },
   ];
-  return <ModuleLayout title="Transport Management" subtitle="Fleet management, driver roster & route assignments" nav={nav} />;
+
+  return (
+    <ModuleLayout
+      title="Transport Management"
+      subtitle="School bus routes, student transport assignments, vehicles, and driver management."
+      nav={nav}
+    />
+  );
 }
 
 export { VehiclesPage, RoutesPage, DriversPage, StudentAllocationPage };

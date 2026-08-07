@@ -120,9 +120,9 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
   return (
     <div className="w-full max-w-none space-y-6">
       <PageHeader
-        title="Student Transport Allocation"
-        description="Assign students to routes, vehicles and pickup points."
-        actions={!readOnly ? <Button onClick={handleOpenAdd}><Plus className="mr-2 h-4 w-4" />Allocate Student</Button> : undefined}
+        title="Student Bus Assignments"
+        description="Assign students to bus routes, pickup stops, and transport fees."
+        actions={!readOnly ? <Button onClick={handleOpenAdd}><Plus className="mr-2 h-4 w-4" />Assign Student to Bus</Button> : undefined}
       />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard label="Allocated Students" value={allocationList.length} icon={<GraduationCap className="h-5 w-5" />} />
