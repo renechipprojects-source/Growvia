@@ -49,13 +49,13 @@ function StudentAttendancePage() {
   const attendanceData = useMemo(() => {
     return studentsList.map((s: any, idx: number) => {
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
-      const st = live ? live.status : "P";
+      const st = live ? live.status : null;
       return {
         id: s.id || `ATT-${idx}`,
         name: s.name,
         className: s.className || "Nursery",
         section: s.section || "A",
-        status: st as "P" | "A" | "L" | "Lv",
+        status: st as "P" | "A" | "L" | "Lv" | null,
         admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
         rollNo: s.rollNo || idx + 1,
         parent: s.parent || "Parent",
@@ -68,7 +68,7 @@ function StudentAttendancePage() {
     () =>
       attendanceData.filter((r: any) => {
         const matchQ = !q || r.name.toLowerCase().includes(q.toLowerCase()) || r.className.toLowerCase().includes(q.toLowerCase());
-        const matchS = status === "all" || r.status === status;
+        const matchS = status === "all" || (status === "unmarked" ? r.status === null : r.status === status);
         const matchC = selectedClass === "all" || r.className === selectedClass;
         return matchQ && matchS && matchC;
       }),
@@ -80,8 +80,9 @@ function StudentAttendancePage() {
     const a = filtered.filter((x: any) => x.status === "A").length;
     const l = filtered.filter((x: any) => x.status === "L").length;
     const lv = filtered.filter((x: any) => x.status === "Lv").length;
+    const markedTotal = p + a + l + lv;
     const total = filtered.length;
-    const pct = total ? Math.round(((p + l) / total) * 100) : 0;
+    const pct = markedTotal ? Math.round(((p + l) / markedTotal) * 100) : 0;
     return { p, a, l, lv, total, pct };
   }, [filtered]);
 
@@ -125,6 +126,7 @@ function StudentAttendancePage() {
               <SelectItem value="A">Absent</SelectItem>
               <SelectItem value="L">Late</SelectItem>
               <SelectItem value="Lv">Leave</SelectItem>
+              <SelectItem value="unmarked">Not Marked</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -150,7 +152,15 @@ function StudentAttendancePage() {
                   <tr key={r.id} className="border-t hover:bg-muted/30">
                     <td className="px-4 py-3 font-medium">{r.name}</td>
                     <td className="px-4 py-3">{r.className} - {r.section}</td>
-                    <td className="px-4 py-3"><StatusPill s={r.status} /></td>
+                    <td className="px-4 py-3">
+                      {r.status ? (
+                        <StatusPill s={r.status} />
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-slate-100 text-slate-600 border-slate-300">
+                          Not Marked
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <Button size="sm" variant="ghost" onClick={() => setViewingStudent(r.rawStudent || r)} className="text-sky-600">
                         <Eye className="w-4 h-4 mr-1" /> View Details

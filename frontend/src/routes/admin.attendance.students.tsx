@@ -69,18 +69,22 @@ function StudentAttendancePage() {
     let totalA = 0;
     let totalL = 0;
     let totalLv = 0;
+    let totalMarked = 0;
 
     filteredStudents.forEach((s: any) => {
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
-      const status = live ? live.status : "P";
-      if (status === "P") totalP++;
-      else if (status === "A") totalA++;
-      else if (status === "L") totalL++;
-      else if (status === "Lv") totalLv++;
+      if (live) {
+        totalMarked++;
+        const status = live.status;
+        if (status === "P") totalP++;
+        else if (status === "A") totalA++;
+        else if (status === "L") totalL++;
+        else if (status === "Lv") totalLv++;
+      }
     });
 
     const totalStudents = filteredStudents.length;
-    const pct = totalStudents ? Math.round(((totalP + totalL) / totalStudents) * 100) : 0;
+    const pct = totalMarked > 0 ? Math.round(((totalP + totalL) / totalMarked) * 100) : 0;
 
     return {
       present: totalP,
@@ -89,6 +93,7 @@ function StudentAttendancePage() {
       leave: totalLv,
       pct,
       totalStudents,
+      totalMarked,
     };
   }, [filteredStudents, liveAttendanceRecords]);
 
@@ -98,7 +103,7 @@ function StudentAttendancePage() {
     const rows = filteredStudents.map((s: any) => {
       const details = getStudentAttendanceDetails(s.id, s);
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
-      const status = live ? MARK_LABEL[live.status] : "Present";
+      const status = live ? MARK_LABEL[live.status as Mark] : "Not Marked";
       return [s.id, s.admissionNo || "ADM-1001", s.name, s.className || "Playgroup", s.section || "A", status, `${details.percentage}%`];
     });
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((row: any) => row.join(","))].join("\n");
@@ -149,7 +154,7 @@ function StudentAttendancePage() {
         >
           {filteredStudents.map((s: any) => {
             const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
-            const status: Mark = live ? (live.status as Mark) : "P";
+            const statusMark: Mark | null = live ? (live.status as Mark) : null;
             const details = getStudentAttendanceDetails(s.id, s);
 
             return (
@@ -166,7 +171,13 @@ function StudentAttendancePage() {
                 <TableCell className="font-mono text-xs text-muted-foreground">{s.admissionNo || s.id}</TableCell>
                 <TableCell>{s.className || "Playgroup"} - {s.section || "A"}</TableCell>
                 <TableCell>
-                  <StatusBadge mark={status} />
+                  {statusMark ? (
+                    <StatusBadge mark={statusMark} />
+                  ) : (
+                    <Badge variant="outline" className="text-slate-500 bg-slate-50 border-slate-200 text-xs font-normal">
+                      Not Marked
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

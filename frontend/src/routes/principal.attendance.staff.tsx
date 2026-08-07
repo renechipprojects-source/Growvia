@@ -54,8 +54,16 @@ function StaffAttendancePage() {
   }, []);
 
   const handleStatusChange = (staffId: string, staffName: string, newStatus: string) => {
-    const checkIn = newStatus === "Absent" || newStatus === "Leave" ? "—" : "08:30 AM";
-    const checkOut = newStatus === "Absent" || newStatus === "Leave" ? "—" : "04:30 PM";
+    let checkIn = "—";
+    let checkOut = "—";
+
+    if (newStatus === "Present") {
+      checkIn = "08:30 AM";
+      checkOut = "04:30 PM";
+    } else if (newStatus === "Late") {
+      checkIn = "09:15 AM";
+      checkOut = "04:30 PM";
+    }
 
     setLiveAttendanceMap((prev) => ({
       ...prev,
@@ -73,10 +81,26 @@ function StaffAttendancePage() {
     return teachersList.map((t, idx) => {
       const sId = t.id || `STF-${idx}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[t.name];
-      const status = rec?.status || "Present";
-      const checkIn = status === "Absent" || status === "Leave" ? "—" : rec?.checkIn || "08:30 AM";
-      const checkOut = status === "Absent" || status === "Leave" ? "—" : rec?.checkOut || "04:30 PM";
-      const workingHours = status === "Present" || status === "Late" ? "8h 00m" : status === "Half Day" ? "4h 00m" : "0h 00m";
+      const hasRecord = Boolean(rec && rec.status);
+      const status = hasRecord ? rec.status : "Not Marked";
+
+      let checkIn = "—";
+      let checkOut = "—";
+      let workingHours = "—";
+
+      if (status === "Present") {
+        checkIn = rec?.checkIn || "08:30 AM";
+        checkOut = rec?.checkOut || "04:30 PM";
+        workingHours = "8h 00m";
+      } else if (status === "Late") {
+        checkIn = rec?.checkIn || "09:15 AM";
+        checkOut = rec?.checkOut || "04:30 PM";
+        workingHours = "7h 15m";
+      } else if (status === "Absent" || status === "Leave") {
+        checkIn = "—";
+        checkOut = "—";
+        workingHours = "0h 00m";
+      }
 
       return {
         id: sId,
@@ -139,15 +163,16 @@ function StaffAttendancePage() {
                       <div className="font-medium">{r.name}</div>
                     </td>
                     <td className="px-4 py-3">{r.department}</td>
-                    <td className="px-4 py-3">{r.checkIn}</td>
-                    <td className="px-4 py-3">{r.checkOut}</td>
-                    <td className="px-4 py-3">{r.workingHours}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{r.checkIn}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{r.checkOut}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{r.workingHours}</td>
                     <td className="px-4 py-3">
                       <Select value={r.status} onValueChange={(val) => handleStatusChange(r.id, r.name, val)}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs font-semibold bg-white border-slate-200">
+                        <SelectTrigger className="w-[130px] h-8 text-xs font-semibold bg-white border-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="Not Marked">Not Marked</SelectItem>
                           <SelectItem value="Present">Present</SelectItem>
                           <SelectItem value="Late">Late</SelectItem>
                           <SelectItem value="Absent">Absent</SelectItem>

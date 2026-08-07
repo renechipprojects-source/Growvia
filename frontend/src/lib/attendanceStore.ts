@@ -180,12 +180,12 @@ export function getAttendanceForDate(date: string, className?: string, section?:
 
 export function getStudentAttendanceDetails(studentId: string, fallbackStudent?: any) {
   const records = getAttendanceForStudent(studentId).sort((a, b) => b.date.localeCompare(a.date));
-  const totalDays = records.length || 1;
+  const totalDays = records.length;
   const presentDays = records.filter((r) => r.status === "P").length;
   const absentDays = records.filter((r) => r.status === "A").length;
   const lateDays = records.filter((r) => r.status === "L").length;
   const leaveDays = records.filter((r) => r.status === "Lv").length;
-  const percentage = Math.round(((presentDays + lateDays) / totalDays) * 100);
+  const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 100;
 
   const weeklyRecords = records.slice(0, 5);
   const weeklyPresent = weeklyRecords.filter((r) => r.status === "P").length;

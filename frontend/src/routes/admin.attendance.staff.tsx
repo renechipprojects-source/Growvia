@@ -22,7 +22,7 @@ export const Route = createFileRoute("/admin/attendance/staff")({
   }),
 });
 
-type StaffStatus = "Present" | "Late" | "Absent" | "Leave";
+type StaffStatus = "Not Marked" | "Present" | "Late" | "Absent" | "Leave";
 
 interface StaffAttendanceRow {
   id: string;
@@ -67,18 +67,26 @@ function StaffAttendancePage() {
   }, [loadData]);
 
   const handleStatusChange = (staffId: string, staffName: string, newStatus: StaffStatus) => {
-    const checkIn = newStatus === "Absent" || newStatus === "Leave" ? null : "08:30 AM";
-    const checkOut = newStatus === "Absent" || newStatus === "Leave" ? null : "04:30 PM";
+    let checkIn = "—";
+    let checkOut = "—";
+
+    if (newStatus === "Present") {
+      checkIn = "08:30 AM";
+      checkOut = "04:30 PM";
+    } else if (newStatus === "Late") {
+      checkIn = "09:15 AM";
+      checkOut = "04:30 PM";
+    }
 
     setLiveAttendanceMap((prev) => ({
       ...prev,
       [staffId]: {
         status: newStatus,
-        checkIn: checkIn || "",
-        checkOut: checkOut || "",
+        checkIn,
+        checkOut,
       },
     }));
-    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn || "—", checkOut || "—");
+    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn, checkOut);
     toast.success(`Updated attendance for ${staffName} to ${newStatus}`);
   };
 
@@ -86,10 +94,26 @@ function StaffAttendancePage() {
     return teachersList.map((s, i) => {
       const sId = s.id || `STF-${i}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[s.name];
-      const status: StaffStatus = (rec?.status as StaffStatus) || "Present";
-      const checkIn = status === "Absent" || status === "Leave" ? null : rec?.checkIn || "08:30 AM";
-      const checkOut = status === "Absent" || status === "Leave" ? null : rec?.checkOut || "04:30 PM";
-      const workingHours = status === "Present" || status === "Late" ? "8h 00m" : "0h 00m";
+      const hasRecord = Boolean(rec && rec.status);
+      const status: StaffStatus = hasRecord ? (rec.status as StaffStatus) : "Not Marked";
+
+      let checkIn: string | null = null;
+      let checkOut: string | null = null;
+      let workingHours = "—";
+
+      if (status === "Present") {
+        checkIn = rec?.checkIn || "08:30 AM";
+        checkOut = rec?.checkOut || "04:30 PM";
+        workingHours = "8h 00m";
+      } else if (status === "Late") {
+        checkIn = rec?.checkIn || "09:15 AM";
+        checkOut = rec?.checkOut || "04:30 PM";
+        workingHours = "7h 15m";
+      } else if (status === "Absent" || status === "Leave") {
+        checkIn = "—";
+        checkOut = "—";
+        workingHours = "0h 00m";
+      }
 
       return {
         id: sId,
@@ -128,11 +152,12 @@ function StaffAttendancePage() {
     });
   }, [rows, search, filterValues]);
 
+  const markedRows = rows.filter((r) => r.status !== "Not Marked");
   const present = rows.filter((r) => r.status === "Present").length;
   const late = rows.filter((r) => r.status === "Late").length;
   const absent = rows.filter((r) => r.status === "Absent").length;
-  const pct = rows.length
-    ? Math.round(((present + late) / rows.length) * 100)
+  const pct = markedRows.length
+    ? Math.round(((present + late) / markedRows.length) * 100)
     : 0;
 
   const handleExportCSV = () => {
@@ -217,6 +242,7 @@ function StaffAttendancePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Not Marked">Not Marked</SelectItem>
                     <SelectItem value="Present">Present</SelectItem>
                     <SelectItem value="Late">Late</SelectItem>
                     <SelectItem value="Absent">Absent</SelectItem>
