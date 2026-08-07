@@ -8,12 +8,16 @@ import {
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub,
-  SidebarMenuSubButton, SidebarMenuSubItem, SidebarFooter,
+  SidebarMenuSubButton, SidebarMenuSubItem, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { adminSignOut } from "@/lib/admin-auth";
 import { listForQueue, subscribeResets } from "@/lib/passwordResets";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+import { cn } from "@/lib/utils";
 
 function getPendingPasswordResetsCount() {
   return listForQueue("admin").filter((r) => r.status === "Pending").length;
@@ -82,23 +86,27 @@ export function AppSidebar() {
     url === "/admin" ? pathname === "/admin" : pathname.startsWith(url);
 
   return (
-    <Sidebar className="border-r border-slate-200/90 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
-      <SidebarHeader className="border-b border-slate-200/80 px-4 py-3">
+    <Sidebar collapsible="icon" className="border-r border-slate-200/90 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
+      <SidebarHeader className="border-b border-slate-200/80 px-3 py-3">
         <div className="flex items-center gap-3">
           {(() => {
             const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl;
             const hasCustomLogo = Boolean(logo) && !logo.includes("data:image/svg");
             return hasCustomLogo ? (
               <div className="flex shrink-0 items-center justify-center">
-                <img src={logo} alt="Logo" className="h-10 w-auto max-w-[100px] object-contain" />
+                <img src={logo} alt="Logo" className="h-8 w-8 object-contain" />
               </div>
-            ) : null;
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-sm">
+                {(settings.school.schoolName || "S")[0]}
+              </div>
+            );
           })()}
-          <div>
-            <div className="text-sm font-bold tracking-tight text-slate-900">
+          <div className="group-data-[collapsible=icon]:hidden min-w-0">
+            <div className="text-sm font-bold tracking-tight text-slate-900 truncate">
               {settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}
             </div>
-            <div className="text-[11px] font-medium text-slate-500">
+            <div className="text-[11px] font-medium text-slate-500 truncate">
               Academic Session {settings.school.academicYear}
             </div>
           </div>
@@ -111,7 +119,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/admin")}>
+                <SidebarMenuButton asChild isActive={isActive("/admin")} tooltip="Dashboard">
                   <Link to="/admin">
                     <LayoutDashboard className="text-slate-600" />
                     <span className="font-medium">Dashboard</span>
@@ -142,7 +150,7 @@ export function AppSidebar() {
                   <NavGroup key={entry.title} group={entry} pathname={pathname} />
                 ) : (
                   <SidebarMenuItem key={entry.url}>
-                    <SidebarMenuButton asChild isActive={isActive(entry.url)}>
+                    <SidebarMenuButton asChild isActive={isActive(entry.url)} tooltip={entry.title}>
                       <Link to={entry.url} className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <entry.icon className="text-slate-600" />
@@ -180,8 +188,44 @@ export function AppSidebar() {
 }
 
 function NavGroup({ group, pathname }: { group: Group; pathname: string }) {
+  const { state } = useSidebar();
   const hasActive = group.items.some((i) => pathname === i.url || pathname.startsWith(i.url + "/"));
   const [open, setOpen] = useState(hasActive);
+
+  if (state === "collapsed") {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton isActive={hasActive} tooltip={group.title} aria-label={group.title}>
+              <group.icon className="text-slate-600" />
+              <span className="sr-only">{group.title}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-48 rounded-2xl p-1.5 shadow-xl bg-white border border-slate-200 z-50">
+            <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {group.title}
+            </DropdownMenuLabel>
+            {group.items.map((item) => (
+              <DropdownMenuItem key={item.url} asChild>
+                <Link
+                  to={item.url}
+                  className={cn(
+                    "flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer w-full",
+                    pathname === item.url ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0 text-slate-600" />
+                  <span>{item.title}</span>
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} asChild>
       <SidebarMenuItem>
@@ -209,3 +253,4 @@ function NavGroup({ group, pathname }: { group: Group; pathname: string }) {
     </Collapsible>
   );
 }
+

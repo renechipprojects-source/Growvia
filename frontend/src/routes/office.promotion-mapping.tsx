@@ -71,7 +71,7 @@ function PromotionMappingPage() {
       <SectionCard title="Class Progression Rules (Source → Target)">
         <div className="overflow-x-auto rounded-2xl border border-slate-200">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-100 text-slate-700 font-semibold uppercase text-[11px]">
+            <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-slate-700 font-semibold uppercase text-[11px]">
               <tr>
                 <th className="px-4 py-3">Source Class (Current)</th>
                 <th className="px-4 py-3 text-center">Progression Flow</th>

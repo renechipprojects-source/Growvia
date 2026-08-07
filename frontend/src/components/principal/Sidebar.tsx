@@ -1,5 +1,8 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   LayoutDashboard,
   GraduationCap,
   Users,
@@ -150,37 +153,69 @@ export function PrincipalSidebar({
             const Icon = item.icon;
             if (item.children) {
               const activeGroup = item.children.some((c) => pathname.startsWith(c.to));
+              if (isCompact) {
+                return (
+                  <div key={item.label} className="flex justify-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          title={item.label}
+                          aria-label={item.label}
+                          className={cn(
+                            "w-full flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                            activeGroup
+                              ? "bg-indigo-50 text-indigo-700 font-semibold shadow-xs"
+                              : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
+                          )}
+                        >
+                          <Icon className={cn("w-[18px] h-[18px] shrink-0", activeGroup ? "text-indigo-600" : "text-slate-600")} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="right" align="start" className="w-48 rounded-2xl p-1.5 shadow-xl bg-white border border-slate-200 z-50">
+                        <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          {item.label}
+                        </DropdownMenuLabel>
+                        {item.children.map((c) => (
+                          <DropdownMenuItem key={c.to} asChild>
+                            <Link
+                              to={c.to}
+                              onClick={onClose}
+                              className={cn(
+                                "flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer w-full",
+                                pathname === c.to ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-100"
+                              )}
+                            >
+                              <span>{c.label}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              }
               return (
                 <div key={item.label}>
                   <button
                     onClick={() => {
-                      if (isCompact) {
-                        onToggleCollapsed();
-                        setAttendanceOpen(true);
-                      } else {
-                        setAttendanceOpen((v) => !v);
-                      }
+                      setAttendanceOpen((v) => !v);
                     }}
-                    title={isCompact ? item.label : undefined}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-                      isCompact ? "justify-center" : "justify-between",
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                       activeGroup
                         ? "bg-indigo-50 text-indigo-700 font-semibold shadow-xs"
                         : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
                     )}
                   >
-                    <span className={cn("flex items-center gap-3", isCompact && "justify-center")}>
+                    <span className="flex items-center gap-3">
                       <Icon className={cn("w-[18px] h-[18px] shrink-0", activeGroup ? "text-indigo-600" : "text-slate-600")} />
-                      {!isCompact && item.label}
+                      {item.label}
                     </span>
-                    {!isCompact && (
-                      <ChevronDown
-                        className={cn("w-4 h-4 text-slate-500 transition-transform", attendanceOpen && "rotate-180")}
-                      />
-                    )}
+                    <ChevronDown
+                      className={cn("w-4 h-4 text-slate-500 transition-transform", attendanceOpen && "rotate-180")}
+                    />
                   </button>
-                  {attendanceOpen && !isCompact && (
+                  {attendanceOpen && (
                     <div className="mt-1 ml-9 space-y-0.5 border-l border-slate-200 pl-3">
                       {item.children.map((c) => {
                         const active = pathname === c.to;

@@ -114,7 +114,7 @@ function ParentCredentialsPage() {
 
         <div className="overflow-auto rounded-2xl border border-white/60">
           <table className="min-w-[820px] w-full text-sm">
-            <thead className="bg-white/80 sticky top-0">
+            <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-md">
               <tr className="text-left">
                 <th className="px-3 py-2 font-medium">Student</th>
                 <th className="px-3 py-2 font-medium">Admission No</th>

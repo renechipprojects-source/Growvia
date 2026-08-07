@@ -97,8 +97,6 @@ const operations: Item[] = [
   { title: "Messages", url: "/office/messages", icon: MessageSquare },
 ];
 
-import { useDeveloperSettings } from "@/lib/developerSettingsStore";
-
 export function OfficeSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { settings } = useDeveloperSettings();
@@ -112,15 +110,15 @@ export function OfficeSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <Link to="/office" className="flex items-center gap-3 px-2 py-2">
-          <div className="flex shrink-0 items-center justify-center h-12 w-12">
+          <div className="flex shrink-0 items-center justify-center h-10 w-10">
             {settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl ? (
               <img
                 src={settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl}
                 alt="Logo"
-                className="h-12 w-12 object-contain"
+                className="h-8 w-8 object-contain"
               />
             ) : (
-              <Building2 className="h-8 w-8 text-amber-600" />
+              <Building2 className="h-7 w-7 text-amber-600" />
             )}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
@@ -136,7 +134,7 @@ export function OfficeSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/office")}>
+                <SidebarMenuButton asChild isActive={isActive("/office")} tooltip="Dashboard">
                   <Link to="/office">
                     <LayoutDashboard />
                     <span>Dashboard</span>
@@ -165,7 +163,7 @@ export function OfficeSidebar() {
             <SidebarMenu>
               {operations.map((entry) => (
                 <SidebarMenuItem key={entry.url}>
-                  <SidebarMenuButton asChild isActive={isActive(entry.url)}>
+                  <SidebarMenuButton asChild isActive={isActive(entry.url)} tooltip={entry.title}>
                     <Link to={entry.url}>
                       <entry.icon />
                       <span>{entry.title}</span>
@@ -200,10 +198,46 @@ export function OfficeSidebar() {
 }
 
 function NavGroup({ group, pathname }: { group: Group; pathname: string }) {
+  const { state } = useSidebar();
   const hasActive = group.items.some(
     (i) => pathname === i.url || pathname.startsWith(i.url + "/"),
   );
   const [open, setOpen] = useState(hasActive);
+
+  if (state === "collapsed") {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton isActive={hasActive} tooltip={group.title} aria-label={group.title}>
+              <group.icon className="text-slate-600" />
+              <span className="sr-only">{group.title}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-48 rounded-2xl p-1.5 shadow-xl bg-white border border-slate-200 z-50">
+            <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {group.title}
+            </DropdownMenuLabel>
+            {group.items.map((item) => (
+              <DropdownMenuItem key={item.url} asChild>
+                <Link
+                  to={item.url}
+                  className={cn(
+                    "flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-xl transition-colors cursor-pointer w-full",
+                    pathname === item.url ? "bg-amber-50 text-amber-700 font-bold" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0 text-slate-600" />
+                  <span>{item.title}</span>
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} asChild>
       <SidebarMenuItem>

@@ -164,7 +164,7 @@ function ClassAssignmentPage() {
       <SectionCard title="Class Teacher Assignments (1 Active Per Class)">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-medium uppercase text-[10px]">
+            <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-slate-500 font-medium uppercase text-[10px]">
               <tr>
                 <th className="py-3 px-3 text-left">Class & Section</th>
                 <th className="px-3 text-left">Assigned Class Teacher</th>
@@ -208,7 +208,7 @@ function ClassAssignmentPage() {
       <SectionCard title="Subject Teacher Assignments (Unlimited Multi-Class)">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-medium uppercase text-[10px]">
+            <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-slate-500 font-medium uppercase text-[10px]">
               <tr>
                 <th className="py-3 px-3 text-left">Teacher Name</th>
                 <th className="px-3 text-left">Subject</th>

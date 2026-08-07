@@ -74,7 +74,7 @@ function PrincipalFeesOverview() {
 
         <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border bg-card">
           <table className="w-full text-xs min-w-[900px]">
-            <thead className="bg-muted/60 uppercase text-muted-foreground sticky top-0 backdrop-blur z-10">
+            <thead className="bg-slate-100/95 uppercase text-muted-foreground sticky top-0 backdrop-blur-md z-20">
               <tr>
                 <th className="text-left px-4 py-3 font-semibold">Student Name</th>
                 <th className="text-left px-4 py-3 font-semibold">Admission No</th>

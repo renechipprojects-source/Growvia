@@ -235,7 +235,7 @@ function CircularsPage() {
 
         <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-muted/60 text-xs uppercase text-muted-foreground sticky top-0">
+              <thead className="bg-slate-100/95 backdrop-blur-md text-xs uppercase text-muted-foreground sticky top-0 z-20">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Title</th>
                   <th className="text-left px-4 py-3 font-medium">Recipients</th>

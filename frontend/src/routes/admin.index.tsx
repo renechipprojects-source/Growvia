@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Users, UserCheck, UserX, GraduationCap, CreditCard, UserPlus,
+  Users, UserCheck, UserX, GraduationCap, CreditCard, UserPlus, Sparkles,
 } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { fetchStudents, fetchTeachers, fetchFees, type Student } from "@/lib/supabaseService";
+import { fetchStudents, fetchTeachers, fetchMergedFeeLedgers, type Student } from "@/lib/supabaseService";
+import { supabase } from "@/lib/supabase";
 import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState, useMemo } from "react";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
@@ -22,42 +23,85 @@ function Dashboard() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersCount, setTeachersCount] = useState(0);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const { attendance: liveTodayRecords } = useLiveAttendance(undefined, todayStr);
+  // Dynamic daily refresh check
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nowStr = new Date().toISOString().slice(0, 10);
+      if (nowStr !== currentDateStr) {
+        setCurrentDateStr(nowStr);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [currentDateStr]);
+
+  const { attendance: liveTodayRecords } = useLiveAttendance(undefined, currentDateStr);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => setStudentsList(data));
     fetchTeachers().then(({ data }) => setTeachersCount(data.length));
-    fetchFees().then(({ data }) => setPaymentsList(data));
+
+    // Fetch live payment transactions directly from Supabase / Merged Ledgers
+    supabase
+      .from("gv_fees_payments")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setPaymentsList(data);
+        } else {
+          fetchMergedFeeLedgers().then(({ data: ledgers }) => {
+            const allTx: any[] = [];
+            (ledgers || []).forEach((l) => {
+              (l.payments || []).forEach((p: any) => {
+                allTx.push({
+                  id: p.id || `TX-${Math.random()}`,
+                  student_name: l.studentName,
+                  amount_paid: p.amount,
+                  receipt_number: p.receiptNo || p.id,
+                  created_at: p.date || p.createdAt || p.created_at,
+                  payment_date: p.date || p.createdAt?.slice(0, 10),
+                  status: "Paid",
+                });
+              });
+            });
+            setPaymentsList(allTx);
+          });
+        }
+      });
   };
 
+  // Register real-time auto refresh for students & fees modules
   useAutoRefresh("students", loadData);
+  useAutoRefresh("fees", loadData);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentDateStr]);
 
   const totalStudents = studentsList.length;
   const presentToday = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
   const absentToday = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
   const attendancePct = totalStudents > 0 && liveTodayRecords.length > 0 ? Math.round((presentToday / liveTodayRecords.length) * 100) : 0;
 
-  // Filter Today's Payments only
+  // Filter Today's Payments ONLY
   const todayPayments = useMemo(() => {
     return paymentsList.filter((p) => {
-      const pDate = p.payment_date || p.paymentDate || p.created_at?.slice(0, 10);
-      return pDate === todayStr || p.status === "Paid";
+      const pDate = (p.payment_date || p.paymentDate || p.created_at || "").slice(0, 10);
+      const amount = Number(p.amount_paid || p.amount || 0);
+      const isPaid = amount > 0 || p.receipt_number || p.receiptNo;
+      return pDate === currentDateStr && isPaid;
     });
-  }, [paymentsList, todayStr]);
+  }, [paymentsList, currentDateStr]);
 
-  // Filter Today's Admissions only
+  // Filter Today's Admissions ONLY
   const todayAdmissions = useMemo(() => {
     return studentsList.filter((s) => {
       const aDate = s.admissionDate?.slice(0, 10);
-      return aDate === todayStr;
+      return aDate === currentDateStr;
     });
-  }, [studentsList, todayStr]);
+  }, [studentsList, currentDateStr]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto pr-1 w-full max-w-none">
@@ -79,7 +123,10 @@ function Dashboard() {
           <Card className="rounded-3xl border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Today's Payments</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span>Today's Payments</span>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Live dynamic feed" />
+                </CardTitle>
                 <CardDescription>Fee receipts and collection records recorded today.</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild><Link to="/admin/fees/payments">View all</Link></Button>
@@ -96,12 +143,12 @@ function Dashboard() {
                       </div>
                       <div>
                         <div className="text-sm font-medium">{p.student_name || p.studentName || "Student Payment"}</div>
-                        <div className="text-xs text-muted-foreground">{p.receipt_number || p.id} · Today</div>
+                        <div className="text-xs text-muted-foreground">{p.receipt_number || p.receiptNo || p.id} · Today</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold text-emerald-600">₹{(p.amount_paid || p.amount || 0).toLocaleString()}</div>
-                      <Badge variant="outline" className="text-[10px]">Paid</Badge>
+                      <div className="text-sm font-semibold text-emerald-600">₹{Number(p.amount_paid || p.amount || 0).toLocaleString()}</div>
+                      <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">Paid</Badge>
                     </div>
                   </div>
                 ))
@@ -144,3 +191,4 @@ function Dashboard() {
     </div>
   );
 }
+

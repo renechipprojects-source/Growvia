@@ -125,7 +125,7 @@ function ReceiptsPage() {
       <div className="rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-100/80 text-xs uppercase text-slate-600 border-b border-slate-200">
+            <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-xs uppercase text-slate-600 border-b border-slate-200">
               <tr>
                 <th className="px-5 py-3.5 font-bold">Receipt No</th>
                 <th className="px-5 py-3.5 font-bold">Student Name</th>
