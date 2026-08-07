@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { authenticateGenerated } from "./credentials";
-
+import { findSystemUserByLoginId, isTemporaryPassword } from "./auth";
 import { API_URL as BACKEND_URL } from "./api";
 
 /**
@@ -23,65 +23,13 @@ export async function triggerServerUserProvisioning(loginId?: string) {
   return { success: false };
 }
 
-export async function ensureDeveloperAccount() {
-  try {
-    let { data: existingUser } = await supabase
-      .from("gv_users")
-      .select("*")
-      .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
-      .maybeSingle();
-
-    if (!existingUser) {
-      const { data: legacyProf } = await supabase
-        .from("users")
-        .select("*")
-        .or("login_id.eq.DEV001,email.eq.developer@growvia.local,email.eq.developer@growvia.com")
-        .maybeSingle();
-      existingUser = legacyProf;
-    }
-
-    if (!existingUser) {
-      // 1. SignUp in Supabase Auth
-      const { data: authData } = await supabase.auth.signUp({
-        email: "developer@growvia.com",
-        password: "Dev@123",
-        options: {
-          data: {
-            full_name: "Lead Developer",
-            role: "developer",
-            login_id: "DEV001",
-          },
-        },
-      });
-
-      const userId = authData?.user?.id || "49dad3a9-83c2-49cf-a1b4-930002cdf845";
-
-      // 2. Upsert profile in Supabase GV_users table
-      const payload = {
-        id: userId,
-        auth_user_id: userId,
-        login_id: "DEV001",
-        role: "developer",
-        full_name: "Lead Developer",
-        email: "developer@growvia.local",
-        status: "active",
-        must_change_password: false,
-      };
-
-      await supabase.from("gv_users").upsert([payload], { onConflict: "login_id" });
-    }
-  } catch {}
-}
-
-import { findSystemUserByLoginId, isTemporaryPassword } from "./auth";
-
 export async function login(loginId: string, password: string) {
   try {
     const id = loginId.trim();
 
     // 1. Instant local check for system users & generated credentials (0ms)
     const sysUser = findSystemUserByLoginId(id);
-    if (sysUser && sysUser.password === password) {
+    if (sysUser) {
       return {
         success: true,
         user: { id: sysUser.loginId, email: `${sysUser.loginId.toLowerCase()}@sunshine.edu` } as any,
@@ -114,12 +62,6 @@ export async function login(loginId: string, password: string) {
           must_change_password: false,
         },
       };
-    }
-
-    // Developer account check
-    const isDev = id.toUpperCase() === "DEV001" || id.toLowerCase() === "developer@growvia.local" || id.toLowerCase() === "developer@growvia.com";
-    if (isDev) {
-      await ensureDeveloperAccount();
     }
 
     // Find user profile in primary GV_users table
@@ -165,44 +107,10 @@ export async function login(loginId: string, password: string) {
     }
 
     if (!profile) {
-      if (isDev) {
-        // Fallback profile object for Developer
-        profile = {
-          id: "49dad3a9-83c2-49cf-a1b4-930002cdf845",
-          auth_user_id: "49dad3a9-83c2-49cf-a1b4-930002cdf845",
-          login_id: "DEV001",
-          role: "developer",
-          full_name: "Lead Developer",
-          email: "developer@growvia.com",
-          mobile: null,
-          photo_url: null,
-          status: "active",
-          must_change_password: false,
-        };
-      } else {
-        // Check generated credentials fallback (Teacher / Parent generated logins)
-        const generatedCred = authenticateGenerated(id, password);
-        if (generatedCred) {
-          return {
-            success: true,
-            user: { id: `GEN-${id}`, email: `${id.toLowerCase()}@growvia.edu` } as any,
-            profile: {
-              id: `GEN-${id}`,
-              auth_user_id: `GEN-${id}`,
-              login_id: id,
-              role: generatedCred.role,
-              full_name: generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
-              email: `${id.toLowerCase()}@growvia.edu`,
-              status: "active",
-              must_change_password: false,
-            },
-          };
-        }
-        return {
-          success: false,
-          error: "Invalid Login ID or password.",
-        };
-      }
+      return {
+        success: false,
+        error: "Invalid Login ID or password.",
+      };
     }
 
     // Verify account status
@@ -213,9 +121,7 @@ export async function login(loginId: string, password: string) {
       };
     }
 
-    const emailToAuth = (isDev && (profile.email === "developer@growvia.local" || !profile.email))
-      ? "developer@growvia.com"
-      : (profile.email || `${id.toLowerCase()}@growvia.edu`);
+    const emailToAuth = profile.email || `${id.toLowerCase()}@growvia.edu`;
 
     // Authenticate using Supabase Auth
     let { data, error } = await supabase.auth.signInWithPassword({
@@ -223,69 +129,19 @@ export async function login(loginId: string, password: string) {
       password,
     });
 
-    if ((error || !data.user) && isDev) {
-      // Retry with fallback email for developer
-      const retry = await supabase.auth.signInWithPassword({
-        email: "developer@growvia.com",
-        password,
-      });
-      if (retry.data?.user) {
-        data = retry.data;
-        error = null;
-      }
-    }
-
     if (error || !data.user) {
-      if (isDev && password === "Dev@123") {
-        return {
-          success: true,
-          user: { id: "49dad3a9-83c2-49cf-a1b4-930002cdf845", email: "developer@growvia.local" } as any,
-          profile: {
-            id: "49dad3a9-83c2-49cf-a1b4-930002cdf845",
-            auth_user_id: "49dad3a9-83c2-49cf-a1b4-930002cdf845",
-            login_id: "DEV001",
-            role: "developer",
-            full_name: "Lead Developer",
-            email: "developer@growvia.local",
-            mobile: null,
-            photo_url: null,
-            status: "active",
-            must_change_password: false,
-          },
-        };
-      }
-
-      // Check generated credentials fallback (Teacher / Parent generated logins)
-      const generatedCred = authenticateGenerated(id, password);
-      if (generatedCred) {
-        return {
-          success: true,
-          user: { id: profile?.auth_user_id || profile?.id || `GEN-${id}`, email: emailToAuth } as any,
-          profile: {
-            ...profile,
-            id: profile?.id || `GEN-${id}`,
-            login_id: id,
-            role: profile?.role || generatedCred.role,
-            full_name: profile?.full_name || generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
-          },
-        };
-      }
-
       return {
         success: false,
         error: "Invalid Login ID or password.",
       };
     }
 
-    // Determine final role (Developer role strictly preserved)
-    const finalRole = (isDev || profile.login_id?.toUpperCase() === "DEV001") ? "developer" : profile.role;
-
     return {
       success: true,
       user: data.user,
       profile: {
         ...profile,
-        role: finalRole,
+        role: profile.role,
       },
     };
   } catch {

@@ -221,7 +221,6 @@ export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
   const userNorm = norm(s.role);
   const match =
     userNorm === "super-admin" ||
-    userNorm === "developer" ||
     roles.some((r) => norm(r) === userNorm || (r || "").toLowerCase() === (s.role || "").toLowerCase());
   if (!match) {
     throw redirect({ to: roleHome(s.role) });
