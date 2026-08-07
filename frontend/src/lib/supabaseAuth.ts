@@ -73,17 +73,56 @@ export async function ensureDeveloperAccount() {
   } catch {}
 }
 
+import { findSystemUserByLoginId, isTemporaryPassword } from "./auth";
+
 export async function login(loginId: string, password: string) {
   try {
     const id = loginId.trim();
 
-    // Developer account check — exact match only (never substring Dev/developer to avoid blocking legitimate teachers like 'Devi')
+    // 1. Instant local check for system users & generated credentials (0ms)
+    const sysUser = findSystemUserByLoginId(id);
+    if (sysUser && sysUser.password === password) {
+      return {
+        success: true,
+        user: { id: sysUser.loginId, email: `${sysUser.loginId.toLowerCase()}@sunshine.edu` } as any,
+        profile: {
+          id: sysUser.loginId,
+          auth_user_id: sysUser.loginId,
+          login_id: sysUser.loginId,
+          role: sysUser.role,
+          full_name: sysUser.name,
+          email: `${sysUser.loginId.toLowerCase()}@sunshine.edu`,
+          status: "active",
+          must_change_password: isTemporaryPassword(sysUser.loginId),
+        },
+      };
+    }
+
+    const generatedCred = authenticateGenerated(id, password);
+    if (generatedCred) {
+      return {
+        success: true,
+        user: { id: `GEN-${id}`, email: `${id.toLowerCase()}@growvia.edu` } as any,
+        profile: {
+          id: `GEN-${id}`,
+          auth_user_id: `GEN-${id}`,
+          login_id: id,
+          role: generatedCred.role,
+          full_name: generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
+          email: `${id.toLowerCase()}@growvia.edu`,
+          status: "active",
+          must_change_password: false,
+        },
+      };
+    }
+
+    // Developer account check
     const isDev = id.toUpperCase() === "DEV001" || id.toLowerCase() === "developer@growvia.local" || id.toLowerCase() === "developer@growvia.com";
     if (isDev) {
       await ensureDeveloperAccount();
     }
 
-    // Find user profile in primary GV_users table (with fallback to legacy users/profiles tables)
+    // Find user profile in primary GV_users table
     let profile: any = null;
     let { data: userData } = await supabase
       .from("gv_users")

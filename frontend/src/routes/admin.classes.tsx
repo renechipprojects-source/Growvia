@@ -181,17 +181,9 @@ function ClassesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-600 hover:text-indigo-600" onClick={() => setSelectedClass(fullClassInfo)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-600 hover:text-indigo-600" onClick={() => handleOpenEdit(c)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" onClick={() => handleDelete(c.id, c.fullName)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setSelectedClass(fullClassInfo)}>
+                    <Eye className="w-4 h-4 mr-1" /> View Class
+                  </Button>
                 </TableCell>
               </TableRow>
             );
