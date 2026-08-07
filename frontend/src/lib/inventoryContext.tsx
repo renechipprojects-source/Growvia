@@ -162,62 +162,73 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     fetchInventoryFromSupabase();
   }, []);
 
+  const addCategory = useCallback((c: Omit<InventoryCategory, "id">) => setCategories((prev) => [...prev, { ...c, id: uid() }]), []);
+  const updateCategory = useCallback((id: string, c: Partial<InventoryCategory>) => setCategories((prev) => prev.map((x) => x.id === id ? { ...x, ...c } : x)), []);
+  const deleteCategory = useCallback((id: string) => setCategories((prev) => prev.filter((x) => x.id !== id)), []);
+
+  const addVendor = useCallback((v: Omit<InventoryVendor, "id">) => setVendors((prev) => [...prev, { ...v, id: uid() }]), []);
+  const updateVendor = useCallback((id: string, v: Partial<InventoryVendor>) => setVendors((prev) => prev.map((x) => x.id === id ? { ...x, ...v } : x)), []);
+  const deleteVendor = useCallback((id: string) => setVendors((prev) => prev.filter((x) => x.id !== id)), []);
+
+  const addItem = useCallback((i: Omit<InventoryItem, "id" | "updatedAt">) => {
+    const newId = uid();
+    const newItem: InventoryItem = { ...i, id: newId, updatedAt: today() };
+    setItems((prev) => [newItem, ...prev]);
+
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId,
+        record_type: "inventory",
+        title: i.name,
+        category: i.categoryId,
+        quantity: i.qty,
+        min_stock: i.minQty,
+        amount_or_unit_cost: i.unitPrice,
+        unit: i.unit,
+        transaction_date: today(),
+      }])
+    ).catch(() => {});
+  }, []);
+
+  const updateItem = useCallback((id: string, i: Partial<InventoryItem>) => {
+    setItems((prev) => prev.map((x) => x.id === id ? { ...x, ...i, updatedAt: today() } : x));
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").update({
+        title: i.name,
+        quantity: i.qty,
+        min_stock: i.minQty,
+        amount_or_unit_cost: i.unitPrice,
+        unit: i.unit,
+      }).eq("id", id)
+    ).catch(() => {});
+  }, []);
+
+  const deleteItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+  }, []);
+
+  const addPurchase = useCallback((p: Omit<PurchaseEntry, "id">) => setPurchases((prev) => [{ ...p, id: uid() }, ...prev]), []);
+  const addMovement = useCallback((m: Omit<StockMovement, "id">) => setMovements((prev) => [{ ...m, id: uid() }, ...prev]), []);
+  const addIssue = useCallback((is: Omit<IssueRecord, "id">) => setIssues((prev) => [{ ...is, id: uid() }, ...prev]), []);
+  const issueItem = useCallback((is: any) => setIssues((prev) => [{ ...is, id: uid(), returned: false, date: today() }, ...prev]), []);
+  const returnItem = useCallback((id: string) => setIssues((prev) => prev.map((x) => x.id === id ? { ...x, returned: true, returnedDate: today() } : x)), []);
+
+  const lowStock = useMemo(() => items.filter((i) => i.qty < i.minQty), [items]);
+
   const value = useMemo<Ctx>(() => ({
-    categories, vendors, items, purchases, movements, issues,
-    lowStock: items.filter((i) => i.qty < i.minQty),
-
-    addCategory: (c) => setCategories((prev) => [...prev, { ...c, id: uid() }]),
-    updateCategory: (id, c) => setCategories((prev) => prev.map((x) => x.id === id ? { ...x, ...c } : x)),
-    deleteCategory: (id) => setCategories((prev) => prev.filter((x) => x.id !== id)),
-
-    addVendor: (v) => setVendors((prev) => [...prev, { ...v, id: uid() }]),
-    updateVendor: (id, v) => setVendors((prev) => prev.map((x) => x.id === id ? { ...x, ...v } : x)),
-    deleteVendor: (id) => setVendors((prev) => prev.filter((x) => x.id !== id)),
-
-    addItem: (i) => {
-      const newId = uid();
-      const newItem: InventoryItem = { ...i, id: newId, updatedAt: today() };
-      setItems((prev) => [newItem, ...prev]);
-
-      Promise.resolve(
-        supabase.from("gv_inventory_expenses").insert([{
-          id: newId,
-          record_type: "inventory",
-          title: i.name,
-          category: i.categoryId,
-          quantity: i.qty,
-          min_stock: i.minQty,
-          amount_or_unit_cost: i.unitPrice,
-          unit: i.unit,
-          transaction_date: today(),
-        }])
-      ).catch(() => {});
-    },
-
-    updateItem: (id, i) => {
-      setItems((prev) => prev.map((x) => x.id === id ? { ...x, ...i, updatedAt: today() } : x));
-      Promise.resolve(
-        supabase.from("gv_inventory_expenses").update({
-          title: i.name,
-          quantity: i.qty,
-          min_stock: i.minQty,
-          amount_or_unit_cost: i.unitPrice,
-          unit: i.unit,
-        }).eq("id", id)
-      ).catch(() => {});
-    },
-
-    deleteItem: (id) => {
-      setItems((prev) => prev.filter((x) => x.id !== id));
-      Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
-    },
-
-    addPurchase: (p) => setPurchases((prev) => [{ ...p, id: uid() }, ...prev]),
-    addMovement: (m) => setMovements((prev) => [{ ...m, id: uid() }, ...prev]),
-    addIssue: (is) => setIssues((prev) => [{ ...is, id: uid() }, ...prev]),
-    issueItem: (is: any) => setIssues((prev) => [{ ...is, id: uid(), returned: false, date: today() }, ...prev]),
-    returnItem: (id: string) => setIssues((prev) => prev.map((x) => x.id === id ? { ...x, returned: true, returnedDate: today() } : x)),
-  }), [categories, vendors, items, purchases, movements, issues]);
+    categories, vendors, items, purchases, movements, issues, lowStock,
+    addCategory, updateCategory, deleteCategory,
+    addVendor, updateVendor, deleteVendor,
+    addItem, updateItem, deleteItem,
+    addPurchase, addMovement, addIssue, issueItem, returnItem
+  }), [
+    categories, vendors, items, purchases, movements, issues, lowStock,
+    addCategory, updateCategory, deleteCategory,
+    addVendor, updateVendor, deleteVendor,
+    addItem, updateItem, deleteItem,
+    addPurchase, addMovement, addIssue, issueItem, returnItem
+  ]);
 
   return <InventoryCtx.Provider value={value}>{children}</InventoryCtx.Provider>;
 }

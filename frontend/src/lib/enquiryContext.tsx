@@ -61,6 +61,13 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     Promise.resolve(supabase.from("gv_requests").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
   }, []);
 
+  const isConverted = useCallback((id: string) => convertedIds.has(id), [convertedIds]);
+  const getEnquiry = useCallback((id: string) => enquiries.find((e) => e.id === id), [enquiries]);
+  const convertibleEnquiries = useCallback(
+    () => enquiries.filter((e) => !convertedIds.has(e.id) && CONVERTIBLE_STATUSES.includes(e.status)),
+    [enquiries, convertedIds],
+  );
+
   const value = useMemo<Ctx>(
     () => ({
       enquiries,
@@ -68,14 +75,11 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
       updateStatus,
       markConverted,
       dropEnquiry,
-      isConverted: (id) => convertedIds.has(id),
-      getEnquiry: (id) => enquiries.find((e) => e.id === id),
-      convertibleEnquiries: () =>
-        enquiries.filter(
-          (e) => !convertedIds.has(e.id) && CONVERTIBLE_STATUSES.includes(e.status),
-        ),
+      isConverted,
+      getEnquiry,
+      convertibleEnquiries,
     }),
-    [enquiries, convertedIds, updateStatus, markConverted, dropEnquiry],
+    [enquiries, convertedIds, updateStatus, markConverted, dropEnquiry, isConverted, getEnquiry, convertibleEnquiries],
   );
 
   return <EnquiryCtx.Provider value={value}>{children}</EnquiryCtx.Provider>;

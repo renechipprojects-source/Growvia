@@ -86,6 +86,11 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     }
   }, [activeId]);
 
+  const active = useMemo(
+    () => kids.find((k) => k.id === activeId) ?? kids[0] ?? emptyStudent,
+    [kids, activeId]
+  );
+
   const value = useMemo<ParentState>(
     () => ({
       household: emptyHousehold,
