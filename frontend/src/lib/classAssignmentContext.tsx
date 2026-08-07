@@ -25,51 +25,76 @@ export interface TeacherWorkload {
   totalSubjects: number;
 }
 
-let memoryAssignmentsCache: ClassAssignment[] = [];
+const ASSIGNMENTS_STORAGE_KEY = "sunshine.class_assignments.v1";
+
+export function getStoredAssignments(): ClassAssignment[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(ASSIGNMENTS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredAssignments(list: ClassAssignment[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(ASSIGNMENTS_STORAGE_KEY, JSON.stringify(list));
+  } catch {}
+}
+
+let memoryAssignmentsCache: ClassAssignment[] = getStoredAssignments();
 
 export function readAssignments(): ClassAssignment[] {
+  const stored = getStoredAssignments();
+  if (stored.length > 0) return stored;
   return memoryAssignmentsCache;
 }
 
 export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]> {
+  const localItems = getStoredAssignments();
   try {
     const { data, error } = await supabase
       .from("gv_requests")
       .select("*")
       .eq("request_type", "class_assignment");
 
-    if (error || !data) {
-      memoryAssignmentsCache = [];
-      return [];
+    if (!error && data && data.length > 0) {
+      const mapped: ClassAssignment[] = data.map((d: any) => {
+        let meta: any = {};
+        try {
+          if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+            meta = JSON.parse(d.reason_or_notes);
+          }
+        } catch {}
+
+        return {
+          id: d.id,
+          teacherId: meta.teacherId || d.applicant_or_child_name || "TCH100",
+          teacherName: d.applicant_or_child_name || meta.teacherName || "Teacher",
+          academicYear: meta.academicYear || "2026-27",
+          role: meta.role || "class",
+          className: d.class_name || meta.className || "Nursery",
+          section: d.section || meta.section || "A",
+          subject: meta.subject,
+          status: (d.status as any) || meta.status || "active",
+        };
+      });
+
+      const combined = [...mapped];
+      localItems.forEach((loc) => {
+        if (!combined.some((c) => c.id === loc.id)) combined.push(loc);
+      });
+
+      memoryAssignmentsCache = combined;
+      saveStoredAssignments(combined);
+      return combined;
     }
+  } catch {}
 
-    const mapped: ClassAssignment[] = data.map((d: any) => {
-      let meta: any = {};
-      try {
-        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
-          meta = JSON.parse(d.reason_or_notes);
-        }
-      } catch {}
-
-      return {
-        id: d.id,
-        teacherId: meta.teacherId || d.applicant_or_child_name || "TCH100",
-        teacherName: d.applicant_or_child_name || meta.teacherName || "Teacher",
-        academicYear: meta.academicYear || "2026-27",
-        role: meta.role || "class",
-        className: d.class_name || meta.className || "Nursery",
-        section: d.section || meta.section || "A",
-        subject: meta.subject,
-        status: (d.status as any) || meta.status || "active",
-      };
-    });
-
-    memoryAssignmentsCache = mapped;
-    return mapped;
-  } catch {
-    memoryAssignmentsCache = [];
-    return [];
-  }
+  memoryAssignmentsCache = localItems;
+  return localItems;
 }
 
 interface State {
@@ -87,16 +112,22 @@ interface State {
 const Ctx = createContext<State | null>(null);
 
 export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
-  const [assignments, setAssignments] = useState<ClassAssignment[]>(() => memoryAssignmentsCache);
+  const [assignments, setAssignments] = useState<ClassAssignment[]>(() => {
+    const local = getStoredAssignments();
+    return local.length > 0 ? local : memoryAssignmentsCache;
+  });
 
   useEffect(() => {
     fetchAssignmentsFromSupabase().then((res) => {
-      setAssignments(res || []);
+      if (res && res.length > 0) {
+        setAssignments(res);
+      }
     });
   }, []);
 
   const saveToSupabase = (newItems: ClassAssignment[]) => {
     memoryAssignmentsCache = newItems;
+    saveStoredAssignments(newItems);
     const payloads = newItems.map((a) => ({
       id: a.id,
       request_type: "class_assignment",

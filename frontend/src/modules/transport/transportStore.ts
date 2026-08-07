@@ -124,6 +124,7 @@ export function saveStoredDrivers(list: Driver[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(DRIVERS_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
 
   list.forEach((d) => {
@@ -154,6 +155,7 @@ export function saveStoredRoutes(list: Route[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(ROUTES_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
 
   list.forEach((r) => {
@@ -186,6 +188,7 @@ export function saveStoredAllocations(list: StudentAllocation[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
 
   list.forEach((a) => {

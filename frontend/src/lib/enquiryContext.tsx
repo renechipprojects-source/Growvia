@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Enquiry } from "@/lib/mockData";
-import { fetchEnquiries } from "@/lib/supabaseService";
+import { fetchEnquiries, getStoredEnquiries, saveStoredEnquiries } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { supabase } from "@/lib/supabase";
 
 interface Ctx {
@@ -16,7 +17,6 @@ interface Ctx {
 
 const EnquiryCtx = createContext<Ctx | null>(null);
 
-// Statuses that indicate the parent has confirmed and the office may convert.
 const CONVERTIBLE_STATUSES: Enquiry["status"][] = [
   "Visit Completed",
   "Documents Pending",
@@ -24,16 +24,22 @@ const CONVERTIBLE_STATUSES: Enquiry["status"][] = [
 ];
 
 export function EnquiryProvider({ children }: { children: ReactNode }) {
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>(() => getStoredEnquiries());
   const [convertedIds, setConvertedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     fetchEnquiries().then((res) => {
-      if (res.isFromSupabase) {
+      if (res.data && res.data.length > 0) {
         setEnquiries(res.data);
       }
     }).catch(() => {});
   }, []);
+
+  useAutoRefresh("enquiries", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const updateStatus = useCallback((id: string, status: Enquiry["status"]) => {
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));

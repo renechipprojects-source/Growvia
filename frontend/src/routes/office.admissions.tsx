@@ -213,15 +213,15 @@ function Admissions() {
               </Field>
 
               <Field label="Parent name" error={errors.parentName?.message}><Input {...register("parentName")} className="bg-white/70" /></Field>
+              <Field label="Parent Occupation"><Input {...register("occupation")} className="bg-white/70" placeholder="e.g. Business, Engineer, Doctor" /></Field>
               <Field label="Phone" error={errors.phone?.message}><Input {...register("phone")} className="bg-white/70" /></Field>
               <Field label="Alternate Contact"><Input {...register("altPhone")} className="bg-white/70" /></Field>
               <Field label="Email" error={errors.email?.message}><Input type="email" {...register("email")} className="bg-white/70" /></Field>
-              <Field label="Previous School"><Input {...register("previousSchool")} className="bg-white/70" /></Field>
 
               <Field label="Class" error={errors.className?.message}>
                 <Select value={watch("className")} onValueChange={(v) => setValue("className", v, { shouldValidate: true })}>
-                  <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{["Playgroup", "Nursery", "LKG", "UKG"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select Class" /></SelectTrigger>
+                  <SelectContent>{["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
               <Field label="Section">
@@ -230,6 +230,10 @@ function Admissions() {
                   <SelectContent>{["A", "B", "C"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
+
+              {watch("className") && !["Nursery", "Playgroup"].includes(watch("className")) && (
+                <Field label="Previous School"><Input {...register("previousSchool")} className="bg-white/70" placeholder="Previous school name & location" /></Field>
+              )}
 
               <div className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs text-sky-800 flex items-center gap-2">
                 <ClipboardCheck className="h-4 w-4 shrink-0 text-sky-600" />

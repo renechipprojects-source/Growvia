@@ -5,9 +5,14 @@ import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/da
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, DoorOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Eye, DoorOpen, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
-import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
+import { getStoredMasterClasses, subscribeMasterClasses, updateMasterClass, addMasterClass, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -23,6 +28,17 @@ function OfficeClassesPage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
+
+  // Edit Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MasterClassItem | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    section: "A",
+    room: "",
+    capacity: 30,
+    classTeacher: "Unassigned",
+  });
 
   const loadData = () => {
     setClassesList(getStoredMasterClasses());
@@ -40,6 +56,60 @@ function OfficeClassesPage() {
     return subscribeMasterClasses(() => setClassesList(getStoredMasterClasses()));
   }, []);
 
+  const handleOpenEdit = (c: MasterClassItem) => {
+    setEditingItem(c);
+    setFormData({
+      name: c.name,
+      section: c.section,
+      room: c.room,
+      capacity: c.capacity,
+      classTeacher: c.classTeacher || "Unassigned",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingItem(null);
+    setFormData({
+      name: "Grade 1",
+      section: "A",
+      room: "Room 101",
+      capacity: 30,
+      classTeacher: "Unassigned",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleSaveClass = () => {
+    if (!formData.name.trim()) {
+      toast.error("Please enter a class name");
+      return;
+    }
+
+    if (editingItem) {
+      updateMasterClass(editingItem.id, {
+        name: formData.name.trim(),
+        section: formData.section.trim().toUpperCase(),
+        room: formData.room.trim() || "Room 101",
+        capacity: Number(formData.capacity) || 30,
+        classTeacher: formData.classTeacher,
+      });
+      toast.success(`Updated ${formData.name} - Section ${formData.section}`);
+    } else {
+      addMasterClass({
+        name: formData.name.trim(),
+        section: formData.section.trim().toUpperCase(),
+        room: formData.room.trim() || "Room 101",
+        capacity: Number(formData.capacity) || 30,
+        classTeacher: formData.classTeacher,
+      });
+      toast.success(`Created class ${formData.name} - Section ${formData.section}`);
+    }
+
+    setIsEditOpen(false);
+    loadData();
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const sec = filterValues["Section"];
@@ -53,8 +123,13 @@ function OfficeClassesPage() {
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
-        title="Classes Overview"
-        description="View live school classes, sections, assigned class teachers, and student strength."
+        title="Classes Overview & Management"
+        description="View live school classes, sections, assigned class teachers, and edit class settings."
+        action={
+          <Button onClick={handleOpenAdd} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow">
+            <Plus className="w-4 h-4 mr-1.5" /> Add Class
+          </Button>
+        }
       />
 
       <div className="shrink-0">
@@ -119,9 +194,14 @@ function OfficeClassesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" className="h-8 text-xs font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setSelectedClass(fullClassInfo)}>
-                    <Eye className="w-4 h-4 mr-1" /> View Class
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-8 text-xs font-medium text-indigo-600 hover:text-indigo-800" onClick={() => setSelectedClass(fullClassInfo)}>
+                      <Eye className="w-4 h-4 mr-1" /> View
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-600 hover:text-indigo-600" onClick={() => handleOpenEdit(c)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -135,6 +215,71 @@ function OfficeClassesPage() {
         classInfo={selectedClass}
         studentsList={studentsList}
       />
+
+      {/* Office Edit / Add Class Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? `Edit Class — ${editingItem.fullName}` : "Add New Class"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 text-sm">
+            <div>
+              <Label>Class Name</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Playgroup, Nursery, LKG, UKG, Grade 1"
+                className="mt-1"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Section</Label>
+                <Select value={formData.section} onValueChange={(v) => setFormData((f) => ({ ...f, section: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["A", "B", "C", "D"].map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Capacity</Label>
+                <Input
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData((f) => ({ ...f, capacity: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Room Number</Label>
+              <Input
+                value={formData.room}
+                onChange={(e) => setFormData((f) => ({ ...f, room: e.target.value }))}
+                placeholder="e.g. Room 101"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Class Teacher</Label>
+              <Select value={formData.classTeacher} onValueChange={(v) => setFormData((f) => ({ ...f, classTeacher: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select Teacher" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Unassigned">Unassigned</SelectItem>
+                  {teachersList.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveClass} className="bg-indigo-600 text-white">Save Class</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
