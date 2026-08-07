@@ -187,10 +187,6 @@ function DashboardPage() {
         </Card>
       </div>
 
-      {/* Read-Only Academic Promotion & Lifecycle Statistics */}
-      <div className="w-full">
-        <AnnualPromotionLifecycleSection readOnly={true} />
-      </div>
 
       {/* Principal Circulars Manager & Broadcast Widget */}
       <div className="w-full">

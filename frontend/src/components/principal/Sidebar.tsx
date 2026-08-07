@@ -82,12 +82,22 @@ export function PrincipalSidebar({
     getPrincipalProfile,
   );
 
-  useEffect(() => {
+  const updateCircularsCount = () => {
     fetchCirculars().then(({ data }) => {
       if (data) {
         setUnreadCirculars(getUnreadCountForRole(data, "principal"));
       }
     });
+  };
+
+  useEffect(() => {
+    updateCircularsCount();
+    window.addEventListener("sunshine_circulars_read", updateCircularsCount);
+    window.addEventListener("sunshine-notification", updateCircularsCount);
+    return () => {
+      window.removeEventListener("sunshine_circulars_read", updateCircularsCount);
+      window.removeEventListener("sunshine-notification", updateCircularsCount);
+    };
   }, [pathname]);
 
   const handleLogout = () => {

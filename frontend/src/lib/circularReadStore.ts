@@ -68,6 +68,10 @@ export function markCircularAsRead(circularId: string, roleOrUserId: string) {
     store[circularId] = [...readers, roleOrUserId];
     saveReadStore(store, READ_STORAGE_KEY);
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sunshine_circulars_read"));
+    }
+
     supabase.from("gv_communications").insert([
       {
         sender_id: "SYSTEM",
@@ -82,11 +86,41 @@ export function markCircularAsRead(circularId: string, roleOrUserId: string) {
   }
 }
 
+export function markAllCircularsAsRead(role: string, circulars: any[] = []) {
+  if (!role) return;
+  const store = getReadStore(READ_STORAGE_KEY);
+
+  if (Array.isArray(circulars) && circulars.length > 0) {
+    circulars.forEach((c) => {
+      if (c && (c.id || c.title)) {
+        const id = c.id || c.title;
+        const readers = store[id] || [];
+        if (!readers.includes(role)) {
+          store[id] = [...readers, role];
+        }
+      }
+    });
+  } else {
+    // If no specific circular list passed, mark all existing keys in store as read for this role
+    Object.keys(store).forEach((key) => {
+      const readers = store[key] || [];
+      if (!readers.includes(role)) {
+        store[key] = [...readers, role];
+      }
+    });
+  }
+
+  saveReadStore(store, READ_STORAGE_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("sunshine_circulars_read"));
+  }
+}
+
 export function isCircularRead(circularId: string, roleOrUserId: string): boolean {
   if (!circularId || !roleOrUserId) return false;
   const store = getReadStore(READ_STORAGE_KEY);
   const readers = store[circularId] || [];
-  return readers.includes(roleOrUserId);
+  return readers.includes(roleOrUserId) || readers.includes("all");
 }
 
 export function acknowledgeCircular(circularId: string, roleOrUserId: string) {

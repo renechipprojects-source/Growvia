@@ -66,12 +66,22 @@ function RoleShellInner({ role }: { role: Role }) {
 
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
+  const updateCircularsCount = () => {
     fetchCirculars().then(({ data }) => {
       if (data && Array.isArray(data)) {
         setUnreadCount(getUnreadCountForRole(data, role));
       }
     });
+  };
+
+  useEffect(() => {
+    updateCircularsCount();
+    window.addEventListener("sunshine_circulars_read", updateCircularsCount);
+    window.addEventListener("sunshine-notification", updateCircularsCount);
+    return () => {
+      window.removeEventListener("sunshine_circulars_read", updateCircularsCount);
+      window.removeEventListener("sunshine-notification", updateCircularsCount);
+    };
   }, [role, pathname]);
 
   const sidebarContent = (compact: boolean) => (

@@ -249,12 +249,15 @@ export function unreadCountForRole(role: Role): number {
   return n;
 }
 
+import { markAllCircularsAsRead } from "./circularReadStore";
+
 export function markRead(id: string) {
   const next = store.map((n) => (n.id === id ? { ...n, read: true } : n));
   saveStore(next);
 }
 
 export function markAllRead(role: Role) {
+  markAllCircularsAsRead(role);
   const next = store.map((n) => (isNotificationAllowedForRole(n, role) ? { ...n, read: true } : n));
   saveStore(next);
 }
@@ -266,6 +269,7 @@ export function removeNotification(id: string) {
 }
 
 export function clearAllNotifications(role: Role) {
+  markAllCircularsAsRead(role);
   const toDelete = store.filter((n) => isNotificationAllowedForRole(n, role));
   toDelete.forEach((n) => addDeletedId(n.id));
   const next = store.filter((n) => !isNotificationAllowedForRole(n, role));
