@@ -133,8 +133,15 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
 
     const localList = readMessages();
     const mergedMap = new Map<string, Message>();
-    localList.forEach((m) => mergedMap.set(m.id, m));
     mapped.forEach((m) => mergedMap.set(m.id, m));
+    localList.forEach((localMsg) => {
+      const dbMsg = mergedMap.get(localMsg.id);
+      if (dbMsg) {
+        mergedMap.set(localMsg.id, { ...dbMsg, ...localMsg });
+      } else {
+        mergedMap.set(localMsg.id, localMsg);
+      }
+    });
 
     const finalMerged = Array.from(mergedMap.values());
     writeMessages(finalMerged);

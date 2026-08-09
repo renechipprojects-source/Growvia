@@ -235,8 +235,21 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
           };
         });
 
-        setCachedCircularsList(mapped);
-        return { data: mapped, isFromSupabase: true };
+        const localList = getCachedCircularsList();
+        const mergedMap = new Map<string, Circular>();
+        mapped.forEach((c) => mergedMap.set(c.id, c));
+        localList.forEach((localCir) => {
+          const dbCir = mergedMap.get(localCir.id);
+          if (dbCir) {
+            mergedMap.set(localCir.id, { ...dbCir, ...localCir });
+          } else {
+            mergedMap.set(localCir.id, localCir);
+          }
+        });
+
+        const finalMerged = Array.from(mergedMap.values());
+        setCachedCircularsList(finalMerged);
+        return { data: finalMerged, isFromSupabase: true };
       }
     } catch {}
 
@@ -426,10 +439,19 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
 
         const localList = getCachedStudentsList();
         const mergedMap = new Map<string, Student>();
-        // Preserve locally created/admitted students
-        localList.forEach((s) => mergedMap.set(s.id, s));
-        // Merge Supabase DB records
+
+        // Set database records first
         mapped.forEach((s) => mergedMap.set(s.id, s));
+
+        // Overlay local records so newly generated/updated local student fields are never lost
+        localList.forEach((localStu) => {
+          const dbStu = mergedMap.get(localStu.id);
+          if (dbStu) {
+            mergedMap.set(localStu.id, { ...dbStu, ...localStu });
+          } else {
+            mergedMap.set(localStu.id, localStu);
+          }
+        });
 
         const finalMerged = Array.from(mergedMap.values());
         setCachedStudentsList(finalMerged);
@@ -656,8 +678,21 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
           };
         });
 
-        setCachedTeachersList(mapped);
-        return { data: mapped, isFromSupabase: true };
+        const localList = getCachedTeachersList();
+        const mergedMap = new Map<string, Teacher>();
+        mapped.forEach((t) => mergedMap.set(t.id, t));
+        localList.forEach((localTch) => {
+          const dbTch = mergedMap.get(localTch.id);
+          if (dbTch) {
+            mergedMap.set(localTch.id, { ...dbTch, ...localTch });
+          } else {
+            mergedMap.set(localTch.id, localTch);
+          }
+        });
+
+        const finalMerged = Array.from(mergedMap.values());
+        setCachedTeachersList(finalMerged);
+        return { data: finalMerged, isFromSupabase: true };
       }
     } catch {}
     return { data: cached, isFromSupabase: false };
