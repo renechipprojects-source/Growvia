@@ -120,16 +120,7 @@ function OfficeStudents() {
         const s = c.row.original;
         return (
           <div className="flex items-center gap-3">
-            <div className="relative group/avatar">
-              <Avatar className="h-9 w-9 border"><AvatarImage src={s.avatar} /><AvatarFallback>{s.name ? s.name[0] : "S"}</AvatarFallback></Avatar>
-              <button
-                onClick={() => handleOpenPhotoEdit(s)}
-                title="Change Photo (Office Only)"
-                className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow text-[10px] transition-transform hover:scale-110"
-              >
-                <Camera className="w-3 h-3" />
-              </button>
-            </div>
+            <Avatar className="h-9 w-9 border"><AvatarImage src={s.avatar} /><AvatarFallback>{s.name ? s.name[0] : "S"}</AvatarFallback></Avatar>
             <div><div className="font-medium">{s.name}</div><div className="text-xs text-muted-foreground">{s.parent}</div></div>
           </div>
         );

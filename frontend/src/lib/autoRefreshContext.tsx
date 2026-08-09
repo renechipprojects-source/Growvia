@@ -168,3 +168,9 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
 
   return ctx;
 }
+
+export function notifyAutoRefresh(module: ERPModule) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("sunshine-module-refresh", { detail: { module } }));
+  }
+}

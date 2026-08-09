@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { subscribeToRealtimeTable } from "./realtimeService";
+import { notifyAutoRefresh } from "./autoRefreshContext";
 
 export interface Message {
   id: string;
@@ -9,6 +10,7 @@ export interface Message {
   fromName: string;
   studentId: string;
   toParentId: string;
+  recipientRole?: string;
   subject: string;
   body: string;
   time: string;
@@ -18,15 +20,78 @@ export interface Message {
   attachments?: string[];
 }
 
+const INITIAL_MESSAGES: Message[] = [
+  {
+    id: "MSG-1001",
+    fromId: "USR-OFFICE",
+    fromName: "School Office",
+    studentId: "GENERAL",
+    toParentId: "ALL",
+    recipientRole: "all",
+    subject: "Welcome to Academic Term 2026-27",
+    body: "Dear Parents & Staff, welcome to the new academic session. School hours are 08:30 AM to 03:30 PM. Please check the circulars portal for uniform guidelines.",
+    time: "Today 09:00 AM",
+    priority: "High",
+    read: false,
+    direction: "incoming",
+  },
+  {
+    id: "MSG-1002",
+    fromId: "TCH-101",
+    fromName: "Ananya Sen (Nursery Teacher)",
+    studentId: "STU-001",
+    toParentId: "ALL",
+    recipientRole: "parent",
+    subject: "Art & Craft Activity Supplies Notice",
+    body: "Please send watercolor paints and drawing sheets with your child for tomorrow's creative art workshop.",
+    time: "Yesterday 02:15 PM",
+    priority: "Normal",
+    read: true,
+    direction: "incoming",
+  },
+  {
+    id: "MSG-1003",
+    fromId: "USR-OFFICE",
+    fromName: "Accounts Office",
+    studentId: "GENERAL",
+    toParentId: "ALL",
+    recipientRole: "parent",
+    subject: "Q3 Fee Receipt & Reminders",
+    body: "Quarterly fee receipts are available for download in the Fees section. Kindly complete pending dues by 15th August.",
+    time: "05 Aug 11:30 AM",
+    priority: "Normal",
+    read: false,
+    direction: "incoming",
+  },
+];
+
+const MESSAGES_KEY = "sunshine.messages.v2";
 let memoryMessagesCache: Message[] = [];
 
 function readMessages(): Message[] {
-  return memoryMessagesCache;
+  if (memoryMessagesCache.length > 0) return memoryMessagesCache;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(MESSAGES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryMessagesCache = parsed;
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+  memoryMessagesCache = INITIAL_MESSAGES;
+  return INITIAL_MESSAGES;
 }
 
 function writeMessages(msgs: Message[]) {
   memoryMessagesCache = msgs;
   if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(MESSAGES_KEY, JSON.stringify(msgs));
+    } catch {}
     window.dispatchEvent(new CustomEvent("sunshine-message"));
   }
 }
@@ -39,7 +104,7 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       .eq("message_type", "message")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return readMessages();
+    if (error || !data || data.length === 0) return readMessages();
 
     const mapped: Message[] = data.map((d: any) => {
       let meta: any = {};
@@ -55,18 +120,25 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
         fromName: d.author || meta.fromName || "Staff",
         studentId: meta.studentId || "GENERAL",
         toParentId: d.target_audience || meta.toParentId || "ALL",
+        recipientRole: d.target_audience || meta.recipientRole || "all",
         subject: d.title || meta.subject || "Message",
         body: meta.body || d.content || d.title,
         time: d.published_date || d.created_at ? new Date(d.created_at || d.published_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
         priority: meta.priority || "Normal",
         read: meta.read ?? false,
-        direction: meta.direction || "outgoing",
+        direction: meta.direction || "incoming",
         attachments: meta.attachments || [],
       };
     });
 
-    writeMessages(mapped);
-    return mapped;
+    const localList = readMessages();
+    const mergedMap = new Map<string, Message>();
+    localList.forEach((m) => mergedMap.set(m.id, m));
+    mapped.forEach((m) => mergedMap.set(m.id, m));
+
+    const finalMerged = Array.from(mergedMap.values());
+    writeMessages(finalMerged);
+    return finalMerged;
   } catch {
     return readMessages();
   }
@@ -88,24 +160,28 @@ export function dispatchMessage(input: {
   attachments?: string[];
 }): Message {
   const newId = `MSG-${Date.now().toString().slice(-6)}`;
+  const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   const newMsg: Message = {
     id: newId,
     fromId: input.fromId,
     fromName: input.fromName,
     studentId: input.studentId || "GENERAL",
     toParentId: input.toParentId || "ALL",
+    recipientRole: input.recipientRole,
     subject: input.subject,
     body: input.body,
-    time: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+    time: `Today ${timeStr}`,
     priority: input.priority || "Normal",
     read: false,
-    direction: "outgoing",
+    direction: "incoming",
     attachments: input.attachments || [],
   };
 
   const list = readMessages();
   const updated = [newMsg, ...list];
   writeMessages(updated);
+  notifyAutoRefresh("messages");
 
   try {
     (NotificationService as any).messageReceived?.(input.fromName, input.subject);
@@ -116,11 +192,12 @@ export function dispatchMessage(input: {
     fromName: input.fromName,
     studentId: input.studentId || "GENERAL",
     toParentId: input.toParentId || "ALL",
+    recipientRole: input.recipientRole,
     subject: input.subject,
     body: input.body,
     priority: input.priority || "Normal",
     read: false,
-    direction: "outgoing",
+    direction: "incoming",
     attachments: input.attachments || [],
   };
 
@@ -147,23 +224,25 @@ export function markMessageRead(id: string) {
 export function useMessages() {
   const [messages, setMessages] = useState<Message[]>(readMessages);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     fetchMessagesFromSupabase().then((res) => {
-      if (res) setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
+      if (res) setMessages(res);
     });
+  }, []);
+
+  useEffect(() => {
+    loadData();
 
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_communications",
       onPayload: () => {
-        fetchMessagesFromSupabase().then((res) => {
-          if (res) setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(res) ? prev : res));
-        });
+        loadData();
       },
     });
 
     const sync = () => {
       const stored = readMessages();
-      setMessages((prev) => (JSON.stringify(prev) === JSON.stringify(stored) ? prev : stored));
+      setMessages([...stored]);
     };
     window.addEventListener("sunshine-message", sync);
 
@@ -171,12 +250,12 @@ export function useMessages() {
       unsubscribe();
       window.removeEventListener("sunshine-message", sync);
     };
-  }, []);
+  }, [loadData]);
 
   const send = useCallback(
     (input: Parameters<typeof dispatchMessage>[0]) => {
       const created = dispatchMessage(input);
-      setMessages(readMessages());
+      setMessages([...readMessages()]);
       return created;
     },
     []
@@ -188,7 +267,7 @@ export function useMessages() {
     dispatchMessage: send,
     markRead: (id: string) => {
       markMessageRead(id);
-      setMessages(readMessages());
+      setMessages([...readMessages()]);
     },
     unreadCount: messages.filter((m) => !m.read).length,
   };

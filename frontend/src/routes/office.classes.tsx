@@ -125,8 +125,8 @@ function OfficeClassesPage() {
       <PageHeader
         title="Classes Overview & Management"
         description="View live school classes, sections, assigned class teachers, and edit class settings."
-        action={
-          <Button onClick={handleOpenAdd} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow">
+        actions={
+          <Button onClick={handleOpenAdd} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow font-medium">
             <Plus className="w-4 h-4 mr-1.5" /> Add Class
           </Button>
         }

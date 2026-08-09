@@ -115,17 +115,6 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
       setRouteList(next);
       saveStoredRoutes(next);
 
-      await saveTransportRouteService({
-        id: newRoute.id,
-        routeName: newRoute.name,
-        vehicleNo: newRoute.vehicle,
-        driverName: newRoute.driver,
-        capacity: 30,
-        assignedStudentsCount: newRoute.students,
-        monthlyFare: 1500,
-        status: "Active",
-      });
-
       toast.success(`Route ${form.name} created!`);
       setOpen(false);
       setForm({
@@ -137,6 +126,17 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
         students: 0,
         distanceKm: 10,
       });
+
+      saveTransportRouteService({
+        id: newRoute.id,
+        routeName: newRoute.name,
+        vehicleNo: newRoute.vehicle,
+        driverName: newRoute.driver,
+        capacity: 30,
+        assignedStudentsCount: newRoute.students,
+        monthlyFare: 1500,
+        status: "Active",
+      }).catch(() => {});
     } finally {
       setIsSaving(false);
     }
