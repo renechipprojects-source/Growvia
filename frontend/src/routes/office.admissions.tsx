@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { validateIndianMobile } from "@/lib/utils";
 import { ClipboardCheck, LinkIcon, HeartPulse, Upload, FileText, User, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useEnquiries } from "@/lib/enquiryContext";
@@ -37,7 +38,9 @@ const schema = z.object({
   occupation: z.string().optional(),
   altPhone: z.string().optional(),
   previousSchool: z.string().optional(),
-  phone: z.string().min(10),
+  phone: z.string().refine((val) => validateIndianMobile(val).valid, {
+    message: "Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9",
+  }),
   email: z.string().email(),
   className: z.string().min(1),
   section: z.string().optional(),

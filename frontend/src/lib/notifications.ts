@@ -135,6 +135,8 @@ function getDeletedIds(): Set<string> {
   }
 }
 
+import { supabase } from "./supabase";
+
 function addDeletedId(id: string) {
   if (typeof window === "undefined") return;
   try {
@@ -142,9 +144,18 @@ function addDeletedId(id: string) {
     set.add(id);
     window.localStorage.setItem(DELETED_NOTIF_KEY, JSON.stringify(Array.from(set)));
   } catch {}
-}
 
-import { supabase } from "./supabase";
+  Promise.resolve(
+    supabase.from("gv_requests").upsert([
+      {
+        id: `del_notif_${id}`,
+        request_type: "deleted_notification",
+        applicant_or_child_name: id,
+        reason_or_notes: JSON.stringify({ deletedAt: Date.now(), id }),
+      },
+    ])
+  ).catch(() => {});
+}
 
 const saveNotifToSupabase = (n: AppNotification) => {
   const payload = {
@@ -167,6 +178,22 @@ export function syncLiveDatabaseNotifications() {
   } catch {}
 
   const deletedSet = getDeletedIds();
+
+  // Sync deleted markers from Supabase first
+  Promise.resolve(
+    supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "deleted_notification")
+  ).then(({ data }) => {
+    if (data && data.length > 0) {
+      data.forEach((row: any) => {
+        if (row.applicant_or_child_name) {
+          deletedSet.add(row.applicant_or_child_name);
+        }
+      });
+    }
+  }).catch(() => {});
 
   // Sync custom saved notifications from gv_requests
   Promise.resolve(

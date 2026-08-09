@@ -106,8 +106,8 @@ function DashboardPage() {
   // Filter Today's Payments only
   const todayPayments = useMemo(() => {
     return paymentsList.filter((p) => {
-      const pDate = p.payment_date || p.paymentDate || p.created_at?.slice(0, 10);
-      return pDate === currentDateStr || p.status === "Paid";
+      const pDate = (p.payment_date || p.paymentDate || p.created_at || "").slice(0, 10);
+      return pDate === currentDateStr;
     });
   }, [paymentsList, currentDateStr]);
 

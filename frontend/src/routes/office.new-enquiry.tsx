@@ -12,13 +12,17 @@ import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { createEnquiry } from "@/lib/supabaseService";
 
+import { validateIndianMobile } from "@/lib/utils";
+
 const schema = z.object({
-  childName: z.string().min(2),
-  age: z.string().min(1),
-  parentName: z.string().min(2),
-  phone: z.string().min(10),
-  interestedClass: z.string().min(1),
-  source: z.string().min(1),
+  childName: z.string().min(2, "Child name is required"),
+  age: z.string().min(1, "Age is required"),
+  parentName: z.string().min(2, "Parent name is required"),
+  phone: z.string().refine((val) => validateIndianMobile(val).valid, {
+    message: "Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9",
+  }),
+  interestedClass: z.string().min(1, "Interested class is required"),
+  source: z.string().min(1, "Source is required"),
   notes: z.string().optional(),
 });
 type V = z.infer<typeof schema>;

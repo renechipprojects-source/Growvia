@@ -11,6 +11,7 @@ import {
   suggestTeacherLoginId,
 } from "@/lib/credentials";
 import { printableSlip } from "@/routes/office.parent-credentials";
+import { validateIndianMobile } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -556,13 +557,19 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
     e.preventDefault();
     if (!name.trim()) return toast.error("Full Name is required");
 
+    const phoneCheck = validateIndianMobile(phone);
+    if (!phoneCheck.valid) {
+      toast.error(phoneCheck.error || "Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
     const id = `TCH-${Math.floor(100 + Math.random() * 900)}`;
     const newTeacher: Teacher = {
       id,
       name: name.trim(),
       subject,
       className,
-      phone: phone.trim() || "+91 98765 43210",
+      phone: phoneCheck.formatted,
       email: email.trim() || `${name.trim().toLowerCase().replace(/\s+/g, ".")}@sunshineschool.edu`,
       avatar: `https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80`,
       experience: 3,

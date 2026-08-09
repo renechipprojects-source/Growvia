@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { validateIndianMobile } from "@/lib/utils";
 import { Camera, Upload, X } from "lucide-react";
 import {
   getPrincipalPassword, setPrincipalPassword,
@@ -55,6 +56,14 @@ export function AccountSecurityDialog({
   const saveProfile = () => {
     if (!profile.name.trim()) return toast.error("Name is required.");
     if (!profile.email.trim()) return toast.error("Email is required.");
+    if (profile.phone.trim()) {
+      const phoneCheck = validateIndianMobile(profile.phone);
+      if (!phoneCheck.valid) {
+        toast.error(phoneCheck.error || "Please enter a valid 10-digit mobile number.");
+        return;
+      }
+      profile.phone = phoneCheck.formatted;
+    }
     updatePrincipalProfile(profile);
     toast.success("Profile updated");
   };

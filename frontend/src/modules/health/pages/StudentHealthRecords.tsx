@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { validateIndianMobile } from "@/lib/utils";
 import { PageHeader } from "../components/PageHeader";
 import { StatCard } from "../components/StatCard";
 import { DataTable, type Column, type FilterDef } from "../components/DataTable";
@@ -84,11 +85,21 @@ export function StudentHealthRecordsPage() {
     e.preventDefault();
     if (!form.student.trim()) return toast.error("Student name required");
 
+    let formattedContact = form.emergencyContact;
+    if (form.emergencyContact.trim()) {
+      const phoneCheck = validateIndianMobile(form.emergencyContact);
+      if (!phoneCheck.valid) {
+        toast.error(phoneCheck.error || "Emergency contact must be a valid 10-digit mobile number.");
+        return;
+      }
+      formattedContact = phoneCheck.formatted;
+    }
+
     if (editing) {
-      setData((prev) => prev.map((x) => (x.id === editing.id ? { ...form, id: editing.id } : x)));
+      setData((prev) => prev.map((x) => (x.id === editing.id ? { ...form, emergencyContact: formattedContact, id: editing.id } : x)));
       toast.success("Health record updated");
     } else {
-      const newRec: HealthRecord = { ...form, id: "H-" + Date.now().toString().slice(-4) };
+      const newRec: HealthRecord = { ...form, emergencyContact: formattedContact, id: "H-" + Date.now().toString().slice(-4) };
       setData((prev) => [newRec, ...prev]);
       toast.success("Health record added successfully");
     }

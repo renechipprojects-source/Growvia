@@ -20,52 +20,7 @@ export interface Message {
   attachments?: string[];
 }
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "MSG-1001",
-    fromId: "USR-OFFICE",
-    fromName: "School Office",
-    studentId: "GENERAL",
-    toParentId: "ALL",
-    recipientRole: "all",
-    subject: "Welcome to Academic Term 2026-27",
-    body: "Dear Parents & Staff, welcome to the new academic session. School hours are 08:30 AM to 03:30 PM. Please check the circulars portal for uniform guidelines.",
-    time: "Today 09:00 AM",
-    priority: "High",
-    read: false,
-    direction: "incoming",
-  },
-  {
-    id: "MSG-1002",
-    fromId: "TCH-101",
-    fromName: "Ananya Sen (Nursery Teacher)",
-    studentId: "STU-001",
-    toParentId: "ALL",
-    recipientRole: "parent",
-    subject: "Art & Craft Activity Supplies Notice",
-    body: "Please send watercolor paints and drawing sheets with your child for tomorrow's creative art workshop.",
-    time: "Yesterday 02:15 PM",
-    priority: "Normal",
-    read: true,
-    direction: "incoming",
-  },
-  {
-    id: "MSG-1003",
-    fromId: "USR-OFFICE",
-    fromName: "Accounts Office",
-    studentId: "GENERAL",
-    toParentId: "ALL",
-    recipientRole: "parent",
-    subject: "Q3 Fee Receipt & Reminders",
-    body: "Quarterly fee receipts are available for download in the Fees section. Kindly complete pending dues by 15th August.",
-    time: "05 Aug 11:30 AM",
-    priority: "Normal",
-    read: false,
-    direction: "incoming",
-  },
-];
-
-const MESSAGES_KEY = "sunshine.messages.v2";
+const MESSAGES_KEY = "sunshine.messages.v3";
 let memoryMessagesCache: Message[] = [];
 
 function readMessages(): Message[] {
@@ -75,15 +30,14 @@ function readMessages(): Message[] {
       const raw = localStorage.getItem(MESSAGES_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           memoryMessagesCache = parsed;
           return parsed;
         }
       }
     } catch {}
   }
-  memoryMessagesCache = INITIAL_MESSAGES;
-  return INITIAL_MESSAGES;
+  return [];
 }
 
 function writeMessages(msgs: Message[]) {
@@ -104,7 +58,7 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       .eq("message_type", "message")
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) return readMessages();
+    if (error || !data) return readMessages();
 
     const mapped: Message[] = data.map((d: any) => {
       let meta: any = {};
@@ -131,21 +85,8 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       };
     });
 
-    const localList = readMessages();
-    const mergedMap = new Map<string, Message>();
-    mapped.forEach((m) => mergedMap.set(m.id, m));
-    localList.forEach((localMsg) => {
-      const dbMsg = mergedMap.get(localMsg.id);
-      if (dbMsg) {
-        mergedMap.set(localMsg.id, { ...dbMsg, ...localMsg });
-      } else {
-        mergedMap.set(localMsg.id, localMsg);
-      }
-    });
-
-    const finalMerged = Array.from(mergedMap.values());
-    writeMessages(finalMerged);
-    return finalMerged;
+    writeMessages(mapped);
+    return mapped;
   } catch {
     return readMessages();
   }

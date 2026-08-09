@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { validateIndianMobile } from "@/lib/utils";
 import { PageHeader } from "../components/PageHeader";
 import { StatCard } from "../components/StatCard";
 import { StatusBadge } from "../components/StatusBadge";
@@ -57,8 +58,9 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
 
   const handleSave = () => {
     if (isSaving) return;
-    if (!form.name || !form.mobile) {
-      toast.error("Driver name and mobile number are required.");
+    const phoneCheck = validateIndianMobile(form.mobile);
+    if (!form.name || !phoneCheck.valid) {
+      toast.error(phoneCheck.error || "Driver name and a valid 10-digit mobile number are required.");
       return;
     }
 
@@ -68,7 +70,7 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
         id: `DRV-${Date.now().toString().slice(-4)}`,
         employeeId: `EMP-${Math.floor(100 + Math.random() * 899)}`,
         name: form.name,
-        mobile: form.mobile,
+        mobile: phoneCheck.formatted,
         license: form.license || "DL-PENDING",
         licenseExpiry: "2028-12-31",
         vehicle: form.vehicle,

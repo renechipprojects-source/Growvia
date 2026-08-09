@@ -11,6 +11,7 @@ import { useEnquiries } from "@/lib/enquiryContext";
 import type { Enquiry } from "@/lib/mockData";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { toast } from "sonner";
+import { validateIndianMobile } from "@/lib/utils";
 
 export const Route = createFileRoute("/office/visits")({
   component: VisitsPage,
@@ -74,15 +75,16 @@ function VisitsPage() {
   };
 
   const handleScheduleVisit = () => {
-    if (!newVisit.parentName.trim() || !newVisit.childName.trim()) {
-      toast.error("Parent name and child name are required.");
+    const phoneCheck = validateIndianMobile(newVisit.phone);
+    if (!phoneCheck.valid) {
+      toast.error(phoneCheck.error || "Please enter a valid 10-digit mobile number.");
       return;
     }
 
     addEnquiry({
       parentName: newVisit.parentName.trim(),
       childName: newVisit.childName.trim(),
-      phone: newVisit.phone.trim() || "9876543210",
+      phone: phoneCheck.formatted,
       interestedClass: newVisit.interestedClass,
       status: "Visit Scheduled",
       source: "Campus Walk-in",

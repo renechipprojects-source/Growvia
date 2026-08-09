@@ -72,6 +72,7 @@ export const ROLES: Record<Role, RoleTheme> = {
       { to: "/principal/events", label: "Events", icon: PartyPopper },
       { to: "/principal/enquiries", label: "Enquiries", icon: ClipboardList },
       { to: "/principal/announcements", label: "Announcements", icon: Megaphone },
+      { to: "/principal/messages", label: "Messages", icon: MessageSquare },
     ],
   },
   office: {

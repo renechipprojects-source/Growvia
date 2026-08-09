@@ -70,6 +70,7 @@ import { Route as PrincipalExpensesRouteImport } from './routes/principal.expens
 import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as PrincipalHealthRouteImport } from './routes/principal.health'
 import { Route as PrincipalInventoryRouteImport } from './routes/principal.inventory'
+import { Route as PrincipalMessagesRouteImport } from './routes/principal.messages'
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
 import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
@@ -399,6 +400,11 @@ const PrincipalInventoryRoute = PrincipalInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => PrincipalRoute,
 } as any)
+const PrincipalMessagesRoute = PrincipalMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => PrincipalRoute,
+} as any)
 const PrincipalStudentsRoute = PrincipalStudentsRouteImport.update({
   id: '/students',
   path: '/students',
@@ -570,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
+  '/principal/messages': typeof PrincipalMessagesRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -650,6 +657,7 @@ export interface FileRoutesByTo {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
+  '/principal/messages': typeof PrincipalMessagesRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -736,6 +744,7 @@ export interface FileRoutesById {
   '/principal/fees': typeof PrincipalFeesRoute
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
+  '/principal/messages': typeof PrincipalMessagesRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -823,6 +832,7 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
+    | '/principal/messages'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -903,6 +913,7 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
+    | '/principal/messages'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -988,6 +999,7 @@ export interface FileRouteTypes {
     | '/principal/fees'
     | '/principal/health'
     | '/principal/inventory'
+    | '/principal/messages'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -1456,6 +1468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalInventoryRouteImport
       parentRoute: typeof PrincipalRoute
     }
+    '/principal/messages': {
+      id: '/principal/messages'
+      path: '/messages'
+      fullPath: '/principal/messages'
+      preLoaderRoute: typeof PrincipalMessagesRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
     '/principal/students': {
       id: '/principal/students'
       path: '/students'
@@ -1754,6 +1773,7 @@ interface PrincipalRouteChildren {
   PrincipalFeesRoute: typeof PrincipalFeesRoute
   PrincipalHealthRoute: typeof PrincipalHealthRoute
   PrincipalInventoryRoute: typeof PrincipalInventoryRoute
+  PrincipalMessagesRoute: typeof PrincipalMessagesRoute
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
   PrincipalTransportRoute: typeof PrincipalTransportRoute
@@ -1771,6 +1791,7 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalFeesRoute: PrincipalFeesRoute,
   PrincipalHealthRoute: PrincipalHealthRoute,
   PrincipalInventoryRoute: PrincipalInventoryRoute,
+  PrincipalMessagesRoute: PrincipalMessagesRoute,
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
   PrincipalTransportRoute: PrincipalTransportRoute,
