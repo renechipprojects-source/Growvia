@@ -429,11 +429,19 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
           };
         });
 
-        setCachedStudentsList(mapped);
-        return { data: mapped, isFromSupabase: true };
+        const localList = getCachedStudentsList();
+        const mergedMap = new Map<string, Student>();
+        // Preserve locally created/admitted students
+        localList.forEach((s) => mergedMap.set(s.id, s));
+        // Merge Supabase DB records
+        mapped.forEach((s) => mergedMap.set(s.id, s));
+
+        const finalMerged = Array.from(mergedMap.values());
+        setCachedStudentsList(finalMerged);
+        return { data: finalMerged, isFromSupabase: true };
       }
     } catch {}
-    return { data: cached, isFromSupabase: false };
+    return { data: getCachedStudentsList(), isFromSupabase: false };
   };
 
   if (cached.length > 0) {

@@ -177,7 +177,8 @@ export function syncLiveDatabaseNotifications() {
           try {
             if (row.reason_or_notes && (row.reason_or_notes.startsWith("{") || row.reason_or_notes.startsWith("["))) {
               const n: AppNotification = JSON.parse(row.reason_or_notes);
-              if (!deletedSet.has(n.id) && !store.some((x) => x.id === n.id)) {
+              const isDel = deletedSet.has(n.id) || deletedSet.has(row.id) || deletedSet.has(`notif_${n.id}`);
+              if (!isDel && !store.some((x) => x.id === n.id)) {
                 store.unshift(n);
                 updated = true;
               }
@@ -196,18 +197,28 @@ export function syncLiveDatabaseNotifications() {
           let updated = false;
           data.forEach((c) => {
             const notifId = `n-cir-${c.id || c.title}`;
-            if (!deletedSet.has(notifId) && !store.some((n) => n.id === notifId)) {
-              store.unshift({
-                id: notifId,
-                title: `Circular: ${c.title}`,
-                description: c.content || c.title,
-                module: "announcement",
-                timestamp: c.published_date ? new Date(c.published_date).getTime() : Date.now(),
-                read: false,
-                priority: "high",
-                roles: ["parent", "teacher", "office", "principal", "super-admin"],
-              });
-              updated = true;
+            const isDel = deletedSet.has(notifId) || deletedSet.has(c.id) || deletedSet.has(c.title);
+            if (!isDel) {
+              const read = isCircularRead(c.id, "principal") || isCircularRead(c.id, "all") || isCircularRead(notifId, "principal");
+              const existingIdx = store.findIndex((n) => n.id === notifId);
+              if (existingIdx >= 0) {
+                if (read && !store[existingIdx].read) {
+                  store[existingIdx].read = true;
+                  updated = true;
+                }
+              } else {
+                store.unshift({
+                  id: notifId,
+                  title: `Circular: ${c.title}`,
+                  description: c.content || c.title,
+                  module: "announcement",
+                  timestamp: c.published_date ? new Date(c.published_date).getTime() : Date.now(),
+                  read,
+                  priority: "high",
+                  roles: ["parent", "teacher", "office", "principal", "super-admin"],
+                });
+                updated = true;
+              }
             }
           });
           if (updated) saveStore([...store]);
@@ -219,7 +230,8 @@ export function syncLiveDatabaseNotifications() {
           let updated = false;
           data.forEach((l: any) => {
             const notifId = `n-lv-${l.id || l.applicant_name}`;
-            if (!deletedSet.has(notifId) && !store.some((n) => n.id === notifId)) {
+            const isDel = deletedSet.has(notifId) || deletedSet.has(l.id);
+            if (!isDel && !store.some((n) => n.id === notifId)) {
               const isPending = l.status === "Pending";
               store.unshift({
                 id: notifId,
@@ -249,7 +261,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === NOTIF_STORAGE_KEY && e.newValue) {
       try {
-        store = JSON.parse(e.newValue).filter((n: any) => !n.id.startsWith("n-seed-"));
+        store = JSON.parse(e.newValue);
         emit();
       } catch {}
     }
@@ -260,20 +272,20 @@ if (typeof window !== "undefined") {
   });
 }
 
-export function subscribe(l: Listener) {
-  listeners.add(l);
-  return () => listeners.delete(l);
+export function subscribe(fn: Listener): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 export function listForRole(role: Role): AppNotification[] {
+  const deletedSet = getDeletedIds();
   const cached = listCache.get(role);
   if (cached) return cached;
-  const deletedSet = getDeletedIds();
-  const next = store
-    .filter((n) => !deletedSet.has(n.id) && isNotificationAllowedForRole(n, role))
-    .sort((a, b) => b.timestamp - a.timestamp);
-  listCache.set(role, next);
-  return next;
+  const list = store.filter((n) => !deletedSet.has(n.id) && isNotificationAllowedForRole(n, role));
+  listCache.set(role, list);
+  return list;
 }
 
 export function unreadCountForRole(role: Role): number {
@@ -285,31 +297,49 @@ export function unreadCountForRole(role: Role): number {
   return n;
 }
 
-import { markAllCircularsAsRead } from "./circularReadStore";
+import { markAllCircularsAsRead, isCircularRead } from "./circularReadStore";
+import { notifyAutoRefresh } from "./autoRefreshContext";
 
 export function markRead(id: string) {
   const next = store.map((n) => (n.id === id ? { ...n, read: true } : n));
   saveStore(next);
+  notifyAutoRefresh("notifications");
 }
 
 export function markAllRead(role: Role) {
   markAllCircularsAsRead(role);
   const next = store.map((n) => (isNotificationAllowedForRole(n, role) ? { ...n, read: true } : n));
   saveStore(next);
+  notifyAutoRefresh("notifications");
 }
 
 export function removeNotification(id: string) {
   addDeletedId(id);
+  addDeletedId(`notif_${id}`);
+  addDeletedId(`n-cir-${id}`);
   const next = store.filter((n) => n.id !== id);
   saveStore(next);
+  notifyAutoRefresh("notifications");
+
+  Promise.resolve(
+    supabase.from("gv_requests").delete().or(`id.eq.${id},id.eq.notif_${id}`)
+  ).catch(() => {});
 }
 
 export function clearAllNotifications(role: Role) {
   markAllCircularsAsRead(role);
   const toDelete = store.filter((n) => isNotificationAllowedForRole(n, role));
-  toDelete.forEach((n) => addDeletedId(n.id));
+  toDelete.forEach((n) => {
+    addDeletedId(n.id);
+    addDeletedId(`notif_${n.id}`);
+    addDeletedId(`n-cir-${n.id}`);
+    Promise.resolve(
+      supabase.from("gv_requests").delete().or(`id.eq.${n.id},id.eq.notif_${n.id}`)
+    ).catch(() => {});
+  });
   const next = store.filter((n) => !isNotificationAllowedForRole(n, role));
   saveStore(next);
+  notifyAutoRefresh("notifications");
 }
 
 export interface NotifyInput {

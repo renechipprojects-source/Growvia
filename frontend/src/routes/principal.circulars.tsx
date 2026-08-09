@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { createCircular, fetchCirculars, deleteCircular as deleteCircularService, type Circular as SupabaseCircular } from "@/lib/supabaseService";
-import { NotificationService, type Role } from "@/lib/notifications";
+import { NotificationService, markAllRead, type Role } from "@/lib/notifications";
 import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
 
 export type RecipientRole = "Admin" | "Teachers" | "Office Staff" | "Parents";
@@ -85,6 +85,9 @@ function CircularsPage() {
 
   useEffect(() => {
     reloadCirculars();
+    try {
+      markAllRead("principal");
+    } catch {}
   }, [reloadCirculars]);
 
   const [q, setQ] = useState("");
