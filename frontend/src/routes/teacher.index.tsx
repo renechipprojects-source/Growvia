@@ -228,3 +228,36 @@ function Dash() {
     </div>
   );
 }
+
+function StatMini({
+  icon: Icon,
+  label,
+  value,
+  tone,
+  sub,
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+  tone: string;
+  sub?: string;
+}) {
+  const tones: Record<string, string> = {
+    sky: "bg-sky-50/80 text-sky-800 border-sky-200/80",
+    emerald: "bg-emerald-50/80 text-emerald-800 border-emerald-200/80",
+    rose: "bg-rose-50/80 text-rose-800 border-rose-200/80",
+    amber: "bg-amber-50/80 text-amber-800 border-amber-200/80",
+    indigo: "bg-indigo-50/80 text-indigo-800 border-indigo-200/80",
+  };
+  return (
+    <div className={`p-3.5 rounded-2xl border shadow-sm ${tones[tone] || tones.sky}`}>
+      <div className="flex items-center gap-2 text-xs font-semibold opacity-90">
+        <Icon className="h-4 w-4 shrink-0" />
+        <span>{label}</span>
+      </div>
+      <div className="text-xl font-bold mt-1 tracking-tight">
+        {value} {sub && <span className="text-xs font-normal text-slate-500 ml-1">{sub}</span>}
+      </div>
+    </div>
+  );
+}
