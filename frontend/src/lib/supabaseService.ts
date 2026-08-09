@@ -240,16 +240,11 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
       }
     } catch {}
 
-    return { data: cached.length > 0 ? cached : [], isFromSupabase: false };
+    return { data: getCachedCircularsList(), isFromSupabase: false };
   })();
 
-  if (cached.length > 0) {
-    fetchTask.catch(() => {});
-    return { data: cached, isFromSupabase: true };
-  }
-
   const timeoutTask = new Promise<{ data: Circular[]; isFromSupabase: boolean }>((resolve) => {
-    setTimeout(() => resolve({ data: cached, isFromSupabase: false }), 3000);
+    setTimeout(() => resolve({ data: getCachedCircularsList(), isFromSupabase: false }), 4000);
   });
 
   return Promise.race([fetchTask, timeoutTask]);
@@ -443,11 +438,6 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
     } catch {}
     return { data: getCachedStudentsList(), isFromSupabase: false };
   };
-
-  if (cached.length > 0) {
-    revalidate().catch(() => {});
-    return { data: cached, isFromSupabase: true };
-  }
 
   return await revalidate();
 }
@@ -672,11 +662,6 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
     } catch {}
     return { data: cached, isFromSupabase: false };
   };
-
-  if (cached.length > 0) {
-    revalidate().catch(() => {});
-    return { data: cached, isFromSupabase: true };
-  }
 
   return await revalidate();
 }
@@ -1016,11 +1001,6 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
       return { data: cached, isFromSupabase: false };
     }
   };
-
-  if (cached.length > 0) {
-    revalidate().catch(() => {});
-    return { data: cached, isFromSupabase: true };
-  }
 
   return await revalidate();
 }
