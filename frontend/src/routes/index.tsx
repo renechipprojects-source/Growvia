@@ -132,7 +132,7 @@ function Login() {
               <div className="flex items-center gap-4">
                 {Boolean(logoUrl) && !(logoUrl || "").includes("data:image/svg") && (
                   <div className="flex shrink-0 items-center justify-center">
-                    <img src={logoUrl} alt="School Logo" className="h-14 w-auto max-w-[120px] object-contain" />
+                    <img src={logoUrl} alt="School Logo" className="h-14 w-auto max-w-[140px] object-contain" />
                   </div>
                 )}
                 <div>
@@ -141,19 +141,6 @@ function Login() {
                     Session {academicYear}
                   </div>
                 </div>
-              </div>
-
-              {/* Top Right: Growvia Developer Branding [LOGO] Growvia */}
-              <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-white/90 border border-slate-200/80 shadow-xs shrink-0">
-                <img
-                  src={settings.branding?.projectLogo || settings.branding?.project_logo || "/growvia-logo.png"}
-                  alt="Growvia Logo"
-                  className="h-6 w-auto object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-                <span className="text-sm font-extrabold tracking-tight text-slate-900">{projectName}</span>
               </div>
             </div>
 

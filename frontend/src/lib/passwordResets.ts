@@ -3,7 +3,7 @@ import { findSystemUserByLoginId, setTemporaryPasswordFor, generateTemporaryPass
 import { listParentCredentials, listTeacherCredentials, generateParentCredential, generateTeacherCredential } from "@/lib/credentials";
 import { supabase } from "@/lib/supabase";
 
-export type ResetStatus = "Pending" | "In Progress" | "Completed";
+export type ResetStatus = "Pending" | "In Progress" | "Completed" | "Used" | "Expired";
 
 export interface ResetRequest {
   id: string;
@@ -16,7 +16,8 @@ export interface ResetRequest {
   mobile?: string;
   requestedAt: string;
   status: ResetStatus;
-  tempPassword?: string;
+  resetToken?: string;
+  expiresAt?: string;
   completedAt?: string;
   notes?: string;
 }
@@ -64,7 +65,8 @@ export async function fetchPasswordResetsFromSupabase(): Promise<ResetRequest[]>
         mobile: meta.mobile,
         requestedAt: d.created_at || new Date().toISOString(),
         status: (d.status as any) || "Pending",
-        tempPassword: meta.tempPassword,
+        resetToken: meta.resetToken,
+        expiresAt: meta.expiresAt,
         completedAt: meta.completedAt,
         notes: meta.notes,
       };
@@ -100,119 +102,30 @@ function makeId(): string {
   return "RR-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-export interface CreateResult { ok: true; request: ResetRequest }
-export interface CreateErr    { ok: false; error: string }
-
-export function requestSystemReset(loginId: string): CreateResult | CreateErr {
-  const id = loginId.trim();
-  if (!id) return { ok: false, error: "Enter your login ID." };
-  const sys = findSystemUserByLoginId(id);
-  if (!sys) return { ok: false, error: "No account found for that login ID." };
-  if (sys.role === "super-admin") {
-    return { ok: false, error: "Admin cannot self-reset. Please contact the ERP System Owner." };
+function generateSecureToken(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
   }
-  const req: ResetRequest = {
-    id: makeId(),
-    role: sys.role,
-    name: sys.name,
-    loginId: sys.loginId,
-    identifier: sys.loginId,
-    requestedAt: new Date().toISOString(),
-    status: "Pending",
-  };
-  const rows = read();
-  rows.push(req);
-  write(rows);
-
-  Promise.resolve(
-    supabase.from("gv_requests").insert([{
-      id: req.id,
-      request_type: "password_reset",
-      applicant_or_child_name: req.name,
-      status: "Pending",
-      reason_or_notes: JSON.stringify(req),
-    }])
-  ).catch(() => {});
-
-  return { ok: true, request: req };
-}
-
-export function requestTeacherReset(identifier: string): CreateResult | CreateErr {
-  const id = identifier.trim();
-  if (!id) return { ok: false, error: "Enter your Login ID or Employee ID." };
-  const creds = listTeacherCredentials();
-  const cred = creds.find(
-    (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.teacherId.toLowerCase() === id.toLowerCase(),
+  return (
+    Math.random().toString(36).slice(2, 10) +
+    Math.random().toString(36).slice(2, 10)
   );
-  if (!cred) return { ok: false, error: "No teacher account found for that identifier." };
-  const req: ResetRequest = {
-    id: makeId(),
-    role: "teacher",
-    name: "Teacher",
-    loginId: cred.loginId,
-    identifier: id,
-    employeeId: cred.teacherId,
-    requestedAt: new Date().toISOString(),
-    status: "Pending",
-  };
-  const rows = read();
-  rows.push(req);
-  write(rows);
-
-  Promise.resolve(
-    supabase.from("gv_requests").insert([{
-      id: req.id,
-      request_type: "password_reset",
-      applicant_or_child_name: req.name,
-      status: "Pending",
-      reason_or_notes: JSON.stringify(req),
-    }])
-  ).catch(() => {});
-
-  return { ok: true, request: req };
 }
 
-export function requestParentReset(identifier: string): CreateResult | CreateErr {
-  const id = identifier.trim();
-  if (!id) return { ok: false, error: "Enter your Admission Number or registered Mobile Number." };
-  const creds = listParentCredentials();
-  const cred = creds.find((c) => c.loginId.toLowerCase() === id.toLowerCase() || c.studentId.toLowerCase() === id.toLowerCase());
-  if (!cred) return { ok: false, error: "No parent account found for that identifier." };
-  const req: ResetRequest = {
-    id: makeId(),
-    role: "parent",
-    name: "Parent",
-    loginId: cred.loginId,
-    identifier: id,
-    admissionNo: cred.studentId,
-    requestedAt: new Date().toISOString(),
-    status: "Pending",
-  };
-  const rows = read();
-  rows.push(req);
-  write(rows);
-
-  Promise.resolve(
-    supabase.from("gv_requests").insert([{
-      id: req.id,
-      request_type: "password_reset",
-      applicant_or_child_name: req.name,
-      status: "Pending",
-      reason_or_notes: JSON.stringify(req),
-    }])
-  ).catch(() => {});
-
-  return { ok: true, request: req };
+export interface SecureResetResult {
+  ok: boolean;
+  message: string;
+  token?: string;
+  error?: string;
 }
 
-export function setStatus(id: string, status: ResetStatus, tempPassword?: string) {
+export function setStatus(id: string, status: ResetStatus) {
   const rows = read().map((r) => {
     if (r.id === id) {
       const updated = {
         ...r,
         status,
-        tempPassword: tempPassword ?? r.tempPassword,
-        completedAt: status === "Completed" ? new Date().toISOString() : r.completedAt,
+        completedAt: status === "Completed" || status === "Used" ? new Date().toISOString() : r.completedAt,
       };
 
       Promise.resolve(
@@ -229,100 +142,133 @@ export function setStatus(id: string, status: ResetStatus, tempPassword?: string
   write(rows);
 }
 
-export function deleteRequest(id: string) {
-  write(read().filter((r) => r.id !== id));
-  Promise.resolve(supabase.from("gv_requests").delete().eq("id", id)).catch(() => {});
-}
-
-export function processUnifiedPasswordReset(
+export function requestSecurePasswordReset(
   role: Role,
-  identifier: string,
-  newPassword?: string
-): CreateResult | CreateErr {
+  identifier: string
+): SecureResetResult {
   const id = identifier.trim();
-  if (!id) return { ok: false, error: "Please enter your Login ID or registered identifier." };
+  const genericSuccessMsg =
+    "If an account matches the information provided, password reset instructions have been generated.";
 
-  const tempPwd = newPassword || generateTemporaryPassword();
+  if (!id) {
+    return { ok: false, message: "", error: "Please enter your Login ID, Email, or Mobile Number." };
+  }
+
+  let foundLoginId = id;
+  let foundName = "User";
 
   if (role === "office" || role === "principal" || role === "super-admin") {
     const sys = findSystemUserByLoginId(id);
-    if (!sys) return { ok: false, error: "No system account found for that login ID." };
-    if (sys.role === "super-admin") {
-      return { ok: false, error: "Admin account cannot self-reset. Contact ERP Administrator." };
+    if (sys) {
+      if (sys.role === "super-admin") {
+        return { ok: false, message: "", error: "Admin self-reset restricted. Please contact System Owner." };
+      }
+      foundLoginId = sys.loginId;
+      foundName = sys.name;
     }
-    setTemporaryPasswordFor(sys.loginId, tempPwd);
-    const req: ResetRequest = {
-      id: makeId(),
-      role: sys.role,
-      name: sys.name,
-      loginId: sys.loginId,
-      identifier: sys.loginId,
-      requestedAt: new Date().toISOString(),
-      status: "Completed",
-      tempPassword: tempPwd,
-      completedAt: new Date().toISOString(),
-    };
-    const rows = read();
-    rows.push(req);
-    write(rows);
-    return { ok: true, request: req };
-  }
-
-  if (role === "teacher") {
-    let cred = listTeacherCredentials().find(
+  } else if (role === "teacher") {
+    const creds = listTeacherCredentials();
+    const cred = creds.find(
       (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.teacherId.toLowerCase() === id.toLowerCase()
     );
-    if (!cred) {
-      cred = generateTeacherCredential(id, { customLoginId: id, password: tempPwd });
-    } else {
-      generateTeacherCredential(cred.teacherId, { customLoginId: cred.loginId, password: tempPwd });
+    if (cred) {
+      foundLoginId = cred.loginId;
+      foundName = (cred as any).name || (cred as any).teacherName || "Teacher";
     }
-    markTemporaryPassword(cred.loginId);
-    const req: ResetRequest = {
-      id: makeId(),
-      role: "teacher",
-      name: "Teacher",
-      loginId: cred.loginId,
-      identifier: id,
-      employeeId: cred.teacherId,
-      requestedAt: new Date().toISOString(),
-      status: "Completed",
-      tempPassword: tempPwd,
-      completedAt: new Date().toISOString(),
-    };
-    const rows = read();
-    rows.push(req);
-    write(rows);
-    return { ok: true, request: req };
-  }
-
-  if (role === "parent") {
-    let cred = listParentCredentials().find(
+  } else if (role === "parent") {
+    const creds = listParentCredentials();
+    const cred = creds.find(
       (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.studentId.toLowerCase() === id.toLowerCase()
     );
-    if (!cred) {
-      cred = generateParentCredential(id, { customLoginId: id, password: tempPwd });
-    } else {
-      generateParentCredential(cred.studentId, { customLoginId: cred.loginId, password: tempPwd });
+    if (cred) {
+      foundLoginId = cred.loginId;
+      foundName = (cred as any).parentName || (cred as any).studentName || "Parent";
     }
-    markTemporaryPassword(cred.loginId);
-    const req: ResetRequest = {
-      id: makeId(),
-      role: "parent",
-      name: "Parent",
-      loginId: cred.loginId,
-      identifier: id,
-      admissionNo: cred.studentId,
-      requestedAt: new Date().toISOString(),
-      status: "Completed",
-      tempPassword: tempPwd,
-      completedAt: new Date().toISOString(),
-    };
-    const rows = read();
-    rows.push(req);
-    write(rows);
-    return { ok: true, request: req };
   }
 
-  return { ok: false, error: "Invalid role specified." };
+  const token = generateSecureToken();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
+
+  const req: ResetRequest = {
+    id: makeId(),
+    role,
+    name: foundName,
+    loginId: foundLoginId,
+    identifier: id,
+    requestedAt: new Date().toISOString(),
+    status: "Pending",
+    resetToken: token,
+    expiresAt,
+  };
+
+  const rows = read();
+  rows.push(req);
+  write(rows);
+
+  Promise.resolve(
+    supabase.from("gv_requests").insert([
+      {
+        id: req.id,
+        request_type: "password_reset",
+        applicant_or_child_name: req.name,
+        status: "Pending",
+        reason_or_notes: JSON.stringify(req),
+      },
+    ])
+  ).catch(() => {});
+
+  return {
+    ok: true,
+    message: genericSuccessMsg,
+    token,
+  };
+}
+
+export function completeSecurePasswordReset(
+  token: string,
+  newPassword: string
+): { ok: boolean; error?: string } {
+  const cleanToken = token.trim();
+  const pwd = newPassword.trim();
+
+  if (!cleanToken) {
+    return { ok: false, error: "Password reset token is required." };
+  }
+  if (!pwd || pwd.length < 6) {
+    return { ok: false, error: "New password must be at least 6 characters long." };
+  }
+
+  const rows = read();
+  const req = rows.find((r) => r.resetToken === cleanToken || r.id === cleanToken);
+
+  if (!req) {
+    return { ok: false, error: "Invalid or expired password reset token." };
+  }
+
+  if (req.status === "Used" || req.status === "Expired") {
+    return { ok: false, error: "This password reset token has already been used or expired." };
+  }
+
+  if (req.expiresAt && new Date(req.expiresAt) < new Date()) {
+    req.status = "Expired";
+    write(rows);
+    return { ok: false, error: "This password reset token has expired. Please request a new one." };
+  }
+
+  // Update password securely
+  setTemporaryPasswordFor(req.loginId, pwd);
+
+  // Invalidate single-use token
+  req.status = "Used";
+  req.completedAt = new Date().toISOString();
+  write(rows);
+
+  Promise.resolve(
+    supabase.from("gv_requests").update({
+      status: "Used",
+      reason_or_notes: JSON.stringify(req),
+    }).eq("id", req.id)
+  ).catch(() => {});
+
+  return { ok: true };
 }

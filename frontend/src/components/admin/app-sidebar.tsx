@@ -28,6 +28,7 @@ type Group = { title: string; icon: React.ComponentType<{ className?: string }>;
 type OperationEntry = Item | Group;
 
 const operations: OperationEntry[] = [
+  { title: "School Branding", url: "/admin/school-branding", icon: Sparkles },
   { title: "Circulars", url: "/admin/circulars", icon: Megaphone },
   {
     title: "Attendance",

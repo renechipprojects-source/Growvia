@@ -49,8 +49,8 @@ export function PasswordResetQueue({ queue, title, description }: {
 
   function applyReset() {
     if (!active) return;
-    if (!tempPwd || tempPwd.length < 8) {
-      toast.error("Temporary password must be at least 8 characters.");
+    if (!tempPwd || tempPwd.length < 6) {
+      toast.error("New password must be at least 6 characters.");
       return;
     }
     const ok = setTemporaryPasswordFor(active.loginId, tempPwd);
@@ -58,8 +58,8 @@ export function PasswordResetQueue({ queue, title, description }: {
       toast.error("Could not update that account.");
       return;
     }
-    setStatus(active.id, "Completed", tempPwd);
-    toast.success("Password reset. Share the temporary password with the user.");
+    setStatus(active.id, "Completed");
+    toast.success("Password reset completed securely.");
     setActive(null);
   }
 
@@ -257,8 +257,10 @@ function StatusBadge({ status }: { status: ResetStatus }) {
     Pending: "bg-amber-100 text-amber-800",
     "In Progress": "bg-sky-100 text-sky-800",
     Completed: "bg-emerald-100 text-emerald-800",
+    Used: "bg-emerald-100 text-emerald-800",
+    Expired: "bg-slate-100 text-slate-800",
   };
-  return <Badge className={map[status]}>{status}</Badge>;
+  return <Badge className={map[status] || "bg-slate-100 text-slate-800"}>{status}</Badge>;
 }
 
 function StatCard({ label, value, tone }: { label: string; value: number; tone: "amber" | "sky" | "emerald" }) {

@@ -28,6 +28,7 @@ import { Route as AdminHealthRouteImport } from './routes/admin.health'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
 import { Route as AdminParentsRouteImport } from './routes/admin.parents'
 import { Route as AdminPasswordResetsRouteImport } from './routes/admin.password-resets'
+import { Route as AdminSchoolBrandingRouteImport } from './routes/admin.school-branding'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
@@ -187,6 +188,11 @@ const AdminParentsRoute = AdminParentsRouteImport.update({
 const AdminPasswordResetsRoute = AdminPasswordResetsRouteImport.update({
   id: '/password-resets',
   path: '/password-resets',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSchoolBrandingRoute = AdminSchoolBrandingRouteImport.update({
+  id: '/school-branding',
+  path: '/school-branding',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
@@ -537,6 +543,7 @@ export interface FileRoutesByFullPath {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
+  '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -618,6 +625,7 @@ export interface FileRoutesByTo {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
+  '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -705,6 +713,7 @@ export interface FileRoutesById {
   '/admin/inventory': typeof AdminInventoryRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
+  '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
@@ -793,6 +802,7 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
+    | '/admin/school-branding'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -874,6 +884,7 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
+    | '/admin/school-branding'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -960,6 +971,7 @@ export interface FileRouteTypes {
     | '/admin/inventory'
     | '/admin/parents'
     | '/admin/password-resets'
+    | '/admin/school-branding'
     | '/admin/students'
     | '/admin/transport'
     | '/office/admissions'
@@ -1172,6 +1184,13 @@ declare module '@tanstack/react-router' {
       path: '/password-resets'
       fullPath: '/admin/password-resets'
       preLoaderRoute: typeof AdminPasswordResetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/school-branding': {
+      id: '/admin/school-branding'
+      path: '/school-branding'
+      fullPath: '/admin/school-branding'
+      preLoaderRoute: typeof AdminSchoolBrandingRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/students': {
@@ -1655,6 +1674,7 @@ interface AdminRouteChildren {
   AdminInventoryRoute: typeof AdminInventoryRoute
   AdminParentsRoute: typeof AdminParentsRoute
   AdminPasswordResetsRoute: typeof AdminPasswordResetsRoute
+  AdminSchoolBrandingRoute: typeof AdminSchoolBrandingRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminTransportRoute: typeof AdminTransportRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1674,6 +1694,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminInventoryRoute: AdminInventoryRoute,
   AdminParentsRoute: AdminParentsRoute,
   AdminPasswordResetsRoute: AdminPasswordResetsRoute,
+  AdminSchoolBrandingRoute: AdminSchoolBrandingRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminTransportRoute: AdminTransportRoute,
   AdminIndexRoute: AdminIndexRoute,
