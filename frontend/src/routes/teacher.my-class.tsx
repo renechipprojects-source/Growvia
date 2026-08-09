@@ -39,21 +39,14 @@ function MyClass() {
 
   const q = headerQuery || localSearch;
 
-  if (!active) {
-    return (
-      <div>
-        <PageHeader title="My Class" subtitle="You are not assigned as a class teacher." />
-      </div>
-    );
-  }
-
-  const cls = active.className as ClassName;
-  const sec = active.section as Section;
+  const cls = (active?.className || "") as ClassName;
+  const sec = (active?.section || "") as Section;
 
   const list = useMemo(() => {
+    if (!active) return [];
     const source = allStudents;
     return source.filter((s) => s.className === cls && (!sec || s.section === sec));
-  }, [allStudents, cls, sec]);
+  }, [active, allStudents, cls, sec]);
 
   const recs: any[] = [];
   const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
@@ -79,6 +72,14 @@ function MyClass() {
     () => list.filter((s) => matchesSearch(q, s.name, s.rollNo, s.admissionNo, s.parent)),
     [q, list],
   );
+
+  if (!active) {
+    return (
+      <div>
+        <PageHeader title="My Class" subtitle="You are not assigned as a class teacher." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">

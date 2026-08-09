@@ -30,7 +30,7 @@ export async function syncTransportFromSupabase() {
         } else if (d.record_type === "transport_driver") {
           remoteDrivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "9876543210", licenseNo: meta.licenseNo || "LIC-100", vehicle: meta.vehicle || "BUS-1", status: meta.status || "Active" });
         } else if (d.record_type === "transport_route") {
-          remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"] });
+          remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"], status: meta.status || "Active" });
         } else if (d.record_type === "transport_allocation") {
           remoteAllocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "Nursery", section: meta.section || "A", routeName: meta.routeName || "Route 1", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "Stop 1", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 1500, status: meta.status || "Active" });
         }
@@ -96,7 +96,7 @@ export function saveStoredVehicles(list: Vehicle[]) {
 
   // Sync to Supabase gv_inventory_expenses
   list.forEach((v) => {
-    supabase.from("gv_inventory_expenses").upsert([{
+    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
       id: v.id,
       record_type: "transport_vehicle",
       title: v.name,
@@ -105,7 +105,7 @@ export function saveStoredVehicles(list: Vehicle[]) {
       supplier_or_paid_to: v.number,
       notes: JSON.stringify(v),
       created_by: "Office Staff",
-    }], { onConflict: "id" }).catch(() => {});
+    }], { onConflict: "id" })).catch(() => {});
   });
 }
 
@@ -128,15 +128,15 @@ export function saveStoredDrivers(list: Driver[]) {
   } catch {}
 
   list.forEach((d) => {
-    supabase.from("gv_inventory_expenses").upsert([{
+    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
       id: d.id,
       record_type: "transport_driver",
       title: d.name,
       category: "Transport Roster",
-      supplier_or_paid_to: d.phone,
+      supplier_or_paid_to: d.phone || d.mobile || "",
       notes: JSON.stringify(d),
       created_by: "Office Staff",
-    }], { onConflict: "id" }).catch(() => {});
+    }], { onConflict: "id" })).catch(() => {});
   });
 }
 
@@ -159,7 +159,7 @@ export function saveStoredRoutes(list: Route[]) {
   } catch {}
 
   list.forEach((r) => {
-    supabase.from("gv_inventory_expenses").upsert([{
+    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
       id: r.id,
       record_type: "transport_route",
       title: r.name,
@@ -169,7 +169,7 @@ export function saveStoredRoutes(list: Route[]) {
       supplier_or_paid_to: r.vehicle,
       notes: JSON.stringify(r),
       created_by: "Office Staff",
-    }], { onConflict: "id" }).catch(() => {});
+    }], { onConflict: "id" })).catch(() => {});
   });
 }
 
@@ -192,15 +192,15 @@ export function saveStoredAllocations(list: StudentAllocation[]) {
   } catch {}
 
   list.forEach((a) => {
-    supabase.from("gv_inventory_expenses").upsert([{
+    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
       id: a.id,
       record_type: "transport_allocation",
-      title: a.studentName,
+      title: a.studentName || a.student || "",
       category: "Transport Student Allocation",
       amount_or_unit_cost: a.monthlyFee,
-      supplier_or_paid_to: a.pickupStop,
+      supplier_or_paid_to: a.pickupStop || a.pickupPoint || "",
       notes: JSON.stringify(a),
       created_by: "Office Staff",
-    }], { onConflict: "id" }).catch(() => {});
+    }], { onConflict: "id" })).catch(() => {});
   });
 }

@@ -3,21 +3,22 @@ export type Vehicle = {
   id: string;
   number: string;
   name: string;
-  type: "Bus" | "Van" | "Mini Bus";
+  type?: "Bus" | "Van" | "Mini Bus";
   capacity: number;
-  driver: string;
-  route: string;
+  driver?: string;
+  route?: string;
   status: VehicleStatus;
-  lastService: string;
-  nextService: string;
+  lastService?: string;
+  nextService?: string;
 };
 
 export type Route = {
   id: string;
   name: string;
-  pickupPoints: string[];
-  dropPoints: string[];
-  distanceKm: number;
+  pickupPoints?: string[];
+  dropPoints?: string[];
+  stops?: string[];
+  distanceKm?: number;
   vehicle: string;
   driver: string;
   students: number;
@@ -27,27 +28,36 @@ export type Route = {
 export type Driver = {
   id: string;
   name: string;
-  employeeId: string;
-  mobile: string;
-  license: string;
-  licenseExpiry: string;
+  employeeId?: string;
+  mobile?: string;
+  phone?: string;
+  license?: string;
+  licenseNo?: string;
+  licenseExpiry?: string;
   vehicle: string;
-  route: string;
+  route?: string;
   status: "Active" | "On Leave" | "Inactive";
 };
 
 export type Allocation = {
   id: string;
-  student: string;
+  student?: string;
+  studentId?: string;
+  studentName?: string;
   className: string;
   section: string;
-  route: string;
-  pickupPoint: string;
-  dropPoint: string;
-  vehicle: string;
-  driver: string;
+  route?: string;
+  routeName?: string;
+  pickupPoint?: string;
+  pickupStop?: string;
+  dropPoint?: string;
+  vehicle?: string;
+  driver?: string;
   monthlyFee: number;
+  status?: string;
 };
+
+export type StudentAllocation = Allocation;
 
 export type Maintenance = {
   id: string;

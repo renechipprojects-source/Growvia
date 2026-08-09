@@ -6,6 +6,8 @@ export type ERPModule =
   | "students"
   | "staff"
   | "admissions"
+  | "enquiries"
+  | "visits"
   | "fees"
   | "attendance"
   | "circulars"
@@ -65,7 +67,7 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
 
     isRefreshingRef.current.set(module, true);
 
-    Promise.all(Array.from(fns).map((fn) => Promise.resolve(fn())))
+    Promise.all(Array.from(fns).map((fn) => Promise.resolve().then(() => fn())))
       .catch((err) => console.warn(`AutoRefresh error in ${module}:`, err))
       .finally(() => {
         isRefreshingRef.current.set(module, false);

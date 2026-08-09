@@ -26,6 +26,9 @@ export interface Student {
   avatar: string;
   attendance: number;
   branch: string;
+  email?: string;
+  occupation?: string;
+  parentOccupation?: string;
 }
 
 export interface Teacher {
@@ -54,7 +57,7 @@ export interface Enquiry {
   previousSchool?: string;
   age: number;
   interestedClass: string;
-  source: "Walk-in" | "Phone" | "WhatsApp" | "Referral";
+  source: "Walk-in" | "Phone" | "WhatsApp" | "Referral" | "Campus Walk-in";
   status:
     | "New"
     | "Contacted"
@@ -62,7 +65,8 @@ export interface Enquiry {
     | "Visit Completed"
     | "Documents Pending"
     | "Admission Approved"
-    | "Enrolled";
+    | "Enrolled"
+    | "Dropped";
   createdAt: string;
   followUp?: string;
   notes?: string;
@@ -97,6 +101,8 @@ export interface Expense {
   amount: number;
   date: string;
   paidTo: string;
+  paymentMethod?: string;
+  notes?: string;
 }
 
 // ─── Generators ──────────────────────────────────────────────────────────────

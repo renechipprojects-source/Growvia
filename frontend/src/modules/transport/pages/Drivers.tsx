@@ -18,7 +18,7 @@ const columns: Column<Driver>[] = [
   { key: "emp", header: "Employee ID", cell: (d) => <span className="font-mono text-xs">{d.employeeId}</span> },
   { key: "mobile", header: "Mobile", cell: (d) => d.mobile },
   { key: "license", header: "License", cell: (d) => <span className="font-mono text-xs">{d.license}</span> },
-  { key: "expiry", header: "License Expiry", cell: (d) => shortDate(d.licenseExpiry) },
+  { key: "expiry", header: "License Expiry", cell: (d) => shortDate(d.licenseExpiry || "") },
   { key: "vehicle", header: "Vehicle", cell: (d) => <span className="font-mono text-xs">{d.vehicle}</span> },
   { key: "route", header: "Route", cell: (d) => d.route },
   { key: "status", header: "Status", cell: (d) => <StatusBadge status={d.status} /> },
@@ -110,7 +110,7 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
         <StatCard label="Total Drivers" value={driverList.length} icon={<Users className="h-5 w-5" />} />
         <StatCard label="Active" value={driverList.filter((d) => d.status === "Active").length} tone="success" icon={<Users className="h-5 w-5" />} />
         <StatCard label="On Leave" value={driverList.filter((d) => d.status === "On Leave").length} tone="warning" icon={<Users className="h-5 w-5" />} />
-        <StatCard label="License Expiring Soon" value={driverList.filter((d) => new Date(d.licenseExpiry) < new Date("2027-01-01")).length} tone="danger" icon={<Users className="h-5 w-5" />} />
+        <StatCard label="License Expiring Soon" value={driverList.filter((d) => new Date(d.licenseExpiry || Date.now()) < new Date("2027-01-01")).length} tone="danger" icon={<Users className="h-5 w-5" />} />
       </div>
       <div className="mt-6">
         <DataTable<Driver>

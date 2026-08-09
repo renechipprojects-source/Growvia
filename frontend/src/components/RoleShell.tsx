@@ -88,7 +88,7 @@ function RoleShellInner({ role }: { role: Role }) {
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
         {(() => {
-          const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl;
+          const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl || "";
           const hasCustomLogo = Boolean(logo) && !logo.includes("data:image/svg");
           return hasCustomLogo ? (
             <div className="flex shrink-0 items-center justify-center">

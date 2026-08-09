@@ -64,7 +64,7 @@ function AdminExpensesOverview() {
       <div className="shrink-0">
         <PageHeader
           title="Operating Expenses"
-          subtitle="System audit of school expenditures and outlays."
+          description="System audit of school expenditures and outlays."
         />
       </div>
 

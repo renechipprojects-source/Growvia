@@ -90,7 +90,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-slate-200/80 px-3 py-3">
         <div className="flex items-center gap-3">
           {(() => {
-            const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl;
+            const logo = settings.branding.sidebarLogoUrl || settings.theme.sidebarLogoUrl || settings.branding.schoolLogoUrl || "";
             const hasCustomLogo = Boolean(logo) && !logo.includes("data:image/svg");
             return hasCustomLogo ? (
               <div className="flex shrink-0 items-center justify-center">

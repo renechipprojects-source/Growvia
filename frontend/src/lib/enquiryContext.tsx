@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 interface Ctx {
   enquiries: Enquiry[];
   convertedIds: Set<string>;
+  addEnquiry: (e: Omit<Enquiry, "id" | "createdAt" | "age"> & { age?: number }) => void;
   updateStatus: (id: string, status: Enquiry["status"]) => void;
   markConverted: (id: string) => void;
   dropEnquiry: (id: string, reason: string) => void;
@@ -41,6 +42,27 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     loadData();
   }, [loadData]);
 
+  const addEnquiry = useCallback((e: Omit<Enquiry, "id" | "createdAt" | "age"> & { age?: number }) => {
+    const newEnquiry: Enquiry = {
+      ...e,
+      id: `ENQ-${Date.now()}`,
+      age: e.age || 4,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setEnquiries((prev) => [newEnquiry, ...prev]);
+    saveStoredEnquiries([newEnquiry, ...enquiries]);
+    Promise.resolve(supabase.from("gv_requests").insert([{
+      id: newEnquiry.id,
+      request_type: "enquiry",
+      applicant_or_child_name: newEnquiry.childName,
+      parent_name: newEnquiry.parentName,
+      phone: newEnquiry.phone,
+      reason_or_notes: newEnquiry.notes || "",
+      status: newEnquiry.status,
+      created_at: new Date().toISOString(),
+    }])).catch(() => {});
+  }, [enquiries]);
+
   const updateStatus = useCallback((id: string, status: Enquiry["status"]) => {
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
     Promise.resolve(supabase.from("gv_requests").update({ status }).eq("id", id)).catch(() => {});
@@ -57,7 +79,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dropEnquiry = useCallback((id: string, reason: string) => {
-    setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Dropped" as any, notes: `Dropped: ${reason}` } : e)));
+    setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Dropped", notes: `Dropped: ${reason}` } : e)));
     Promise.resolve(supabase.from("gv_requests").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
   }, []);
 
@@ -72,6 +94,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     () => ({
       enquiries,
       convertedIds,
+      addEnquiry,
       updateStatus,
       markConverted,
       dropEnquiry,
@@ -79,7 +102,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
       getEnquiry,
       convertibleEnquiries,
     }),
-    [enquiries, convertedIds, updateStatus, markConverted, dropEnquiry, isConverted, getEnquiry, convertibleEnquiries],
+    [enquiries, convertedIds, addEnquiry, updateStatus, markConverted, dropEnquiry, isConverted, getEnquiry, convertibleEnquiries],
   );
 
   return <EnquiryCtx.Provider value={value}>{children}</EnquiryCtx.Provider>;

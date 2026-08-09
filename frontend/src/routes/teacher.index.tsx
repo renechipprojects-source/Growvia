@@ -46,10 +46,10 @@ function Dash() {
   const total = myClass.length;
   const boys = myClass.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
   const girls = myClass.filter((s) => s.gender === "Girl" || (s as any).gender === "Female").length;
-  const presentCount = myClass.filter((s) => recMap.get(s.id) === "P" || recMap.get(s.id) === "Present").length;
-  const absentCount = myClass.filter((s) => recMap.get(s.id) === "A" || recMap.get(s.id) === "Absent").length;
-  const lateCount = myClass.filter((s) => recMap.get(s.id) === "L" || recMap.get(s.id) === "Late").length;
-  const leaveCount = myClass.filter((s) => recMap.get(s.id) === "Lv" || recMap.get(s.id) === "Leave").length;
+  const presentCount = myClass.filter((s) => (recMap.get(s.id) as string) === "P" || (recMap.get(s.id) as string) === "Present").length;
+  const absentCount = myClass.filter((s) => (recMap.get(s.id) as string) === "A" || (recMap.get(s.id) as string) === "Absent").length;
+  const lateCount = myClass.filter((s) => (recMap.get(s.id) as string) === "L" || (recMap.get(s.id) as string) === "Late").length;
+  const leaveCount = myClass.filter((s) => (recMap.get(s.id) as string) === "Lv" || (recMap.get(s.id) as string) === "Leave").length;
   const classHomework: any[] = [];
   const hwPending = 0;
   const hwSubmitted = 0;
@@ -160,7 +160,7 @@ function Dash() {
             <div className="h-[420px] overflow-y-auto pr-1 -mr-1">
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-6 gap-2">
                 {myClass.map((s) => {
-                  const rawStatus = recMap.get(s.id);
+                  const rawStatus = recMap.get(s.id) as string | undefined;
                   const isAbsent = rawStatus === "A" || rawStatus === "Lv" || rawStatus === "Absent" || rawStatus === "Leave";
                   const isLate = rawStatus === "L" || rawStatus === "Late";
                   const displayStatus = rawStatus === "P" ? "Present" : rawStatus === "A" ? "Absent" : rawStatus === "L" ? "Late" : rawStatus === "Lv" ? "Leave" : rawStatus || "Not Marked";

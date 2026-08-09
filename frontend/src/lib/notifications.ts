@@ -13,6 +13,9 @@ export type NotificationModule =
   | "leave"
   | "fees"
   | "admissions"
+  | "enquiries"
+  | "visits"
+  | "inventory"
   | "messages"
   | "staff"
   | "system";
@@ -105,8 +108,8 @@ function emit() {
   for (const l of listeners) l();
 }
 
-const ALLOWED_MODULES_BY_ROLE: Record<Role, NotificationModule[]> = {
-  office: ["admissions", "fees", "leave", "messages", "announcement"],
+const ALLOWED_MODULES_BY_ROLE: Record<Role | "developer", NotificationModule[]> = {
+  office: ["admissions", "fees", "enquiries", "visits", "announcement", "messages", "inventory"],
   principal: ["leave", "announcement", "staff"],
   teacher: ["homework", "leave", "messages", "announcement"],
   parent: ["fees", "announcement", "homework", "attendance", "messages", "leave"],
@@ -166,10 +169,12 @@ export function syncLiveDatabaseNotifications() {
   const deletedSet = getDeletedIds();
 
   // Sync custom saved notifications from gv_requests
-  supabase
-    .from("gv_requests")
-    .select("*")
-    .eq("request_type", "app_notification")
+  Promise.resolve(
+    supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "app_notification")
+  )
     .then(({ data }) => {
       if (data && data.length > 0) {
         let updated = false;
@@ -197,9 +202,9 @@ export function syncLiveDatabaseNotifications() {
           let updated = false;
           data.forEach((c) => {
             const notifId = `n-cir-${c.id || c.title}`;
-            const isDel = deletedSet.has(notifId) || deletedSet.has(c.id) || deletedSet.has(c.title);
+            const isDel = deletedSet.has(notifId) || (c.id && deletedSet.has(c.id)) || deletedSet.has(c.title);
             if (!isDel) {
-              const read = isCircularRead(c.id, "principal") || isCircularRead(c.id, "all") || isCircularRead(notifId, "principal");
+              const read = (c.id ? isCircularRead(c.id, "principal") || isCircularRead(c.id, "all") : false) || isCircularRead(notifId, "principal");
               const existingIdx = store.findIndex((n) => n.id === notifId);
               if (existingIdx >= 0) {
                 if (read && !store[existingIdx].read) {

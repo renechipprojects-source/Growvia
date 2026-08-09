@@ -3,6 +3,7 @@ import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
 import { generateParentCredential } from "./credentials";
 import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
+import { API_URL } from "./api";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -124,6 +125,7 @@ export interface FeeLedgerItem {
   studentId: string;
   studentName: string;
   admissionNo?: string;
+  rollNo?: number;
   className: string;
   section?: string;
   academicYear?: string;
@@ -237,13 +239,15 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
 
         const localList = getCachedCircularsList();
         const mergedMap = new Map<string, Circular>();
-        mapped.forEach((c) => mergedMap.set(c.id, c));
+        mapped.forEach((c) => { if (c.id) mergedMap.set(c.id, c); });
         localList.forEach((localCir) => {
-          const dbCir = mergedMap.get(localCir.id);
-          if (dbCir) {
-            mergedMap.set(localCir.id, { ...dbCir, ...localCir });
-          } else {
-            mergedMap.set(localCir.id, localCir);
+          if (localCir.id) {
+            const dbCir = mergedMap.get(localCir.id);
+            if (dbCir) {
+              mergedMap.set(localCir.id, { ...dbCir, ...localCir });
+            } else {
+              mergedMap.set(localCir.id, localCir);
+            }
           }
         });
 

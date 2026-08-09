@@ -22,8 +22,8 @@ const columns: Column<Vehicle>[] = [
   { key: "driver", header: "Driver", cell: (v) => v.driver },
   { key: "route", header: "Route", cell: (v) => v.route },
   { key: "status", header: "Status", cell: (v) => <StatusBadge status={v.status} /> },
-  { key: "lastService", header: "Last Service", cell: (v) => shortDate(v.lastService) },
-  { key: "nextService", header: "Next Service", cell: (v) => shortDate(v.nextService) },
+  { key: "lastService", header: "Last Service", cell: (v) => shortDate(v.lastService || "") },
+  { key: "nextService", header: "Next Service", cell: (v) => shortDate(v.nextService || "") },
 ];
 
 const filters: FilterDef<Vehicle>[] = [
@@ -151,10 +151,10 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
                   setForm({
                     number: v.number,
                     name: v.name,
-                    type: v.type,
+                    type: v.type || "Bus",
                     capacity: v.capacity,
-                    driver: v.driver,
-                    route: v.route,
+                    driver: v.driver || "",
+                    route: v.route || "",
                     status: v.status,
                   });
                   setOpen(true);

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Phone, Plus, CheckCircle2, Clock, Search, Sparkles, UserCheck, MapPin } from "lucide-react";
-import { useEnquiries, type EnquiryItem } from "@/lib/enquiryContext";
+import { useEnquiries } from "@/lib/enquiryContext";
+import type { Enquiry } from "@/lib/mockData";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { toast } from "sonner";
 
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/office/visits")({
 });
 
 function VisitsPage() {
-  const { enquiries, addEnquiry, updateEnquiryStatus } = useEnquiries();
+  const { enquiries, addEnquiry, updateStatus } = useEnquiries();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -44,7 +45,7 @@ function VisitsPage() {
   const visitsList = useMemo(() => {
     return enquiries.filter((e) => {
       if (statusFilter === "all") return true;
-      if (statusFilter === "scheduled") return e.status === "Visit Scheduled" || e.status === "New Enquiry";
+      if (statusFilter === "scheduled") return e.status === "Visit Scheduled" || e.status === "New";
       if (statusFilter === "completed") return e.status === "Visit Completed";
       return true;
     });
@@ -63,11 +64,11 @@ function VisitsPage() {
     });
   }, [visitsList, search]);
 
-  const scheduledCount = enquiries.filter((e) => e.status === "Visit Scheduled" || e.status === "New Enquiry").length;
+  const scheduledCount = enquiries.filter((e) => e.status === "Visit Scheduled" || e.status === "New").length;
   const completedCount = enquiries.filter((e) => e.status === "Visit Completed").length;
 
   const handleMarkCompleted = (id: string, childName: string) => {
-    updateEnquiryStatus(id, "Visit Completed");
+    updateStatus(id, "Visit Completed");
     triggerModuleRefresh("enquiries");
     toast.success(`Marked visit completed for ${childName}`);
   };

@@ -214,7 +214,7 @@ function StudentsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 border shadow-sm shrink-0">
-                          <AvatarImage src={s.avatar} alt={s.name} className="object-cover" />
+                          <AvatarImage src={(s as any).avatar || (s as any).avatar_url} alt={s.name} className="object-cover" />
                           <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
                             {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                           </AvatarFallback>

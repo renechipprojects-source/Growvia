@@ -49,10 +49,6 @@ export function subscribeToRealtimeTable({
       .subscribe((status: string) => {
         if (status === "SUBSCRIBED" && !isUnsubscribed) {
           activeChannels.set(channelKey, channel);
-        } else if (isUnsubscribed) {
-          try {
-            supabase.removeChannel(channel);
-          } catch {}
         }
       });
 

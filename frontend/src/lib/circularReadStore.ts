@@ -89,7 +89,7 @@ export function markCircularAsRead(circularId: string, roleOrUserId: string) {
 export function markAllCircularsAsRead(role: string, circulars: any[] = []) {
   if (!role) return;
   const store = getReadStore(READ_STORAGE_KEY);
-  store[`__ALL_READ__${role}`] = "true";
+  store[`__ALL_READ__${role}`] = ["true"];
 
   if (Array.isArray(circulars) && circulars.length > 0) {
     circulars.forEach((c) => {
@@ -110,7 +110,7 @@ export function markAllCircularsAsRead(role: string, circulars: any[] = []) {
 export function isCircularRead(circularId: string, roleOrUserId: string): boolean {
   if (!circularId || !roleOrUserId) return false;
   const store = getReadStore(READ_STORAGE_KEY);
-  if (store[`__ALL_READ__${roleOrUserId}`] === "true") return true;
+  if (store[`__ALL_READ__${roleOrUserId}`]?.includes("true")) return true;
   const readers = store[circularId] || [];
   return readers.includes(roleOrUserId) || readers.includes("all");
 }
@@ -124,17 +124,19 @@ export function acknowledgeCircular(circularId: string, roleOrUserId: string) {
     store[circularId] = [...acks, roleOrUserId];
     saveReadStore(store, ACK_STORAGE_KEY);
 
-    supabase.from("gv_communications").insert([
-      {
-        sender_id: "SYSTEM",
-        sender_name: "CircularReadStore",
-        sender_role: "system",
-        receiver_id: circularId,
-        receiver_role: "ack",
-        message_text: `READ_ACK:${roleOrUserId}`,
-        read_status: true,
-      }
-    ]).then(() => {});
+    Promise.resolve(
+      supabase.from("gv_communications").insert([
+        {
+          sender_id: "SYSTEM",
+          sender_name: "CircularReadStore",
+          sender_role: "system",
+          receiver_id: circularId,
+          receiver_role: "ack",
+          message_text: `READ_ACK:${roleOrUserId}`,
+          read_status: true,
+        }
+      ])
+    ).then(() => {});
   }
 }
 
@@ -148,7 +150,7 @@ export function isCircularAcknowledged(circularId: string, roleOrUserId: string)
 export function getUnreadCountForRole(circulars: any[], role: string): number {
   if (!Array.isArray(circulars) || circulars.length === 0) return 0;
   const store = getReadStore(READ_STORAGE_KEY);
-  if (store[`__ALL_READ__${role}`] === "true") return 0;
+  if (store[`__ALL_READ__${role}`]?.includes("true")) return 0;
 
   return circulars.filter((c) => {
     const isTarget = isCircularTargetedToRole(c, role);

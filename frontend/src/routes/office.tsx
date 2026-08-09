@@ -12,7 +12,7 @@ import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/office")({
   beforeLoad: () => {
-    requireAuthGuard(["office", "admin", "super-admin", "principal"]);
+    requireAuthGuard(["office", "super-admin", "principal"]);
   },
   head: () => ({
     meta: [

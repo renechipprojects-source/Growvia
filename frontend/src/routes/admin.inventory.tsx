@@ -25,7 +25,7 @@ function AdminInventoryPage() {
         !q ||
         item.name.toLowerCase().includes(q.toLowerCase()) ||
         item.sku.toLowerCase().includes(q.toLowerCase()) ||
-        item.category.toLowerCase().includes(q.toLowerCase());
+        (item.category || item.categoryId).toLowerCase().includes(q.toLowerCase());
       return matchQ;
     });
   }, [inv.items, q]);
@@ -37,7 +37,7 @@ function AdminInventoryPage() {
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4 p-4 bg-slate-50/50">
       <div className="shrink-0 flex items-center justify-between">
-        <PageHeader title="Live Inventory Audit" subtitle="Real-time institutional stock levels and asset valuation." />
+        <PageHeader title="Live Inventory Audit" description="Real-time institutional stock levels and asset valuation." />
       </div>
 
       {/* Metrics Row */}

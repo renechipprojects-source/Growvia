@@ -34,6 +34,17 @@ function MySubjects() {
   const q = headerQ || localSearch;
   const { homework } = useHomework();
 
+  const students = active ? getStudentsForAssignment(active) : [];
+  const subjectHomework = active
+    ? homework.filter(
+        (h: Homework) => h.className === active.className && h.subject === active.subject,
+      )
+    : [];
+  const filteredStudents = useMemo(
+    () => students.filter((s: any) => matchesSearch(q, s.name, s.rollNo, s.admissionNo, s.parent)),
+    [q, students],
+  );
+
   if (!active) {
     return (
       <div>
@@ -41,15 +52,6 @@ function MySubjects() {
       </div>
     );
   }
-
-  const students = getStudentsForAssignment(active);
-  const subjectHomework = homework.filter(
-    (h: Homework) => h.className === active.className && h.subject === active.subject,
-  );
-  const filteredStudents = useMemo(
-    () => students.filter((s: any) => matchesSearch(q, s.name, s.rollNo, s.admissionNo, s.parent)),
-    [q, students],
-  );
 
   return (
     <div className="flex flex-col h-full min-h-0">

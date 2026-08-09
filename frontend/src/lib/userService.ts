@@ -48,11 +48,12 @@ export interface Student {
   gender: "Boy" | "Girl";
   house: "Red" | "Blue" | "Green" | "Yellow";
   admissionDate: string;
-  feeStatus: "Paid" | "Pending" | "Overdue";
+  feeStatus: "Paid" | "Pending" | "Overdue" | "Partial";
   avatar?: string;
   attendance: number;
   attendancePct?: number;
   branch?: string;
+  bloodGroup?: string;
 }
 
 export interface Teacher {

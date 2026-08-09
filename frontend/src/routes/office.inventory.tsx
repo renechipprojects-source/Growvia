@@ -40,7 +40,7 @@ function OfficeInventory() {
         !q ||
         item.name.toLowerCase().includes(q.toLowerCase()) ||
         item.sku.toLowerCase().includes(q.toLowerCase()) ||
-        item.category.toLowerCase().includes(q.toLowerCase());
+        (item.category || item.categoryId).toLowerCase().includes(q.toLowerCase());
       return matchQ;
     });
   }, [inv.items, q]);
@@ -78,9 +78,10 @@ function OfficeInventory() {
       return;
     }
 
-    const itemData: Omit<InventoryItem, "id"> = {
+    const itemData: Omit<InventoryItem, "id" | "updatedAt"> = {
       name: name.trim(),
       sku: sku.trim() || `SKU-${Date.now().toString().slice(-4)}`,
+      categoryId: "cat-1",
       category: "General",
       qty: Number(qty) || 0,
       minQty: Number(minQty) || 0,

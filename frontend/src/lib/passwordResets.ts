@@ -244,7 +244,7 @@ export function processUnifiedPasswordReset(
 
   const tempPwd = newPassword || generateTemporaryPassword();
 
-  if (role === "office" || role === "principal" || role === "super-admin" || role === "admin") {
+  if (role === "office" || role === "principal" || role === "super-admin") {
     const sys = findSystemUserByLoginId(id);
     if (!sys) return { ok: false, error: "No system account found for that login ID." };
     if (sys.role === "super-admin") {

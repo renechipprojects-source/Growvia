@@ -14,9 +14,9 @@ import type { Route } from "../types";
 
 const columns: Column<Route>[] = [
   { key: "name", header: "Route", cell: (r) => <span className="font-medium">{r.name}</span> },
-  { key: "pickup", header: "Pickup Points", cell: (r) => <span className="text-sm">{r.pickupPoints.join(", ")}</span> },
-  { key: "drop", header: "Drop Points", cell: (r) => <span className="text-sm">{r.dropPoints.join(", ")}</span> },
-  { key: "distance", header: "Distance", cell: (r) => `${r.distanceKm} km` },
+  { key: "pickup", header: "Pickup Points", cell: (r) => <span className="text-sm">{(r.pickupPoints || r.stops || ["School"]).join(", ")}</span> },
+  { key: "drop", header: "Drop Points", cell: (r) => <span className="text-sm">{(r.dropPoints || r.stops || ["Main Gate"]).join(", ")}</span> },
+  { key: "distance", header: "Distance", cell: (r) => `${r.distanceKm || 10} km` },
   { key: "vehicle", header: "Vehicle", cell: (r) => <span className="font-mono text-xs">{r.vehicle}</span> },
   { key: "driver", header: "Driver", cell: (r) => r.driver },
   { key: "students", header: "Assigned Students", cell: (r) => r.students },
@@ -161,7 +161,7 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
         <StatCard label="Total Routes" value={routeList.length} icon={<MapPinned className="h-5 w-5" />} />
         <StatCard label="Active" value={routeList.filter((r) => r.status === "Active").length} tone="success" icon={<MapPinned className="h-5 w-5" />} />
         <StatCard label="Students on Transport" value={routeList.reduce((a, b) => a + b.students, 0)} tone="info" icon={<MapPinned className="h-5 w-5" />} />
-        <StatCard label="Total Distance" value={`${routeList.reduce((a, b) => a + b.distanceKm, 0)} km`} icon={<MapPinned className="h-5 w-5" />} />
+        <StatCard label="Total Distance" value={`${routeList.reduce((a, b) => a + (b.distanceKm || 0), 0)} km`} icon={<MapPinned className="h-5 w-5" />} />
       </div>
       <div className="mt-6">
         <DataTable<Route>

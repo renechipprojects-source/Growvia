@@ -11,6 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
+import { AcademicYearProvider } from "@/lib/academicYearContext";
+import { AutoRefreshProvider } from "@/lib/autoRefreshContext";
+import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 function NotFoundComponent() {
   return (
@@ -35,15 +39,17 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error("Root Error Boundary caught:", error);
+  console.error("Root Error Boundary caught runtime exception:", error, error?.stack);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const isDev = typeof process !== "undefined" ? process.env.NODE_ENV !== "production" : true;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="max-w-md w-full text-center bg-white rounded-3xl border border-slate-200/80 p-8 shadow-xl shadow-slate-200/50">
+      <div className="max-w-lg w-full text-center bg-white rounded-3xl border border-slate-200/80 p-8 shadow-xl shadow-slate-200/50">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl mb-4">
           !
         </div>
@@ -53,13 +59,21 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-slate-600">
           {error?.message || "Something went wrong while loading this view."}
         </p>
+        {isDev && error?.stack && (
+          <details className="mt-4 text-left bg-slate-900 text-slate-200 p-3.5 rounded-xl text-xs overflow-x-auto max-h-48 font-mono">
+            <summary className="cursor-pointer font-semibold text-amber-400 mb-1">
+              Developer Error Details & Stack Trace
+            </summary>
+            <pre className="whitespace-pre-wrap">{error.stack}</pre>
+          </details>
+        )}
         <div className="mt-6 flex flex-col gap-2.5">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="w-full inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-slate-800 shadow-xs"
+            className="w-full inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-slate-800 shadow-xs cursor-pointer"
           >
             Refresh View
           </button>
@@ -110,10 +124,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
-import { AcademicYearProvider } from "@/lib/academicYearContext";
-import { AutoRefreshProvider } from "@/lib/autoRefreshContext";
-import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

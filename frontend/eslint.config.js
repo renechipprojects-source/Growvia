@@ -36,6 +36,7 @@ export default tseslint.config(
       "no-undef": "off",
       "no-empty": "off",
       "no-extra-boolean-cast": "off",
+      "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off"
     }
   }

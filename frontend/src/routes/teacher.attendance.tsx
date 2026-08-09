@@ -4,7 +4,7 @@ type ClassName = string;
 type Section = string;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Check, X, Clock, Plane, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -45,47 +45,37 @@ function Att() {
   const navigate = Route.useNavigate();
   const assignments: TeacherAssignment[] = [...getClassAssignments(), ...getSubjectAssignments()];
 
-  if (assignments.length === 0) {
-    return (
-      <div>
-        <PageHeader title="Attendance" subtitle="No classes assigned to you yet." />
-      </div>
-    );
-  }
-
-  const active =
-    (activeId && assignments.find((x) => x.id === activeId)) || assignments[0];
-  if (activeId && !assignments.find((x) => x.id === activeId)) {
-    throw notFound();
-  }
-
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [localSearch, setLocalSearch] = useState("");
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   const { attendance: liveAttendanceRecords } = useLiveAttendance(undefined, date);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     fetchStudents().then(({ data }) => setAllStudents(data || []));
-  };
+  }, []);
 
   useAutoRefresh("students", loadData);
   useAutoRefresh("attendance", loadData);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const headerQuery = useSearchQuery();
   const q = headerQuery || localSearch;
 
-  const cls = active.className as ClassName;
-  const sec = active.section as Section;
+  const active =
+    (activeId && assignments.find((x) => x.id === activeId)) || assignments[0];
+
+  const cls = (active?.className || "") as ClassName;
+  const sec = (active?.section || "") as Section;
 
   const list = useMemo(() => {
+    if (!active) return [];
     const source = allStudents;
     return source.filter((s) => s.className === cls && (!sec || s.section === sec));
-  }, [allStudents, cls, sec]);
+  }, [active, allStudents, cls, sec]);
 
   const seed = useMemo(() => {
     const existingForDate = liveAttendanceRecords.filter((r) => r.date === date);
@@ -113,6 +103,14 @@ function Att() {
     Lv: Object.values(state).filter((v) => v === "Lv").length,
   };
   const pct = counts.total ? Math.round((counts.P / counts.total) * 100) : 0;
+
+  if (assignments.length === 0 || !active) {
+    return (
+      <div>
+        <PageHeader title="Attendance" subtitle="No classes assigned to you yet." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
