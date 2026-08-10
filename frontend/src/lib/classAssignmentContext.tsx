@@ -132,8 +132,7 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
       id: a.id,
       request_type: "class_assignment",
       applicant_or_child_name: a.teacherName,
-      class_name: a.className,
-      section: a.section,
+      leave_type_or_interested_class: `${a.className} ${a.section}`.trim(),
       status: a.status,
       reason_or_notes: JSON.stringify(a),
     }));

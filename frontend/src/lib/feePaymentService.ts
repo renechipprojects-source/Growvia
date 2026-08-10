@@ -110,7 +110,6 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
 
   try {
     const { data, error } = await supabase.from("gv_fees_payments").insert([payload]).select();
-    Promise.resolve(supabase.from("fees_payments").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

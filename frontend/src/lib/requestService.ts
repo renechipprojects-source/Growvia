@@ -81,7 +81,6 @@ export async function createLeaveRequestToModule(leave: Partial<LeaveRequest>) {
 
   try {
     const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
-    Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -108,7 +107,6 @@ export async function createEnquiryToModule(enquiry: Partial<Enquiry>) {
 
   try {
     const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
-    Promise.resolve(supabase.from("requests").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

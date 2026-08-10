@@ -100,7 +100,6 @@ export async function saveInventoryItemToModule(item: Partial<InventoryItemRecor
 
   try {
     const { data, error } = await supabase.from("gv_inventory_expenses").upsert([payload]).select();
-    Promise.resolve(supabase.from("inventory_expenses").upsert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };
@@ -123,7 +122,6 @@ export async function recordExpenseToModule(expense: Partial<ExpenseRecord>) {
 
   try {
     const { data, error } = await supabase.from("gv_inventory_expenses").insert([payload]).select();
-    Promise.resolve(supabase.from("inventory_expenses").insert([payload])).catch(() => {});
     return { data: data ? data[0] : payload, error };
   } catch (err) {
     return { data: payload, error: err };

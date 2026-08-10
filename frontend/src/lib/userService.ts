@@ -78,16 +78,7 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
       query = query.ilike("role", roleFilter);
     }
     const { data, error } = await query;
-    if (error || !data) {
-      // Fallback query to legacy users/profiles
-      const { data: fallbackUsers } = await supabase.from("users").select("*");
-      if (fallbackUsers && fallbackUsers.length > 0) {
-        return { data: fallbackUsers, error: null };
-      }
-      const { data: profs } = await supabase.from("profiles").select("*");
-      return { data: profs || [], error: null };
-    }
-    return { data, error: null };
+    return { data: data || [], error };
   } catch (err) {
     return { data: [], error: err };
   }
@@ -157,11 +148,11 @@ export async function saveUserRecord(user: Partial<UserRecord>) {
   try {
     const payload = {
       ...user,
+      email: user.email || `${(user.id || "usr").toLowerCase()}@sunshine.edu`,
       updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase.from("gv_users").upsert([payload]).select();
-    Promise.resolve(supabase.from("users").upsert([payload])).catch(() => {});
     return { data, error };
   } catch (err) {
     return { data: null, error: err };

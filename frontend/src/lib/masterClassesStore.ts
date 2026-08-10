@@ -53,8 +53,8 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
           }
         } catch {}
 
-        const name = d.class_name || meta.name || "Nursery";
-        const section = d.section || meta.section || "A";
+        const name = meta.name || (d.leave_type_or_interested_class ? d.leave_type_or_interested_class.split(" ")[0] : "Nursery");
+        const section = meta.section || (d.leave_type_or_interested_class ? d.leave_type_or_interested_class.split(" ")[1] : "A");
 
         return {
           id: d.id,
@@ -153,8 +153,7 @@ export function saveStoredMasterClasses(list: MasterClassItem[]) {
   const payloads = list.map((c) => ({
     id: c.id,
     request_type: "class",
-    class_name: c.name,
-    section: c.section,
+    leave_type_or_interested_class: `${c.name} ${c.section}`.trim(),
     applicant_or_child_name: c.classTeacher,
     status: "active",
     reason_or_notes: JSON.stringify(c),

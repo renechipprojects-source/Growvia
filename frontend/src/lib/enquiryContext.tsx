@@ -78,7 +78,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
 
   const dropEnquiry = useCallback((id: string, reason: string) => {
     setEnquiries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Dropped", notes: `Dropped: ${reason}` } : e)));
-    Promise.resolve(supabase.from("gv_requests").update({ status: "Dropped", notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
+    Promise.resolve(supabase.from("gv_requests").update({ status: "Dropped", reason_or_notes: `Dropped: ${reason}` }).eq("id", id)).catch(() => {});
   }, []);
 
   const isConverted = useCallback((id: string) => convertedIds.has(id), [convertedIds]);

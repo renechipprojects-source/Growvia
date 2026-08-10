@@ -112,8 +112,6 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
         id: newId,
         request_type: "leave",
         applicant_or_child_name: r.studentName,
-        class_name: r.className,
-        section: r.section,
         leave_type_or_interested_class: r.reason,
         status: "Pending",
         reason_or_notes: JSON.stringify(created),
