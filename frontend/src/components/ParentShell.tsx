@@ -1,11 +1,12 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Home, Baby, NotebookPen, DollarSign, MessageSquare, Plane, MoreHorizontal, X, ImageIcon, UserCheck, BookOpen, Bell, Globe, LogOut } from "lucide-react";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, useMemo, type ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useT, type Lang } from "@/lib/i18n";
 import { useAlerts } from "@/lib/alertsContext";
 import { useLeave } from "@/lib/leaveContext";
 import { useParent } from "@/lib/parentContext";
+import { useMessages } from "@/lib/messagesStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,14 @@ export function ParentShell() {
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => { setMoreOpen(false); }, [pathname]);
 
-  const messagesBadge = 2; // demo
+  const { messages } = useMessages();
+  const messagesBadge = useMemo(() => {
+    const activeChildId = parent.activeChild?.id;
+    return messages.filter((m) => {
+      const isForChild = m.toParentId === "ALL" || (activeChildId && m.toParentId === activeChildId) || m.recipientRole === "parent" || m.recipientRole === "all";
+      return isForChild && !m.read;
+    }).length;
+  }, [messages, parent.activeChild?.id]);
   const pendingLeaves = leave.forStudent(parent.activeChild.id).filter((r) => r.status === "Pending").length;
   const parentCirculars = alerts.liveFor("teachers").length; // parents see teacher-audience + both
 

@@ -24,15 +24,36 @@ function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
 
 function myActive(): ClassAssignment[] {
   const session = getSession();
-  const activeId = session?.linkId || session?.loginId || CURRENT_TEACHER.id;
-  const activeName = session?.name || CURRENT_TEACHER.name;
-  return readAssignments().filter(
+  const activeId = session?.linkId || session?.loginId || "";
+  const activeName = session?.name || "";
+
+  const assignments = readAssignments().filter(
     (a) =>
       a.status === "active" &&
-      (a.teacherId === activeId ||
-        a.teacherName.toLowerCase() === activeName.toLowerCase() ||
-        a.teacherId === CURRENT_TEACHER.id)
+      ((activeId && a.teacherId === activeId) ||
+        (activeName && a.teacherName.toLowerCase() === activeName.toLowerCase()))
   );
+
+  const sessAny = session as any;
+  if (assignments.length === 0 && sessAny?.className) {
+    const parts = sessAny.className.trim().split(" ");
+    const name = parts[0] || sessAny.className;
+    const sec = parts[1] || sessAny.section || "A";
+    return [
+      {
+        id: `ASG-${activeId || "TCH"}`,
+        teacherId: activeId,
+        teacherName: activeName || "Teacher",
+        role: "class",
+        className: name,
+        section: sec,
+        academicYear: "2026-2027",
+        status: "active",
+      },
+    ];
+  }
+
+  return assignments;
 }
 
 export function getClassAssignments(): TeacherAssignment[] {

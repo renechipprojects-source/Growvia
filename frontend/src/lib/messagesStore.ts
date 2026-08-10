@@ -70,14 +70,14 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
 
       return {
         id: d.id,
-        fromId: meta.fromId || d.author || "SYSTEM",
-        fromName: d.author || meta.fromName || "Staff",
+        fromId: d.sender_id || meta.fromId || d.author || "SYSTEM",
+        fromName: d.sender_name || d.author || meta.fromName || "Staff",
         studentId: meta.studentId || "GENERAL",
-        toParentId: d.target_audience || meta.toParentId || "ALL",
-        recipientRole: d.target_audience || meta.recipientRole || "all",
-        subject: d.title || meta.subject || "Message",
-        body: meta.body || d.content || d.title,
-        time: d.published_date || d.created_at ? new Date(d.created_at || d.published_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
+        toParentId: d.receiver_id || d.target_audience || meta.toParentId || "ALL",
+        recipientRole: d.receiver_role || d.target_audience || meta.recipientRole || "all",
+        subject: d.subject || d.title || meta.subject || "Message",
+        body: meta.body || d.message_text || d.body || d.content || d.title,
+        time: (d.created_at || d.published_date) ? new Date(d.created_at || d.published_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
         priority: meta.priority || "Normal",
         read: meta.read ?? false,
         direction: meta.direction || "incoming",
@@ -85,8 +85,16 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       };
     });
 
-    writeMessages(mapped);
-    return mapped;
+    const localList = readMessages();
+    const map = new Map<string, Message>();
+    mapped.forEach((m) => map.set(m.id, m));
+    localList.forEach((m) => {
+      if (!map.has(m.id)) map.set(m.id, m);
+    });
+
+    const merged = Array.from(map.values());
+    writeMessages(merged);
+    return merged;
   } catch {
     return readMessages();
   }
@@ -153,7 +161,14 @@ export function dispatchMessage(input: {
     supabase.from("gv_communications").insert([{
       id: newId,
       message_type: "message",
+      sender_id: input.fromId,
+      sender_name: input.fromName,
+      receiver_id: input.toParentId || "ALL",
+      receiver_role: input.recipientRole,
+      subject: input.subject,
       title: input.subject,
+      message_text: input.body,
+      body: input.body,
       content: JSON.stringify(meta),
       target_audience: input.recipientRole,
       author: input.fromName,

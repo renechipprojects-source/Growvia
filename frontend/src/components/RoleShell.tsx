@@ -12,6 +12,7 @@ import { SearchProvider, useSearch } from "@/lib/searchContext";
 import { fetchCirculars } from "@/lib/supabaseService";
 import { getUnreadCountForRole } from "@/lib/circularReadStore";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+import { getSession } from "@/lib/auth";
 
 export function RoleShell({ role }: { role: Role }) {
   return (
@@ -273,12 +274,19 @@ function RoleShellInner({ role }: { role: Role }) {
               <Badge className={cn("hidden sm:inline-flex", theme.chip)}>
                 <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
               </Badge>
-              {role !== "office" && (
-                <Avatar className="h-9 w-9 ring-2 ring-white shadow shrink-0">
-                  <AvatarImage src={`https://api.dicebear.com/9.x/notionists/svg?seed=${role}`} />
-                  <AvatarFallback>{theme.name.slice(0, 2)}</AvatarFallback>
-                </Avatar>
-              )}
+              {(() => {
+                const session = getSession();
+                const sessAny = session as any;
+                const avatarSrc = sessAny?.photoUrl || sessAny?.avatarUrl || sessAny?.avatar || (sessAny?.name ? `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(sessAny.name)}` : `https://api.dicebear.com/9.x/notionists/svg?seed=${role}`);
+                const fallbackText = sessAny?.name ? sessAny.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : theme.name.slice(0, 2);
+
+                return (
+                  <Avatar className="h-9 w-9 ring-2 ring-white shadow shrink-0">
+                    <AvatarImage src={avatarSrc} alt={session?.name || theme.name} />
+                    <AvatarFallback>{fallbackText}</AvatarFallback>
+                  </Avatar>
+                );
+              })()}
             </div>
           </header>
 

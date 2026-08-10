@@ -465,7 +465,17 @@ export async function createStudent(student: Omit<Student, "id"> & {
 
   try {
     const { data, error } = await supabase.from("gv_users").insert([payload]).select();
-    return { data: data ? data[0] : newStuObj, error: error?.message || null };
+    if (!error && data && data[0]) {
+      const serverStu: Student = {
+        ...newStuObj,
+        id: data[0].id || data[0].login_id || newId,
+        admissionNo: data[0].admission_no || newStuObj.admissionNo,
+      };
+      setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
+      notifyAutoRefresh("students");
+      return { data: serverStu, error: null };
+    }
+    return { data: newStuObj, error: error?.message || null };
   } catch (err: any) {
     return { data: newStuObj, error: null };
   }

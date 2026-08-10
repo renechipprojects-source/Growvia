@@ -18,6 +18,20 @@ function ParentAttendance() {
 
   const details = getStudentAttendanceDetails(CHILD.id, CHILD);
 
+  if (CHILD.id === "NO-STUDENT" || details.totalSchoolDays === 0) {
+    return (
+      <div>
+        <PageHeader title={t("att.title")} action={<ChildSwitcher />} />
+        <div className="p-8 text-center bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200 shadow-sm mt-4 space-y-2">
+          <h3 className="text-lg font-semibold text-slate-800">No Attendance Records Found</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            There are currently no attendance entries recorded in the school database for {CHILD.name}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
