@@ -98,7 +98,7 @@ export async function recordPaymentToModule(receipt: Partial<ReceiptRecord>) {
     student_id: receipt.studentId,
     student_name: receipt.studentName,
     class_name: receipt.className,
-    fee_type: receipt.feeType,
+    fee_type: receipt.feeType || "Fee Payment",
     amount_paid: receipt.amountPaid,
     payment_date: receipt.paymentDate || new Date().toISOString().split("T")[0],
     payment_method: receipt.paymentMethod || "Cash",

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAlerts, type AlertPriority } from "@/lib/alertsContext";
 import { Megaphone, Check, Paperclip } from "lucide-react";
-import { CURRENT_TEACHER } from "@/lib/teacherContext";
+import { getSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/teacher/alerts")({ component: TeacherAlerts });
 
@@ -16,9 +16,11 @@ const priorityChip: Record<AlertPriority, string> = {
 };
 
 function TeacherAlerts() {
+  const session = getSession();
+  const teacherId = session?.linkId || session?.loginId || "TCH";
   const { liveFor, markRead } = useAlerts();
   const alerts = liveFor("teachers");
-  const unread = alerts.filter((a) => !a.readBy.includes(CURRENT_TEACHER.id)).length;
+  const unread = alerts.filter((a) => !a.readBy.includes(teacherId)).length;
 
   return (
     <div>
@@ -33,7 +35,7 @@ function TeacherAlerts() {
         ) : (
           <ul className="space-y-3">
             {alerts.map((a) => {
-              const read = a.readBy.includes(CURRENT_TEACHER.id);
+              const read = a.readBy.includes(teacherId);
               return (
                 <li key={a.id} className={read ? "rounded-2xl bg-white/60 p-4" : "rounded-2xl bg-sky-50/70 p-4 border border-sky-100"}>
                   <div className="flex items-start justify-between gap-3">
@@ -54,7 +56,7 @@ function TeacherAlerts() {
                       </div>
                     </div>
                     {!read && (
-                      <Button size="sm" variant="outline" onClick={() => markRead(a.id, CURRENT_TEACHER.id)}>
+                      <Button size="sm" variant="outline" onClick={() => markRead(a.id, teacherId)}>
                         <Check className="h-3.5 w-3.5 mr-1" />Mark as read
                       </Button>
                     )}

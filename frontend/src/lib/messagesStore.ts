@@ -58,7 +58,7 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       .eq("message_type", "message")
       .order("created_at", { ascending: false });
 
-    if (error || !data) return readMessages();
+    if (error) return readMessages();
 
     const mapped: Message[] = data.map((d: any) => {
       let meta: any = {};

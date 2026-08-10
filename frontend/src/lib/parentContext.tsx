@@ -7,9 +7,9 @@ import { getSession } from "./auth";
 import { useAutoRefresh } from "./autoRefreshContext";
 
 const emptyHousehold: Household = {
-  id: "HH-000",
-  fatherName: "Parent",
-  motherName: "Parent",
+  id: "HH-NONE",
+  fatherName: "Not Provided",
+  motherName: "Not Provided",
   primaryContact: "Parent",
   phone: "N/A",
   email: "N/A",
@@ -106,15 +106,29 @@ export function ParentProvider({ children }: { children: ReactNode }) {
     [kids, activeId]
   );
 
+  const household = useMemo<Household>(() => {
+    if (!active || active.id === "NO-STUDENT") return emptyHousehold;
+    return {
+      id: `HH-${active.parentId || active.id}`,
+      fatherName: active.parent || "Parent",
+      motherName: active.parent || "Parent",
+      primaryContact: active.parent || "Parent",
+      phone: active.phone || "N/A",
+      email: `${(active.parent || "parent").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+      address: "Main Branch",
+      childrenIds: kids.map((k) => k.id),
+    };
+  }, [active, kids]);
+
   const value = useMemo<ParentState>(
     () => ({
-      household: emptyHousehold,
+      household,
       children: kids,
       activeChild: active,
       setActiveChildId: setActiveId,
       hasLinkedChildren: kids.length > 0,
     }),
-    [kids, active]
+    [household, kids, active]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -12,12 +12,6 @@ export interface TeacherAssignment {
   subject?: string;
 }
 
-// Current signed-in teacher context
-export const CURRENT_TEACHER = {
-  id: "TCH100",
-  name: "Mrs. Priya",
-};
-
 function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
   return { id: a.id, type: a.role, className: a.className, section: a.section, subject: a.subject };
 }

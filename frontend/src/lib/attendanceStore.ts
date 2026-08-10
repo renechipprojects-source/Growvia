@@ -184,7 +184,7 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
   const absentDays = records.filter((r) => r.status === "A").length;
   const lateDays = records.filter((r) => r.status === "L").length;
   const leaveDays = records.filter((r) => r.status === "Lv").length;
-  const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 100;
+  const percentage = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0;
 
   const weeklyRecords = records.slice(0, 5);
   const weeklyPresent = weeklyRecords.filter((r) => r.status === "P").length;
