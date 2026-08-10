@@ -72,29 +72,21 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
         id: d.id,
         fromId: d.sender_id || meta.fromId || d.author || "SYSTEM",
         fromName: d.sender_name || d.author || meta.fromName || "Staff",
-        studentId: meta.studentId || "GENERAL",
-        toParentId: d.receiver_id || d.target_audience || meta.toParentId || "ALL",
-        recipientRole: d.receiver_role || d.target_audience || meta.recipientRole || "all",
-        subject: d.subject || d.title || meta.subject || "Message",
-        body: meta.body || d.message_text || d.body || d.content || d.title,
-        time: (d.created_at || d.published_date) ? new Date(d.created_at || d.published_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
-        priority: meta.priority || "Normal",
-        read: meta.read ?? false,
+        studentId: meta.studentId || d.recipient_user_id || "GENERAL",
+        toParentId: d.recipient_user_id || meta.toParentId || "ALL",
+        recipientRole: d.recipient_role || d.target_audience || meta.recipientRole || "all",
+        subject: d.title || d.subject || meta.subject || "Message",
+        body: d.body || meta.body || d.message_text || d.content || d.title,
+        time: (d.created_at || d.published_at || d.published_date) ? new Date(d.created_at || d.published_at || d.published_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
+        priority: d.priority === "high" || d.priority === "High" || meta.priority === "High" ? "High" : "Normal",
+        read: d.read_status ?? meta.read ?? false,
         direction: meta.direction || "incoming",
-        attachments: meta.attachments || [],
+        attachments: d.attachment_url ? [d.attachment_url] : meta.attachments || [],
       };
     });
 
-    const localList = readMessages();
-    const map = new Map<string, Message>();
-    mapped.forEach((m) => map.set(m.id, m));
-    localList.forEach((m) => {
-      if (!map.has(m.id)) map.set(m.id, m);
-    });
-
-    const merged = Array.from(map.values());
-    writeMessages(merged);
-    return merged;
+    writeMessages(mapped);
+    return mapped;
   } catch {
     return readMessages();
   }
@@ -143,36 +135,18 @@ export function dispatchMessage(input: {
     (NotificationService as any).messageReceived?.(input.fromName, input.subject);
   } catch {}
 
-  const meta = {
-    fromId: input.fromId,
-    fromName: input.fromName,
-    studentId: input.studentId || "GENERAL",
-    toParentId: input.toParentId || "ALL",
-    recipientRole: input.recipientRole,
-    subject: input.subject,
-    body: input.body,
-    priority: input.priority || "Normal",
-    read: false,
-    direction: "incoming",
-    attachments: input.attachments || [],
-  };
-
   Promise.resolve(
     supabase.from("gv_communications").insert([{
       id: newId,
       message_type: "message",
+      title: input.subject,
+      body: input.body,
       sender_id: input.fromId,
       sender_name: input.fromName,
-      receiver_id: input.toParentId || "ALL",
-      receiver_role: input.recipientRole,
-      subject: input.subject,
-      title: input.subject,
-      message_text: input.body,
-      body: input.body,
-      content: JSON.stringify(meta),
-      target_audience: input.recipientRole,
-      author: input.fromName,
-      published_date: new Date().toISOString(),
+      sender_role: "staff",
+      recipient_role: input.recipientRole,
+      recipient_user_id: input.toParentId || null,
+      published_at: new Date().toISOString(),
     }])
   ).catch(() => {});
 
@@ -184,10 +158,7 @@ export function markMessageRead(id: string) {
   writeMessages(list);
   Promise.resolve(
     supabase.from("gv_communications").update({
-      content: JSON.stringify({
-        ...readMessages().find((m) => m.id === id),
-        read: true,
-      }),
+      read_status: true,
     }).eq("id", id)
   ).catch(() => {});
 }

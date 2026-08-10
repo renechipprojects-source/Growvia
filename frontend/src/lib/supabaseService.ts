@@ -445,6 +445,7 @@ export async function createStudent(student: Omit<Student, "id"> & {
   const payload = {
     id: newId,
     login_id: newId,
+    email: student.email || `${newId.toLowerCase()}@sunshine.edu`,
     admission_no: student.admissionNo || newId,
     roll_no: student.rollNo || 1,
     full_name: student.name,

@@ -139,8 +139,7 @@ export async function saveAttendance(
       id: `ATT-${studentId}-${date}`,
       request_type: "attendance",
       applicant_or_child_name: sName,
-      class_name: className || "Nursery",
-      section: section || "A",
+      leave_type_or_interested_class: className || "Nursery",
       status: status,
       reason_or_notes: JSON.stringify({
         studentId,
