@@ -163,7 +163,7 @@ function TeacherCredentialsPage() {
   const notIssued = Math.max(0, teachers.length - allCreds.length);
 
   return (
-    <div>
+    <div className="w-full flex flex-1 min-h-0 flex-col overflow-y-auto space-y-4 pb-12 pr-1">
       <PageHeader
         title="Teacher & Staff Login Accounts"
         subtitle="Generate, reset, activate or deactivate teacher logins. Add new staff to issue accounts instantly."
@@ -203,7 +203,7 @@ function TeacherCredentialsPage() {
           </Select>
         </div>
 
-        <div className="overflow-auto rounded-2xl border border-white/60">
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)] rounded-2xl border border-white/60">
           <table className="min-w-[820px] w-full text-sm">
             <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-md">
               <tr className="text-left">

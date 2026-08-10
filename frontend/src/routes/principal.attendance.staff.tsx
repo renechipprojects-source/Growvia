@@ -167,18 +167,7 @@ function StaffAttendancePage() {
                     <td className="px-4 py-3 font-mono text-xs">{r.checkOut}</td>
                     <td className="px-4 py-3 font-mono text-xs">{r.workingHours}</td>
                     <td className="px-4 py-3">
-                      <Select value={r.status} onValueChange={(val) => handleStatusChange(r.id, r.name, val)}>
-                        <SelectTrigger className="w-[130px] h-8 text-xs font-semibold bg-white border-slate-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Not Marked">Not Marked</SelectItem>
-                          <SelectItem value="Present">Present</SelectItem>
-                          <SelectItem value="Late">Late</SelectItem>
-                          <SelectItem value="Absent">Absent</SelectItem>
-                          <SelectItem value="Leave">Leave</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <StatusBadge s={r.status as any} />
                     </td>
                   </tr>
                 ))}

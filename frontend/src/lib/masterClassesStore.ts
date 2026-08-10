@@ -10,7 +10,7 @@ export interface MasterClassItem {
 }
 
 import { supabase } from "@/lib/supabase";
-import { notifyAutoRefresh } from "@/lib/supabaseService";
+import { notifyAutoRefresh, fetchStudents, fetchTeachers } from "@/lib/supabaseService";
 
 export const INITIAL_CLASSES: MasterClassItem[] = [];
 
@@ -78,7 +78,65 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
     }
   } catch {}
 
-  return getStoredMasterClasses();
+  const stored = getStoredMasterClasses();
+  if (stored && stored.length > 0) return stored;
+
+  try {
+    const [{ data: students }, { data: teachers }] = await Promise.all([
+      fetchStudents(),
+      fetchTeachers(),
+    ]);
+
+    const classMap = new Map<string, MasterClassItem>();
+
+    (teachers || []).forEach((t) => {
+      if (t.className) {
+        const parts = t.className.trim().split(" ");
+        const name = parts[0] || t.className;
+        const section = parts[1] || (t as any).section || "A";
+        const key = `${name}-${section}`.toLowerCase();
+        if (!classMap.has(key)) {
+          classMap.set(key, {
+            id: `CLS-${name}-${section}`,
+            name,
+            section,
+            fullName: `${name} - Section ${section}`,
+            classTeacher: t.name || "Unassigned",
+            teacherId: t.id || "",
+            room: "Room 101",
+            capacity: 30,
+          });
+        }
+      }
+    });
+
+    (students || []).forEach((s) => {
+      if (s.className) {
+        const name = s.className;
+        const section = s.section || "A";
+        const key = `${name}-${section}`.toLowerCase();
+        if (!classMap.has(key)) {
+          classMap.set(key, {
+            id: `CLS-${name}-${section}`,
+            name,
+            section,
+            fullName: `${name} - Section ${section}`,
+            classTeacher: "Unassigned",
+            room: "Room 101",
+            capacity: 30,
+          });
+        }
+      }
+    });
+
+    const derived = Array.from(classMap.values());
+    if (derived.length > 0) {
+      memoryCache = derived;
+      return derived;
+    }
+  } catch {}
+
+  return [];
 }
 
 export function saveStoredMasterClasses(list: MasterClassItem[]) {

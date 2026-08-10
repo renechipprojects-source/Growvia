@@ -105,10 +105,35 @@ function DashboardPage() {
 
   // Filter Today's Payments only
   const todayPayments = useMemo(() => {
-    return paymentsList.filter((p) => {
-      const pDate = (p.payment_date || p.paymentDate || p.created_at || "").slice(0, 10);
-      return pDate === currentDateStr;
+    const list: any[] = [];
+    paymentsList.forEach((ledger: any) => {
+      if (Array.isArray(ledger.payments) && ledger.payments.length > 0) {
+        ledger.payments.forEach((pay: any) => {
+          const payDate = (pay.date || pay.payment_date || pay.created_at || "").slice(0, 10);
+          if (payDate === currentDateStr) {
+            list.push({
+              id: pay.id || pay.receiptNo,
+              studentName: ledger.studentName || pay.studentName || "Student Payment",
+              receipt_number: pay.receiptNo || pay.id,
+              amount: pay.amount,
+              date: payDate,
+            });
+          }
+        });
+      } else {
+        const pDate = (ledger.payment_date || ledger.paymentDate || ledger.created_at || ledger.updatedAt || "").slice(0, 10);
+        if (pDate === currentDateStr && (ledger.paid > 0 || ledger.amount_paid > 0)) {
+          list.push({
+            id: ledger.id,
+            studentName: ledger.studentName || "Student Payment",
+            receipt_number: ledger.id,
+            amount: ledger.paid || ledger.amount_paid,
+            date: pDate,
+          });
+        }
+      }
     });
+    return list;
   }, [paymentsList, currentDateStr]);
 
   // Filter Today's Admissions only

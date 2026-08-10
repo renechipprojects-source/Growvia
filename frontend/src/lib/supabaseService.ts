@@ -197,8 +197,12 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
         published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
         publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
         expiryDate: "2026-12-31",
-        target_audience: d.recipient_role || "All",
-        recipients: meta.recipients || ["Parents", "Teachers"],
+        target_audience: d.recipient_role || meta.target_audience || "All",
+        recipients: (Array.isArray(meta.recipients) && meta.recipients.length > 0)
+          ? meta.recipients
+          : ((d.recipient_role === "All" || d.recipient_role === "all" || !d.recipient_role)
+              ? ["Parents", "Teachers", "Office Staff"]
+              : [d.recipient_role]),
         author: d.sender_name || "Principal Office",
         priority: d.priority || meta.priority || "Medium",
         status: meta.status || "Published",

@@ -123,6 +123,14 @@ function OfficeStaffAttendancePage() {
 
   const handleSaveStaffAttendance = async (staffId: string, staffName: string) => {
     const currentState = getEffectiveState(staffId, staffName);
+    if (!currentState.status || currentState.status === "Not Marked") {
+      toast.error(`Please select an attendance status for ${staffName} before saving.`);
+      return;
+    }
+    if ((currentState.status === "Present" || currentState.status === "Late") && (!currentState.checkIn || currentState.checkIn === "—" || !currentState.checkOut || currentState.checkOut === "—")) {
+      toast.error(`Please provide valid Check In and Check Out times for ${staffName}.`);
+      return;
+    }
     await saveStaffAttendanceRecord(staffId, staffName, currentState.status, currentState.checkIn, currentState.checkOut);
     setLiveAttendanceMap((prev) => ({
       ...prev,
@@ -137,6 +145,19 @@ function OfficeStaffAttendancePage() {
   };
 
   const handleSaveAll = async () => {
+    const invalidList = teachersList.filter((t, idx) => {
+      const sId = t.id || `STF-${idx}`;
+      const state = getEffectiveState(sId, t.name);
+      if (!state.status || state.status === "Not Marked") return true;
+      if ((state.status === "Present" || state.status === "Late") && (!state.checkIn || state.checkIn === "—" || !state.checkOut || state.checkOut === "—")) return true;
+      return false;
+    });
+
+    if (invalidList.length > 0) {
+      toast.error(`Please select a status and valid timings for all staff members before saving (Found ${invalidList.length} incomplete).`);
+      return;
+    }
+
     const entries = teachersList.map((t, idx) => {
       const sId = t.id || `STF-${idx}`;
       const state = getEffectiveState(sId, t.name);
