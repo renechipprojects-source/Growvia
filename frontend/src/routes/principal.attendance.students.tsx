@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance, getStudentAttendanceDetails } from "@/lib/attendanceStore";
 import { AttendanceDetailsModal } from "@/routes/admin.attendance.students";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/principal/attendance/students")({
   head: () => ({
@@ -40,10 +41,17 @@ function StudentAttendancePage() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const { attendance: liveAttendanceRecords } = useLiveAttendance();
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data }) => {
       if (data && data.length > 0) setStudentsList(data);
     });
+  };
+
+  useAutoRefresh("attendance", loadData);
+  useAutoRefresh("students", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const attendanceData = useMemo(() => {

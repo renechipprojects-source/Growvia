@@ -5,6 +5,8 @@ import { subscribeToRealtimeTable, TABLE_TO_MODULE_MAP } from "./realtimeService
 export type ERPModule =
   | "students"
   | "staff"
+  | "classes"
+  | "parents"
   | "admissions"
   | "enquiries"
   | "visits"
@@ -13,6 +15,7 @@ export type ERPModule =
   | "circulars"
   | "notifications"
   | "inventory"
+  | "expenses"
   | "transport"
   | "reports"
   | "promotion"

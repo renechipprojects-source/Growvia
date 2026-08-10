@@ -8,6 +8,8 @@ import { useState, useEffect } from "react";
 import { getPromotionMapping, savePromotionMapping, DEFAULT_PROMOTION_MAPPING } from "@/lib/promotionStore";
 import { toast } from "sonner";
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export const Route = createFileRoute("/office/promotion-mapping")({ component: PromotionMappingPage });
 
 const ALL_CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"] as const;
@@ -17,8 +19,14 @@ function PromotionMappingPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     setMapping(getPromotionMapping());
+  };
+
+  useAutoRefresh("promotion", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const handleUpdate = (sourceClass: string, targetClass: string) => {

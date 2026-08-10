@@ -17,10 +17,12 @@ import {
   updateMasterClass,
   deleteMasterClass,
   subscribeMasterClasses,
+  fetchMasterClassesFromSupabase,
   type MasterClassItem,
 } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/admin/classes")({
   component: ClassesPage,
@@ -47,16 +49,22 @@ function ClassesPage() {
   });
 
   const loadData = () => {
-    setClassesList(getStoredMasterClasses());
+    fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
     Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
       setStudentsList(st || []);
       setTeachersList((tc as any) || []);
     });
   };
 
+  useAutoRefresh("classes", loadData);
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("staff", loadData);
+
   useEffect(() => {
     loadData();
-    return subscribeMasterClasses(() => setClassesList(getStoredMasterClasses()));
+    return subscribeMasterClasses(() => {
+      fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
+    });
   }, []);
 
   const filtered = useMemo(() => {

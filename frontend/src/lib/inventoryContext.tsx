@@ -101,67 +101,99 @@ interface Ctx {
 
 const InventoryCtx = createContext<Ctx | null>(null);
 
+import { useAutoRefresh } from "./autoRefreshContext";
+import { notifyAutoRefresh } from "./supabaseService";
+
 const today = () => new Date().toISOString().slice(0, 10);
 const uid = () => "IE-INV-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-
-const seedCategories: InventoryCategory[] = [
-  { id: "c1", name: "Stationery & Paper", code: "STATIONERY" },
-  { id: "c2", name: "Art & Craft", code: "ART" },
-  { id: "c3", name: "Maintenance & Cleaning", code: "MAINTENANCE" },
-];
-
-const seedVendors: InventoryVendor[] = [
-  { id: "v1", name: "Metro Stationery Mart", contactPerson: "Rajesh Kumar", phone: "9876543210", email: "metro@stationery.com" },
-  { id: "v2", name: "SafePlay Systems", contactPerson: "Sanjay Gupta", phone: "9876543211", email: "info@safeplay.com" },
-];
 
 let memoryItemsCache: InventoryItem[] = [];
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const [categories, setCategories] = useState<InventoryCategory[]>(seedCategories);
-  const [vendors, setVendors] = useState<InventoryVendor[]>(seedVendors);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const [vendors, setVendors] = useState<InventoryVendor[]>([]);
   const [items, setItems] = useState<InventoryItem[]>(memoryItemsCache);
   const [purchases, setPurchases] = useState<PurchaseEntry[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [issues, setIssues] = useState<IssueRecord[]>([]);
 
-  const fetchInventoryFromSupabase = async () => {
+  const fetchInventoryFromSupabase = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("gv_inventory_expenses")
         .select("*")
-        .eq("record_type", "inventory")
+        .in("record_type", ["inventory", "inventory_category", "inventory_vendor", "inventory_purchase", "inventory_movement", "inventory_issue"])
         .order("created_at", { ascending: false });
 
       if (error || !data) {
         memoryItemsCache = [];
         setItems([]);
+        setCategories([]);
+        setVendors([]);
+        setPurchases([]);
+        setMovements([]);
+        setIssues([]);
         return;
       }
 
-      const mapped: InventoryItem[] = data.map((d: any) => ({
-        id: d.id,
-        name: d.title || "Inventory Item",
-        sku: d.receipt_ref || `SKU-${d.id.slice(-4)}`,
-        categoryId: d.category === "Art" ? "c2" : "c1",
-        unit: d.unit || "pcs",
-        qty: Number(d.quantity || 0),
-        minQty: Number(d.min_stock || 10),
-        unitPrice: Number(d.amount_or_unit_cost || 50),
-        updatedAt: d.transaction_date || d.created_at?.slice(0, 10) || today(),
-      }));
+      const remoteItems: InventoryItem[] = [];
+      const remoteCategories: InventoryCategory[] = [];
+      const remoteVendors: InventoryVendor[] = [];
+      const remotePurchases: PurchaseEntry[] = [];
+      const remoteMovements: StockMovement[] = [];
+      const remoteIssues: IssueRecord[] = [];
 
-      memoryItemsCache = mapped;
-      setItems(mapped);
+      data.forEach((d: any) => {
+        try {
+          const meta = d.notes && (d.notes.startsWith("{") || d.notes.startsWith("[")) ? JSON.parse(d.notes) : {};
+          if (d.record_type === "inventory") {
+            remoteItems.push({
+              id: d.id,
+              name: d.title || "Inventory Item",
+              sku: d.receipt_ref || meta.sku || `SKU-${d.id.slice(-4)}`,
+              categoryId: d.category || meta.categoryId || "c1",
+              category: d.category || meta.category || "General",
+              unit: d.unit || meta.unit || "pcs",
+              qty: Number(d.quantity || meta.qty || 0),
+              minQty: Number(d.min_stock || meta.minQty || 10),
+              unitPrice: Number(d.amount_or_unit_cost || meta.unitPrice || 0),
+              updatedAt: d.transaction_date || d.created_at?.slice(0, 10) || today(),
+            });
+          } else if (d.record_type === "inventory_category") {
+            remoteCategories.push({ id: d.id, name: d.title, code: d.receipt_ref || meta.code || "", description: meta.description || "" });
+          } else if (d.record_type === "inventory_vendor") {
+            remoteVendors.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "", email: meta.email || "" });
+          } else if (d.record_type === "inventory_purchase") {
+            remotePurchases.push({ id: d.id, poNumber: d.title, totalAmount: d.amount_or_unit_cost, date: d.transaction_date || today() });
+          } else if (d.record_type === "inventory_movement") {
+            remoteMovements.push({ id: d.id, itemId: d.category, type: d.supplier_or_paid_to as any, qty: d.quantity, reason: d.title, date: d.transaction_date || today() });
+          } else if (d.record_type === "inventory_issue") {
+            remoteIssues.push({ id: d.id, itemId: d.category, qty: d.quantity, issuedTo: d.title, department: d.supplier_or_paid_to || "School", purpose: meta.purpose || "", date: d.transaction_date || today() });
+          }
+        } catch {}
+      });
+
+      memoryItemsCache = remoteItems;
+      setItems(remoteItems);
+      setCategories(remoteCategories);
+      setVendors(remoteVendors);
+      setPurchases(remotePurchases);
+      setMovements(remoteMovements);
+      setIssues(remoteIssues);
     } catch {
       memoryItemsCache = [];
       setItems([]);
+      setCategories([]);
+      setVendors([]);
+      setPurchases([]);
+      setMovements([]);
+      setIssues([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchInventoryFromSupabase();
-  }, []);
+  }, [fetchInventoryFromSupabase]);
 
   const addCategory = useCallback((c: Omit<InventoryCategory, "id">) => setCategories((prev) => [...prev, { ...c, id: uid() }]), []);
   const updateCategory = useCallback((id: string, c: Partial<InventoryCategory>) => setCategories((prev) => prev.map((x) => x.id === id ? { ...x, ...c } : x)), []);
@@ -175,6 +207,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     const newId = uid();
     const newItem: InventoryItem = { ...i, id: newId, updatedAt: today() };
     setItems((prev) => [newItem, ...prev]);
+
+    notifyAutoRefresh("inventory");
 
     Promise.resolve(
       supabase.from("gv_inventory_expenses").insert([{
@@ -193,6 +227,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const updateItem = useCallback((id: string, i: Partial<InventoryItem>) => {
     setItems((prev) => prev.map((x) => x.id === id ? { ...x, ...i, updatedAt: today() } : x));
+    notifyAutoRefresh("inventory");
     Promise.resolve(
       supabase.from("gv_inventory_expenses").update({
         title: i.name,
@@ -206,6 +241,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const deleteItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((x) => x.id !== id));
+    notifyAutoRefresh("inventory");
     Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
   }, []);
 

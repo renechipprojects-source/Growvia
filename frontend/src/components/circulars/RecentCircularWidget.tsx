@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { fetchCirculars } from "@/lib/supabaseService";
 import { CircularDetailsModal } from "./CircularDetailsModal";
 import { isCircularTargetedToRole, isCircularRead } from "@/lib/circularReadStore";
-
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 interface RecentCircularWidgetProps {
   role: string;
   viewAllLink?: string;
@@ -20,15 +20,23 @@ export function RecentCircularWidget({ role, viewAllLink, limit = 5 }: RecentCir
 
   const targetLink = viewAllLink || (role === "admin" || role === "super-admin" ? "/admin/circulars" : `/${role}/circulars`);
 
-  useEffect(() => {
+  const loadData = React.useCallback(() => {
     fetchCirculars().then(({ data }) => {
       if (data && Array.isArray(data)) {
         const targeted = data.filter((c) => isCircularTargetedToRole(c, role));
         setCirculars(targeted.slice(0, limit));
+      } else {
+        setCirculars([]);
       }
       setLoading(false);
     });
   }, [role, limit]);
+
+  useAutoRefresh("circulars", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const priorityColor = (p?: string) => {
     if (p === "High") return "bg-rose-100 text-rose-700 border-rose-200";

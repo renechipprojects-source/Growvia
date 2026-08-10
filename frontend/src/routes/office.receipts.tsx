@@ -8,6 +8,7 @@ import { Printer, Search, FileText, CheckCircle2, Building2, User, Calendar, Cre
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/receipts")({
   component: ReceiptsPage,
@@ -70,6 +71,8 @@ function ReceiptsPage() {
       console.warn("Error loading receipts from Supabase:", err);
     }
   };
+
+  useAutoRefresh("fees", loadReceipts);
 
   useEffect(() => {
     loadReceipts();

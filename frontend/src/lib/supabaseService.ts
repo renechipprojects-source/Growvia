@@ -149,122 +149,71 @@ export interface FeeLedgerItem {
 // ─── 1. CIRCULARS & NOTICES ──────────────────────────────────────────────
 
 let circularsCacheMemory: Circular[] = [];
-const CIRCULARS_STORAGE_KEY = "sunshine.circulars.cache.v1";
+const CIRCULARS_STORAGE_KEY = "sunshine.circulars.cache.v2";
 
 function getCachedCircularsList(): Circular[] {
-  if (circularsCacheMemory.length > 0) return circularsCacheMemory;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(CIRCULARS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          circularsCacheMemory = parsed;
-          return parsed;
-        }
-      }
-    } catch {}
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CIRCULARS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
   }
-  return [];
 }
 
 function setCachedCircularsList(list: Circular[]) {
-  if (!Array.isArray(list) || list.length === 0) return;
   circularsCacheMemory = list;
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(CIRCULARS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-  }
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CIRCULARS_STORAGE_KEY, JSON.stringify(list));
+  } catch {}
 }
 
 export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
-  const cached = getCachedCircularsList();
+  try {
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .select("*")
+      .eq("message_type", "circular")
+      .order("created_at", { ascending: false });
 
-  const fetchTask = (async () => {
-    try {
-      let rows: any[] = [];
-      const { data, error } = await supabase
-        .from("gv_communications")
-        .select("*")
-        .eq("message_type", "circular")
-        .order("created_at", { ascending: false });
+    if (error) return { data: [], isFromSupabase: false };
 
-      if (!error && data && data.length > 0) {
-        rows = data;
-      } else {
-        const { data: allComms } = await supabase.from("gv_communications").select("*");
-        if (allComms && allComms.length > 0) {
-          rows = allComms.filter((c: any) => c.message_type === "circular");
-        } else {
-          try {
-            const res = await fetch(`${API_URL}/api/communications?channel=circular`);
-            if (res.ok) {
-              const json = await res.json();
-              rows = json.data || [];
-            }
-          } catch {}
-        }
+    const rows = data || [];
+    const mapped: Circular[] = rows.map((d: any) => {
+      let meta: any = {};
+      try {
+        meta = JSON.parse(d.body || "{}");
+      } catch {
+        meta = { description: d.body };
       }
 
-      if (rows.length > 0) {
-        const mapped: Circular[] = rows.map((d: any) => {
-          let meta: any = {};
-          try {
-            meta = JSON.parse(d.body || "{}");
-          } catch {
-            meta = { description: d.body };
-          }
+      return {
+        id: d.id,
+        title: d.title || meta.subject || "School Notice",
+        subject: meta.subject || d.title,
+        description: meta.description || d.body || "",
+        content: meta.description || d.body || "",
+        published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        expiryDate: "2026-12-31",
+        target_audience: d.recipient_role || "All",
+        recipients: meta.recipients || ["Parents", "Teachers"],
+        author: d.sender_name || "Principal Office",
+        priority: d.priority || meta.priority || "Medium",
+        status: meta.status || "Published",
+        attachment: meta.attachmentName,
+        attachmentUrl: d.attachment_url || meta.attachmentUrl,
+        createdAt: d.created_at || new Date().toISOString(),
+        history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
+      };
+    });
 
-          return {
-            id: d.id,
-            title: d.title || meta.subject || "School Notice",
-            subject: meta.subject || d.title,
-            description: meta.description || d.body || "",
-            content: meta.description || d.body || "",
-            published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            expiryDate: "2026-12-31",
-            target_audience: d.recipient_role || "All",
-            recipients: meta.recipients || ["Parents", "Teachers"],
-            author: d.sender_name || "Principal Office",
-            priority: d.priority || meta.priority || "Medium",
-            status: meta.status || "Published",
-            attachment: meta.attachmentName,
-            attachmentUrl: d.attachment_url || meta.attachmentUrl,
-            createdAt: d.created_at || new Date().toISOString(),
-            history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
-          };
-        });
-
-        const localList = getCachedCircularsList();
-        const mergedMap = new Map<string, Circular>();
-        mapped.forEach((c) => { if (c.id) mergedMap.set(c.id, c); });
-        localList.forEach((localCir) => {
-          if (localCir.id) {
-            const dbCir = mergedMap.get(localCir.id);
-            if (dbCir) {
-              mergedMap.set(localCir.id, { ...dbCir, ...localCir });
-            } else {
-              mergedMap.set(localCir.id, localCir);
-            }
-          }
-        });
-
-        const finalMerged = Array.from(mergedMap.values());
-        setCachedCircularsList(finalMerged);
-        return { data: finalMerged, isFromSupabase: true };
-      }
-    } catch {}
-
-    return { data: getCachedCircularsList(), isFromSupabase: false };
-  })();
-
-  const timeoutTask = new Promise<{ data: Circular[]; isFromSupabase: boolean }>((resolve) => {
-    setTimeout(() => resolve({ data: getCachedCircularsList(), isFromSupabase: false }), 4000);
-  });
-
-  return Promise.race([fetchTask, timeoutTask]);
+    setCachedCircularsList(mapped);
+    return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
 }
 
 export async function createCircular(circular: any): Promise<{ data: any | null; error: string | null }> {
@@ -441,25 +390,8 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
           };
         });
 
-        const localList = getCachedStudentsList();
-        const mergedMap = new Map<string, Student>();
-
-        // Set database records first
-        mapped.forEach((s) => mergedMap.set(s.id, s));
-
-        // Overlay local records so newly generated/updated local student fields are never lost
-        localList.forEach((localStu) => {
-          const dbStu = mergedMap.get(localStu.id);
-          if (dbStu) {
-            mergedMap.set(localStu.id, { ...dbStu, ...localStu });
-          } else {
-            mergedMap.set(localStu.id, localStu);
-          }
-        });
-
-        const finalMerged = Array.from(mergedMap.values());
-        setCachedStudentsList(finalMerged);
-        return { data: finalMerged, isFromSupabase: true };
+        setCachedStudentsList(mapped);
+        return { data: mapped, isFromSupabase: true };
       }
     } catch {}
     return { data: getCachedStudentsList(), isFromSupabase: false };
@@ -575,11 +507,14 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
 }
 
 export async function deleteStudent(id: string) {
+  const currentList = getCachedStudentsList();
+  const updatedList = currentList.filter((s) => s.id !== id && s.admissionNo !== id);
+  setCachedStudentsList(updatedList);
+  notifyAutoRefresh("students");
+
   try {
-    const { error } = await supabase.from("gv_users").delete().eq("id", id);
-    if (!error) {
-      fetchStudents();
-    }
+    const { error } = await supabase.from("gv_users").delete().or(`id.eq.${id},login_id.eq.${id},admission_no.eq.${id}`);
+    fetchStudents();
     return { error: error?.message || null };
   } catch (err: any) {
     return { error: err?.message || "Failed to delete student." };
@@ -671,32 +606,19 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
           return {
             id: d.id || d.login_id,
             name: d.full_name || "Teacher",
-            className: d.class_name || "Nursery A",
+            className: d.class_name || "",
             subject: d.subject || "General",
             email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
             phone: d.mobile || "9876543210",
             experience: d.experience || 2,
             joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            avatar: d.photo_url || d.avatar_url || d.avatar || cachedMatch?.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+            avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
             branch: d.branch || "Main Branch",
           };
         });
 
-        const localList = getCachedTeachersList();
-        const mergedMap = new Map<string, Teacher>();
-        mapped.forEach((t) => mergedMap.set(t.id, t));
-        localList.forEach((localTch) => {
-          const dbTch = mergedMap.get(localTch.id);
-          if (dbTch) {
-            mergedMap.set(localTch.id, { ...dbTch, ...localTch });
-          } else {
-            mergedMap.set(localTch.id, localTch);
-          }
-        });
-
-        const finalMerged = Array.from(mergedMap.values());
-        setCachedTeachersList(finalMerged);
-        return { data: finalMerged, isFromSupabase: true };
+        setCachedTeachersList(mapped);
+        return { data: mapped, isFromSupabase: true };
       }
     } catch {}
     return { data: cached, isFromSupabase: false };
@@ -784,8 +706,14 @@ export async function updateTeacher(id: string, updates: Partial<Teacher>) {
 }
 
 export async function deleteTeacher(id: string) {
+  const currentList = getCachedTeachersList();
+  const updatedList = currentList.filter((t) => t.id !== id);
+  setCachedTeachersList(updatedList);
+  notifyAutoRefresh("staff");
+
   try {
-    const { error } = await supabase.from("gv_users").delete().eq("id", id);
+    const { error } = await supabase.from("gv_users").delete().or(`id.eq.${id},login_id.eq.${id}`);
+    fetchTeachers();
     return { error: error?.message || null };
   } catch (err: any) {
     return { error: err?.message || "Failed to delete teacher." };
@@ -814,7 +742,6 @@ export function saveStoredEnquiries(list: Enquiry[]) {
 }
 
 export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabase: boolean }> {
-  const localEnquiries = getStoredEnquiries();
   try {
     const { data, error } = await supabase
       .from("gv_requests")
@@ -822,50 +749,44 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
       .eq("request_type", "enquiry")
       .order("created_at", { ascending: false });
 
+    if (error) return { data: [], isFromSupabase: false };
+
     const rows = data || [];
-    if (!error && rows.length > 0) {
-      const normalizeStatus = (s: string): Enquiry["status"] => {
-        if (!s) return "New";
-        const st = s.toLowerCase();
-        if (st.includes("completed")) return "Visit Completed";
-        if (st.includes("doc")) return "Documents Pending";
-        if (st.includes("approv")) return "Admission Approved";
-        if (st.includes("enroll")) return "Enrolled";
-        if (st.includes("drop") || st.includes("cancel")) return "Dropped";
-        return "New";
-      };
+    const normalizeStatus = (s: string): Enquiry["status"] => {
+      if (!s) return "New";
+      const st = s.toLowerCase();
+      if (st.includes("completed")) return "Visit Completed";
+      if (st.includes("doc")) return "Documents Pending";
+      if (st.includes("approv")) return "Admission Approved";
+      if (st.includes("enroll")) return "Enrolled";
+      if (st.includes("drop") || st.includes("cancel")) return "Dropped";
+      return "New";
+    };
 
-      const mapped: Enquiry[] = rows.map((d: any) => ({
-        id: d.id,
-        childName: d.applicant_or_child_name,
-        parentName: d.parent_name || "Parent",
-        phone: d.phone || "9876543210",
-        altPhone: "",
-        email: d.email || "",
-        address: d.address || "",
-        gender: d.gender === "Girl" ? "Girl" : "Boy",
-        dob: d.dob || "2022-01-01",
-        previousSchool: "",
-        age: 3,
-        interestedClass: d.leave_type_or_interested_class || "Nursery",
-        source: d.source || "Walk-in",
-        status: normalizeStatus(d.status),
-        followUp: d.follow_up_date || d.created_at?.slice(0, 10),
-        notes: d.reason_or_notes || "",
-        createdAt: d.created_at || new Date().toISOString(),
-      }));
+    const mapped: Enquiry[] = rows.map((d: any) => ({
+      id: d.id,
+      childName: d.applicant_or_child_name || "Child",
+      parentName: d.parent_name || "Parent",
+      phone: d.phone || "",
+      altPhone: "",
+      email: d.email || "",
+      address: d.address || "",
+      gender: d.gender === "Girl" ? "Girl" : "Boy",
+      dob: d.dob || "2022-01-01",
+      previousSchool: "",
+      age: 3,
+      interestedClass: d.leave_type_or_interested_class || "Nursery",
+      source: d.source || "Walk-in",
+      status: normalizeStatus(d.status),
+      followUp: d.follow_up_date || d.created_at?.slice(0, 10),
+      notes: d.reason_or_notes || "",
+      createdAt: d.created_at || new Date().toISOString(),
+    }));
 
-      const combined = [...mapped];
-      localEnquiries.forEach((loc) => {
-        if (!combined.some((c) => c.id === loc.id)) combined.unshift(loc);
-      });
-
-      saveStoredEnquiries(combined);
-      return { data: combined, isFromSupabase: true };
-    }
-  } catch {}
-
-  return { data: localEnquiries, isFromSupabase: false };
+    return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
 }
 
 export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) {
@@ -1148,6 +1069,7 @@ export async function fetchReceipts(): Promise<{ data: any[]; isFromSupabase: bo
 
 export async function saveFeeRecord(fee: FeeLedgerItem) {
   const recalculated = recalculateFeeLedger(fee);
+  notifyAutoRefresh("fees");
   try {
     await supabase.from("gv_fees_payments").upsert([{
       id: recalculated.id,
@@ -1167,6 +1089,7 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
 }
 
 export async function saveReceipt(payment: any): Promise<{ data: any; error: string | null }> {
+  notifyAutoRefresh("fees");
   try {
     const receiptNo = payment.receiptNo || `REC-${Date.now().toString().slice(-6)}`;
     const payload = {

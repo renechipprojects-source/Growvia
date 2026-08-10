@@ -140,11 +140,13 @@ export function clearTemporaryPassword(loginId: string) {
 }
 export function isTemporaryPassword(loginId: string): boolean {
   const flags = readTempFlags();
-  return Boolean(flags[loginId.trim()]);
+  const key = loginId.trim().toLowerCase();
+  return Boolean(flags[key] || flags[loginId.trim()]);
 }
 export function setTemporaryPasswordFlag(loginId: string, isTemp: boolean) {
   const flags = readTempFlags();
-  flags[loginId.trim()] = isTemp;
+  const key = loginId.trim().toLowerCase();
+  flags[key] = isTemp;
   writeTempFlags(flags);
 }
 

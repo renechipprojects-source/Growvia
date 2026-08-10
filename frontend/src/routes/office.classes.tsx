@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, DoorOpen, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
-import { getStoredMasterClasses, subscribeMasterClasses, updateMasterClass, addMasterClass, type MasterClassItem } from "@/lib/masterClassesStore";
+import { getStoredMasterClasses, subscribeMasterClasses, updateMasterClass, addMasterClass, fetchMasterClassesFromSupabase, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -41,19 +41,22 @@ function OfficeClassesPage() {
   });
 
   const loadData = () => {
-    setClassesList(getStoredMasterClasses());
+    fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
     Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
       setStudentsList(st || []);
       setTeachersList((tc as any) || []);
     });
   };
 
+  useAutoRefresh("classes", loadData);
   useAutoRefresh("students", loadData);
   useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();
-    return subscribeMasterClasses(() => setClassesList(getStoredMasterClasses()));
+    return subscribeMasterClasses(() => {
+      fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
+    });
   }, []);
 
   const handleOpenEdit = (c: MasterClassItem) => {

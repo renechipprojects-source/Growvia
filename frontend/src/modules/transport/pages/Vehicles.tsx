@@ -31,12 +31,26 @@ const filters: FilterDef<Vehicle>[] = [
   { key: "type", label: "Type", options: ["Bus", "Van", "Mini Bus"], predicate: (r, v) => r.type === v },
 ];
 
-import { getStoredVehicles, saveStoredVehicles } from "../transportStore";
+import { getStoredVehicles, saveStoredVehicles, syncTransportFromSupabase, deleteVehicle } from "../transportStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useEffect, useCallback } from "react";
 
 export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   const [vehicleList, setVehicleList] = useState<Vehicle[]>(getStoredVehicles);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Vehicle | null>(null);
+
+  const loadData = useCallback(() => {
+    syncTransportFromSupabase().then(() => {
+      setVehicleList(getStoredVehicles());
+    });
+  }, []);
+
+  useAutoRefresh("transport", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const [form, setForm] = useState({
     number: "",

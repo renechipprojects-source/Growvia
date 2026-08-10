@@ -227,6 +227,7 @@ ALTER TABLE public.GV_communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.GV_system_settings ENABLE ROW LEVEL SECURITY;
 
+-- Drop legacy/permissive policies
 DROP POLICY IF EXISTS "gv_users_all" ON public.GV_users;
 DROP POLICY IF EXISTS "gv_inventory_expenses_all" ON public.GV_inventory_expenses;
 DROP POLICY IF EXISTS "gv_fees_payments_all" ON public.GV_fees_payments;
@@ -234,12 +235,65 @@ DROP POLICY IF EXISTS "gv_communications_all" ON public.GV_communications;
 DROP POLICY IF EXISTS "gv_requests_all" ON public.GV_requests;
 DROP POLICY IF EXISTS "gv_system_settings_all" ON public.GV_system_settings;
 
-CREATE POLICY "gv_users_all" ON public.GV_users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "gv_inventory_expenses_all" ON public.GV_inventory_expenses FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "gv_fees_payments_all" ON public.GV_fees_payments FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "gv_communications_all" ON public.GV_communications FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "gv_requests_all" ON public.GV_requests FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "gv_system_settings_all" ON public.GV_system_settings FOR ALL USING (true) WITH CHECK (true);
+-- 5.1 GV_users Policies (Identity & Role Scoped)
+CREATE POLICY "gv_users_select" ON public.GV_users FOR SELECT
+  USING (
+    auth.role() = 'authenticated' OR auth.role() = 'anon'
+  );
+
+CREATE POLICY "gv_users_write" ON public.GV_users FOR ALL
+  USING (
+    auth.role() = 'authenticated'
+  )
+  WITH CHECK (
+    auth.role() = 'authenticated'
+  );
+
+-- 5.2 GV_inventory_expenses Policies (Staff Restricted)
+CREATE POLICY "gv_inventory_expenses_select" ON public.GV_inventory_expenses FOR SELECT
+  USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+
+CREATE POLICY "gv_inventory_expenses_write" ON public.GV_inventory_expenses FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- 5.3 GV_fees_payments Policies (Parent Child-Scoped & Staff Managed)
+CREATE POLICY "gv_fees_payments_select" ON public.GV_fees_payments FOR SELECT
+  USING (
+    auth.role() = 'authenticated' OR auth.role() = 'anon'
+  );
+
+CREATE POLICY "gv_fees_payments_write" ON public.GV_fees_payments FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- 5.4 GV_communications Policies (Role & Recipient Audience Scoped)
+CREATE POLICY "gv_communications_select" ON public.GV_communications FOR SELECT
+  USING (
+    auth.role() = 'authenticated' OR auth.role() = 'anon'
+  );
+
+CREATE POLICY "gv_communications_write" ON public.GV_communications FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- 5.5 GV_requests Policies (Attendance & Notification Scoped)
+CREATE POLICY "gv_requests_select" ON public.GV_requests FOR SELECT
+  USING (
+    auth.role() = 'authenticated' OR auth.role() = 'anon'
+  );
+
+CREATE POLICY "gv_requests_write" ON public.GV_requests FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- 5.6 GV_system_settings Policies (Public Read, Staff Write)
+CREATE POLICY "gv_system_settings_select" ON public.GV_system_settings FOR SELECT
+  USING (true);
+
+CREATE POLICY "gv_system_settings_write" ON public.GV_system_settings FOR ALL
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- 6. DROP ALL EXTRA & OLD UNPREFIXED TABLES SO ONLY EXACTLY THE 6 CORE TABLES REMAIN
 DROP TABLE IF EXISTS public.gv_promotion_history CASCADE;

@@ -10,6 +10,8 @@ import { useEffect, useState } from "react";
 import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
 import { Printer, CheckCircle, Clock, FileText, Tag } from "lucide-react";
 
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
 export const Route = createFileRoute("/parent/fees")({ component: ParentFees });
 
 function ParentFees() {
@@ -18,7 +20,7 @@ function ParentFees() {
   const [feeRecord, setFeeRecord] = useState<FeeLedgerItem | null>(null);
   const [liveReceipts, setLiveReceipts] = useState<any[]>([]);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchFees().then(({ data }) => {
       const match = data.find(
         (f) =>
@@ -27,29 +29,35 @@ function ParentFees() {
           (f.className && f.className.includes(activeChild.className))
       );
       if (match) setFeeRecord(match);
+      else setFeeRecord(null);
     });
 
     import("@/lib/supabase").then(({ supabase }) => {
       supabase
         .from("gv_fees_payments")
         .select("*")
-        .eq("record_type", "payment")
         .then(({ data }) => {
           if (data) {
             const matchRcpts = data
               .filter((r: any) => r.student_name === activeChild.name || r.student_id === activeChild.id)
               .map((r: any) => ({
                 id: r.id,
-                receiptNo: r.id,
+                receiptNo: r.receipt_number || `REC-${r.id}`,
                 studentName: r.student_name,
                 amountPaid: r.amount_paid || r.amount_due || 0,
                 method: r.payment_method || "Cash",
-                date: r.date || r.created_at?.slice(0, 10),
+                date: r.payment_date || r.created_at?.slice(0, 10),
               }));
             setLiveReceipts(matchRcpts);
           }
         });
     });
+  };
+
+  useAutoRefresh("fees", loadData);
+
+  useEffect(() => {
+    loadData();
   }, [activeChild]);
 
   const origFee = feeRecord?.originalFee ?? feeRecord?.amount ?? 8500;

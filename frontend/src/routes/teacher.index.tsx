@@ -24,10 +24,11 @@ function Dash() {
   const { getClassTeacher, getWorkload, assignments } = useClassAssignments();
   
   const workload = getWorkload(teacherId);
-  const classTeacherOfStr = workload.classTeacherOf || "Nursery-A";
-  const [classNameStr, sectionStr = "A"] = classTeacherOfStr.split("-");
-  const primaryClass = { className: classNameStr, section: sectionStr };
-  const classAssignments = [primaryClass];
+  const classTeacherOfStr = workload.classTeacherOf;
+  const isClassTeacher = Boolean(classTeacherOfStr);
+  const [classNameStr = "", sectionStr = ""] = classTeacherOfStr ? classTeacherOfStr.split("-") : [];
+  const primaryClass = isClassTeacher ? { className: classNameStr, section: sectionStr } : null;
+  const classAssignments = primaryClass ? [primaryClass] : [];
   const subjectAssignments = workload.subjectAssignments;
 
   const [studentsList, setStudentsList] = useState<Student[]>([]);

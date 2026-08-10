@@ -67,6 +67,22 @@ export function getPromotionMapping(): Record<string, string> {
 export function savePromotionMapping(mapping: Record<string, string>, updatedBy: string = "Office Staff") {
   if (typeof window === "undefined") return;
   localStorage.setItem(PROMOTION_MAPPING_KEY, JSON.stringify(mapping));
+
+  import("@/lib/supabase").then(({ supabase }) => {
+    supabase.from("gv_requests").upsert([{
+      id: "PRIMARY_PROMOTION_MAPPING",
+      request_type: "promotion_mapping",
+      applicant_or_child_name: updatedBy,
+      status: "active",
+      reason_or_notes: JSON.stringify(mapping),
+    }], { onConflict: "id" }).then(() => {});
+  });
+
+  import("@/lib/supabaseService").then(({ notifyAutoRefresh }) => {
+    notifyAutoRefresh("promotion");
+    notifyAutoRefresh("classes");
+  });
+
   logAuditEvent({
     user: updatedBy,
     role: "office",

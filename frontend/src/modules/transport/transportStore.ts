@@ -1,11 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import { vehicles as seedVehicles, drivers as seedDrivers, routes as seedRoutes, allocations as seedAllocations } from "./data/mockData";
+import { notifyAutoRefresh } from "@/lib/supabaseService";
 import type { Vehicle, Driver, Route, StudentAllocation } from "./types";
 
-const VEHICLES_KEY = "sunshine.transport.vehicles.v1";
-const DRIVERS_KEY = "sunshine.transport.drivers.v1";
-const ROUTES_KEY = "sunshine.transport.routes.v1";
-const ALLOCATIONS_KEY = "sunshine.transport.allocations.v1";
+const VEHICLES_KEY = "sunshine.transport.vehicles.v2";
+const DRIVERS_KEY = "sunshine.transport.drivers.v2";
+const ROUTES_KEY = "sunshine.transport.routes.v2";
+const ALLOCATIONS_KEY = "sunshine.transport.allocations.v2";
 
 // ─── SUPABASE DATABASE SYNC ──────────────────────────────────────────────────
 export async function syncTransportFromSupabase() {
@@ -15,75 +15,48 @@ export async function syncTransportFromSupabase() {
       .select("*")
       .in("record_type", ["transport_vehicle", "transport_driver", "transport_route", "transport_allocation"]);
 
-    if (error || !data || data.length === 0) return;
+    if (error) return;
 
     const remoteVehicles: Vehicle[] = [];
     const remoteDrivers: Driver[] = [];
     const remoteRoutes: Route[] = [];
     const remoteAllocations: StudentAllocation[] = [];
 
-    data.forEach((d: any) => {
+    (data || []).forEach((d: any) => {
       try {
         const meta = d.notes && (d.notes.startsWith("{") || d.notes.startsWith("[")) ? JSON.parse(d.notes) : {};
         if (d.record_type === "transport_vehicle") {
-          remoteVehicles.push({ id: d.id, name: d.title, number: d.supplier_or_paid_to || meta.number || "BUS-1", capacity: d.quantity || meta.capacity || 30, status: meta.status || "Active" });
+          remoteVehicles.push({ id: d.id, name: d.title, number: d.supplier_or_paid_to || meta.number || "", capacity: d.quantity || meta.capacity || 30, status: meta.status || "Active" });
         } else if (d.record_type === "transport_driver") {
-          remoteDrivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "9876543210", licenseNo: meta.licenseNo || "LIC-100", vehicle: meta.vehicle || "BUS-1", status: meta.status || "Active" });
+          remoteDrivers.push({ id: d.id, name: d.title, phone: d.supplier_or_paid_to || meta.phone || "", licenseNo: meta.licenseNo || "", vehicle: meta.vehicle || "", status: meta.status || "Active" });
         } else if (d.record_type === "transport_route") {
-          remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "BUS-1", driver: meta.driver || "Driver", students: d.quantity || meta.students || 15, stops: meta.stops || ["School", "Main Gate"], status: meta.status || "Active" });
+          remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "", driver: meta.driver || "", students: d.quantity || meta.students || 0, stops: meta.stops || [], status: meta.status || "Active" });
         } else if (d.record_type === "transport_allocation") {
-          remoteAllocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "Nursery", section: meta.section || "A", routeName: meta.routeName || "Route 1", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "Stop 1", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 1500, status: meta.status || "Active" });
+          remoteAllocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "", section: meta.section || "", routeName: meta.routeName || "", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 0, status: meta.status || "Active" });
         }
       } catch {}
     });
 
-    if (remoteVehicles.length > 0) {
-      const current = getStoredVehicles();
-      const merged = [...current];
-      remoteVehicles.forEach((rv) => {
-        if (!merged.some((cv) => cv.id === rv.id)) merged.push(rv);
-      });
-      localStorage.setItem(VEHICLES_KEY, JSON.stringify(merged));
-    }
-    if (remoteDrivers.length > 0) {
-      const current = getStoredDrivers();
-      const merged = [...current];
-      remoteDrivers.forEach((rd) => {
-        if (!merged.some((cd) => cd.id === rd.id)) merged.push(rd);
-      });
-      localStorage.setItem(DRIVERS_KEY, JSON.stringify(merged));
-    }
-    if (remoteRoutes.length > 0) {
-      const current = getStoredRoutes();
-      const merged = [...current];
-      remoteRoutes.forEach((rr) => {
-        if (!merged.some((cr) => cr.id === rr.id)) merged.push(rr);
-      });
-      localStorage.setItem(ROUTES_KEY, JSON.stringify(merged));
-    }
-    if (remoteAllocations.length > 0) {
-      const current = getStoredAllocations();
-      const merged = [...current];
-      remoteAllocations.forEach((ra) => {
-        if (!merged.some((ca) => ca.id === ra.id)) merged.push(ra);
-      });
-      localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(merged));
-    }
-
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
+      try {
+        localStorage.setItem(VEHICLES_KEY, JSON.stringify(remoteVehicles));
+        localStorage.setItem(DRIVERS_KEY, JSON.stringify(remoteDrivers));
+        localStorage.setItem(ROUTES_KEY, JSON.stringify(remoteRoutes));
+        localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(remoteAllocations));
+        window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
+      } catch {}
     }
   } catch {}
 }
 
 // ─── VEHICLES ────────────────────────────────────────────────────────────────
 export function getStoredVehicles(): Vehicle[] {
-  if (typeof window === "undefined") return seedVehicles;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(VEHICLES_KEY);
-    return raw ? JSON.parse(raw) : seedVehicles;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return seedVehicles;
+    return [];
   }
 }
 
@@ -94,7 +67,8 @@ export function saveStoredVehicles(list: Vehicle[]) {
     window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
 
-  // Sync to Supabase gv_inventory_expenses
+  notifyAutoRefresh("transport");
+
   list.forEach((v) => {
     Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
       id: v.id,
@@ -109,14 +83,20 @@ export function saveStoredVehicles(list: Vehicle[]) {
   });
 }
 
+export function deleteVehicle(id: string) {
+  const next = getStoredVehicles().filter((v) => v.id !== id);
+  saveStoredVehicles(next);
+  Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+}
+
 // ─── DRIVERS ─────────────────────────────────────────────────────────────────
 export function getStoredDrivers(): Driver[] {
-  if (typeof window === "undefined") return seedDrivers;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(DRIVERS_KEY);
-    return raw ? JSON.parse(raw) : seedDrivers;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return seedDrivers;
+    return [];
   }
 }
 
@@ -126,6 +106,8 @@ export function saveStoredDrivers(list: Driver[]) {
     localStorage.setItem(DRIVERS_KEY, JSON.stringify(list));
     window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
+
+  notifyAutoRefresh("transport");
 
   list.forEach((d) => {
     Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
@@ -140,14 +122,20 @@ export function saveStoredDrivers(list: Driver[]) {
   });
 }
 
+export function deleteDriver(id: string) {
+  const next = getStoredDrivers().filter((d) => d.id !== id);
+  saveStoredDrivers(next);
+  Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+}
+
 // ─── ROUTES ──────────────────────────────────────────────────────────────────
 export function getStoredRoutes(): Route[] {
-  if (typeof window === "undefined") return seedRoutes;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(ROUTES_KEY);
-    return raw ? JSON.parse(raw) : seedRoutes;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return seedRoutes;
+    return [];
   }
 }
 
@@ -157,6 +145,8 @@ export function saveStoredRoutes(list: Route[]) {
     localStorage.setItem(ROUTES_KEY, JSON.stringify(list));
     window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
+
+  notifyAutoRefresh("transport");
 
   list.forEach((r) => {
     Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
@@ -173,14 +163,20 @@ export function saveStoredRoutes(list: Route[]) {
   });
 }
 
+export function deleteRoute(id: string) {
+  const next = getStoredRoutes().filter((r) => r.id !== id);
+  saveStoredRoutes(next);
+  Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+}
+
 // ─── ALLOCATIONS ─────────────────────────────────────────────────────────────
 export function getStoredAllocations(): StudentAllocation[] {
-  if (typeof window === "undefined") return seedAllocations;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(ALLOCATIONS_KEY);
-    return raw ? JSON.parse(raw) : seedAllocations;
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return seedAllocations;
+    return [];
   }
 }
 
@@ -190,6 +186,8 @@ export function saveStoredAllocations(list: StudentAllocation[]) {
     localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(list));
     window.dispatchEvent(new CustomEvent("sunshine-transport-update"));
   } catch {}
+
+  notifyAutoRefresh("transport");
 
   list.forEach((a) => {
     Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
@@ -203,4 +201,10 @@ export function saveStoredAllocations(list: StudentAllocation[]) {
       created_by: "Office Staff",
     }], { onConflict: "id" })).catch(() => {});
   });
+}
+
+export function deleteAllocation(id: string) {
+  const next = getStoredAllocations().filter((a) => a.id !== id);
+  saveStoredAllocations(next);
+  Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
 }

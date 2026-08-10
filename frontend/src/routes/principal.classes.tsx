@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
-import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
+import { getStoredMasterClasses, subscribeMasterClasses, fetchMasterClassesFromSupabase, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -30,19 +30,22 @@ function ClassesPage() {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
 
   const loadData = () => {
-    setMasterClasses(getStoredMasterClasses());
+    fetchMasterClassesFromSupabase().then((res) => setMasterClasses(res || []));
     Promise.all([fetchStudents(), fetchTeachers()]).then(([{ data: st }, { data: tc }]) => {
       setStudentsList(st || []);
       setTeachersList((tc as any) || []);
     });
   };
 
+  useAutoRefresh("classes", loadData);
   useAutoRefresh("students", loadData);
   useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();
-    return subscribeMasterClasses(() => setMasterClasses(getStoredMasterClasses()));
+    return subscribeMasterClasses(() => {
+      fetchMasterClassesFromSupabase().then((res) => setMasterClasses(res || []));
+    });
   }, []);
 
   const derivedClassesList = useMemo(() => {

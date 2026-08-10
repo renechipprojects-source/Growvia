@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { NotificationService } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { subscribeToRealtimeTable } from "./realtimeService";
-import { notifyAutoRefresh } from "./autoRefreshContext";
+import { notifyAutoRefresh, useAutoRefresh } from "./autoRefreshContext";
 
 export interface Message {
   id: string;
@@ -167,6 +167,23 @@ export function dispatchMessage(input: {
 export function markMessageRead(id: string) {
   const list = readMessages().map((m) => (m.id === id ? { ...m, read: true } : m));
   writeMessages(list);
+  Promise.resolve(
+    supabase.from("gv_communications").update({
+      content: JSON.stringify({
+        ...readMessages().find((m) => m.id === id),
+        read: true,
+      }),
+    }).eq("id", id)
+  ).catch(() => {});
+}
+
+export function deleteMessage(id: string) {
+  const list = readMessages().filter((m) => m.id !== id);
+  writeMessages(list);
+  notifyAutoRefresh("messages");
+  Promise.resolve(
+    supabase.from("gv_communications").delete().eq("id", id)
+  ).catch(() => {});
 }
 
 export function useMessages() {
@@ -177,6 +194,8 @@ export function useMessages() {
       if (res) setMessages(res);
     });
   }, []);
+
+  useAutoRefresh("messages", loadData);
 
   useEffect(() => {
     loadData();
@@ -213,6 +232,10 @@ export function useMessages() {
     messages,
     sendMessage: send,
     dispatchMessage: send,
+    deleteMessage: (id: string) => {
+      deleteMessage(id);
+      setMessages([...readMessages()]);
+    },
     markRead: (id: string) => {
       markMessageRead(id);
       setMessages([...readMessages()]);

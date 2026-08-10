@@ -28,42 +28,25 @@ const filters: FilterDef<Route>[] = [
 ];
 
 import { fetchTransportRoutes, saveTransportRoute as saveTransportRouteService, deleteTransportRoute as deleteTransportRouteService } from "@/lib/supabaseService";
-import { getStoredRoutes, saveStoredRoutes } from "../transportStore";
+import { getStoredRoutes, saveStoredRoutes, syncTransportFromSupabase, deleteRoute } from "../transportStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useCallback } from "react";
 
 export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
   const [routeList, setRouteList] = useState<Route[]>(getStoredRoutes);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    fetchTransportRoutes().then((data) => {
-      if (data && data.length > 0) {
-        const stored = getStoredRoutes();
-        const mapped: Route[] = data.map((d) => ({
-          id: d.id,
-          name: d.routeName,
-          pickupPoints: ["Station A", "Stop B"],
-          dropPoints: ["School Main Gate"],
-          distanceKm: 12,
-          vehicle: d.vehicleNo,
-          driver: d.driverName,
-          students: d.assignedStudentsCount,
-          status: d.status === "Active" ? "Active" : "Inactive",
-        }));
-
-        const mergedMap = new Map<string, Route>();
-        stored.forEach((r) => mergedMap.set(r.id, r));
-        mapped.forEach((r) => {
-          if (!mergedMap.has(r.id)) {
-            mergedMap.set(r.id, r);
-          }
-        });
-
-        const mergedList = Array.from(mergedMap.values());
-        setRouteList(mergedList);
-        saveStoredRoutes(mergedList);
-      }
+  const loadData = useCallback(() => {
+    syncTransportFromSupabase().then(() => {
+      setRouteList(getStoredRoutes());
     });
   }, []);
+
+  useAutoRefresh("transport", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const [form, setForm] = useState({
     name: "",

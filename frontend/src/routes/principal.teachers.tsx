@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { fetchTeachers } from "@/lib/supabaseService";
 import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export interface Teacher {
   id: string;
@@ -41,24 +42,30 @@ function TeachersPage() {
   const [subject, setSubject] = useState("all");
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
-  useEffect(() => {
+  const loadTeachers = () => {
     fetchTeachers().then(({ data }) => {
       const source = data || [];
       const mapped: Teacher[] = source.map((t) => ({
-          id: t.id,
-          empId: t.id,
-          name: t.name,
-          subject: t.subject || "General",
-          qualification: "B.Ed",
-          phone: t.phone || "",
-          email: t.email || "",
-          experience: t.experience || 1,
-          classesAssigned: [t.className || "Nursery A"],
-          avatar: t.avatar,
-          status: "Active",
-        }));
-        setItems(mapped);
+        id: t.id,
+        empId: t.id,
+        name: t.name,
+        subject: t.subject || "General",
+        qualification: "B.Ed",
+        phone: t.phone || "",
+        email: t.email || "",
+        experience: t.experience || 1,
+        classesAssigned: t.className ? [t.className] : [],
+        avatar: t.avatar,
+        status: "Active",
+      }));
+      setItems(mapped);
     });
+  };
+
+  useAutoRefresh("staff", loadTeachers);
+
+  useEffect(() => {
+    loadTeachers();
   }, []);
 
   const subjects = useMemo(() => Array.from(new Set(items.map((t) => t.subject))), [items]);

@@ -30,9 +30,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
 
   const loadData = useCallback(() => {
     fetchEnquiries().then((res) => {
-      if (res.data && res.data.length > 0) {
-        setEnquiries(res.data);
-      }
+      setEnquiries(res.data || []);
     }).catch(() => {});
   }, []);
 

@@ -29,11 +29,25 @@ const filters: FilterDef<Driver>[] = [
   { key: "status", label: "Status", options: ["Active", "On Leave", "Inactive"], predicate: (r, v) => r.status === v },
 ];
 
-import { getStoredDrivers, saveStoredDrivers } from "../transportStore";
+import { getStoredDrivers, saveStoredDrivers, syncTransportFromSupabase, deleteDriver } from "../transportStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useEffect, useCallback } from "react";
 
 export function DriversPage({ readOnly }: { readOnly?: boolean }) {
   const [driverList, setDriverList] = useState<Driver[]>(getStoredDrivers);
   const [open, setOpen] = useState(false);
+
+  const loadData = useCallback(() => {
+    syncTransportFromSupabase().then(() => {
+      setDriverList(getStoredDrivers());
+    });
+  }, []);
+
+  useAutoRefresh("transport", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const [form, setForm] = useState({
     name: "",

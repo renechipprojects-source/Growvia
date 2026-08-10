@@ -1,5 +1,6 @@
 import type { Student } from "./mockData";
 import { readAssignments, type ClassAssignment } from "./classAssignmentContext";
+import { getSession } from "./auth";
 
 export type AssignmentType = "class" | "subject";
 
@@ -22,8 +23,15 @@ function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
 }
 
 function myActive(): ClassAssignment[] {
+  const session = getSession();
+  const activeId = session?.linkId || session?.loginId || CURRENT_TEACHER.id;
+  const activeName = session?.name || CURRENT_TEACHER.name;
   return readAssignments().filter(
-    (a) => a.teacherId === CURRENT_TEACHER.id && a.status === "active",
+    (a) =>
+      a.status === "active" &&
+      (a.teacherId === activeId ||
+        a.teacherName.toLowerCase() === activeName.toLowerCase() ||
+        a.teacherId === CURRENT_TEACHER.id)
   );
 }
 

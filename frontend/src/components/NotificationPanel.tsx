@@ -16,6 +16,7 @@ import {
   type AppNotification,
 } from "@/lib/notifications";
 import type { Role } from "@/lib/roleConfig";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 function useNotifications(role: Role) {
   const items = useSyncExternalStore(
@@ -51,6 +52,8 @@ const priorityDot: Record<AppNotification["priority"], string> = {
 export function NotificationPanel({ role }: { role: Role }) {
   const { items, unread } = useNotifications(role);
   const [open, setOpen] = useState(false);
+
+  useAutoRefresh("notifications", syncLiveDatabaseNotifications);
 
   // Sync live notifications from database on mount & interval tick
   useEffect(() => {

@@ -9,42 +9,76 @@ export interface MasterClassItem {
   capacity: number;
 }
 
-export const INITIAL_CLASSES: MasterClassItem[] = [
-  { id: "CLS-PG-A", name: "Playgroup", section: "A", fullName: "Playgroup - Section A", classTeacher: "Sumi Sharma", room: "Room 101", capacity: 25 },
-  { id: "CLS-PG-B", name: "Playgroup", section: "B", fullName: "Playgroup - Section B", classTeacher: "Ananya Sen", room: "Room 102", capacity: 25 },
-  { id: "CLS-NUR-A", name: "Nursery", section: "A", fullName: "Nursery - Section A", classTeacher: "Priya Nair", room: "Room 103", capacity: 30 },
-  { id: "CLS-NUR-B", name: "Nursery", section: "B", fullName: "Nursery - Section B", classTeacher: "Meera Gupta", room: "Room 104", capacity: 30 },
-  { id: "CLS-LKG-A", name: "LKG", section: "A", fullName: "LKG - Section A", classTeacher: "Kavita Rao", room: "Room 105", capacity: 30 },
-  { id: "CLS-LKG-B", name: "LKG", section: "B", fullName: "LKG - Section B", classTeacher: "Sunita Verma", room: "Room 106", capacity: 30 },
-  { id: "CLS-UKG-A", name: "UKG", section: "A", fullName: "UKG - Section A", classTeacher: "Pooja Patel", room: "Room 107", capacity: 30 },
-  { id: "CLS-UKG-B", name: "UKG", section: "B", fullName: "UKG - Section B", classTeacher: "Rekha Joshi", room: "Room 108", capacity: 30 },
-  { id: "CLS-G1-A", name: "Grade 1", section: "A", fullName: "Grade 1 - Section A", classTeacher: "Deepa Singh", room: "Room 201", capacity: 35 },
-  { id: "CLS-G1-B", name: "Grade 1", section: "B", fullName: "Grade 1 - Section B", classTeacher: "Ritu Kapoor", room: "Room 202", capacity: 35 },
-  { id: "CLS-G2-A", name: "Grade 2", section: "A", fullName: "Grade 2 - Section A", classTeacher: "Aarti Saxena", room: "Room 203", capacity: 35 },
-  { id: "CLS-G2-B", name: "Grade 2", section: "B", fullName: "Grade 2 - Section B", classTeacher: "Shalini Menon", room: "Room 204", capacity: 35 },
-];
+import { supabase } from "@/lib/supabase";
+import { notifyAutoRefresh } from "@/lib/supabaseService";
 
-const STORAGE_KEY = "sunshine.master_classes.v2";
+export const INITIAL_CLASSES: MasterClassItem[] = [];
+
+const STORAGE_KEY = "sunshine.master_classes.v3";
 const EVENT_NAME = "sunshine_classes_updated";
 
 let memoryCache: MasterClassItem[] | null = null;
 
 export function getStoredMasterClasses(): MasterClassItem[] {
-  if (memoryCache && memoryCache.length > 0) return memoryCache;
+  if (memoryCache) return memoryCache;
   if (typeof window !== "undefined") {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           memoryCache = parsed;
           return parsed;
         }
       }
     } catch {}
   }
-  memoryCache = INITIAL_CLASSES;
-  return INITIAL_CLASSES;
+  memoryCache = [];
+  return [];
+}
+
+export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "class");
+
+    if (!error && data && data.length > 0) {
+      const mapped: MasterClassItem[] = data.map((d: any) => {
+        let meta: any = {};
+        try {
+          if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+            meta = JSON.parse(d.reason_or_notes);
+          }
+        } catch {}
+
+        const name = d.class_name || meta.name || "Nursery";
+        const section = d.section || meta.section || "A";
+
+        return {
+          id: d.id,
+          name,
+          section,
+          fullName: meta.fullName || `${name} - Section ${section}`,
+          classTeacher: meta.classTeacher || d.applicant_or_child_name || "Unassigned",
+          teacherId: meta.teacherId || "",
+          room: meta.room || "Room 101",
+          capacity: Number(meta.capacity || 30),
+        };
+      });
+
+      memoryCache = mapped;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+        } catch {}
+      }
+      return mapped;
+    }
+  } catch {}
+
+  return getStoredMasterClasses();
 }
 
 export function saveStoredMasterClasses(list: MasterClassItem[]) {
@@ -55,6 +89,20 @@ export function saveStoredMasterClasses(list: MasterClassItem[]) {
       window.dispatchEvent(new Event(EVENT_NAME));
     } catch {}
   }
+
+  notifyAutoRefresh("classes");
+
+  const payloads = list.map((c) => ({
+    id: c.id,
+    request_type: "class",
+    class_name: c.name,
+    section: c.section,
+    applicant_or_child_name: c.classTeacher,
+    status: "active",
+    reason_or_notes: JSON.stringify(c),
+  }));
+
+  Promise.resolve(supabase.from("gv_requests").upsert(payloads, { onConflict: "id" })).catch(() => {});
 }
 
 export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & { id?: string }): MasterClassItem {
@@ -103,6 +151,7 @@ export function deleteMasterClass(id: string) {
   const current = getStoredMasterClasses();
   const next = current.filter((c) => c.id !== id);
   saveStoredMasterClasses(next);
+  Promise.resolve(supabase.from("gv_requests").delete().eq("id", id)).catch(() => {});
 }
 
 export function subscribeMasterClasses(callback: () => void) {

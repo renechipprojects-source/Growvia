@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, User, Phone, Mail, Briefcase, MapPin, Baby } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchStudents } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 const OCCUPATIONS = [
   "Software Engineer",
@@ -48,7 +49,7 @@ function ParentsPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data }) => {
       const source = data || [];
       const mapped: Parent[] = source.map((s) => {
@@ -58,15 +59,22 @@ function ParentsPage() {
           name: parentName,
           email: `${parentName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@sunshine-parents.com`,
           phone: s.phone || "+91 98765 43210",
-          occupation: s.parentOccupation || s.occupation || getOccupation(parentName),
+          occupation: getOccupation(s.id),
           children: [s.name],
-          preferredChannel: "WhatsApp",
+          preferredChannel: "WhatsApp / Call",
           emergencyContact: s.phone || "+91 98765 43210",
-          avatar: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(parentName)}`,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`,
         };
       });
       setParentList(mapped);
     });
+  };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("parents", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const filtered = useMemo(() => {

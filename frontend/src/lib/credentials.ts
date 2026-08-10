@@ -39,29 +39,9 @@ interface Store {
 
 const STORAGE_KEY = "sunshine.credentials.v3";
 
-const defaultParents: Record<string, ParentCredential> = {
-  STU1001: {
-    kind: "parent",
-    studentId: "STU1001",
-    loginId: "PAR1001",
-    password: "Parent@123",
-    status: "Active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-};
+const defaultParents: Record<string, ParentCredential> = {};
 
-const defaultTeachers: Record<string, TeacherCredential> = {
-  TCH1001: {
-    kind: "teacher",
-    teacherId: "TCH1001",
-    loginId: "TCH1001",
-    password: "Teacher@123",
-    status: "Active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-};
+const defaultTeachers: Record<string, TeacherCredential> = {};
 
 let memoryCredentialsStore: Store = { parents: defaultParents, teachers: defaultTeachers };
 
@@ -72,8 +52,8 @@ function read(): Store {
       if (raw) {
         const parsed = JSON.parse(raw);
         memoryCredentialsStore = {
-          parents: { ...defaultParents, ...(parsed.parents || {}) },
-          teachers: { ...defaultTeachers, ...(parsed.teachers || {}) },
+          parents: parsed.parents || {},
+          teachers: parsed.teachers || {},
         };
       }
     } catch {}

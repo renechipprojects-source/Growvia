@@ -18,6 +18,20 @@ function ParentChild() {
   const classTeacher = getClassTeacher(CHILD.className, CHILD.section || "A")?.teacherName || "Not assigned";
   const subjectTeachers = getSubjectTeachers(CHILD.className, CHILD.section || "A");
 
+  if (CHILD.id === "NO-STUDENT") {
+    return (
+      <div>
+        <PageHeader title={t("child.title")} />
+        <div className="p-8 text-center bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200 shadow-sm mt-4 space-y-2">
+          <h3 className="text-lg font-semibold text-slate-800">No Enrolled Children Found</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            No active student records are currently linked to your parent account in the school database. Please contact the school office to verify child details.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const firstName = CHILD.name.split(" ")[0];
   return (
     <div>

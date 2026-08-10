@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { Wallet, Search, Plus, FileText, User, Calendar, CreditCard, DollarSign } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/expenses")({ component: Expenses });
 
@@ -23,15 +24,17 @@ function Expenses() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  const loadData = () => {
-    fetchExpenses().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data) setItems(data);
+  const loadData = useCallback(() => {
+    fetchExpenses().then(({ data }) => {
+      setItems(data || []);
     });
-  };
+  }, []);
+
+  useAutoRefresh("expenses", loadData);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<{
     category: string;

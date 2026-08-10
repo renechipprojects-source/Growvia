@@ -8,6 +8,7 @@ import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService
 import { Search, Eye, Wallet, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/principal/fees")({
   head: () => ({
@@ -25,10 +26,16 @@ function PrincipalFeesOverview() {
   const [activeLedger, setActiveLedger] = useState<FeeLedgerItem | null>(null);
   const [openModal, setOpenModal] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchMergedFeeLedgers().then(({ data }) => {
       if (data && data.length > 0) setFeeRecords(data);
     });
+  };
+
+  useAutoRefresh("fees", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const filtered = useMemo(() => {

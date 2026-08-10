@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { Household, Student } from "./mockData";
 import { fetchStudents } from "./supabaseService";
 import { getSession } from "./auth";
+import { useAutoRefresh } from "./autoRefreshContext";
 
 const emptyHousehold: Household = {
   id: "HH-000",
@@ -16,8 +17,8 @@ const emptyHousehold: Household = {
   childrenIds: [],
 };
 
-const emptyStudent: Student = {
-  id: "STU-NONE",
+const noLinkedStudent: Student = {
+  id: "NO-STUDENT",
   rollNo: 0,
   admissionNo: "N/A",
   name: "No Enrolled Child Found",
@@ -42,20 +43,28 @@ interface ParentState {
   children: Student[];
   activeChild: Student;
   setActiveChildId: (id: string) => void;
+  hasLinkedChildren: boolean;
 }
 
 const Ctx = createContext<ParentState | null>(null);
 
-const STORAGE_KEY = "sunshine.parent.activeChildId";
+const STORAGE_KEY = "sunshine.parent.activeChildId.v2";
 
 export function ParentProvider({ children }: { children: ReactNode }) {
   const session = getSession();
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchStudents().then(({ data }) => {
       setAllStudents((data as any) || []);
     });
+  };
+
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("parents", loadData);
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const kids = useMemo(() => {
@@ -67,9 +76,9 @@ export function ParentProvider({ children }: { children: ReactNode }) {
           (session.name && s.parent && s.parent.toLowerCase() === session.name.toLowerCase()) ||
           (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, "")))
       );
-      return matching.length > 0 ? matching : [emptyStudent];
+      return matching;
     }
-    return allStudents.length > 0 ? allStudents : [emptyStudent];
+    return allStudents;
   }, [allStudents, session]);
 
   const [activeId, setActiveId] = useState<string>(() => {
@@ -81,13 +90,19 @@ export function ParentProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (kids.length > 0 && (!activeId || !kids.some((k) => k.id === activeId))) {
+      setActiveId(kids[0].id);
+    }
+  }, [kids, activeId]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && activeId) {
       window.localStorage.setItem(STORAGE_KEY, activeId);
     }
   }, [activeId]);
 
   const active = useMemo(
-    () => kids.find((k) => k.id === activeId) ?? kids[0] ?? emptyStudent,
+    () => kids.find((k) => k.id === activeId) ?? kids[0] ?? noLinkedStudent,
     [kids, activeId]
   );
 
@@ -97,6 +112,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
       children: kids,
       activeChild: active,
       setActiveChildId: setActiveId,
+      hasLinkedChildren: kids.length > 0,
     }),
     [kids, active]
   );

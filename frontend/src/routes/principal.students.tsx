@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export interface Student {
   id: string;
@@ -93,6 +94,8 @@ function StudentsPage() {
   };
 
   const [masterClasses, setMasterClasses] = useState<MasterClassItem[]>(getStoredMasterClasses);
+
+  useAutoRefresh("students", loadData);
 
   useEffect(() => {
     loadData();

@@ -24,21 +24,35 @@ const columns: Column<Allocation>[] = [
   { key: "fee", header: "Monthly Fee", cell: (a) => currency(a.monthlyFee) },
 ];
 
-import { getStoredAllocations, saveStoredAllocations } from "../transportStore";
+import { getStoredAllocations, saveStoredAllocations, syncTransportFromSupabase, deleteAllocation } from "../transportStore";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useEffect, useCallback } from "react";
 
 export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
-  const [allocationList, setAllocationList] = useState<any[]>(() => {
-    const raw = getStoredAllocations();
-    return raw.map((a: any) => ({
-      ...a,
-      student: a.student || a.studentName || "Student",
-      pickupPoint: a.pickupPoint || a.pickupStop || "School Gate",
-      dropPoint: a.dropPoint || a.dropStop || "Indiranagar",
-      vehicle: a.vehicle || a.vehicleNo || "KA-04-B-1001",
-      driver: a.driver || a.driverName || "Driver",
-    }));
-  });
+  const [allocationList, setAllocationList] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+
+  const loadData = useCallback(() => {
+    syncTransportFromSupabase().then(() => {
+      const raw = getStoredAllocations();
+      setAllocationList(
+        raw.map((a: any) => ({
+          ...a,
+          student: a.student || a.studentName || "Student",
+          pickupPoint: a.pickupPoint || a.pickupStop || "School Gate",
+          dropPoint: a.dropPoint || a.dropStop || "Indiranagar",
+          vehicle: a.vehicle || a.vehicleNo || "",
+          driver: a.driver || a.driverName || "",
+        }))
+      );
+    });
+  }, []);
+
+  useAutoRefresh("transport", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const [form, setForm] = useState({
     student: "",

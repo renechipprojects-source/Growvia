@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { PageHeader, StatCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchExpenses, type Expense } from "@/lib/supabaseService";
 import { Search, Receipt, Wallet, DollarSign, Lock, Building2, FileText } from "lucide-react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/principal/expenses")({
   head: () => ({
@@ -26,11 +27,17 @@ function PrincipalExpensesOverview() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     fetchExpenses().then(({ data }) => {
       setExpenses(data || []);
     });
   }, []);
+
+  useAutoRefresh("expenses", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();

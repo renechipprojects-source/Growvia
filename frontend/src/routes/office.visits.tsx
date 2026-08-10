@@ -42,6 +42,9 @@ function VisitsPage() {
 
   const { triggerModuleRefresh } = useAutoRefresh();
 
+  useAutoRefresh("visits", () => triggerModuleRefresh("enquiries"));
+  useAutoRefresh("enquiries", () => triggerModuleRefresh("visits"));
+
   // All visits: includes scheduled, completed, and enquiries
   const visitsList = useMemo(() => {
     return enquiries.filter((e) => {
