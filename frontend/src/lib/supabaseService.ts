@@ -358,18 +358,17 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
         .select("*")
         .or("role.ilike.%student%,role.eq.student,role.eq.Student");
 
-      if (!error && data && data.length > 0) {
-        rows = data;
-      } else {
-        const { data: allData } = await supabase.from("gv_users").select("*");
-        if (allData && allData.length > 0) {
-          rows = allData.filter((u: any) =>
-            u.role ? u.role.toString().toLowerCase().includes("student") : false
-          );
+      if (!error) {
+        rows = data || [];
+        if (rows.length === 0) {
+          const { data: allData, error: allErr } = await supabase.from("gv_users").select("*");
+          if (!allErr && allData) {
+            rows = allData.filter((u: any) =>
+              u.role ? u.role.toString().toLowerCase().includes("student") : false
+            );
+          }
         }
-      }
 
-      if (rows.length > 0) {
         const mapped: Student[] = rows.map((d: any) => {
           const cachedMatch = cached.find((c) => c.id === d.id || c.admissionNo === d.admission_no || c.name === d.full_name);
           return {
@@ -603,18 +602,17 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
         .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
         .order("full_name", { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        rows = data;
-      } else {
-        const { data: allData } = await supabase.from("gv_users").select("*");
-        if (allData && allData.length > 0) {
-          rows = allData.filter((u: any) =>
-            u.role ? u.role.toString().toLowerCase().includes("teacher") : false
-          );
+      if (!error) {
+        rows = data || [];
+        if (rows.length === 0) {
+          const { data: allData, error: allErr } = await supabase.from("gv_users").select("*");
+          if (!allErr && allData) {
+            rows = allData.filter((u: any) =>
+              u.role ? u.role.toString().toLowerCase().includes("teacher") : false
+            );
+          }
         }
-      }
 
-      if (rows.length > 0) {
         const mapped: Teacher[] = rows.map((d: any) => {
           const cachedMatch = cached.find((c) => c.id === d.id || c.name === d.full_name);
           return {
