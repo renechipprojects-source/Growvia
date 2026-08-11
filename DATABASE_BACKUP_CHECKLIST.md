@@ -7,28 +7,42 @@
 
 ---
 
-## 1. PRODUCTION BACKEND ENVIRONMENT IDENTIFIERS
+## 1. BACKUP ENVIRONMENT VERIFICATION & PERMISSION STATUS
 
 ```text
 ================================================================================================
-SUPABASE PRODUCTION INFRASTRUCTURE SPECIFICATION
+BACKUP VERIFICATION & CAPABILITY STATEMENT
 ================================================================================================
-Supabase Project Ref:               nyhnkftlkigoliyogwvp
-Project REST Endpoint:              https://nyhnkftlkigoliyogwvp.supabase.co
-Database Engine:                    PostgreSQL (Public Schema)
-Core Authoritative Tables:          6 Consolidated Domain Tables
-Storage Buckets:                    system-assets (Public assets & student documents)
-Authentication Provider:            Supabase GoTrue (JWT Tokens & Email/Password)
+Supabase Data API Access:           VERIFIED (Read access to all 6 tables via @supabase/supabase-js)
+Supabase Management API Access:     NOT AVAILABLE (Requires Project Owner SUPABASE_ACCESS_TOKEN)
+Infrastructure Shell / pg_dump:     NOT AVAILABLE (Requires direct DB Pooler password)
+Managed Backup / PITR Status:       PENDING PROJECT OWNER VERIFICATION IN SUPABASE DASHBOARD
+Disaster Recovery Readiness:        READY (Row baselines, schema definition & steps documented)
 ================================================================================================
 ```
 
+> [!IMPORTANT]
+> **Audit Disclosure**: Automated agents in this client workspace have data access to verify table schemas and row baselines via public REST APIs, but do **NOT** have administrative access to the Supabase Cloud Management control plane. As a result, whether Point-in-Time Recovery (PITR) or daily automated snapshots are active on the Supabase infrastructure cannot be programmatically confirmed from within this environment without project owner credentials. The project owner must perform the manual dashboard verification steps below.
+
 ---
 
-## 2. AUTHORITATIVE TABLES & LIVE ROW BASELINES
+## 2. PRODUCTION INFRASTRUCTURE IDENTIFIERS
 
-Prior to generating any production backup or disaster recovery archive, verify the exact record counts against the following audited baseline:
+| Parameter | Live Value | Notes |
+| :--- | :--- | :--- |
+| **Supabase Project Ref** | `nyhnkftlkigoliyogwvp` | Production Project ID |
+| **Project Endpoint** | `https://nyhnkftlkigoliyogwvp.supabase.co` | REST & Auth API URL |
+| **Database Engine** | PostgreSQL (Public Schema) | Consolidated 6-Table Architecture |
+| **Storage Bucket** | `system-assets` | Document proofs, avatars, circular PDFs |
+| **Auth Service** | Supabase GoTrue | JWT Tokens & Server-side validation |
 
-| # | Table Name | Business Domain & Record Types | Live Row Baseline | Integrity Constraint |
+---
+
+## 3. AUDITED TABLE BASELINES (FOR RESTORE VERIFICATION)
+
+When verifying any database backup, restore, or export, the record counts must exactly match the audited live baseline:
+
+| # | Table Name | Business Domain & Data Partitioning | Live Row Baseline | Integrity Requirement |
 | :---: | :--- | :--- | :---: | :--- |
 | **1** | `public.gv_users` | Students (105), Parents (204), Teachers (11), Admins (3) | **323 Rows** | 100% Unique `login_id` / `email` |
 | **2** | `public.gv_fees_payments` | Fee schedules, payments, installments, receipts | **208 Rows** | 100% `student_id` match to `gv_users` |
@@ -39,80 +53,62 @@ Prior to generating any production backup or disaster recovery archive, verify t
 
 ---
 
-## 3. OFFICIAL RECOMMENDED BACKUP PROCEDURES
+## 4. EXACT MANUAL STEPS FOR THE PROJECT OWNER
 
-### Method A: Supabase Dashboard Managed Backups (Zero Overhead)
-1. Log into the [Supabase Dashboard](https://supabase.com/dashboard/project/nyhnkftlkigoliyogwvp).
-2. Navigate to **Project Settings** $\rightarrow$ **Database** $\rightarrow$ **Backups**.
-3. Under **Scheduled Backups**, confirm automated daily snapshots are active.
-4. Click **Download Backup** or **Take Snapshot** for an immediate point-in-time snapshot prior to major system updates.
+The project owner must perform the following actions in the Supabase Dashboard to confirm and download the production backup:
 
-### Method B: PostgreSQL Native `pg_dump` (Full SQL Dump)
-Run the following secure command using standard PostgreSQL client tools (do not expose password in shell history):
+### Step 1: Verify Automated Scheduled Backups
+1. Open the [Supabase Dashboard](https://supabase.com/dashboard/project/nyhnkftlkigoliyogwvp).
+2. In the left navigation sidebar, click on **Settings (Gear Icon)** $\rightarrow$ **Database**.
+3. Scroll down to the **Backups** section.
+4. Verify that **Scheduled Backups** displays active daily automated snapshots.
 
-```bash
-# Export complete schema and data for public tables
-pg_dump "postgresql://postgres.[PROJECT-REF]:[DB-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres" \
-  --schema=public \
-  --clean \
-  --if-exists \
-  --format=custom \
-  --file="sunshine_erp_backup_$(date +%Y%m%d_%H%M%S).dump"
-```
+### Step 2: Check Point-In-Time Recovery (PITR) Availability
+- Under **Backups**, check if **Point in Time Recovery (PITR)** is enabled (available on Pro/Enterprise plans).
+- If enabled, verify the retention window (e.g. 7 days or 30 days).
 
-### Method C: Supabase CLI Schema & Data Export
-```bash
-# 1. Login and link project
-npx supabase login
-npx supabase link --project-ref nyhnkftlkigoliyogwvp
-
-# 2. Dump schema
-npx supabase db dump -f supabase_schema_backup.sql
-
-# 3. Dump data only
-npx supabase db dump --data-only -f supabase_data_backup.sql
-```
-
----
-
-## 4. STORAGE BUCKET BACKUP PROCEDURE
-
-- **Bucket Name**: `system-assets`
-- **Stored Folders**:
-  - `documents/students/` (Admissions proof, birth certificates, Aadhaar)
-  - `avatars/` (Student and faculty profile images)
-  - `circulars/` (PDF circular notices and principal memos)
-  - `activities/` (Class event and gallery photo albums)
-- **Backup Action**:
-  - Use Supabase CLI or S3-compatible tool (e.g. AWS CLI / Cyberduck) to sync `system-assets` bucket to a secure local folder:
-  ```bash
-  # Example AWS CLI S3 sync for Supabase Storage
-  aws s3 sync s3://nyhnkftlkigoliyogwvp-system-assets ./storage_backup/system-assets/
-  ```
-
----
-
-## 5. POST-BACKUP VERIFICATION CHECKLIST
-
-After generating any backup archive, perform this verification check:
-
-- [ ] **Table Count**: Confirm all 6 core tables are present in the dump file.
-- [ ] **Row Count Match**: Confirm row counts match the baseline (323, 208, 32, 4, 13, 1).
-- [ ] **Fee Integrity**: Verify zero orphan records (`student_id` in `gv_fees_payments` maps 100% to `gv_users.id`).
-- [ ] **RLS & Security Policies**: Confirm Row Level Security policies and grants are preserved in schema definition.
-- [ ] **Storage Attachments**: Verify file count in `system-assets` matches database reference URLs.
-- [ ] **Archive Encryption**: Store backup archive in an encrypted, access-controlled offline storage or secure AWS S3 bucket.
-
----
-
-## 6. EMERGENCY DISASTER RECOVERY PROTOCOL
-
-In the event of a critical database failure or accidental data corruption:
-1. **Freeze Web Traffic**: Temporarily set application maintenance mode.
-2. **Restore PostgreSQL Dump**:
+### Step 3: Download an Immediate Offline Backup Dump
+1. Under **Scheduled Backups**, locate the most recent daily backup snapshot.
+2. Click **Download** to save the `.sql` or `.dump` file to an encrypted offline drive or secure company storage.
+3. If using the command line with database administrator credentials:
    ```bash
-   pg_restore --clean --if-exists -d "postgresql://postgres.[REF]:[PASS]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres" \
-     sunshine_erp_backup_YYYYMMDD_HHMMSS.dump
+   # Export complete schema and data using PostgreSQL pg_dump
+   pg_dump "postgresql://postgres.nyhnkftlkigoliyogwvp:[YOUR-DB-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres" \
+     --schema=public \
+     --clean \
+     --if-exists \
+     --format=custom \
+     --file="sunshine_erp_backup_$(date +%Y%m%d).dump"
    ```
-3. **Validate Foreign Keys & RLS**: Run audit queries against all 6 tables.
-4. **Re-enable Web Traffic**: Release application from maintenance mode and verify live login.
+
+### Step 4: Backup the `system-assets` Storage Bucket
+1. In the Supabase Dashboard sidebar, click on **Storage** $\rightarrow$ **Buckets**.
+2. Select `system-assets` and verify folder trees: `documents/students/`, `avatars/`, `circulars/`, `activities/`.
+3. Use an S3-compatible client (or Supabase CLI) to download an offline archive of all uploaded assets.
+
+---
+
+## 5. POST-BACKUP INTEGRITY VERIFICATION CHECKLIST
+
+After the project owner downloads the backup file, verify the following:
+
+- [ ] **Archive Non-Empty**: The downloaded `.dump` or `.sql` file size is non-zero and unpacks without errors.
+- [ ] **Table Count**: Dump contains definitions for all 6 tables (`gv_users`, `gv_fees_payments`, `gv_requests`, `gv_communications`, `gv_inventory_expenses`, `gv_system_settings`).
+- [ ] **Total Row Count**: Total restored records equal exactly **581 rows** ($323 + 208 + 32 + 4 + 13 + 1$).
+- [ ] **Fee Linkage Rate**: 100% of fee rows map to active student user IDs (0 orphans).
+- [ ] **RLS & Security Rules**: Row Level Security policies and role grants are intact in the schema.
+- [ ] **Storage Sync**: Storage assets mirror all referenced URLs in `gv_communications` and `gv_requests`.
+
+---
+
+## 6. EMERGENCY RESTORE PROCEDURE
+
+In the event disaster recovery is required:
+1. Put the web frontend into temporary maintenance mode.
+2. Restore the database dump:
+   ```bash
+   pg_restore --clean --if-exists -d "postgresql://postgres.nyhnkftlkigoliyogwvp:[DB-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres" \
+     sunshine_erp_backup_YYYYMMDD.dump
+   ```
+3. Re-verify the baseline counts using the checklist above.
+4. Disable maintenance mode and resume operations.
