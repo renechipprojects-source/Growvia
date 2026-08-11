@@ -972,6 +972,14 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       const targetName =
         profile?.full_name || coreAcc.name;
 
+      const targetMetadata = {
+        login_id: coreAcc.loginId,
+        role: targetRole,
+        full_name: targetName,
+        class_name: profile?.class_name || null,
+        section: profile?.section || null,
+      };
+
       let existingAuthUser =
         existingAuthUsers.find(
           (user) =>
@@ -991,11 +999,7 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
             email: targetEmail,
             password: coreAcc.password,
             email_confirm: true,
-            user_metadata: {
-              login_id: coreAcc.loginId,
-              role: targetRole,
-              full_name: targetName,
-            },
+            user_metadata: targetMetadata,
           });
 
         if (createErr) {
@@ -1022,6 +1026,7 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
           {
             email_confirm: true,
             password: coreAcc.password,
+            user_metadata: targetMetadata,
           }
         );
 
@@ -1033,22 +1038,10 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       }
 
       if (authUserId) {
-        const payload = {
-          id: authUserId,
-          auth_user_id: authUserId,
-          login_id: coreAcc.loginId,
-          email: targetEmail,
-          full_name: targetName,
-          role: targetRole,
-          status: 'active',
-          must_change_password: false,
-        };
-
-        await supabase
+        await supabaseAdmin
           .from('gv_users')
-          .upsert([payload], {
-            onConflict: 'login_id',
-          });
+          .update({ auth_user_id: authUserId })
+          .or(`login_id.eq.${coreAcc.loginId},email.eq.${targetEmail}`);
       }
     }
 

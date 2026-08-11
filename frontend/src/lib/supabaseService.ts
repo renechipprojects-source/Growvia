@@ -315,6 +315,70 @@ export async function deleteCircular(id: string) {
   }
 }
 
+// ─── 1.1 DIARY ENTRIES ────────────────────────────────────────────────────────
+export interface DiaryEntry {
+  id?: string;
+  date: string;
+  mood: string;
+  note: string;
+  author?: string;
+  createdAt?: string;
+}
+
+export async function fetchDiaryEntries(): Promise<DiaryEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .select("*")
+      .eq("message_type", "diary")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
+          meta = JSON.parse(d.body);
+        }
+      } catch {}
+      return {
+        id: d.id,
+        date: meta.date || d.published_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        mood: meta.mood || "😊",
+        note: meta.note || d.body || d.title,
+        author: d.sender_name || "Teacher",
+        createdAt: d.created_at,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function createDiaryEntry(entry: { date: string; mood: string; note: string; author?: string }) {
+  const newId = `COM-DIA-${Date.now().toString().slice(-4)}`;
+  const meta = {
+    date: entry.date,
+    mood: entry.mood,
+    note: entry.note,
+  };
+  const payload = {
+    id: newId,
+    message_type: "diary",
+    title: `Daily Diary - ${entry.date}`,
+    body: JSON.stringify(meta),
+    sender_id: "TCH100",
+    sender_name: entry.author || "Class Teacher",
+    sender_role: "teacher",
+    recipient_role: "all",
+    published_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
+  notifyAutoRefresh("diary");
+  return { data, error };
+}
+
 // ─── 2. STUDENTS ─────────────────────────────────────────────────────────────
 
 let studentsCacheMemory: Student[] = [];
@@ -1254,8 +1318,252 @@ export async function fetchExpenses(): Promise<{ data: Expense[]; isFromSupabase
   }
 }
 
-export async function fetchEvents(): Promise<{ data: any[]; isFromSupabase: boolean }> {
-  return { data: [], isFromSupabase: true };
+export interface SchoolEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue?: string;
+  location?: string;
+  type: "Academic" | "Cultural" | "Sports" | "Holiday" | "Other" | "Meeting";
+  description: string;
+  audiences?: string[];
+  audience?: string[] | string;
+  status?: string;
+}
+
+export async function fetchEvents(): Promise<{ data: SchoolEvent[]; isFromSupabase: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from("gv_communications")
+      .select("*")
+      .eq("message_type", "event")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return { data: [], isFromSupabase: false };
+
+    const mapped: SchoolEvent[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
+          meta = JSON.parse(d.body);
+        }
+      } catch {}
+
+      const aud = Array.isArray(meta.audience)
+        ? meta.audience
+        : Array.isArray(meta.audiences)
+        ? meta.audiences
+        : d.recipient_role
+        ? d.recipient_role.split(",")
+        : ["All"];
+
+      return {
+        id: d.id,
+        title: d.title || meta.title || "School Event",
+        date: meta.date || d.published_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        time: meta.time || "09:00 AM",
+        location: meta.location || meta.venue || "Main Auditorium",
+        venue: meta.venue || meta.location || "Main Auditorium",
+        type: meta.type || "Academic",
+        description: meta.description || d.body || "",
+        audience: aud,
+        audiences: aud,
+        status: meta.status || "Upcoming",
+      };
+    });
+
+    return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
+}
+
+export async function createEvent(event: Omit<SchoolEvent, "id">): Promise<{ data: any; error: string | null }> {
+  try {
+    const newId = `EVT-${Date.now().toString(36).toUpperCase()}`;
+    const aud = Array.isArray(event.audience) ? event.audience : Array.isArray(event.audiences) ? event.audiences : ["All"];
+    const meta = {
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location || event.venue || "Main Campus",
+      venue: event.venue || event.location || "Main Campus",
+      type: event.type,
+      audience: aud,
+      audiences: aud,
+      status: event.status || "Upcoming",
+    };
+
+    const payload = {
+      id: newId,
+      message_type: "event",
+      title: event.title,
+      body: JSON.stringify(meta),
+      sender_id: "PRINCIPAL001",
+      sender_name: "Dr. Meena Iyer",
+      sender_role: "principal",
+      recipient_role: aud.join(","),
+      published_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
+    notifyAutoRefresh("events");
+    return { data: data ? data[0] : payload, error: error?.message || null };
+  } catch (err: any) {
+    return { data: null, error: err?.message || "Failed to create event" };
+  }
+}
+
+export async function updateEvent(id: string, event: Partial<SchoolEvent>): Promise<{ error: string | null }> {
+  try {
+    const aud = Array.isArray(event.audience) ? event.audience : Array.isArray(event.audiences) ? event.audiences : ["All"];
+    const meta = {
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location || event.venue || "Main Campus",
+      venue: event.venue || event.location || "Main Campus",
+      type: event.type,
+      audience: aud,
+      audiences: aud,
+      status: event.status || "Upcoming",
+    };
+
+    const payload: any = {
+      body: JSON.stringify(meta),
+      updated_at: new Date().toISOString(),
+    };
+    if (event.title) payload.title = event.title;
+    if (aud.length > 0) payload.recipient_role = aud.join(",");
+
+    const { error } = await supabase.from("gv_communications").update(payload).eq("id", id);
+    notifyAutoRefresh("events");
+    return { error: error?.message || null };
+  } catch (err: any) {
+    return { error: err?.message || "Failed to update event" };
+  }
+}
+
+export async function deleteEvent(id: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.from("gv_communications").delete().eq("id", id);
+    notifyAutoRefresh("events");
+    return { error: error?.message || null };
+  } catch (err: any) {
+    return { error: err?.message || "Failed to delete event" };
+  }
+}
+
+// ─── 5C. STUDENT PROGRESS & MARKS MODULE ─────────────────────────────────────
+
+export interface MarkRecord {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  rollNo?: number;
+  className: string;
+  section: string;
+  subject: string;
+  assessment: string;
+  outOf: number;
+  score: number;
+  remarks: string;
+  updatedAt?: string;
+}
+
+export async function fetchClassMarks(className?: string, section?: string): Promise<MarkRecord[]> {
+  try {
+    let query = supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "marks");
+
+    if (className && section) {
+      query = query.eq("leave_type_or_interested_class", `${className} ${section}`);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+
+    return data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+          meta = JSON.parse(d.reason_or_notes);
+        }
+      } catch {}
+
+      const parts = (d.leave_type_or_interested_class || "").split(" ");
+      const cName = meta.className || parts[0] || "Nursery";
+      const sSec = meta.section || parts[1] || "A";
+
+      return {
+        id: d.id,
+        studentId: meta.studentId || d.parent_name || d.id,
+        studentName: meta.studentName || d.applicant_or_child_name || "Student",
+        rollNo: meta.rollNo || 0,
+        className: cName,
+        section: sSec,
+        subject: meta.subject || "General",
+        assessment: meta.assessment || "Unit Test 1",
+        outOf: Number(meta.outOf || 100),
+        score: Number(meta.score || 0),
+        remarks: meta.remarks || "",
+        updatedAt: d.updated_at,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function saveClassMarks(marks: Omit<MarkRecord, "id">[]): Promise<{ count: number; error: string | null }> {
+  try {
+    if (!marks || marks.length === 0) return { count: 0, error: null };
+
+    const payloads = marks.map((m) => {
+      const sanitizedSubject = m.subject.replace(/[^a-zA-Z0-9]/g, "");
+      const sanitizedAssessment = m.assessment.replace(/[^a-zA-Z0-9]/g, "");
+      const recordId = `MRK-${m.studentId}-${sanitizedSubject}-${sanitizedAssessment}`;
+      const pct = m.outOf ? (m.score / m.outOf) * 100 : 0;
+      const statusGrade = pct >= 90 ? "A+" : pct >= 80 ? "A" : pct >= 70 ? "B+" : pct >= 60 ? "B" : pct >= 50 ? "C" : "D";
+
+      const meta = {
+        studentId: m.studentId,
+        studentName: m.studentName,
+        rollNo: m.rollNo,
+        className: m.className,
+        section: m.section,
+        subject: m.subject,
+        assessment: m.assessment,
+        outOf: m.outOf,
+        score: m.score,
+        remarks: m.remarks,
+      };
+
+      return {
+        id: recordId,
+        request_type: "marks",
+        applicant_or_child_name: m.studentName || m.studentId,
+        parent_name: m.studentId,
+        leave_type_or_interested_class: `${m.className} ${m.section}`,
+        reason_or_notes: JSON.stringify(meta),
+        status: statusGrade,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    const { error } = await supabase.from("gv_requests").upsert(payloads, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+
+    notifyAutoRefresh("marks");
+    return { count: payloads.length, error: null };
+  } catch (err: any) {
+    return { count: 0, error: err?.message || "Failed to save marks." };
+  }
 }
 
 export async function checkSupabaseConnection(): Promise<{

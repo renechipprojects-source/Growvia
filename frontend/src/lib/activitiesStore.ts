@@ -36,17 +36,18 @@ export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
     const mapped: Activity[] = data.map((d: any) => {
       let meta: any = {};
       try {
-        if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
-          meta = JSON.parse(d.content);
+        const rawContent = d.body || d.content;
+        if (rawContent && (rawContent.startsWith("{") || rawContent.startsWith("["))) {
+          meta = JSON.parse(rawContent);
         }
       } catch { }
 
       return {
         id: d.id,
         title: d.title || meta.title || "Class Activity",
-        className: meta.className || d.target_audience || "Nursery",
+        className: meta.className || d.recipient_role || d.target_audience || "Nursery",
         cover: meta.cover || "/placeholder.svg",
-        date: d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        date: d.published_at?.slice(0, 10) || d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       };
     });
 
@@ -86,10 +87,12 @@ export function createActivity(input: {
       id: newId,
       message_type: "activity",
       title: input.title,
-      content: JSON.stringify(meta),
-      target_audience: input.className,
-      author: "Class Teacher",
-      published_date: new Date().toISOString().slice(0, 10),
+      body: JSON.stringify(meta),
+      sender_id: "TCH100",
+      sender_name: "Class Teacher",
+      sender_role: "teacher",
+      recipient_role: "all",
+      published_at: new Date().toISOString(),
     }])
   ).catch(() => { });
 

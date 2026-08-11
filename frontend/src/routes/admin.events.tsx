@@ -9,20 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { fetchEvents } from "@/lib/supabaseService";
-
-const defaultSampleEvents = [
-  {
-    id: "EVT-ANNUAL-2026",
-    title: "Annual Day Celebration 2026",
-    type: "Cultural",
-    date: "15 Aug 2026",
-    location: "Main Auditorium",
-    status: "Upcoming",
-    audience: "All Students, Parents & Staff",
-    description: "Grand annual day cultural extravaganza featuring music, drama, dance performances, student talent showcases, and annual academic award presentations.",
-  },
-];
+import { fetchEvents, type SchoolEvent } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/admin/events")({
   component: EventsPage,
@@ -30,17 +17,30 @@ export const Route = createFileRoute("/admin/events")({
 });
 
 function EventsPage() {
-  const [eventsList, setEventsList] = useState<any[]>(defaultSampleEvents);
+  const [eventsList, setEventsList] = useState<SchoolEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
 
+  const loadEvents = async () => {
+    try {
+      const { data } = await fetchEvents();
+      setEventsList(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchEvents().then(({ data, isFromSupabase }) => {
-      if (isFromSupabase && data.length > 0) {
-        setEventsList(data);
-      }
-    });
+    loadEvents();
+    const handleRefresh = () => loadEvents();
+    window.addEventListener("sunshine-auto-refresh-events", handleRefresh);
+    window.addEventListener("sunshine-auto-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("sunshine-auto-refresh-events", handleRefresh);
+      window.removeEventListener("sunshine-auto-refresh", handleRefresh);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -80,8 +80,10 @@ function EventsPage() {
       </div>
 
       <div className="mt-4 min-h-0 flex-1 overflow-auto pr-1">
-        {filtered.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">No events matching your search criteria.</div>
+        {loading ? (
+          <div className="py-12 text-center text-muted-foreground">Loading school events...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground">No events found.</div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((e) => (

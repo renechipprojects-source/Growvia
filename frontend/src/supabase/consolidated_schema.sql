@@ -328,3 +328,105 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_communications;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_requests;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.GV_system_settings;
 
+-- 8. POSTGRESQL RLS IDENTITY FOUNDATION HELPER FUNCTIONS
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS text AS $$
+  SELECT role FROM public.GV_users
+  WHERE auth_user_id = auth.uid()
+     OR id = (auth.jwt() ->> 'sub')
+     OR login_id = (auth.jwt() ->> 'sub')
+  LIMIT 1;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.current_user_id()
+RETURNS text AS $$
+  SELECT id FROM public.GV_users
+  WHERE auth_user_id = auth.uid()
+     OR id = (auth.jwt() ->> 'sub')
+     OR login_id = (auth.jwt() ->> 'sub')
+  LIMIT 1;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+-- 9. ENABLE ROW LEVEL SECURITY ON 6 AUTHORITATIVE TABLES
+ALTER TABLE public.GV_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_fees_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_communications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_inventory_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.GV_system_settings ENABLE ROW LEVEL SECURITY;
+
+-- 10. PURE JWT-ONLY RLS POLICIES FOR GV_users (ZERO-SUBQUERY, 100% RECURSION-FREE)
+DROP POLICY IF EXISTS gv_users_all ON public.gv_users;
+DROP POLICY IF EXISTS "gv_users_all" ON public.gv_users;
+DROP POLICY IF EXISTS gv_users_select_policy ON public.gv_users;
+DROP POLICY IF EXISTS gv_users_insert_policy ON public.gv_users;
+DROP POLICY IF EXISTS gv_users_update_policy ON public.gv_users;
+DROP POLICY IF EXISTS gv_users_delete_policy ON public.gv_users;
+
+ALTER TABLE public.gv_users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY gv_users_select_policy ON public.gv_users
+  FOR SELECT
+  TO authenticated
+  USING (
+    -- 1. Own user profile access (explicit text casts)
+    auth_user_id = auth.uid()::text
+    OR auth_user_id = (auth.jwt() ->> 'sub')
+    OR id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+    OR login_id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+
+    -- 2. Super Admin, Principal, and Office full access
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
+
+    -- 3. Parent access (linked child records only)
+    OR ((auth.jwt() -> 'user_metadata' ->> 'role') = 'parent' AND (
+        parent_id = (auth.jwt() -> 'user_metadata' ->> 'login_id') 
+        OR id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+    ))
+
+    -- 4. Teacher access: Own Profile OR students matching exact class_name AND exact section
+    OR ((auth.jwt() -> 'user_metadata' ->> 'role') = 'teacher' AND (
+        id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+        OR (
+            role = 'student'
+            AND (auth.jwt() -> 'user_metadata' ->> 'class_name') IS NOT NULL
+            AND (auth.jwt() -> 'user_metadata' ->> 'section') IS NOT NULL
+            AND class_name = (auth.jwt() -> 'user_metadata' ->> 'class_name')
+            AND section = (auth.jwt() -> 'user_metadata' ->> 'section')
+        )
+    ))
+  );
+
+CREATE POLICY gv_users_insert_policy ON public.gv_users
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
+    OR auth_user_id = auth.uid()::text
+  );
+
+CREATE POLICY gv_users_update_policy ON public.gv_users
+  FOR UPDATE
+  TO authenticated
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
+    OR auth_user_id = auth.uid()::text
+    OR id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+  )
+  WITH CHECK (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
+    OR auth_user_id = auth.uid()::text
+    OR id = (auth.jwt() -> 'user_metadata' ->> 'login_id')
+  );
+
+CREATE POLICY gv_users_delete_policy ON public.gv_users
+  FOR DELETE
+  TO authenticated
+  USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
+  );
+
+
+
+
+

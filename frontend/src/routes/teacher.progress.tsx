@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 type ClassName = string;
 type Section = string;
-import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { fetchStudents, fetchClassMarks, saveClassMarks, type Student, type MarkRecord } from "@/lib/supabaseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Save, RotateCcw, TrendingUp, Award, AlertTriangle, ArrowUpDown } from "lucide-react";
+import { Search, Save, RotateCcw, TrendingUp, Award, AlertTriangle, ArrowUpDown, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -123,15 +123,29 @@ function OverviewTab({ className, section, subject, onClass, onSection, onSubjec
   onClass: (c: ClassName) => void; onSection: (s: Section) => void; onSubject: (v: string) => void;
 }) {
   const students = useClassStudents(className, section);
-  const classMarks: any[] = [];
+  const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
+
+  useEffect(() => {
+    fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+    const handleRefresh = () => {
+      fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+    };
+    window.addEventListener("sunshine-auto-refresh-marks", handleRefresh);
+    window.addEventListener("sunshine-auto-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("sunshine-auto-refresh-marks", handleRefresh);
+      window.removeEventListener("sunshine-auto-refresh", handleRefresh);
+    };
+  }, [className, section]);
 
   const subjectAvgs = SUBJECTS.map((sub) => {
     const rows = classMarks.filter((m) => m.subject === sub);
     const avg = rows.length ? rows.reduce((n, r) => n + (r.score / r.outOf) * 100, 0) / rows.length : 0;
     return { subject: sub, avg: Math.round(avg) };
   });
-  const overallAvg = Math.round(subjectAvgs.reduce((n, r) => n + r.avg, 0) / (subjectAvgs.length || 1));
-  const attendanceAvg = students.length ? Math.round(students.reduce((n, s) => n + s.attendance, 0) / students.length) : 0;
+  const scoredSubjects = subjectAvgs.filter((s) => s.avg > 0);
+  const overallAvg = scoredSubjects.length ? Math.round(scoredSubjects.reduce((n, r) => n + r.avg, 0) / scoredSubjects.length) : 0;
+  const attendanceAvg = students.length ? Math.round(students.reduce((n, s) => n + (s.attendance || 95), 0) / students.length) : 95;
 
   const perStudent = students.map((s) => {
     const rows = classMarks.filter((m) => m.studentId === s.id && (subject === "All" || m.subject === subject));
@@ -139,7 +153,7 @@ function OverviewTab({ className, section, subject, onClass, onSection, onSubjec
     return { student: s, pct };
   });
   const top = [...perStudent].sort((a, b) => b.pct - a.pct).slice(0, 5);
-  const needs = [...perStudent].filter((r) => r.pct < 60).sort((a, b) => a.pct - b.pct).slice(0, 5);
+  const needs = [...perStudent].filter((r) => r.pct > 0 && r.pct < 60).sort((a, b) => a.pct - b.pct).slice(0, 5);
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -227,25 +241,33 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   const [query, setQuery] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [rows, setRows] = useState<Record<string, MarkRow>>({});
+  const [saving, setSaving] = useState(false);
 
-  // Seed rows for current class/section/subject/assessment
+  // Seed rows for current class/section/subject/assessment from Supabase
   const seededKey = `${className}-${section}-${subject}-${assessment}`;
   useEffect(() => {
-    const next: Record<string, MarkRow> = {};
-    students.forEach((s) => {
-      next[s.id] = {
-        studentId: s.id,
-        rollNo: s.rollNo,
-        name: s.name,
-        outOf: 100,
-        score: 0,
-        remarks: "",
-        dirty: false,
-      };
+    fetchClassMarks(className, section).then((allMarks) => {
+      const currentMap: Record<string, MarkRecord> = {};
+      allMarks
+        .filter((m) => m.subject === subject && m.assessment === assessment)
+        .forEach((m) => { currentMap[m.studentId] = m; });
+
+      const next: Record<string, MarkRow> = {};
+      students.forEach((s) => {
+        const existing = currentMap[s.id];
+        next[s.id] = {
+          studentId: s.id,
+          rollNo: s.rollNo,
+          name: s.name,
+          outOf: existing ? existing.outOf : 100,
+          score: existing ? existing.score : 0,
+          remarks: existing ? existing.remarks : "",
+          dirty: false,
+        };
+      });
+      setRows(next);
     });
-    setRows(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seededKey]);
+  }, [seededKey, students]);
 
   const visible = useMemo(() => {
     const list = students
@@ -259,13 +281,60 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   const update = (id: string, patch: Partial<MarkRow>) =>
     setRows((r) => ({ ...r, [id]: { ...r[id], ...patch, dirty: true } }));
 
-  const save = () => {
-    toast.success(`Saved ${dirtyCount} update${dirtyCount === 1 ? "" : "s"} for ${subject} · ${assessment}`);
-    setRows((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { ...v, dirty: false }])));
+  const save = async () => {
+    const toSave = Object.values(rows)
+      .filter((r) => r.dirty)
+      .map((r) => ({
+        studentId: r.studentId,
+        studentName: r.name,
+        rollNo: r.rollNo,
+        className,
+        section,
+        subject,
+        assessment,
+        outOf: r.outOf,
+        score: r.score,
+        remarks: r.remarks,
+      }));
+
+    if (toSave.length === 0) return;
+
+    setSaving(true);
+    try {
+      const { count, error } = await saveClassMarks(toSave);
+      if (error) throw new Error(error);
+      toast.success(`Saved ${count} update${count === 1 ? "" : "s"} for ${subject} · ${assessment}`);
+      setRows((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { ...v, dirty: false }])));
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save marks.");
+    } finally {
+      setSaving(false);
+    }
   };
+
   const cancel = () => {
-    setRows((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { ...v, dirty: false }])));
-    toast.message("Changes discarded");
+    fetchClassMarks(className, section).then((allMarks) => {
+      const currentMap: Record<string, MarkRecord> = {};
+      allMarks
+        .filter((m) => m.subject === subject && m.assessment === assessment)
+        .forEach((m) => { currentMap[m.studentId] = m; });
+
+      const next: Record<string, MarkRow> = {};
+      students.forEach((s) => {
+        const existing = currentMap[s.id];
+        next[s.id] = {
+          studentId: s.id,
+          rollNo: s.rollNo,
+          name: s.name,
+          outOf: existing ? existing.outOf : 100,
+          score: existing ? existing.score : 0,
+          remarks: existing ? existing.remarks : "",
+          dirty: false,
+        };
+      });
+      setRows(next);
+      toast.message("Changes discarded");
+    });
   };
 
   return (
@@ -278,11 +347,12 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search student…" className="pl-9 w-full sm:w-48 bg-white/70" />
           </div>
-          <Button variant="outline" onClick={cancel} disabled={!dirtyCount} className="rounded-full h-10">
+          <Button variant="outline" onClick={cancel} disabled={!dirtyCount || saving} className="rounded-full h-10">
             <RotateCcw className="h-4 w-4 mr-2" />Cancel
           </Button>
-          <Button onClick={save} disabled={!dirtyCount} className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full h-10">
-            <Save className="h-4 w-4 mr-2" />Save {dirtyCount ? `(${dirtyCount})` : ""}
+          <Button onClick={save} disabled={!dirtyCount || saving} className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full h-10">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save {dirtyCount ? `(${dirtyCount})` : ""}
           </Button>
         </div>
       </div>
@@ -362,6 +432,12 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
 /* ─── Assessment History ─── */
 function HistoryTab({ className, section }: { className: ClassName; section: Section }) {
   const students = useClassStudents(className, section);
+  const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
+
+  useEffect(() => {
+    fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+  }, [className, section]);
+
   return (
     <div className="h-full flex flex-col gap-4">
       <div className="shrink-0">
@@ -379,13 +455,19 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
             </TableHeader>
             <TableBody>
               {students.map((st) => {
-                const marks = SUBJECTS.map(() => 0);
-                const avg = 0;
+                const marks = SUBJECTS.map((sub) => {
+                  const subMarks = classMarks.filter((m) => m.studentId === st.id && m.subject === sub);
+                  return subMarks.length
+                    ? Math.round((subMarks.reduce((acc, curr) => acc + (curr.score / curr.outOf) * 100, 0) / subMarks.length))
+                    : 0;
+                });
+                const scoredCount = marks.filter((m) => m > 0).length;
+                const avg = scoredCount ? Math.round(marks.reduce((a, b) => a + b, 0) / scoredCount) : 0;
                 return (
                   <TableRow key={st.id}>
                     <TableCell className="font-medium">{st.name}</TableCell>
-                    {marks.map((v, i) => <TableCell key={i} className="text-right tabular-nums">{v}</TableCell>)}
-                    <TableCell className="text-right font-semibold tabular-nums">{avg}</TableCell>
+                    {marks.map((v, i) => <TableCell key={i} className="text-right tabular-nums">{v ? `${v}%` : "—"}</TableCell>)}
+                    <TableCell className="text-right font-semibold tabular-nums">{avg ? `${avg}%` : "—"}</TableCell>
                   </TableRow>
                 );
               })}
@@ -400,10 +482,28 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
 /* ─── Performance Analysis ─── */
 function AnalysisTab({ className, section }: { className: ClassName; section: Section }) {
   const students = useClassStudents(className, section);
-  const buckets = { excellent: 0, good: 0, average: 0, needs: 0 };
-  students.forEach(() => {
-    buckets.needs++;
+  const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
+
+  useEffect(() => {
+    fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+  }, [className, section]);
+
+  const studentAvgs = students.map((s) => {
+    const studentMarks = classMarks.filter((m) => m.studentId === s.id);
+    const pct = studentMarks.length
+      ? Math.round(studentMarks.reduce((acc, curr) => acc + (curr.score / curr.outOf) * 100, 0) / studentMarks.length)
+      : 0;
+    return { student: s, pct };
   });
+
+  const buckets = { excellent: 0, good: 0, average: 0, needs: 0 };
+  studentAvgs.forEach(({ pct }) => {
+    if (pct >= 85) buckets.excellent++;
+    else if (pct >= 70) buckets.good++;
+    else if (pct >= 55) buckets.average++;
+    else buckets.needs++;
+  });
+
   const total = students.length || 1;
   const bar = (label: string, count: number, tone: string) => (
     <div>
@@ -413,6 +513,7 @@ function AnalysisTab({ className, section }: { className: ClassName; section: Se
       </div>
     </div>
   );
+
   return (
     <div className="h-full flex flex-col gap-4">
       <div className="shrink-0">
@@ -432,19 +533,16 @@ function AnalysisTab({ className, section }: { className: ClassName; section: Se
             {className}-{section} · {students.length} students
           </div>
           <ul className="space-y-2 overflow-y-auto pr-1 -mr-1">
-            {students.map((s) => {
-              const pct = 0;
-              return (
-                <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-white/60 p-2.5">
-                  <img src={s.avatar} className="h-8 w-8 rounded-full" alt="" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{s.name}</div>
-                    <Progress value={pct} className="h-1.5 mt-1" />
-                  </div>
-                  <span className="text-sm font-semibold tabular-nums w-10 text-right">{pct}%</span>
-                </li>
-              );
-            })}
+            {studentAvgs.map(({ student, pct }) => (
+              <li key={student.id} className="flex items-center gap-3 rounded-2xl bg-white/60 p-2.5">
+                <img src={student.avatar} className="h-8 w-8 rounded-full" alt="" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{student.name}</div>
+                  <Progress value={pct} className="h-1.5 mt-1" />
+                </div>
+                <span className="text-sm font-semibold tabular-nums w-10 text-right">{pct}%</span>
+              </li>
+            ))}
           </ul>
         </SectionCard>
       </div>

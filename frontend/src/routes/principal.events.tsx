@@ -16,8 +16,8 @@ export interface EventItem {
   audience?: EventAudience[];
   image?: string;
 }
-import { MapPin, Clock, Tag, Plus, Pencil, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { MapPin, Clock, Tag, Plus, Pencil, Trash2, Users, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { fetchEvents, createEvent, updateEvent, deleteEvent } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/principal/events")({
   head: () => ({
@@ -88,10 +89,32 @@ const emptyForm: FormState = {
 
 function EventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+
+  const loadEvents = async () => {
+    try {
+      const { data } = await fetchEvents();
+      setEvents((data as any[]) || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+    const handleRefresh = () => loadEvents();
+    window.addEventListener("sunshine-auto-refresh-events", handleRefresh);
+    window.addEventListener("sunshine-auto-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("sunshine-auto-refresh-events", handleRefresh);
+      window.removeEventListener("sunshine-auto-refresh", handleRefresh);
+    };
+  }, []);
 
   const sorted = useMemo(
     () => [...events].sort((a, b) => a.date.localeCompare(b.date)),
@@ -132,28 +155,63 @@ function EventsPage() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.title.trim()) return toast.error("Title is required.");
     if (!form.date) return toast.error("Date is required.");
     const aud = form.audience || form.audiences || [];
     if (aud.length === 0) return toast.error("Select at least one audience.");
 
-    if (editingId) {
-      setEvents((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form } : e)));
-      toast.success("Event updated.");
-    } else {
-      const id = `E${Date.now().toString(36).toUpperCase()}`;
-      setEvents((prev) => [...prev, { id, ...form }]);
-      toast.success("Event added.");
+    setSaving(true);
+    try {
+      if (editingId) {
+        const { error } = await updateEvent(editingId, {
+          title: form.title,
+          description: form.description,
+          date: form.date,
+          time: form.time,
+          location: form.location || form.venue,
+          venue: form.venue || form.location,
+          type: form.type,
+          audience: aud,
+          audiences: aud,
+        });
+        if (error) throw new Error(error);
+        toast.success("Event updated.");
+      } else {
+        const { error } = await createEvent({
+          title: form.title,
+          description: form.description,
+          date: form.date,
+          time: form.time,
+          location: form.location || form.venue,
+          venue: form.venue || form.location,
+          type: form.type,
+          audience: aud,
+          audiences: aud,
+        });
+        if (error) throw new Error(error);
+        toast.success("Event added.");
+      }
+      setDialogOpen(false);
+      loadEvents();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save event.");
+    } finally {
+      setSaving(false);
     }
-    setDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirmDeleteId) return;
-    setEvents((prev) => prev.filter((e) => e.id !== confirmDeleteId));
-    setConfirmDeleteId(null);
-    toast.success("Event deleted.");
+    try {
+      const { error } = await deleteEvent(confirmDeleteId);
+      if (error) throw new Error(error);
+      toast.success("Event deleted.");
+      setConfirmDeleteId(null);
+      loadEvents();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete event.");
+    }
   };
 
   return (
@@ -266,59 +324,68 @@ function EventsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubmit}>{editingId ? "Save changes" : "Add event"}</Button>
+              <Button onClick={handleSubmit} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingId ? "Save changes" : "Add event"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-2">
-          {sorted.map((e) => (
-            <div key={e.id} className="card-elevated p-5 flex flex-col">
-              {e.image && (
-                <img src={e.image} alt={e.title} className="mb-3 h-32 w-full object-cover rounded-xl border shrink-0" />
-              )}
-              <div className="flex items-start gap-4">
-                <div className="w-14 rounded-lg gradient-primary text-primary-foreground text-center py-2 shrink-0">
-                  <div className="text-[10px] uppercase tracking-wide">
-                    {new Date(e.date).toLocaleDateString("en", { month: "short" })}
+        {loading ? (
+          <div className="py-12 text-center text-muted-foreground">Loading school events...</div>
+        ) : sorted.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground">No events scheduled. Click "Add New Event" to create one.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-2">
+            {sorted.map((e) => (
+              <div key={e.id} className="card-elevated p-5 flex flex-col">
+                {e.image && (
+                  <img src={e.image} alt={e.title} className="mb-3 h-32 w-full object-cover rounded-xl border shrink-0" />
+                )}
+                <div className="flex items-start gap-4">
+                  <div className="w-14 rounded-lg gradient-primary text-primary-foreground text-center py-2 shrink-0">
+                    <div className="text-[10px] uppercase tracking-wide">
+                      {new Date(e.date).toLocaleDateString("en", { month: "short" })}
+                    </div>
+                    <div className="text-xl font-semibold leading-tight">{new Date(e.date).getDate()}</div>
                   </div>
-                  <div className="text-xl font-semibold leading-tight">{new Date(e.date).getDate()}</div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">{e.title}</div>
-                  {e.description && (
-                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{e.description}</div>
-                  )}
-                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {e.time}</div>
-                    <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {e.location}</div>
-                    <div className="flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5" />
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${typeColor[e.type]}`}>
-                        {e.type}
-                      </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{e.title}</div>
+                    {e.description && (
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{e.description}</div>
+                    )}
+                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {e.time}</div>
+                      <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {e.location}</div>
+                      <div className="flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5" />
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${typeColor[e.type]}`}>
+                          {e.type}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {(e.audience || e.audiences || []).map((a) => (
+                        <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
+                      ))}
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(e.audience || e.audiences || []).map((a) => (
-                      <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
-                    ))}
-                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(e.id)}>
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
+                  </Button>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
-                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(e.id)}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <AlertDialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
