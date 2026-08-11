@@ -148,27 +148,6 @@ export interface FeeLedgerItem {
 
 // ─── 1. CIRCULARS & NOTICES ──────────────────────────────────────────────
 
-let circularsCacheMemory: Circular[] = [];
-const CIRCULARS_STORAGE_KEY = "sunshine.circulars.cache.v2";
-
-function getCachedCircularsList(): Circular[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CIRCULARS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function setCachedCircularsList(list: Circular[]) {
-  circularsCacheMemory = list;
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(CIRCULARS_STORAGE_KEY, JSON.stringify(list));
-  } catch {}
-}
-
 export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
     const { data, error } = await supabase
@@ -176,6 +155,7 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
       .select("*")
       .eq("message_type", "circular")
       .order("created_at", { ascending: false });
+
 
     if (error) return { data: [], isFromSupabase: false };
 
@@ -381,91 +361,44 @@ export async function createDiaryEntry(entry: { date: string; mood: string; note
 
 // ─── 2. STUDENTS ─────────────────────────────────────────────────────────────
 
-let studentsCacheMemory: Student[] = [];
-const STUDENTS_STORAGE_KEY = "sunshine.students.cache.v1";
-
-function getCachedStudentsList(): Student[] {
-  if (studentsCacheMemory.length > 0) return studentsCacheMemory;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(STUDENTS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          studentsCacheMemory = parsed;
-          return parsed;
-        }
-      }
-    } catch {}
-  }
-  return [];
-}
-
-function setCachedStudentsList(list: Student[]) {
-  if (!Array.isArray(list) || list.length === 0) return;
-  studentsCacheMemory = list;
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-  }
-}
-
 export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
-  const cached = getCachedStudentsList();
+  try {
+    const { data, error } = await supabase
+      .from("gv_users")
+      .select("*")
+      .or("role.ilike.%student%,role.eq.student,role.eq.Student")
+      .order("full_name", { ascending: true });
 
-  const revalidate = async () => {
-    try {
-      let rows: any[] = [];
-      const { data, error } = await supabase
-        .from("gv_users")
-        .select("*")
-        .or("role.ilike.%student%,role.eq.student,role.eq.Student");
+    if (error) return { data: [], isFromSupabase: false };
 
-      if (!error) {
-        rows = data || [];
-        if (rows.length === 0) {
-          const { data: allData, error: allErr } = await supabase.from("gv_users").select("*");
-          if (!allErr && allData) {
-            rows = allData.filter((u: any) =>
-              u.role ? u.role.toString().toLowerCase().includes("student") : false
-            );
-          }
-        }
+    const rows = data || [];
+    const mapped: Student[] = rows.map((d: any) => ({
+      id: d.id || d.login_id,
+      rollNo: d.roll_no || 1,
+      admissionNo: d.admission_no || d.id,
+      name: d.full_name || "Student",
+      age: d.age || 4,
+      dob: d.date_of_birth || "2022-01-01",
+      className: d.class_name || "Nursery",
+      section: d.section || "A",
+      parent: d.parent_name || "Parent",
+      parentId: d.parent_id || `PAR-${d.id}`,
+      phone: d.mobile || "9876543210",
+      gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+      house: d.house || "Red",
+      admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+      feeStatus: (d.fee_status as any) || "Pending",
+      avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+      attendance: Number(d.attendance_pct || 95.0),
+      branch: d.branch || "Main Branch",
+    }));
 
-        const mapped: Student[] = rows.map((d: any) => {
-          const cachedMatch = cached.find((c) => c.id === d.id || c.admissionNo === d.admission_no || c.name === d.full_name);
-          return {
-            id: d.id || d.login_id,
-            rollNo: d.roll_no || 1,
-            admissionNo: d.admission_no || d.id,
-            name: d.full_name || "Student",
-            age: d.age || 4,
-            dob: d.date_of_birth || "2022-01-01",
-            className: d.class_name || "Nursery",
-            section: d.section || "A",
-            parent: d.parent_name || "Parent",
-            parentId: d.parent_id || `PAR-${d.id}`,
-            phone: d.mobile || "9876543210",
-            gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-            house: d.house || "Red",
-            admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            feeStatus: (d.fee_status as any) || "Pending",
-            avatar: d.photo_url || d.avatar_url || d.avatar || cachedMatch?.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-            attendance: Number(d.attendance_pct || 95.0),
-            branch: d.branch || "Main Branch",
-          };
-        });
-
-        setCachedStudentsList(mapped);
-        return { data: mapped, isFromSupabase: true };
-      }
-    } catch {}
-    return { data: getCachedStudentsList(), isFromSupabase: false };
-  };
-
-  return await revalidate();
+    return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
 }
+
 
 export async function createStudent(student: Omit<Student, "id"> & {
   id?: string;
@@ -625,84 +558,36 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
 
 // ─── 3. TEACHERS & STAFF ──────────────────────────────────────────────────
 
-let teachersCacheMemory: Teacher[] = [];
-const TEACHERS_STORAGE_KEY = "sunshine.teachers.cache.v1";
-
-function getCachedTeachersList(): Teacher[] {
-  if (teachersCacheMemory.length > 0) return teachersCacheMemory;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(TEACHERS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          teachersCacheMemory = parsed;
-          return parsed;
-        }
-      }
-    } catch {}
-  }
-  return [];
-}
-
-function setCachedTeachersList(list: Teacher[]) {
-  if (!Array.isArray(list) || list.length === 0) return;
-  teachersCacheMemory = list;
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-  }
-}
-
 export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
-  const cached = getCachedTeachersList();
+  try {
+    const { data, error } = await supabase
+      .from("gv_users")
+      .select("*")
+      .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
+      .order("full_name", { ascending: true });
 
-  const revalidate = async () => {
-    try {
-      let rows: any[] = [];
-      const { data, error } = await supabase
-        .from("gv_users")
-        .select("*")
-        .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
-        .order("full_name", { ascending: true });
+    if (error) return { data: [], isFromSupabase: false };
 
-      if (!error) {
-        rows = data || [];
-        if (rows.length === 0) {
-          const { data: allData, error: allErr } = await supabase.from("gv_users").select("*");
-          if (!allErr && allData) {
-            rows = allData.filter((u: any) =>
-              u.role ? u.role.toString().toLowerCase().includes("teacher") : false
-            );
-          }
-        }
+    const rows = data || [];
+    const mapped: Teacher[] = rows.map((d: any) => ({
+      id: d.id || d.login_id,
+      name: d.full_name || "Teacher",
+      className: d.class_name || "",
+      subject: d.subject || "General",
+      email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+      phone: d.mobile || "9876543210",
+      experience: d.experience || 2,
+      joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+      avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+      branch: d.branch || "Main Branch",
+    }));
 
-        const mapped: Teacher[] = rows.map((d: any) => {
-          const cachedMatch = cached.find((c) => c.id === d.id || c.name === d.full_name);
-          return {
-            id: d.id || d.login_id,
-            name: d.full_name || "Teacher",
-            className: d.class_name || "",
-            subject: d.subject || "General",
-            email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
-            phone: d.mobile || "9876543210",
-            experience: d.experience || 2,
-            joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
-            branch: d.branch || "Main Branch",
-          };
-        });
-
-        setCachedTeachersList(mapped);
-        return { data: mapped, isFromSupabase: true };
-      }
-    } catch {}
-    return { data: cached, isFromSupabase: false };
-  };
-
-  return await revalidate();
+    return { data: mapped, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
 }
+
 
 export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string }) {
   const newId = teacher.id || `TCH-${Date.now().toString().slice(-4)}`;
@@ -906,10 +791,6 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
     createdAt: new Date().toISOString(),
   };
 
-  const localList = getStoredEnquiries();
-  saveStoredEnquiries([newEnqObj, ...localList]);
-  // Assuming helpers like notifyAutoRefresh and pushAdminNotification are available in scope
-  // If not, these calls should be handled accordingly.
   try {
     const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
     return { data: data || [newEnqObj], error: error?.message || null };
@@ -934,113 +815,77 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
 
   return {
     id: ledger.id || `FP-${Date.now()}`,
-    studentId: ledger.studentId || "STU1001",
+    studentId: ledger.studentId || "",
     studentName: ledger.studentName || "Student",
-    admissionNo: ledger.admissionNo || `ADM-${ledger.studentId}`,
-    className: ledger.className || "Nursery A",
+    admissionNo: ledger.admissionNo || ledger.studentId || "",
+    className: ledger.className || "Nursery",
     section: ledger.section || "A",
-    academicYear: ledger.academicYear || "2026-2027",
+    rollNo: ledger.rollNo || 1,
     originalFee,
     discountAmount,
     finalFee,
-    amount: finalFee,
     paid,
     remainingAmount,
-    totalInstallments: ledger.totalInstallments || 3,
-    paidInstallments: ledger.paidInstallments || (paid > 0 ? 1 : 0),
+    amount: finalFee,
+    balance: remainingAmount,
     status,
-    dueDate: ledger.dueDate || "2026-07-15",
-    month: ledger.month || "Academic Year 2026-2027",
+    term: ledger.term || "Full Year",
+    academicYear: ledger.academicYear || "2024-2025",
+    receiptNumber: ledger.receiptNumber,
+    paymentDate: ledger.paymentDate,
     payments,
-    updatedAt: new Date().toISOString(),
   };
-}
-
-let feeLedgersCacheMemory: FeeLedgerItem[] = [];
-const FEE_LEDGERS_STORAGE_KEY = "sunshine.fee_ledgers.cache.v1";
-
-function getCachedFeeLedgersList(): FeeLedgerItem[] {
-  if (feeLedgersCacheMemory.length > 0) return feeLedgersCacheMemory;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(FEE_LEDGERS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          feeLedgersCacheMemory = parsed;
-          return parsed;
-        }
-      }
-    } catch {}
-  }
-  return [];
-}
-
-function setCachedFeeLedgersList(list: FeeLedgerItem[]) {
-  if (!Array.isArray(list) || list.length === 0) return;
-  feeLedgersCacheMemory = list;
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(FEE_LEDGERS_STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-  }
 }
 
 export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
-  const cached = getCachedFeeLedgersList();
+  try {
+    const [{ data: stData }, { data: feData }] = await Promise.all([
+      fetchStudents(),
+      fetchFees(),
+    ]);
 
-  const revalidate = async () => {
-    try {
-      const [{ data: stData }, { data: feData }] = await Promise.all([
-        fetchStudents(),
-        fetchFees(),
-      ]);
+    const feeMap = new Map<string, FeeLedgerItem>();
+    (feData || []).forEach((f) => {
+      const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
+      if (!feeMap.has(key)) {
+        feeMap.set(key, f);
+      }
+    });
 
-      const feeMap = new Map<string, FeeLedgerItem>();
-      (feData || []).forEach((f) => {
-        const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
-        if (!feeMap.has(key)) {
-          feeMap.set(key, f);
-        }
-      });
-
-      const combined: FeeLedgerItem[] = (stData || []).map((s) => {
-        const key = (s.id || s.admissionNo || s.name).toLowerCase();
-        const existing = feeMap.get(key);
-        if (existing) {
-          return recalculateFeeLedger({
-            ...existing,
-            admissionNo: existing.admissionNo || s.admissionNo || s.id,
-            studentName: s.name || existing.studentName,
-            className: s.className || existing.className,
-            section: s.section || existing.section || "A",
-            rollNo: existing.rollNo || s.rollNo,
-          });
-        }
+    const combined: FeeLedgerItem[] = (stData || []).map((s) => {
+      const key = (s.id || s.admissionNo || s.name).toLowerCase();
+      const existing = feeMap.get(key);
+      if (existing) {
         return recalculateFeeLedger({
-          id: `FP-${s.id}`,
-          studentId: s.id,
-          studentName: s.name,
-          admissionNo: s.admissionNo || s.id,
-          className: s.className || "Nursery",
-          section: s.section || "A",
-          rollNo: s.rollNo || 1,
-          originalFee: 12000,
-          discountAmount: 0,
-          paid: s.feeStatus === "Paid" ? 12000 : 0,
-          status: s.feeStatus === "Paid" ? "Paid" : "Pending",
+          ...existing,
+          admissionNo: existing.admissionNo || s.admissionNo || s.id,
+          studentName: s.name || existing.studentName,
+          className: s.className || existing.className,
+          section: s.section || existing.section || "A",
+          rollNo: existing.rollNo || s.rollNo,
         });
+      }
+      return recalculateFeeLedger({
+        id: `FP-${s.id}`,
+        studentId: s.id,
+        studentName: s.name,
+        admissionNo: s.admissionNo || s.id,
+        className: s.className || "Nursery",
+        section: s.section || "A",
+        rollNo: s.rollNo || 1,
+        originalFee: 12000,
+        discountAmount: 0,
+        paid: s.feeStatus === "Paid" ? 12000 : 0,
+        status: s.feeStatus === "Paid" ? "Paid" : "Pending",
       });
+    });
 
-      setCachedFeeLedgersList(combined);
-      return { data: combined, isFromSupabase: true };
-    } catch {
-      return { data: cached, isFromSupabase: false };
-    }
-  };
-
-  return await revalidate();
+    return { data: combined, isFromSupabase: true };
+  } catch {
+    return { data: [], isFromSupabase: false };
+  }
 }
+
 
 export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
   try {

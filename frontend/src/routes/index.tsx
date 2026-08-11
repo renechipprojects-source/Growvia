@@ -7,7 +7,7 @@ import {
   Sparkles, LogIn, User, Lock, Eye, EyeOff, ShieldCheck, MapPin, Phone,
   Mail, Globe, Calendar, Clock, GraduationCap
 } from "lucide-react";
-import { getSession, roleHome, authenticate, writeSession } from "@/lib/auth";
+import { getSession, roleHome, writeSession } from "@/lib/auth";
 import { login } from "@/lib/supabaseAuth";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -58,25 +58,8 @@ function Login() {
     setErrors({});
 
     try {
-      // 1. Instant local system & generated credentials check (<1ms)
-      const localResult = authenticate(loginId.trim(), password, remember);
-      if (localResult.ok) {
-        const { session } = localResult;
-        toast.success(`Welcome, ${session.name}`);
-        const targetUrl = session.mustChangePassword ? "/change-password" : roleHome(session.role);
-        setTimeout(() => {
-          window.location.href = targetUrl;
-        }, 50);
-        return;
-      }
-
-      // 2. Fallback to Supabase database lookup with 3s timeout
-      const loginPromise = login(loginId.trim(), password);
-      const timeoutPromise = new Promise<{ success: false; error: string }>((resolve) =>
-        setTimeout(() => resolve({ success: false, error: "Network timeout during authentication." }), 3000)
-      );
-
-      const supaResult: any = await Promise.race([loginPromise, timeoutPromise]);
+      // Authoritative Supabase Auth & gv_users login
+      const supaResult = await login(loginId.trim(), password);
 
       if (supaResult && supaResult.success && supaResult.profile) {
         writeSession(
@@ -105,6 +88,7 @@ function Login() {
       toast.error("An error occurred during login. Please try again.");
     }
   }
+
 
   const schoolName = settings.school?.schoolName || settings.branding?.schoolName || "Sunshine Play School";
   const academicYear = settings.school?.academicYear || "2026-2027";

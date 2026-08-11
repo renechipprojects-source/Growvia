@@ -1,6 +1,4 @@
 import { supabase } from "./supabase";
-import { authenticateGenerated } from "./credentials";
-import { findSystemUserByLoginId, isTemporaryPassword } from "./auth";
 import { API_URL as BACKEND_URL } from "./api";
 
 /**
@@ -33,73 +31,8 @@ export async function login(loginId: string, password: string) {
   try {
     const id = loginId.trim();
 
-    // 1. Instant check for system users & generated credentials
-    const sysUser = findSystemUserByLoginId(id);
-    if (sysUser && (sysUser.password === password || sysUser.password.trim() === password.trim())) {
-      const targetEmail = (sysUser as any).email || `${sysUser.loginId.toLowerCase()}@sunshine.edu`;
-      
-      // JIT backend provisioning & Supabase Auth sign in
-      try {
-        await triggerServerUserProvisioning({
-          login_id: sysUser.loginId,
-          email: targetEmail,
-          password,
-          role: sysUser.role,
-          name: sysUser.name,
-        });
-        await supabase.auth.signInWithPassword({ email: targetEmail, password });
-      } catch {}
-
-      return {
-        success: true,
-        user: { id: sysUser.loginId, email: targetEmail } as any,
-        profile: {
-          id: sysUser.loginId,
-          auth_user_id: sysUser.loginId,
-          login_id: sysUser.loginId,
-          role: sysUser.role,
-          full_name: sysUser.name,
-          email: targetEmail,
-          status: "active",
-          must_change_password: isTemporaryPassword(sysUser.loginId),
-        },
-      };
-    }
-
-    const generatedCred = authenticateGenerated(id, password);
-    if (generatedCred) {
-      const targetEmail = `${id.toLowerCase()}@growvia.edu`;
-
-      // JIT backend provisioning & Supabase Auth sign in
-      try {
-        await triggerServerUserProvisioning({
-          login_id: id,
-          email: targetEmail,
-          password,
-          role: generatedCred.role,
-          name: generatedCred.name,
-        });
-        await supabase.auth.signInWithPassword({ email: targetEmail, password });
-      } catch {}
-
-      return {
-        success: true,
-        user: { id: `GEN-${id}`, email: targetEmail } as any,
-        profile: {
-          id: `GEN-${id}`,
-          auth_user_id: `GEN-${id}`,
-          login_id: id,
-          role: generatedCred.role,
-          full_name: generatedCred.name || (generatedCred.role === "teacher" ? "Teacher User" : "Parent User"),
-          email: targetEmail,
-          status: "active",
-          must_change_password: false,
-        },
-      };
-    }
-
-    // 2. Find user profile in primary GV_users table
-    const { data: userData } = await supabase
+    // Find user profile in primary gv_users table
+    const { data: userData, error: queryErr } = await supabase
       .from("gv_users")
       .select(`
         id,
@@ -116,6 +49,13 @@ export async function login(loginId: string, password: string) {
       .or(`login_id.ilike.${id},email.ilike.${id}`)
       .maybeSingle();
 
+    if (queryErr) {
+      return {
+        success: false,
+        error: "Unable to connect to school server. Please check your connection.",
+      };
+    }
+
     const profile = userData;
 
     if (!profile) {
@@ -124,6 +64,7 @@ export async function login(loginId: string, password: string) {
         error: "Invalid Login ID or password.",
       };
     }
+
 
     if (profile.status === "inactive" || profile.status === "disabled") {
       return {

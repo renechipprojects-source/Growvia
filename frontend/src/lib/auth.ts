@@ -1,119 +1,39 @@
-// Unified authentication service for the Sunshine ERP.
-// Modular so it can later be swapped for Supabase Auth without touching UI.
-//
-// Storage (localStorage / sessionStorage):
-//   sunshine.systemUsers.v1  → system-managed accounts (admin/principal/office)
-//   sunshine.tempFlags.v1    → per-loginId flag: password is temporary
-//   sunshine.auth            → active session (see routes/index.tsx)
+// Unified authentication and session service for the Sunshine ERP.
+// Authentication is handled strictly via Supabase Auth and gv_users.
 
 import type { Role } from "@/lib/roleConfig";
-import {
-  authenticateGenerated,
-  generateParentCredential,
-  generateTeacherCredential,
-  listParentCredentials,
-  listTeacherCredentials,
-  type AuthResolvedIdentity,
-} from "@/lib/credentials";
 
-const SYS_KEY = "sunshine.systemUsers.v1";
-const TEMP_KEY = "sunshine.tempFlags.v1";
 const SESSION_KEY = "sunshine.auth";
 
 export type SystemRole = "super-admin" | "principal" | "office";
 
 export interface SystemUser {
   loginId: string;
-  password: string;
   role: SystemRole;
   name: string;
 }
 
-const DEFAULT_USERS: SystemUser[] = [
-  { loginId: "ADMIN001",     password: "Admin@123",     role: "super-admin", name: "System Administrator" },
-  { loginId: "PRINCIPAL001", password: "Principal@123", role: "principal",   name: "Principal" },
-  { loginId: "OFFICE001",    password: "Office@123",    role: "office",      name: "Office Staff" },
-];
-
-function readSystemUsers(): SystemUser[] {
-  if (typeof window === "undefined") return DEFAULT_USERS;
-  try {
-    const raw = window.localStorage.getItem(SYS_KEY);
-    let users: SystemUser[] = [...DEFAULT_USERS];
-    if (raw) {
-      const parsed = JSON.parse(raw) as SystemUser[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        users = parsed;
-      }
-    }
-    // Always guarantee all DEFAULT_USERS exist
-    DEFAULT_USERS.forEach((defUser) => {
-      if (!users.some((u) => u.loginId.toLowerCase() === defUser.loginId.toLowerCase())) {
-        users.push(defUser);
-      }
-    });
-    return users;
-  } catch {
-    return DEFAULT_USERS;
-  }
-}
-
-function writeSystemUsers(users: SystemUser[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(SYS_KEY, JSON.stringify(users));
-}
-
 export function listSystemUsers(): SystemUser[] {
-  return readSystemUsers();
+  return [
+    { loginId: "ADMIN001", role: "super-admin", name: "System Administrator" },
+    { loginId: "PRINCIPAL001", role: "principal", name: "Principal" },
+    { loginId: "OFFICE001", role: "office", name: "Office Staff" },
+  ];
 }
 
 export function findSystemUserByLoginId(loginId: string): SystemUser | undefined {
-  const raw = loginId.trim().toLowerCase();
-  const clean = raw.replace(/[\s\-_]+/g, "");
-
-  const users = readSystemUsers();
-
-  if (
-    clean === "office" ||
-    clean === "office001" ||
-    clean === "office1" ||
-    raw.startsWith("office") ||
-    raw === "office@sunshineschool.edu" ||
-    raw === "office@growvia.com"
-  ) {
-    return users.find((u) => u.role === "office") || DEFAULT_USERS[2];
-  }
-
-  if (
-    clean === "admin" ||
-    clean === "admin001" ||
-    clean === "admin1" ||
-    raw.startsWith("admin") ||
-    raw === "admin@sunshineschool.edu" ||
-    raw === "admin@growvia.com"
-  ) {
-    return users.find((u) => u.role === "super-admin") || DEFAULT_USERS[0];
-  }
-
-  if (
-    clean === "principal" ||
-    clean === "principal001" ||
-    clean === "principal1" ||
-    raw.startsWith("principal") ||
-    raw === "principal@sunshineschool.edu" ||
-    raw === "principal@growvia.com"
-  ) {
-    return users.find((u) => u.role === "principal") || DEFAULT_USERS[1];
-  }
-
-  return users.find(
+  const clean = (loginId || "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
+  const list = listSystemUsers();
+  return list.find(
     (u) =>
-      u.loginId.toLowerCase() === raw ||
-      u.loginId.toLowerCase().replace(/[\s\-_]+/g, "") === clean
+      u.loginId.toLowerCase() === (loginId || "").trim().toLowerCase() ||
+      u.loginId.toLowerCase().replace(/[\s\-_]+/g, "") === clean ||
+      u.role === clean
   );
 }
 
-// ─── Temp-password flags ────────────────────────────────────────────────────
+const TEMP_KEY = "sunshine.tempFlags.v1";
+
 
 function readTempFlags(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -233,51 +153,7 @@ export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
   return s;
 }
 
-// ─── Authenticate ───────────────────────────────────────────────────────────
-
-export type AuthResult =
-  | { ok: true; session: Session }
-  | { ok: false; reason: "empty-id" | "empty-password" | "invalid" };
-
-export function authenticate(loginId: string, password: string, remember: boolean): AuthResult {
-  const id = loginId.trim();
-  if (!id) return { ok: false, reason: "empty-id" };
-  if (!password) return { ok: false, reason: "empty-password" };
-
-  // 1) System accounts (Admin / Principal / Office)
-  const sys = findSystemUserByLoginId(id);
-  if (sys && (sys.password === password || sys.password.trim() === password.trim())) {
-    const session: Session = {
-      loginId: sys.loginId,
-      role: sys.role,
-      name: sys.name,
-      mustChangePassword: isTemporaryPassword(sys.loginId),
-    };
-    writeSession(session, remember);
-    return { ok: true, session };
-  }
-
-  // 2) Office-issued credentials (Teacher / Parent)
-  const issued: AuthResolvedIdentity | null = authenticateGenerated(id, password);
-  if (issued) {
-    const session: Session = {
-      loginId: issued.loginId,
-      role: issued.role,
-      name: issued.name,
-      linkId: issued.linkId,
-      mustChangePassword: isTemporaryPassword(issued.loginId),
-    };
-    writeSession(session, remember);
-    if (issued.role === "parent") {
-      window.localStorage.setItem("sunshine.parent.activeChildId", issued.linkId);
-    }
-    return { ok: true, session };
-  }
-
-  return { ok: false, reason: "invalid" };
-}
-
-// ─── Change password ────────────────────────────────────────────────────────
+// ─── Change password & Temporary Passwords ─────────────────────────────────
 
 export function passwordStrengthIssues(pwd: string): string[] {
   const issues: string[] = [];
@@ -295,54 +171,35 @@ export function changePasswordForCurrentUser(newPassword: string): { ok: boolean
   const issues = passwordStrengthIssues(newPassword);
   if (issues.length) return { ok: false, error: "Password does not meet requirements." };
 
-  // System users → update store
-  const sys = findSystemUserByLoginId(s.loginId);
-  if (sys) {
-    const users = readSystemUsers().map((u) =>
-      u.loginId.toLowerCase() === s.loginId.toLowerCase() ? { ...u, password: newPassword } : u,
-    );
-    writeSystemUsers(users);
-  } else {
-    if (s.role === "teacher" && s.linkId) {
-      generateTeacherCredential(s.linkId, { customLoginId: s.loginId, password: newPassword });
-    } else if (s.role === "parent" && s.linkId) {
-      generateParentCredential(s.linkId, { customLoginId: s.loginId, password: newPassword });
-    }
-  }
+  try {
+    supabase.auth.updateUser({ password: newPassword }).catch(() => {});
+    supabase.from("gv_users").update({ must_change_password: false }).eq("login_id", s.loginId).catch(() => {});
+  } catch {}
 
-  clearTemporaryPassword(s.loginId);
   const updated: Session = { ...s, mustChangePassword: false };
-  const storeIsLocal = !!window.localStorage.getItem(SESSION_KEY);
+  const storeIsLocal = typeof window !== "undefined" && !!window.localStorage.getItem(SESSION_KEY);
   writeSession(updated, storeIsLocal);
   return { ok: true };
 }
 
-// Admin/Office issuing a temporary password for another account.
 export function setTemporaryPasswordFor(loginId: string, tempPassword: string): boolean {
-  // System user?
-  const sys = findSystemUserByLoginId(loginId);
-  if (sys) {
-    const users = readSystemUsers().map((u) =>
-      u.loginId.toLowerCase() === loginId.toLowerCase() ? { ...u, password: tempPassword } : u,
-    );
-    writeSystemUsers(users);
-    markTemporaryPassword(loginId);
+  try {
+    import("./api").then(({ API_URL }) => {
+      fetch(`${API_URL}/api/users/provision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          login_id: loginId,
+          password: tempPassword,
+          must_change_password: true,
+        }),
+      }).catch(() => {});
+    });
+    supabase.from("gv_users").update({ must_change_password: true }).eq("login_id", loginId).catch(() => {});
     return true;
+  } catch {
+    return false;
   }
-  // Teacher/Parent generated cred?
-  const t = listTeacherCredentials().find((c) => c.loginId.toLowerCase() === loginId.toLowerCase());
-  if (t) {
-    generateTeacherCredential(t.teacherId, { customLoginId: t.loginId, password: tempPassword });
-    markTemporaryPassword(loginId);
-    return true;
-  }
-  const p = listParentCredentials().find((c) => c.loginId.toLowerCase() === loginId.toLowerCase());
-  if (p) {
-    generateParentCredential(p.studentId, { customLoginId: p.loginId, password: tempPassword });
-    markTemporaryPassword(loginId);
-    return true;
-  }
-  return false;
 }
 
 export function generateTemporaryPassword(): string {
@@ -357,6 +214,7 @@ export function generateTemporaryPassword(): string {
   return out.split("").sort(() => Math.random() - 0.5).join("");
 }
 
+
 export function roleHome(role: Role | string): string {
   switch (role) {
     case "admin":
@@ -369,3 +227,4 @@ export function roleHome(role: Role | string): string {
     default:            return "/";
   }
 }
+
