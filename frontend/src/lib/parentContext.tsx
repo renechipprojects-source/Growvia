@@ -68,15 +68,38 @@ export function ParentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const kids = useMemo(() => {
-    if (session?.role === "parent") {
-      const matching = allStudents.filter(
-        (s) =>
-          s.id === session.linkId ||
-          s.parentId === session.linkId ||
-          (session.name && s.parent && s.parent.toLowerCase() === session.name.toLowerCase()) ||
-          (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, "")))
-      );
-      return matching;
+    if (!session || allStudents.length === 0) return allStudents;
+    const role = (session.role || "").toLowerCase();
+
+    if (role === "parent" || role === "student") {
+      const loginId = (session.loginId || "").toLowerCase().trim();
+      const linkId = (session.linkId || "").toLowerCase().trim();
+      const sessionName = (session.name || "").toLowerCase().trim();
+
+      const matching = allStudents.filter((s) => {
+        const sId = (s.id || "").toLowerCase().trim();
+        const sParentId = (s.parentId || "").toLowerCase().trim();
+        const sAdmissionNo = (s.admissionNo || "").toLowerCase().trim();
+        const sParentName = (s.parent || "").toLowerCase().trim();
+
+        if (sId && (sId === loginId || sId === linkId)) return true;
+        if (sParentId && (sParentId === loginId || sParentId === linkId)) return true;
+        if (sAdmissionNo && (sAdmissionNo === loginId || sAdmissionNo === linkId)) return true;
+        if (sessionName && sParentName && sParentName === sessionName) return true;
+        if (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, ""))) return true;
+
+        return false;
+      });
+
+      if (matching.length > 0) return matching;
+
+      if (role === "student") {
+        const singleStu = allStudents.filter(
+          (s) => (s.id || "").toLowerCase() === loginId || (s.admissionNo || "").toLowerCase() === loginId
+        );
+        if (singleStu.length > 0) return singleStu;
+      }
+      return [];
     }
     return allStudents;
   }, [allStudents, session]);

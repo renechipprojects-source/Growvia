@@ -13,6 +13,7 @@ import {
   subscribe,
   syncLiveDatabaseNotifications,
   unreadCountForRole,
+  getNotificationLinkForRole,
   type AppNotification,
 } from "@/lib/notifications";
 import type { Role } from "@/lib/roleConfig";
@@ -167,11 +168,12 @@ export function NotificationPanel({ role }: { role: Role }) {
                   </div>
                 );
 
+                const targetLink = getNotificationLinkForRole(n, role);
                 return (
                   <li key={n.id}>
-                    {n.link ? (
+                    {targetLink ? (
                       <Link
-                        to={n.link}
+                        to={targetLink}
                         onClick={() => {
                           markRead(n.id);
                           setOpen(false);

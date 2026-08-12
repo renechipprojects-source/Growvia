@@ -335,16 +335,55 @@ export function getDeveloperSettings(): DeveloperSettings {
   }
 }
 
+export async function uploadBase64DataUrl(dataUrl: string): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith("data:image/")) return dataUrl;
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9\+\-]+);base64,(.+)$/);
+  if (!match) return dataUrl;
+  const mimeType = match[1];
+  const base64Data = match[2];
+  const ext = mimeType.split("/")[1]?.replace("+xml", "") || "png";
+  const fileName = `logo_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+  const filePath = `system_branding/${fileName}`;
+
+  try {
+    const binaryStr = atob(base64Data);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+
+    const { error: uploadError } = await supabase.storage
+      .from("system-assets")
+      .upload(filePath, blob, { upsert: true, cacheControl: "3600", contentType: mimeType });
+
+    if (!uploadError) {
+      const { data } = supabase.storage.from("system-assets").getPublicUrl(filePath);
+      if (data?.publicUrl) {
+        return `${data.publicUrl}?v=${Date.now()}`;
+      }
+    }
+  } catch (err) {
+    console.warn("Base64 auto-upload notice:", err);
+  }
+  return dataUrl;
+}
+
 export async function saveDeveloperSettings(settings: DeveloperSettings): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const targetLogoUrl =
+  let targetLogoUrl =
     settings.branding.schoolLogoUrl ||
     settings.school.schoolLogoUrl ||
     settings.school.logoUrl ||
     settings.loginPage.schoolLogoUrl ||
     settings.loginPage.logoUrl ||
     "";
+
+  if (targetLogoUrl && targetLogoUrl.startsWith("data:image/")) {
+    targetLogoUrl = await uploadBase64DataUrl(targetLogoUrl);
+  }
 
   const syncedSettings = synchronizeLogoFields(settings, targetLogoUrl);
 

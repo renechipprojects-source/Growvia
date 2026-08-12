@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Sparkles, Upload, Save, Building2, MapPin, Phone, Mail, Clock, RefreshCw } from "lucide-react";
-import { useDeveloperSettings, saveDeveloperSettings } from "@/lib/developerSettingsStore";
+import { useDeveloperSettings, saveDeveloperSettings, uploadSystemAsset, synchronizeLogoFields } from "@/lib/developerSettingsStore";
 import { validateIndianMobile } from "@/lib/utils";
 import { requireAuthGuard } from "@/lib/auth";
 
@@ -28,6 +28,7 @@ function SchoolBrandingPage() {
   const { settings } = useDeveloperSettings();
   const [form, setForm] = useState({ ...settings });
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoPreview, setLogoPreview] = useState(
     settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || ""
   );
@@ -37,7 +38,7 @@ function SchoolBrandingPage() {
     setLogoPreview(settings.branding.schoolLogoUrl || settings.school.schoolLogoUrl || "");
   }, [settings]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -53,31 +54,17 @@ function SchoolBrandingPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setLogoPreview(dataUrl);
-      setForm((prev) => ({
-        ...prev,
-        branding: {
-          ...prev.branding,
-          schoolLogoUrl: dataUrl,
-          logoUrl: dataUrl,
-        },
-        school: {
-          ...prev.school,
-          schoolLogoUrl: dataUrl,
-          logoUrl: dataUrl,
-        },
-        loginPage: {
-          ...prev.loginPage,
-          schoolLogoUrl: dataUrl,
-          logoUrl: dataUrl,
-        },
-      }));
-      toast.success("New school logo selected. Click 'Save Branding Settings' to apply.");
-    };
-    reader.readAsDataURL(file);
+    setUploadingLogo(true);
+    try {
+      const publicUrl = await uploadSystemAsset(file);
+      setLogoPreview(publicUrl);
+      setForm((prev) => synchronizeLogoFields(prev, publicUrl));
+      toast.success("New school logo uploaded successfully! Click 'Save Branding Settings' to apply.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload logo image.");
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -132,12 +119,14 @@ function SchoolBrandingPage() {
                 <div className="text-xs font-semibold text-slate-700">School Logo</div>
                 <div className="text-[11px] text-muted-foreground">PNG, JPG, SVG, or WebP (max 2MB)</div>
               </div>
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
-                <Upload className="w-3.5 h-3.5" /> Upload New Logo
+              <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition ${uploadingLogo ? "opacity-70 pointer-events-none" : ""}`}>
+                {uploadingLogo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {uploadingLogo ? "Uploading Logo..." : "Upload New Logo"}
                 <input
                   type="file"
                   accept="image/png, image/jpeg, image/webp, image/svg+xml"
                   onChange={handleLogoUpload}
+                  disabled={uploadingLogo}
                   className="hidden"
                 />
               </label>

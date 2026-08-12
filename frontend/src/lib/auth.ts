@@ -133,13 +133,15 @@ export function isAuthed(role?: Role | Role[]): boolean {
 export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
   const s = getSession();
   if (!s || !s.role) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/";
-    }
     throw redirect({ to: "/" });
   }
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-  const norm = (r: string) => (r === "admin" ? "super-admin" : (r || "").toLowerCase());
+  const norm = (r: string) => {
+    const l = (r || "").toLowerCase();
+    if (l === "admin") return "super-admin";
+    if (l === "student") return "parent";
+    return l;
+  };
   const userNorm = norm(s.role);
   const match =
     userNorm === "super-admin" ||

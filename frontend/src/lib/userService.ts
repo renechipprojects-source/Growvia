@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getCachedStudentsList, setCachedStudentsList, type Student } from "./supabaseService";
 
 export interface UserRecord {
   id: string;
@@ -86,10 +87,21 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
 
 export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase.from("gv_users").select("*").in("role", ["student", "Student"]);
-    if (error) return { data: [], isFromSupabase: false };
-    const rows = data || [];
+    const { data, error } = await supabase
+      .from("gv_users")
+      .select("*")
+      .or("role.ilike.%student%,role.eq.student,role.eq.Student")
+      .order("full_name", { ascending: true });
 
+    if (error || !data || data.length === 0) {
+      const cached = getCachedStudentsList();
+      if (cached && cached.length > 0) {
+        return { data: cached, isFromSupabase: false };
+      }
+      return { data: [], isFromSupabase: false };
+    }
+
+    const rows = data || [];
     const mapped: Student[] = rows.map((d: any, idx: number) => ({
       id: d.id,
       rollNo: d.roll_no || idx + 1,
@@ -113,8 +125,13 @@ export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFro
       branch: d.branch || "Main Branch",
     }));
 
+    setCachedStudentsList(mapped);
     return { data: mapped, isFromSupabase: true };
   } catch {
+    const cached = getCachedStudentsList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
     return { data: [], isFromSupabase: false };
   }
 }

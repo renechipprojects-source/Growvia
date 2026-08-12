@@ -371,7 +371,13 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
       .or("role.ilike.%student%,role.eq.student,role.eq.Student")
       .order("full_name", { ascending: true });
 
-    if (error) return { data: [], isFromSupabase: false };
+    if (error || !data || data.length === 0) {
+      const cached = getCachedStudentsList();
+      if (cached && cached.length > 0) {
+        return { data: cached, isFromSupabase: false };
+      }
+      return { data: [], isFromSupabase: false };
+    }
 
     const rows = data || [];
     const mapped: Student[] = rows.map((d: any) => ({
@@ -395,8 +401,13 @@ export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase
       branch: d.branch || "Main Branch",
     }));
 
+    setCachedStudentsList(mapped);
     return { data: mapped, isFromSupabase: true };
   } catch {
+    const cached = getCachedStudentsList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
     return { data: [], isFromSupabase: false };
   }
 }
@@ -446,7 +457,6 @@ export async function createStudent(student: Omit<Student, "id"> & {
     login_id: newId,
     email: student.email || `${newId.toLowerCase()}@sunshine.edu`,
     admission_no: student.admissionNo || newId,
-    roll_no: student.rollNo || 1,
     full_name: student.name,
     role: "student",
     class_name: student.className || "Nursery",
@@ -474,6 +484,27 @@ export async function createStudent(student: Omit<Student, "id"> & {
       notifyAutoRefresh("students");
       return { data: serverStu, error: null };
     }
+
+    try {
+      const res = await fetch(`${API_URL}/api/users/provision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const row = json.data || payload;
+        const serverStu: Student = {
+          ...newStuObj,
+          id: row.id || row.login_id || newId,
+          admissionNo: row.admission_no || newStuObj.admissionNo,
+        };
+        setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
+        notifyAutoRefresh("students");
+        return { data: serverStu, error: null };
+      }
+    } catch {}
+
     return { data: newStuObj, error: error?.message || null };
   } catch (err: any) {
     return { data: newStuObj, error: null };
@@ -546,7 +577,6 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
     for (let i = 0; i < sorted.length; i++) {
       const s = sorted[i];
       const newRoll = i + 1;
-      await supabase.from("gv_users").update({ roll_no: newRoll }).eq("id", s.id);
       s.rollNo = newRoll;
       updatedCount++;
     }

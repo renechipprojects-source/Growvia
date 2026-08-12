@@ -165,20 +165,23 @@ export function getUnreadCountForRole(circulars: any[], role: string): number {
 
 export function isCircularTargetedToRole(circular: any, role: string): boolean {
   if (!circular) return false;
-  if (role === "principal" || role === "super-admin" || role === "admin") return true;
+  const rLower = (role || "").toLowerCase().trim();
+  if (rLower === "principal" || rLower === "super-admin" || rLower === "admin") return true;
 
-  const recipients = Array.isArray(circular.recipients)
-    ? circular.recipients
-    : typeof circular.target_audience === "string"
-    ? circular.target_audience.split(",")
+  const rawTargets = circular.recipients || circular.target_audience || circular.recipient_role || "All";
+  const recipients = Array.isArray(rawTargets)
+    ? rawTargets
+    : typeof rawTargets === "string"
+    ? rawTargets.split(",")
     : ["All"];
 
-  const recLower = recipients.map((r: string) => r.toLowerCase().trim());
-  if (recLower.includes("everyone") || recLower.includes("all")) return true;
+  const recLower = recipients.map((r: string) => String(r).toLowerCase().trim());
+  if (recLower.includes("everyone") || recLower.includes("all") || recLower.includes("all parents") || recLower.includes("all teachers")) return true;
 
-  if (role === "teacher" && (recLower.includes("teachers") || recLower.includes("teacher"))) return true;
-  if (role === "parent" && (recLower.includes("parents") || recLower.includes("parent"))) return true;
-  if (role === "office" && (recLower.includes("office staff") || recLower.includes("office"))) return true;
+  if (rLower === "teacher" && (recLower.includes("teachers") || recLower.includes("teacher"))) return true;
+  if (rLower === "parent" && (recLower.includes("parents") || recLower.includes("parent"))) return true;
+  if (rLower === "office" && (recLower.includes("office staff") || recLower.includes("office") || recLower.includes("staff"))) return true;
+  if (rLower === "student" && (recLower.includes("students") || recLower.includes("student"))) return true;
 
   return false;
 }

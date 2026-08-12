@@ -384,6 +384,35 @@ export interface NotifyInput {
   refId?: string;
 }
 
+export function getNotificationLinkForRole(n: AppNotification, userRole: Role | string): string {
+  if (!n) return "/";
+  const r = (userRole || "").toLowerCase();
+
+  if (n.module === "announcement" || (n.id && n.id.startsWith("n-cir-"))) {
+    if (r === "principal") return "/principal/circulars";
+    if (r === "office") return "/office/circulars";
+    if (r === "teacher") return "/teacher/circulars";
+    if (r === "parent" || r === "student") return "/parent/circulars";
+    if (r === "super-admin" || r === "admin") return "/admin/circulars";
+  }
+
+  const roleLink = LINK_BY_MODULE[n.module]?.[r as Role];
+  if (roleLink) return roleLink;
+
+  if (n.link && !n.link.startsWith("/parent")) return n.link;
+
+  switch (r) {
+    case "principal": return "/principal";
+    case "office": return "/office";
+    case "teacher": return "/teacher";
+    case "super-admin":
+    case "admin": return "/admin";
+    case "parent":
+    case "student":
+    default: return "/parent";
+  }
+}
+
 export function notify(input: NotifyInput) {
   const n: AppNotification = {
     id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
