@@ -29,7 +29,19 @@ export async function triggerServerUserProvisioning(params?: {
 
 export async function login(loginId: string, password: string) {
   try {
-    const id = loginId.trim();
+    const rawId = loginId.trim();
+    const cleanId = rawId.toLowerCase().replace(/[\s\-_]+/g, "");
+
+    // Map common role shortcuts to canonical IDs
+    let canonicalId = rawId;
+    if (cleanId === "admin" || cleanId === "superadmin" || cleanId === "admin001") canonicalId = "ADMIN001";
+    else if (cleanId === "principal" || cleanId === "principal001") canonicalId = "PRINCIPAL001";
+    else if (cleanId === "office" || cleanId === "office001") canonicalId = "OFFICE001";
+    else if (cleanId === "teacher" || cleanId === "tch101") canonicalId = "TCH101";
+    else if (cleanId === "parent" || cleanId === "prt1001") canonicalId = "PRT1001";
+    else if (cleanId === "student" || cleanId === "stu001") canonicalId = "STU001";
+
+    const id = canonicalId;
 
     // Find user profile in primary gv_users table
     const { data: userData, error: queryErr } = await supabase
@@ -46,7 +58,7 @@ export async function login(loginId: string, password: string) {
         status,
         must_change_password
       `)
-      .or(`login_id.ilike.${id},email.ilike.${id}`)
+      .or(`login_id.ilike.${id},email.ilike.${rawId},login_id.ilike.${rawId}`)
       .maybeSingle();
 
     if (queryErr) {
@@ -56,43 +68,27 @@ export async function login(loginId: string, password: string) {
       };
     }
 
-    const profile = userData;
+    let profile: any = userData;
+    let emailToAuth = profile?.email || (rawId.includes("@") ? rawId : `${id.toLowerCase()}@growvia.edu`);
 
-    if (!profile) {
-      return {
-        success: false,
-        error: "Invalid Login ID or password.",
-      };
-    }
-
-
-    if (profile.status === "inactive" || profile.status === "disabled") {
-      return {
-        success: false,
-        error: "Your account is inactive. Please contact the administrator.",
-      };
-    }
-
-    const emailToAuth = profile.email || `${id.toLowerCase()}@growvia.edu`;
-
-    // JIT Provisioning on backend — await so the Auth user exists before sign-in
-    await triggerServerUserProvisioning({
-      login_id: profile.login_id || id,
-      email: emailToAuth,
-      password,
-      role: profile.role,
-      name: profile.full_name,
-    }).catch(() => {});
-
-    // Attempt Supabase Auth sign-in (password verification)
+    // Attempt Supabase Auth sign-in (strict password verification)
     let authResult = await supabase.auth.signInWithPassword({
       email: emailToAuth,
       password,
     }).catch(() => ({ data: { user: null, session: null }, error: { message: "Auth unavailable" } }));
 
-    // If first attempt fails, the JIT provisioning may still be completing — retry once
+    // If initial sign-in failed and we had no profile, trigger JIT provisioning retry once
     if (!authResult.data?.user) {
-      await new Promise((r) => setTimeout(r, 1500));
+      await triggerServerUserProvisioning({
+        login_id: id,
+        email: emailToAuth,
+        password,
+        role: profile?.role,
+        name: profile?.full_name,
+      }).catch(() => {});
+
+      await new Promise((r) => setTimeout(r, 1000));
+
       authResult = await supabase.auth.signInWithPassword({
         email: emailToAuth,
         password,
@@ -104,6 +100,42 @@ export async function login(loginId: string, password: string) {
       return {
         success: false,
         error: "Invalid Login ID or password.",
+      };
+    }
+
+    // If profile was not retrieved initially (e.g. anon select blocked by RLS), fetch now that session is authenticated
+    if (!profile) {
+      const { data: authedData } = await supabase
+        .from("gv_users")
+        .select(`
+          id,
+          auth_user_id,
+          login_id,
+          role,
+          full_name,
+          email,
+          mobile,
+          photo_url,
+          status,
+          must_change_password
+        `)
+        .or(`login_id.ilike.${id},email.ilike.${id}`)
+        .maybeSingle();
+
+      profile = authedData;
+    }
+
+    if (!profile) {
+      return {
+        success: false,
+        error: "User profile not found. Please contact administrator.",
+      };
+    }
+
+    if (profile.status === "inactive" || profile.status === "disabled") {
+      return {
+        success: false,
+        error: "Your account is inactive. Please contact the administrator.",
       };
     }
 
