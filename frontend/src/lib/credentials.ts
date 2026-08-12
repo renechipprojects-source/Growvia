@@ -73,12 +73,14 @@ function write(store: Store) {
 
 export function saveCredToSupabase(cred: AnyCredential) {
   const key = cred.kind === "parent" ? cred.studentId : cred.teacherId;
+  // Strip password — never persist plaintext passwords to the database
+  const { password: _omitted, ...safeFields } = cred;
   const payload = {
     id: `cred_${cred.kind}_${key}`,
     request_type: "generated_credential",
     applicant_or_child_name: cred.loginId,
     status: cred.status,
-    reason_or_notes: JSON.stringify(cred),
+    reason_or_notes: JSON.stringify(safeFields),
   };
   Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
 }

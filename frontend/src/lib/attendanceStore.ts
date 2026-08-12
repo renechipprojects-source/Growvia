@@ -140,6 +140,8 @@ export async function saveAttendance(
       request_type: "attendance",
       applicant_or_child_name: sName,
       leave_type_or_interested_class: className || "Nursery",
+      class_name: className || "Nursery",
+      section: section || "A",
       status: status,
       reason_or_notes: JSON.stringify({
         studentId,

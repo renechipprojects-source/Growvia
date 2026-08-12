@@ -195,13 +195,49 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     fetchInventoryFromSupabase();
   }, [fetchInventoryFromSupabase]);
 
-  const addCategory = useCallback((c: Omit<InventoryCategory, "id">) => setCategories((prev) => [...prev, { ...c, id: uid() }]), []);
-  const updateCategory = useCallback((id: string, c: Partial<InventoryCategory>) => setCategories((prev) => prev.map((x) => x.id === id ? { ...x, ...c } : x)), []);
-  const deleteCategory = useCallback((id: string) => setCategories((prev) => prev.filter((x) => x.id !== id)), []);
+  const addCategory = useCallback((c: Omit<InventoryCategory, "id">) => {
+    const newId = uid();
+    setCategories((prev) => [...prev, { ...c, id: newId }]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_category", title: c.name, receipt_ref: c.code, notes: JSON.stringify({ description: c.description }),
+      }])
+    ).catch(() => {});
+  }, []);
+  const updateCategory = useCallback((id: string, c: Partial<InventoryCategory>) => {
+    setCategories((prev) => prev.map((x) => x.id === id ? { ...x, ...c } : x));
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").update({
+        title: c.name, receipt_ref: c.code, notes: JSON.stringify({ description: c.description }),
+      }).eq("id", id)
+    ).catch(() => {});
+  }, []);
+  const deleteCategory = useCallback((id: string) => {
+    setCategories((prev) => prev.filter((x) => x.id !== id));
+    Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+  }, []);
 
-  const addVendor = useCallback((v: Omit<InventoryVendor, "id">) => setVendors((prev) => [...prev, { ...v, id: uid() }]), []);
-  const updateVendor = useCallback((id: string, v: Partial<InventoryVendor>) => setVendors((prev) => prev.map((x) => x.id === id ? { ...x, ...v } : x)), []);
-  const deleteVendor = useCallback((id: string) => setVendors((prev) => prev.filter((x) => x.id !== id)), []);
+  const addVendor = useCallback((v: Omit<InventoryVendor, "id">) => {
+    const newId = uid();
+    setVendors((prev) => [...prev, { ...v, id: newId }]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_vendor", title: v.name, supplier_or_paid_to: v.phone, notes: JSON.stringify({ email: v.email }),
+      }])
+    ).catch(() => {});
+  }, []);
+  const updateVendor = useCallback((id: string, v: Partial<InventoryVendor>) => {
+    setVendors((prev) => prev.map((x) => x.id === id ? { ...x, ...v } : x));
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").update({
+        title: v.name, supplier_or_paid_to: v.phone, notes: JSON.stringify({ email: v.email }),
+      }).eq("id", id)
+    ).catch(() => {});
+  }, []);
+  const deleteVendor = useCallback((id: string) => {
+    setVendors((prev) => prev.filter((x) => x.id !== id));
+    Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
+  }, []);
 
   const addItem = useCallback((i: Omit<InventoryItem, "id" | "updatedAt">) => {
     const newId = uid();
@@ -245,11 +281,49 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     Promise.resolve(supabase.from("gv_inventory_expenses").delete().eq("id", id)).catch(() => {});
   }, []);
 
-  const addPurchase = useCallback((p: Omit<PurchaseEntry, "id">) => setPurchases((prev) => [{ ...p, id: uid() }, ...prev]), []);
-  const addMovement = useCallback((m: Omit<StockMovement, "id">) => setMovements((prev) => [{ ...m, id: uid() }, ...prev]), []);
-  const addIssue = useCallback((is: Omit<IssueRecord, "id">) => setIssues((prev) => [{ ...is, id: uid() }, ...prev]), []);
-  const issueItem = useCallback((is: any) => setIssues((prev) => [{ ...is, id: uid(), returned: false, date: today() }, ...prev]), []);
-  const returnItem = useCallback((id: string) => setIssues((prev) => prev.map((x) => x.id === id ? { ...x, returned: true, returnedDate: today() } : x)), []);
+  const addPurchase = useCallback((p: Omit<PurchaseEntry, "id">) => {
+    const newId = uid();
+    setPurchases((prev) => [{ ...p, id: newId }, ...prev]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_purchase", title: p.poNumber, amount_or_unit_cost: p.totalAmount, transaction_date: p.date || today(),
+      }])
+    ).catch(() => {});
+  }, []);
+  const addMovement = useCallback((m: Omit<StockMovement, "id">) => {
+    const newId = uid();
+    setMovements((prev) => [{ ...m, id: newId }, ...prev]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_movement", title: m.reason, category: m.itemId, supplier_or_paid_to: m.type, quantity: m.qty, transaction_date: m.date || today(),
+      }])
+    ).catch(() => {});
+  }, []);
+  const addIssue = useCallback((is: Omit<IssueRecord, "id">) => {
+    const newId = uid();
+    setIssues((prev) => [{ ...is, id: newId }, ...prev]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_issue", title: is.issuedTo, category: is.itemId, quantity: is.qty, supplier_or_paid_to: is.department, transaction_date: is.date || today(), notes: JSON.stringify({ purpose: is.purpose }),
+      }])
+    ).catch(() => {});
+  }, []);
+  const issueItem = useCallback((is: any) => {
+    const newId = uid();
+    const record = { ...is, id: newId, returned: false, date: today() };
+    setIssues((prev) => [record, ...prev]);
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").insert([{
+        id: newId, record_type: "inventory_issue", title: is.issuedTo || is.name || "Issue", category: is.itemId, quantity: is.qty, supplier_or_paid_to: is.department || "School", transaction_date: today(), notes: JSON.stringify({ purpose: is.purpose }),
+      }])
+    ).catch(() => {});
+  }, []);
+  const returnItem = useCallback((id: string) => {
+    setIssues((prev) => prev.map((x) => x.id === id ? { ...x, returned: true, returnedDate: today() } : x));
+    Promise.resolve(
+      supabase.from("gv_inventory_expenses").update({ notes: JSON.stringify({ returned: true, returnedDate: today() }) }).eq("id", id)
+    ).catch(() => {});
+  }, []);
 
   const lowStock = useMemo(() => items.filter((i) => i.qty < i.minQty), [items]);
 

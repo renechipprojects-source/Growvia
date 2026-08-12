@@ -75,8 +75,8 @@ export async function login(loginId: string, password: string) {
 
     const emailToAuth = profile.email || `${id.toLowerCase()}@growvia.edu`;
 
-    // JIT Provisioning on backend
-    triggerServerUserProvisioning({
+    // JIT Provisioning on backend — await so the Auth user exists before sign-in
+    await triggerServerUserProvisioning({
       login_id: profile.login_id || id,
       email: emailToAuth,
       password,
@@ -84,15 +84,32 @@ export async function login(loginId: string, password: string) {
       name: profile.full_name,
     }).catch(() => {});
 
-    // Try Supabase Auth sign-in
-    const { data: authData } = await supabase.auth.signInWithPassword({
+    // Attempt Supabase Auth sign-in (password verification)
+    let authResult = await supabase.auth.signInWithPassword({
       email: emailToAuth,
       password,
-    }).catch(() => ({ data: null }));
+    }).catch(() => ({ data: { user: null, session: null }, error: { message: "Auth unavailable" } }));
+
+    // If first attempt fails, the JIT provisioning may still be completing — retry once
+    if (!authResult.data?.user) {
+      await new Promise((r) => setTimeout(r, 1500));
+      authResult = await supabase.auth.signInWithPassword({
+        email: emailToAuth,
+        password,
+      }).catch(() => ({ data: { user: null, session: null }, error: { message: "Auth unavailable" } }));
+    }
+
+    // Require successful password verification
+    if (!authResult.data?.user) {
+      return {
+        success: false,
+        error: "Invalid Login ID or password.",
+      };
+    }
 
     return {
       success: true,
-      user: authData?.user || { id: profile.id, email: emailToAuth },
+      user: authResult.data.user,
       profile: {
         ...profile,
         role: profile.role,

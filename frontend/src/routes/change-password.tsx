@@ -51,7 +51,7 @@ function ChangePassword() {
 
   const forced = !!session.mustChangePassword;
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
     if (passwordStrengthIssues(pwd).length) {
@@ -62,7 +62,7 @@ function ChangePassword() {
       setErr("Passwords do not match.");
       return;
     }
-    const res = changePasswordForCurrentUser(pwd);
+    const res = await changePasswordForCurrentUser(pwd);
     if (!res.ok) {
       setErr(res.error ?? "Could not change password.");
       return;

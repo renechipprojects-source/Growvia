@@ -8,6 +8,7 @@ import { ArrowLeft, KeyRound, ShieldAlert, CheckCircle2, Lock } from "lucide-rea
 import { useState } from "react";
 import { toast } from "sonner";
 import { requestSecurePasswordReset, completeSecurePasswordReset } from "@/lib/passwordResets";
+import { passwordStrengthIssues } from "@/lib/auth";
 import type { Role } from "@/lib/roleConfig";
 
 export const Route = createFileRoute("/forgot-password")({
@@ -136,7 +137,7 @@ function IdentifierForm({
 }) {
   const navigate = useNavigate();
   const [value, setValue] = useState("");
-  const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [issuedRequestId, setIssuedRequestId] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   // New Password state
@@ -158,29 +159,30 @@ function IdentifierForm({
     }
 
     setResetMessage(res.message);
-    if (res.token) {
-      setIssuedToken(res.token);
+    if (res.requestId) {
+      setIssuedRequestId(res.requestId);
     }
     toast.success("Password reset request generated.");
   }
 
   function handleSetNewPassword(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters long.");
+    const issues = passwordStrengthIssues(newPassword || "");
+    if (issues.length) {
+      toast.error("Password requirements: " + issues.join(", ") + ".");
       return;
     }
     if (newPassword !== confirmPassword) {
       toast.error("New password and confirm password do not match.");
       return;
     }
-    if (!issuedToken) {
-      toast.error("Invalid or missing reset token.");
+    if (!issuedRequestId) {
+      toast.error("Invalid or missing reset request.");
       return;
     }
 
     setSubmittingReset(true);
-    const complete = completeSecurePasswordReset(issuedToken, newPassword);
+    const complete = completeSecurePasswordReset(issuedRequestId, newPassword);
     setSubmittingReset(false);
 
     if (!complete.ok) {
@@ -194,7 +196,7 @@ function IdentifierForm({
     }, 500);
   }
 
-  if (resetMessage && issuedToken) {
+  if (resetMessage && issuedRequestId) {
     return (
       <form onSubmit={handleSetNewPassword} className="space-y-4">
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-indigo-950 space-y-2 shadow-xs">

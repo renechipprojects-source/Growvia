@@ -1,5 +1,5 @@
 import type { Role } from "@/lib/roleConfig";
-import { findSystemUserByLoginId, setTemporaryPasswordFor, generateTemporaryPassword, markTemporaryPassword } from "@/lib/auth";
+import { findSystemUserByLoginId, setTemporaryPasswordFor, generateTemporaryPassword, markTemporaryPassword, passwordStrengthIssues } from "@/lib/auth";
 import { listParentCredentials, listTeacherCredentials, generateParentCredential, generateTeacherCredential } from "@/lib/credentials";
 import { supabase } from "@/lib/supabase";
 
@@ -115,7 +115,7 @@ function generateSecureToken(): string {
 export interface SecureResetResult {
   ok: boolean;
   message: string;
-  token?: string;
+  requestId?: string;
   error?: string;
 }
 
@@ -128,10 +128,12 @@ export function setStatus(id: string, status: ResetStatus) {
         completedAt: status === "Completed" || status === "Used" ? new Date().toISOString() : r.completedAt,
       };
 
+      // Strip resetToken — never persist tokens to the database
+      const { resetToken: _omit, ...safeUpdated } = updated;
       Promise.resolve(
         supabase.from("gv_requests").update({
           status,
-          reason_or_notes: JSON.stringify(updated),
+          reason_or_notes: JSON.stringify(safeUpdated),
         }).eq("id", id)
       ).catch(() => {});
 
@@ -205,6 +207,8 @@ export function requestSecurePasswordReset(
   rows.push(req);
   write(rows);
 
+  // Strip resetToken — never persist tokens to the database
+  const { resetToken: _omitToken, ...safeReq } = req;
   Promise.resolve(
     supabase.from("gv_requests").insert([
       {
@@ -212,15 +216,16 @@ export function requestSecurePasswordReset(
         request_type: "password_reset",
         applicant_or_child_name: req.name,
         status: "Pending",
-        reason_or_notes: JSON.stringify(req),
+        reason_or_notes: JSON.stringify(safeReq),
       },
     ])
   ).catch(() => {});
 
+  // Return request ID (not the token) — the token stays in memory only
   return {
     ok: true,
     message: genericSuccessMsg,
-    token,
+    requestId: req.id,
   };
 }
 
@@ -234,8 +239,9 @@ export function completeSecurePasswordReset(
   if (!cleanToken) {
     return { ok: false, error: "Password reset token is required." };
   }
-  if (!pwd || pwd.length < 6) {
-    return { ok: false, error: "New password must be at least 6 characters long." };
+  const strengthIssues = passwordStrengthIssues(pwd);
+  if (strengthIssues.length) {
+    return { ok: false, error: "Password does not meet requirements: " + strengthIssues.join(", ") + "." };
   }
 
   const rows = read();
@@ -263,10 +269,12 @@ export function completeSecurePasswordReset(
   req.completedAt = new Date().toISOString();
   write(rows);
 
+  // Strip resetToken — never persist tokens to the database
+  const { resetToken: _omitUsed, ...safeUsedReq } = req;
   Promise.resolve(
     supabase.from("gv_requests").update({
       status: "Used",
-      reason_or_notes: JSON.stringify(req),
+      reason_or_notes: JSON.stringify(safeUsedReq),
     }).eq("id", req.id)
   ).catch(() => {});
 

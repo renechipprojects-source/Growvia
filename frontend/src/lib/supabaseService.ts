@@ -99,6 +99,8 @@ export async function createLeaveRequest(leave: Omit<LeaveRequest, "id">) {
     applicant_or_child_name: leave.applicant_name,
     reason_or_notes: leave.reason,
     status: leave.status || "Pending",
+    start_date: leave.start_date,
+    end_date: leave.end_date,
     created_at: new Date().toISOString(),
   };
   const { data, error } = await supabase.from("gv_requests").insert([payload]).select();
@@ -218,9 +220,9 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
       message_type: "circular",
       title: circular.title,
       body: JSON.stringify(meta),
-      sender_id: "PRINCIPAL001",
-      sender_name: circular.author || "Principal Office",
-      sender_role: "principal",
+      sender_id: circular.senderId || circular.sender_id || "PRINCIPAL001",
+      sender_name: circular.senderName || circular.author || "Principal Office",
+      sender_role: circular.senderRole || "principal",
       recipient_role: Array.isArray(circular.recipients) ? circular.recipients.join(",") : "all",
       priority: circular.priority || "Medium",
       published_at: new Date().toISOString(),
@@ -347,9 +349,9 @@ export async function createDiaryEntry(entry: { date: string; mood: string; note
     message_type: "diary",
     title: `Daily Diary - ${entry.date}`,
     body: JSON.stringify(meta),
-    sender_id: "TCH100",
-    sender_name: entry.author || "Class Teacher",
-    sender_role: "teacher",
+    sender_id: entry.senderId || entry.sender_id || "TCH100",
+    sender_name: entry.senderName || entry.author || "Class Teacher",
+    sender_role: entry.senderRole || "teacher",
     recipient_role: "all",
     published_at: new Date().toISOString(),
   };
@@ -807,11 +809,11 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
   const paid = Math.max(paymentsSum, Number(ledger.paid || 0));
 
   const rawOrig = Number(ledger.originalFee ?? ledger.amount ?? 12000);
-  const originalFee = Math.max(rawOrig, paid);
+  const originalFee = rawOrig;
   const discountAmount = Math.max(0, Number(ledger.discountAmount ?? 0));
   const finalFee = Math.max(0, originalFee - discountAmount);
-  const remainingAmount = Math.max(0, finalFee - paid);
-  const status: "Paid" | "Partial" | "Pending" = remainingAmount === 0 && finalFee > 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
+  const remainingAmount = finalFee - paid;
+  const status: "Paid" | "Partial" | "Pending" = remainingAmount <= 0 && finalFee > 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
 
   return {
     id: ledger.id || `FP-${Date.now()}`,
@@ -1017,20 +1019,20 @@ export async function saveReceipt(payment: any): Promise<{ data: any; error: str
     const payload = {
       id: payment.id || `PAY-${Date.now()}`,
       record_type: "payment_receipt",
-      student_id: payment.studentId,
+      student_id: payment.studentId || payment.admissionNo,
       student_name: payment.studentName,
       class_name: payment.className || "Nursery",
       fee_type: payment.feeType || "Term Fee",
       academic_year: "2026-2027",
       installment: payment.installmentNo || 1,
-      amount_paid: payment.amount,
-      amount_due: payment.amount,
-      balance: 0,
+      amount_paid: payment.amountPaid ?? payment.amount,
+      amount_due: payment.amountDue ?? payment.amount,
+      balance: payment.balance ?? 0,
       payment_date: payment.date || new Date().toISOString().split("T")[0],
       payment_method: payment.method || "Cash",
       receipt_number: receiptNo,
-      transaction_ref: payment.transactionRef || receiptNo,
-      status: "Paid",
+      transaction_ref: payment.transactionRef || payment.reference || receiptNo,
+      status: payment.status || "Paid",
       recorded_by: payment.collectedBy || "Office Staff",
     };
 
@@ -1246,9 +1248,9 @@ export async function createEvent(event: Omit<SchoolEvent, "id">): Promise<{ dat
       message_type: "event",
       title: event.title,
       body: JSON.stringify(meta),
-      sender_id: "PRINCIPAL001",
-      sender_name: "Dr. Meena Iyer",
-      sender_role: "principal",
+      sender_id: event.senderId || event.sender_id || "PRINCIPAL001",
+      sender_name: event.senderName || event.sender_name || "Principal Office",
+      sender_role: event.senderRole || "principal",
       recipient_role: aud.join(","),
       published_at: new Date().toISOString(),
     };

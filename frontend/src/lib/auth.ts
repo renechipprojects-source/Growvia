@@ -165,22 +165,29 @@ export function passwordStrengthIssues(pwd: string): string[] {
   return issues;
 }
 
-export function changePasswordForCurrentUser(newPassword: string): { ok: boolean; error?: string } {
+export async function changePasswordForCurrentUser(newPassword: string): Promise<{ ok: boolean; error?: string }> {
   const s = getSession();
   if (!s) return { ok: false, error: "Not signed in." };
   const issues = passwordStrengthIssues(newPassword);
   if (issues.length) return { ok: false, error: "Password does not meet requirements." };
 
   try {
-    supabase.auth.updateUser({ password: newPassword }).catch(() => {});
+    const { error: authErr } = await supabase.auth.updateUser({ password: newPassword });
+    if (authErr) {
+      return { ok: false, error: authErr.message || "Failed to update password in auth system." };
+    }
+    // Auth succeeded — now update the must_change_password flag (best-effort)
     supabase.from("gv_users").update({ must_change_password: false }).eq("login_id", s.loginId).catch(() => {});
-  } catch {}
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Password update failed." };
+  }
 
   const updated: Session = { ...s, mustChangePassword: false };
   const storeIsLocal = typeof window !== "undefined" && !!window.localStorage.getItem(SESSION_KEY);
   writeSession(updated, storeIsLocal);
   return { ok: true };
 }
+
 
 export function setTemporaryPasswordFor(loginId: string, tempPassword: string): boolean {
   try {

@@ -9,7 +9,7 @@ import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/parent")({
   beforeLoad: () => {
-    requireAuthGuard("parent");
+    requireAuthGuard(["parent", "student"]);
   },
   head: () => ({
     meta: [
