@@ -126,6 +126,18 @@ function Login() {
                   </div>
                 </div>
               </div>
+
+              {/* Top Right: GROWVIA Logo & Text */}
+              <div className="flex shrink-0 items-center gap-2.5">
+                <img
+                  src="/growvia-logo.png"
+                  alt="GROWVIA Logo"
+                  className="h-9 w-9 sm:h-10 sm:w-10 object-contain shrink-0"
+                />
+                <span className="text-xs sm:text-sm font-bold tracking-wider text-slate-800 uppercase">
+                  GROWVIA
+                </span>
+              </div>
             </div>
 
             <div className="mt-6 space-y-3 text-sm text-slate-600">
