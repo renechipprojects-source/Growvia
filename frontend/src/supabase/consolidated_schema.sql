@@ -426,6 +426,48 @@ CREATE POLICY gv_users_delete_policy ON public.gv_users
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'super_admin', 'admin', 'principal', 'office')
   );
 
+-- ====================================================================
+-- 7. SUPABASE STORAGE BUCKET & RLS POLICIES FOR 'system-assets'
+-- ====================================================================
+
+-- Create 'system-assets' public storage bucket if not present
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('system-assets', 'system-assets', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Public READ access policy for system-assets bucket
+DROP POLICY IF EXISTS "Public Read system-assets" ON storage.objects;
+CREATE POLICY "Public Read system-assets"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'system-assets');
+
+-- Authenticated Admin INSERT access policy for system-assets bucket
+DROP POLICY IF EXISTS "Admin Insert system-assets" ON storage.objects;
+CREATE POLICY "Admin Insert system-assets"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'system-assets'
+  );
+
+-- Authenticated Admin UPDATE access policy for system-assets bucket
+DROP POLICY IF EXISTS "Admin Update system-assets" ON storage.objects;
+CREATE POLICY "Admin Update system-assets"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'system-assets'
+  );
+
+-- Authenticated Admin DELETE access policy for system-assets bucket
+DROP POLICY IF EXISTS "Admin Delete system-assets" ON storage.objects;
+CREATE POLICY "Admin Delete system-assets"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'system-assets'
+  );
+
 
 
 

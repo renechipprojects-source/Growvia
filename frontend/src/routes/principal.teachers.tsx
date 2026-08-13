@@ -151,7 +151,8 @@ function TeachersPage() {
       <StaffProfileModal
         open={!!selectedTeacher}
         onClose={() => setSelectedTeacher(null)}
-        staff={selectedTeacher}
+        staffId={selectedTeacher?.id}
+        readOnly={true}
       />
     </div>
   );

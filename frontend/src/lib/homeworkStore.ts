@@ -37,17 +37,17 @@ export async function fetchHomeworkFromSupabase(): Promise<Homework[]> {
     const mapped: Homework[] = data.map((d: any) => {
       let meta: any = {};
       try {
-        if (d.content && (d.content.startsWith("{") || d.content.startsWith("["))) {
-          meta = JSON.parse(d.content);
+        if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
+          meta = JSON.parse(d.body);
         }
       } catch {}
 
       return {
         id: d.id,
         title: d.title || meta.title || "Homework Assignment",
-        className: meta.className || d.target_audience || "Nursery",
+        className: meta.className || "Nursery",
         subject: meta.subject || "General",
-        due: meta.due || d.published_date || new Date().toISOString().slice(0, 10),
+        due: meta.due || (d.published_at ? d.published_at.slice(0, 10) : new Date().toISOString().slice(0, 10)),
       };
     });
 
@@ -77,6 +77,7 @@ export function createHomework(input: {
   const list = readHomework();
   const nextList = [newHW, ...list];
   writeHomework(nextList);
+  notifyAutoRefresh("homework");
 
   try {
     NotificationService.homeworkAssigned(input.subject, input.className);
@@ -95,30 +96,45 @@ export function createHomework(input: {
       id: newId,
       message_type: "homework",
       title: input.title,
-      content: JSON.stringify(meta),
-      target_audience: input.className,
-      author: "Class Teacher",
-      published_date: input.due,
+      body: JSON.stringify(meta),
+      sender_id: "USR-TEACHER",
+      sender_name: "Teacher",
+      sender_role: "teacher",
+      recipient_role: "parent",
+      published_at: input.due ? new Date(input.due).toISOString() : new Date().toISOString(),
     }])
   ).catch(() => {});
 
   return newHW;
 }
 
+import { notifyAutoRefresh, useAutoRefresh } from "./autoRefreshContext";
+
+export function deleteHomework(id: string | number) {
+  const list = readHomework().filter((h) => String(h.id) !== String(id));
+  writeHomework(list);
+  notifyAutoRefresh("homework");
+  Promise.resolve(supabase.from("gv_communications").delete().eq("id", String(id))).catch(() => {});
+}
+
 export function useHomework() {
   const [homework, setHomework] = useState<Homework[]>(readHomework);
 
-  useEffect(() => {
+  const loadData = () => {
     fetchHomeworkFromSupabase().then((res) => {
       if (res) setHomework(res);
     });
+  };
+
+  useAutoRefresh("homework", loadData);
+
+  useEffect(() => {
+    loadData();
 
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_communications",
       onPayload: () => {
-        fetchHomeworkFromSupabase().then((res) => {
-          if (res) setHomework(res);
-        });
+        loadData();
       },
     });
 
@@ -131,5 +147,5 @@ export function useHomework() {
     };
   }, []);
 
-  return { homework, createHomework };
+  return { homework, createHomework, deleteHomework };
 }

@@ -43,7 +43,7 @@ function Att() {
   const { triggerModuleRefresh } = useAutoRefresh();
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const assignments: TeacherAssignment[] = [...getClassAssignments(), ...getSubjectAssignments()];
+  const assignments: TeacherAssignment[] = getClassAssignments();
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [localSearch, setLocalSearch] = useState("");
@@ -107,7 +107,7 @@ function Att() {
   if (assignments.length === 0 || !active) {
     return (
       <div>
-        <PageHeader title="Attendance" subtitle="No classes assigned to you yet." />
+        <PageHeader title="Attendance" subtitle="Attendance recording is managed by Class Teachers. You are not currently assigned as a Class Teacher." />
       </div>
     );
   }

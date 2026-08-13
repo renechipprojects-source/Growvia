@@ -15,6 +15,7 @@ import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/
 import { getStoredMasterClasses, subscribeMasterClasses, updateMasterClass, addMasterClass, fetchMasterClassesFromSupabase, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 
 export const Route = createFileRoute("/office/classes")({
   component: OfficeClassesPage,
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/office/classes")({
 });
 
 function OfficeClassesPage() {
+  const { getClassTeacher, create: createAssignment } = useClassAssignments();
   const [classesList, setClassesList] = useState<MasterClassItem[]>(getStoredMasterClasses);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -87,6 +89,19 @@ function OfficeClassesPage() {
     if (!formData.name.trim()) {
       toast.error("Please enter a class name");
       return;
+    }
+
+    if (formData.classTeacher && formData.classTeacher !== "Unassigned") {
+      const matchTeach = teachersList.find((t) => t.name === formData.classTeacher);
+      createAssignment({
+        teacherId: matchTeach?.id || `TCH-${Date.now()}`,
+        teacherName: formData.classTeacher,
+        academicYear: "2026-27",
+        role: "class",
+        className: formData.name.trim(),
+        section: formData.section.trim().toUpperCase(),
+        status: "active",
+      });
     }
 
     if (editingItem) {
@@ -160,12 +175,17 @@ function OfficeClassesPage() {
             ).length;
             const fullClassInfo = { ...c, strength: count };
 
+            const canonicalAss = getClassTeacher(c.name, c.section);
+            const displayTeacher = canonicalAss && canonicalAss.status === "active"
+              ? canonicalAss.teacherName
+              : (c.classTeacher || "Unassigned");
+
             return (
-              <TableRow key={c.id} className="hover:bg-muted/30">
-                <TableCell className="font-semibold text-slate-800 py-3.5">
+              <TableRow key={c.id} className="hover:bg-slate-50/80 transition-colors text-xs">
+                <TableCell className="font-semibold text-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
-                      {c.name.slice(0, 2).toUpperCase()}
+                    <div className="p-1.5 rounded bg-indigo-50 text-indigo-600 font-bold">
+                      {c.name[0]}
                     </div>
                     {c.name}
                   </div>
@@ -183,12 +203,12 @@ function OfficeClassesPage() {
                 <TableCell>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
                     <Avatar className="h-7 w-7 border">
-                      {c.classTeacher && !c.classTeacher.includes("Unassigned") && (
-                        <AvatarImage src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.classTeacher)}`} />
+                      {displayTeacher && !displayTeacher.includes("Unassigned") && (
+                        <AvatarImage src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(displayTeacher)}`} />
                       )}
-                      <AvatarFallback className="bg-indigo-50 text-indigo-700 font-bold">{c.classTeacher[0] || "T"}</AvatarFallback>
+                      <AvatarFallback className="bg-indigo-50 text-indigo-700 font-bold">{displayTeacher[0] || "T"}</AvatarFallback>
                     </Avatar>
-                    <span>{c.classTeacher}</span>
+                    <span>{displayTeacher}</span>
                   </div>
                 </TableCell>
                 <TableCell className="text-xs text-slate-600">

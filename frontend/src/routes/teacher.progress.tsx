@@ -13,12 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Save, RotateCcw, TrendingUp, Award, AlertTriangle, ArrowUpDown, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
+import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext";
 
 export const Route = createFileRoute("/teacher/progress")({ component: Progression });
 
-const CLASSES: ClassName[] = ["Playgroup", "Nursery", "LKG", "UKG"];
-const SECTIONS: Section[] = ["A", "B"];
-const SUBJECTS = ["Language", "Math", "Art", "Phonics", "General Awareness"];
+const DEFAULT_CLASSES: ClassName[] = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"];
+const DEFAULT_SECTIONS: Section[] = ["A", "B", "C"];
 const ASSESSMENTS = ["Unit Test 1", "Unit Test 2", "Mid Term", "Final Term"];
 
 function gradeFor(pct: number): string {
@@ -45,13 +46,17 @@ function useClassStudents(className: ClassName, section: Section) {
   useEffect(() => {
     fetchStudents().then(({ data }) => setAll((data as any) || []));
   }, []);
-  return useMemo(() => all.filter((s) => s.className === className && (!section || s.section === section)), [all, className, section]);
+  return useMemo(() => all.filter((s) => s.className.toLowerCase() === className.toLowerCase() && (!section || s.section.toUpperCase() === section.toUpperCase())), [all, className, section]);
 }
 
 function Progression() {
-  const [className, setClassName] = useState<ClassName>("Nursery");
-  const [section, setSection] = useState<Section>("A");
-  const [subject, setSubject] = useState<string>("Language");
+  const myClassAsgs = getClassAssignments();
+  const mySubAsgs = getSubjectAssignments();
+  const initialAsg = myClassAsgs[0] || mySubAsgs[0];
+
+  const [className, setClassName] = useState<ClassName>(initialAsg?.className || "Nursery");
+  const [section, setSection] = useState<Section>(initialAsg?.section || "A");
+  const [subject, setSubject] = useState<string>(initialAsg?.subject || "English");
   const [assessment, setAssessment] = useState<string>("Unit Test 1");
 
   return (
@@ -91,20 +96,27 @@ function Filters({ className, section, subject, assessment, onClass, onSection, 
   onClass: (c: ClassName) => void; onSection: (s: Section) => void;
   onSubject?: (v: string) => void; onAssessment?: (v: string) => void;
 }) {
+  const { getSubjectTeachers } = useClassAssignments();
+  const assignedSubs = getSubjectTeachers(className, section).map((st) => st.subject).filter(Boolean) as string[];
+  const dynamicSubjects = Array.from(new Set([
+    ...assignedSubs,
+    "English", "Mathematics", "EVS", "Rhymes", "Art", "General Awareness", "Language", "Phonics", "Tamil", "Science", "Computer"
+  ]));
+
   return (
     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center w-full">
       <Select value={className} onValueChange={(v) => onClass(v as ClassName)}>
         <SelectTrigger className="w-full sm:w-[140px] bg-white/70"><SelectValue /></SelectTrigger>
-        <SelectContent>{CLASSES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+        <SelectContent>{DEFAULT_CLASSES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={section} onValueChange={(v) => onSection(v as Section)}>
         <SelectTrigger className="w-full sm:w-[110px] bg-white/70"><SelectValue /></SelectTrigger>
-        <SelectContent>{SECTIONS.map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}</SelectContent>
+        <SelectContent>{DEFAULT_SECTIONS.map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}</SelectContent>
       </Select>
       {onSubject && subject !== undefined && (
         <Select value={subject} onValueChange={onSubject}>
           <SelectTrigger className="w-full sm:w-[160px] bg-white/70"><SelectValue /></SelectTrigger>
-          <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          <SelectContent>{dynamicSubjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
       )}
       {onAssessment && assessment !== undefined && (
@@ -124,6 +136,7 @@ function OverviewTab({ className, section, subject, onClass, onSection, onSubjec
 }) {
   const students = useClassStudents(className, section);
   const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
+  const { getSubjectTeachers } = useClassAssignments();
 
   useEffect(() => {
     fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
@@ -138,8 +151,16 @@ function OverviewTab({ className, section, subject, onClass, onSection, onSubjec
     };
   }, [className, section]);
 
-  const subjectAvgs = SUBJECTS.map((sub) => {
-    const rows = classMarks.filter((m) => m.subject === sub);
+  const assignedSubs = getSubjectTeachers(className, section).map((st) => st.subject).filter(Boolean) as string[];
+  const recordedSubs = classMarks.map((m) => m.subject).filter(Boolean);
+  const activeSubjectList = Array.from(new Set([
+    ...assignedSubs,
+    ...recordedSubs,
+    "English", "Mathematics", "EVS", "Rhymes", "Art"
+  ]));
+
+  const subjectAvgs = activeSubjectList.map((sub) => {
+    const rows = classMarks.filter((m) => m.subject.toLowerCase() === sub.toLowerCase());
     const avg = rows.length ? rows.reduce((n, r) => n + (r.score / r.outOf) * 100, 0) / rows.length : 0;
     return { subject: sub, avg: Math.round(avg) };
   });

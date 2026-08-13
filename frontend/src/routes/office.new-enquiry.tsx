@@ -62,7 +62,18 @@ function NewEnquiry() {
             <F label="Child's name" err={errors.childName?.message}><Input {...register("childName")} className="bg-white/70" /></F>
             <F label="Age" err={errors.age?.message}><Input type="number" {...register("age")} className="bg-white/70" /></F>
             <F label="Parent name" err={errors.parentName?.message}><Input {...register("parentName")} className="bg-white/70" /></F>
-            <F label="Phone" err={errors.phone?.message}><Input {...register("phone")} className="bg-white/70" /></F>
+            <F label="Phone" err={errors.phone?.message}>
+              <Input
+                maxLength={10}
+                {...register("phone")}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setValue("phone", val, { shouldValidate: true });
+                }}
+                placeholder="9876543210"
+                className="bg-white/70"
+              />
+            </F>
             <F label="Interested class" err={errors.interestedClass?.message}>
               <Select value={watch("interestedClass")} onValueChange={(v) => setValue("interestedClass", v, { shouldValidate: true })}>
                 <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select" /></SelectTrigger>

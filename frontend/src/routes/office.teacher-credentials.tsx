@@ -608,7 +608,7 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-slate-700">Phone Number</label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="mt-1 bg-white" />
+            <Input maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="9876543210" className="mt-1 bg-white" />
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-slate-700">Email Address</label>

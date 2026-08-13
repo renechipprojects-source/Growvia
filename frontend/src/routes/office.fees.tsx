@@ -28,6 +28,7 @@ const FEE_TYPES = ["Tuition Fee", "Admission Fee", "Transport Fee", "Activity Fe
 const INSTALLMENT_OPTIONS = [1, 2, 3, 4] as const;
 
 type Receipt = {
+  id?: string;
   receiptNo: string;
   studentName: string;
   admissionNo: string;
@@ -255,6 +256,7 @@ function FeeCollection() {
     saveFeeRecord(updatedLedger);
 
     const rcpt: Receipt = {
+      id: newTxn.id,
       receiptNo: rcptNo,
       studentName: activeLedger.studentName,
       admissionNo: activeLedger.admissionNo || activeLedger.studentId,

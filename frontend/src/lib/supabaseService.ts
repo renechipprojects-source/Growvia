@@ -171,6 +171,22 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
         meta = { description: d.body };
       }
 
+      let recipientsList: string[] = [];
+      if (Array.isArray(meta.recipients) && meta.recipients.length > 0) {
+        recipientsList = meta.recipients
+          .flatMap((r: any) => (typeof r === "string" ? r.split(",") : [String(r)]))
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      } else if (typeof d.recipient_role === "string" && d.recipient_role.length > 0) {
+        if (d.recipient_role.toLowerCase() === "all") {
+          recipientsList = ["Parents", "Teachers", "Office Staff", "Admin"];
+        } else {
+          recipientsList = d.recipient_role.split(",").map((s: string) => s.trim()).filter(Boolean);
+        }
+      } else {
+        recipientsList = ["Parents", "Teachers", "Office Staff"];
+      }
+
       return {
         id: d.id,
         title: d.title || meta.subject || "School Notice",
@@ -181,11 +197,7 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
         publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
         expiryDate: "2026-12-31",
         target_audience: d.recipient_role || meta.target_audience || "All",
-        recipients: (Array.isArray(meta.recipients) && meta.recipients.length > 0)
-          ? meta.recipients
-          : ((d.recipient_role === "All" || d.recipient_role === "all" || !d.recipient_role)
-              ? ["Parents", "Teachers", "Office Staff"]
-              : [d.recipient_role]),
+        recipients: recipientsList,
         author: d.sender_name || "Principal Office",
         priority: d.priority || meta.priority || "Medium",
         status: meta.status || "Published",
@@ -215,9 +227,12 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
       status: circular.status || "Published",
     };
 
-    const newId = `COM-CIRC-${Date.now().toString().slice(-4)}`;
+    const targetId = (circular.id && circular.id.startsWith("COM-CIRC-"))
+      ? circular.id
+      : `COM-CIRC-${Date.now().toString().slice(-4)}`;
+
     const payload = {
-      id: newId,
+      id: targetId,
       message_type: "circular",
       title: circular.title,
       body: JSON.stringify(meta),
@@ -233,7 +248,7 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
     let resultErr = null;
 
     try {
-      const { data, error } = await supabase.from("gv_communications").insert([payload]).select();
+      const { data, error } = await supabase.from("gv_communications").upsert([payload], { onConflict: "id" }).select();
       if (!error && data && data.length > 0) {
         resultData = data[0];
       } else if (error) {
@@ -262,7 +277,7 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
 
     if (resultData) {
       pushAdminNotification(`New Circular: ${circular.title}`, "circular");
-      NotificationService.circularPublished(circular.title);
+      notifyAutoRefresh("circulars");
       return { data: resultData, error: null };
     }
 
@@ -401,7 +416,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
     let query = supabase
       .from("gv_users")
       .select("*")
-      .or("role.eq.student,role.eq.Student,role.ilike.%student%");
+      .or("role.eq.student,role.eq.Student,role.ilike.*student*");
 
     const session = getSession();
     if (session && session.role === "teacher") {
@@ -554,11 +569,6 @@ export async function createStudent(student: Omit<Student, "id"> & {
     branch: student.branch || "Main Branch",
   };
 
-  const localList = getCachedStudentsList();
-  const updatedList = [newStuObj, ...localList.filter((s) => s.id !== newId && s.admissionNo !== newStuObj.admissionNo)];
-  setCachedStudentsList(updatedList);
-  notifyAutoRefresh("students");
-
   const payload = {
     id: newId,
     login_id: newId,
@@ -576,7 +586,6 @@ export async function createStudent(student: Omit<Student, "id"> & {
     fee_status: student.feeStatus || "Pending",
     status: "active",
     photo_url: student.avatar,
-    avatar_url: student.avatar,
   };
 
   try {
@@ -589,6 +598,9 @@ export async function createStudent(student: Omit<Student, "id"> & {
       };
       setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
       notifyAutoRefresh("students");
+      notifyAutoRefresh("admissions");
+      notifyAutoRefresh("reports");
+      notifyAutoRefresh("fees");
       return { data: serverStu, error: null };
     }
 
@@ -608,13 +620,16 @@ export async function createStudent(student: Omit<Student, "id"> & {
         };
         setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
         notifyAutoRefresh("students");
+        notifyAutoRefresh("admissions");
+        notifyAutoRefresh("reports");
+        notifyAutoRefresh("fees");
         return { data: serverStu, error: null };
       }
     } catch {}
 
-    return { data: newStuObj, error: error?.message || null };
+    return { data: null, error: error?.message || "Failed to create student in database." };
   } catch (err: any) {
-    return { data: newStuObj, error: null };
+    return { data: null, error: err?.message || "Failed to create student in database." };
   }
 }
 
@@ -639,7 +654,6 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
     if (updates.feeStatus) payload.fee_status = updates.feeStatus;
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
-      payload.avatar_url = updates.avatar;
     }
 
     let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
@@ -651,6 +665,10 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
       const fallbackAdm = await supabase.from("gv_users").update(payload).eq("admission_no", id).select();
       data = fallbackAdm.data;
     }
+    notifyAutoRefresh("students");
+    notifyAutoRefresh("admissions");
+    notifyAutoRefresh("reports");
+    notifyAutoRefresh("fees");
     return { data, error: null };
   } catch (err: any) {
     return { data: null, error: null };
@@ -666,6 +684,10 @@ export async function deleteStudent(id: string) {
   try {
     const { error } = await supabase.from("gv_users").delete().or(`id.eq.${id},login_id.eq.${id},admission_no.eq.${id}`);
     fetchStudents();
+    notifyAutoRefresh("students");
+    notifyAutoRefresh("admissions");
+    notifyAutoRefresh("reports");
+    notifyAutoRefresh("fees");
     return { error: error?.message || null };
   } catch (err: any) {
     return { error: err?.message || "Failed to delete student." };
@@ -736,18 +758,29 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
 
     if (!error && data && data.length > 0) {
       const rows = data || [];
-      const mapped: Teacher[] = rows.map((d: any) => ({
-        id: d.id || d.login_id,
-        name: d.full_name || "Teacher",
-        className: d.class_name || "",
-        subject: d.subject || "General",
-        email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
-        phone: d.mobile || "9876543210",
-        experience: d.experience || 2,
-        joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
-        branch: d.branch || "Main Branch",
-      }));
+      const mapped: Teacher[] = rows.map((d: any) => {
+        let extraMeta: any = {};
+        try {
+          if (d.address && d.address.startsWith("{")) {
+            extraMeta = JSON.parse(d.address);
+          }
+        } catch {}
+
+        return {
+          id: d.id || d.login_id,
+          name: d.full_name || "Teacher",
+          className: d.class_name || "",
+          subject: d.subject || "General",
+          email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+          phone: d.mobile || "9876543210",
+          experience: d.experience || 2,
+          joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+          avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+          branch: d.branch || "Main Branch",
+          department: extraMeta.department || d.department || undefined,
+          role: d.role || "teacher",
+        };
+      });
 
       setCachedTeachersList(mapped);
       return { data: mapped, isFromSupabase: true };
@@ -801,11 +834,15 @@ export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string
     experience: teacher.experience || 1,
     branch: teacher.branch || "Main Branch",
     photo_url: teacher.avatar,
-    avatar_url: teacher.avatar,
   };
 
   try {
     const { data, error } = await supabase.from("gv_users").insert([payload]).select();
+    try {
+      import("./credentials").then(({ generateTeacherCredential }) => {
+        generateTeacherCredential(newId, { teacher: newTeachObj });
+      });
+    } catch {}
     return { data: data ? data[0] : newTeachObj, error: error?.message || null };
   } catch (err: any) {
     return { data: newTeachObj, error: null };
@@ -832,7 +869,6 @@ export async function updateTeacher(id: string, updates: Partial<Teacher>) {
     if (updates.email) payload.email = updates.email;
     if (updates.avatar) {
       payload.photo_url = updates.avatar;
-      payload.avatar_url = updates.avatar;
     }
 
     let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
@@ -1109,7 +1145,11 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
         });
       }
       const ledger = studentLedgerMap.get(key)!;
-      if (d.receipt_number || d.amount_paid) {
+      if (d.record_type === "fee_schedule" && d.amount_due) {
+        ledger.originalFee = Number(d.amount_due);
+      }
+      // Attach to payments ONLY if this is a genuine payment receipt record
+      if (d.record_type === "payment_receipt" && (d.receipt_number || d.amount_paid)) {
         const receiptNo = d.receipt_number || `REC-${d.id}`;
         if (!ledger.payments.some((p) => p.receiptNo === receiptNo || p.id === d.id)) {
           ledger.payments.push({
@@ -1152,26 +1192,48 @@ export async function fetchReceipts(): Promise<{ data: any[]; isFromSupabase: bo
     const { data, error } = await supabase
       .from("gv_fees_payments")
       .select("*")
+      .eq("record_type", "payment_receipt")
       .order("payment_date", { ascending: false });
 
     if (error || !data) return { data: [], isFromSupabase: false };
 
-    const receipts = data.map((d: any) => ({
-      receiptNo: d.receipt_number || `REC-${d.id}`,
-      studentName: d.student_name || "Student",
-      admissionNo: d.student_id || "ADM",
-      className: d.class_name || "Nursery",
-      feeType: d.fee_type || "Term Fee",
-      amountDue: Number(d.amount_due || 0),
-      amountPaid: Number(d.amount_paid || 0),
-      balance: Number(d.balance || 0),
-      method: d.payment_method || "Cash",
-      reference: d.transaction_ref || d.receipt_number || "REF",
-      date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-      remarks: d.recorded_by ? `Recorded by ${d.recorded_by}` : "Paid",
-      status: d.status || "Paid",
-      collectedBy: d.recorded_by || "Office Staff",
-    }));
+    const seenIds = new Set<string>();
+    const receipts: any[] = [];
+
+    data.forEach((d: any) => {
+      if (!d.id || seenIds.has(d.id)) return;
+      seenIds.add(d.id);
+
+      receipts.push({
+        id: d.id,
+        receiptNo: d.receipt_number || `REC-${d.id}`,
+        receipt_number: d.receipt_number || `REC-${d.id}`,
+        studentName: d.student_name || "Student",
+        student_name: d.student_name || "Student",
+        admissionNo: d.student_id || "ADM",
+        student_id: d.student_id || "ADM",
+        className: d.class_name || "Nursery",
+        class_name: d.class_name || "Nursery",
+        feeType: d.fee_type || "Term Fee",
+        fee_type: d.fee_type || "Term Fee",
+        amountDue: Number(d.amount_due || 0),
+        amount_due: Number(d.amount_due || 0),
+        amountPaid: Number(d.amount_paid || 0),
+        amount_paid: Number(d.amount_paid || 0),
+        amount: Number(d.amount_paid || 0),
+        balance: Number(d.balance || 0),
+        method: d.payment_method || "Cash",
+        payment_method: d.payment_method || "Cash",
+        reference: d.transaction_ref || d.receipt_number || "REF",
+        transaction_ref: d.transaction_ref || d.receipt_number || "REF",
+        date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        payment_date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        remarks: d.recorded_by ? `Recorded by ${d.recorded_by}` : "Paid",
+        status: d.status || "Paid",
+        collectedBy: d.recorded_by || "Office Staff",
+        recorded_by: d.recorded_by || "Office Staff",
+      });
+    });
 
     return { data: receipts, isFromSupabase: true };
   } catch {
@@ -1185,7 +1247,7 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
   try {
     await supabase.from("gv_fees_payments").upsert([{
       id: recalculated.id,
-      record_type: "payment_receipt",
+      record_type: "fee_schedule",
       student_id: recalculated.studentId,
       student_name: recalculated.studentName,
       class_name: recalculated.className,

@@ -168,8 +168,10 @@ export function dispatchMessage(input: {
 }
 
 export function markMessageRead(id: string) {
-  const list = readMessages().map((m) => (m.id === id ? { ...m, read: true } : m));
-  writeMessages(list);
+  const current = readMessages();
+  const updated = current.map((m) => (m.id === id ? { ...m, read: true } : m));
+  writeMessages(updated);
+  notifyAutoRefresh("messages");
   Promise.resolve(
     supabase.from("gv_communications").update({
       read_status: true,
@@ -178,8 +180,9 @@ export function markMessageRead(id: string) {
 }
 
 export function deleteMessage(id: string) {
-  const list = readMessages().filter((m) => m.id !== id);
-  writeMessages(list);
+  const current = readMessages();
+  const updated = current.filter((m) => m.id !== id);
+  writeMessages(updated);
   notifyAutoRefresh("messages");
   Promise.resolve(
     supabase.from("gv_communications").delete().eq("id", id)
@@ -234,11 +237,11 @@ export function useMessages() {
     dispatchMessage: send,
     deleteMessage: (id: string) => {
       deleteMessage(id);
-      setMessages([...readMessages()]);
+      setMessages((prev) => prev.filter((m) => m.id !== id));
     },
     markRead: (id: string) => {
       markMessageRead(id);
-      setMessages([...readMessages()]);
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
     },
     unreadCount: messages.filter((m) => !m.read).length,
   };

@@ -8,14 +8,34 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { useHomework, type Homework } from "@/lib/homeworkStore";
+import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 
 export const Route = createFileRoute("/teacher/homework")({ component: HW });
 
 function HW() {
-  const { homework, createHomework } = useHomework();
+  const { homework, createHomework, deleteHomework } = useHomework();
+  const classAsgs = getClassAssignments();
+  const subAsgs = getSubjectAssignments();
+  const allAsgs = [...classAsgs, ...subAsgs];
+  const defaultAsg = allAsgs[0];
+
   const { register, handleSubmit, reset, setValue, watch } = useForm<{ subject: string; title: string; due: string; details: string; className: string }>({
-    defaultValues: { className: "Nursery", subject: "Language" },
+    defaultValues: {
+      className: defaultAsg?.className || "Nursery",
+      subject: defaultAsg?.subject || "English",
+      due: new Date().toISOString().slice(0, 10),
+    },
   });
+
+  const { getSubjectTeachers } = useClassAssignments();
+  const selectedClass = watch("className");
+  const assignedSubs = getSubjectTeachers(selectedClass, "A").map((st) => st.subject).filter(Boolean) as string[];
+  const dynamicSubjects = Array.from(new Set([
+    ...assignedSubs,
+    defaultAsg?.subject || "English",
+    "Mathematics", "EVS", "Rhymes", "Art", "Language", "Science"
+  ]));
 
   const onSubmit = (v: { title: string; subject: string; className: string; due: string; details?: string }) => {
     if (!v.title.trim()) return toast.error("Homework title is required!");
@@ -27,10 +47,11 @@ function HW() {
       details: v.details,
     });
     toast.success(`Homework "${v.title.trim()}" assigned & notified to parents!`);
-    reset({ className: v.className, subject: v.subject, title: "", due: "", details: "" });
+    reset({ className: v.className, subject: v.subject, title: "", due: new Date().toISOString().slice(0, 10), details: "" });
   };
 
   const handleDelete = (id: string | number, title: string) => {
+    deleteHomework(id);
     toast.success(`Homework "${title}" removed.`);
   };
 
@@ -43,13 +64,21 @@ function HW() {
             <div>
               <Select value={watch("className")} onValueChange={(v) => setValue("className", v)}>
                 <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>
-                <SelectContent>{["Playgroup", "Nursery", "LKG", "UKG"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"].map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div>
               <Select value={watch("subject")} onValueChange={(v) => setValue("subject", v)}>
                 <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>
-                <SelectContent>{["Language", "Math", "Art", "Show & Tell", "Music"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {dynamicSubjects.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <Input placeholder="Homework Title *" required {...register("title")} className="bg-white/70" />

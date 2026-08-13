@@ -264,8 +264,10 @@ function VisitsPage() {
               <div>
                 <label className="font-semibold text-slate-700">Phone Number</label>
                 <Input
+                  maxLength={10}
                   value={newVisit.phone}
-                  onChange={(e) => setNewVisit({ ...newVisit, phone: e.target.value })}
+                  onChange={(e) => setNewVisit({ ...newVisit, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  placeholder="9876543210"
                   placeholder="e.g. 9876543210"
                   className="mt-1 bg-white"
                 />

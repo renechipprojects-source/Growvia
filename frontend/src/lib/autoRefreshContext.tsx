@@ -21,6 +21,8 @@ export type ERPModule =
   | "promotion"
   | "assignments"
   | "messages"
+  | "homework"
+  | "marks"
   | "leaveRequests";
 
 interface AutoRefreshContextType {

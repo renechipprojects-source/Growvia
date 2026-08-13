@@ -63,6 +63,9 @@ export function getAssignment(id: string): TeacherAssignment | undefined {
   return found ? toTeacherAssignment(found) : undefined;
 }
 
-export function getStudentsForAssignment(a: TeacherAssignment): Student[] {
-  return [];
+export function getStudentsForAssignment(a: TeacherAssignment, allStudents: Student[] = []): Student[] {
+  if (!a || !allStudents.length) return [];
+  return allStudents.filter(
+    (s) => s.className.toLowerCase() === a.className.toLowerCase() && (!a.section || s.section.toUpperCase() === a.section.toUpperCase())
+  );
 }

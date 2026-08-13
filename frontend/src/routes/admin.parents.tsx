@@ -52,21 +52,30 @@ function ParentsPage() {
   const loadData = () => {
     fetchStudents().then(({ data }) => {
       const source = data || [];
-      const mapped: Parent[] = source.map((s) => {
+      const parentMap = new Map<string, Parent>();
+      source.forEach((s) => {
         const parentName = typeof s.parent === "string" ? s.parent : (s.parent as any)?.name || "Parent";
-        return {
-          id: s.parentId || `PAR-${s.id}`,
-          name: parentName,
-          email: `${parentName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@sunshine-parents.com`,
-          phone: s.phone || "+91 98765 43210",
-          occupation: getOccupation(s.id),
-          children: [s.name],
-          preferredChannel: "WhatsApp / Call",
-          emergencyContact: s.phone || "+91 98765 43210",
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`,
-        };
+        const pKey = s.parentId || s.phone || parentName;
+        if (!parentMap.has(pKey)) {
+          parentMap.set(pKey, {
+            id: s.parentId || `PAR-${s.id}`,
+            name: parentName,
+            email: `${parentName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@sunshine-parents.com`,
+            phone: s.phone || "+91 98765 43210",
+            occupation: getOccupation(s.id),
+            children: [s.name],
+            preferredChannel: "WhatsApp / Call",
+            emergencyContact: s.phone || "+91 98765 43210",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`,
+          });
+        } else {
+          const existing = parentMap.get(pKey)!;
+          if (!existing.children.includes(s.name)) {
+            existing.children.push(s.name);
+          }
+        }
       });
-      setParentList(mapped);
+      setParentList(Array.from(parentMap.values()));
     });
   };
 

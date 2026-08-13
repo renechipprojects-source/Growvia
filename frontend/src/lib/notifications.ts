@@ -71,6 +71,26 @@ const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, st
   system: { "super-admin": "/super-admin", principal: "/principal" },
 };
 
+function deduplicateNotifications(items: AppNotification[]): AppNotification[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  const result: AppNotification[] = [];
+
+  for (const item of items) {
+    if (!item || !item.id || item.id.startsWith("n-seed-")) continue;
+    const titleKey = `${item.module}:${(item.title || "").trim().toLowerCase()}`;
+    if (seenIds.has(item.id) || (item.module === "announcement" && seenTitles.has(titleKey))) {
+      continue;
+    }
+    seenIds.add(item.id);
+    if (item.module === "announcement") {
+      seenTitles.add(titleKey);
+    }
+    result.push(item);
+  }
+  return result;
+}
+
 function getInitialNotifications(): AppNotification[] {
   if (typeof window === "undefined") return [];
   try {
@@ -78,9 +98,7 @@ function getInitialNotifications(): AppNotification[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // Filter out any legacy mock seeds
-        const clean = parsed.filter((n: any) => n && n.id && !String(n.id).startsWith("n-seed-"));
-        return clean;
+        return deduplicateNotifications(parsed);
       }
     }
   } catch {}
@@ -93,8 +111,7 @@ const listCache = new Map<Role, AppNotification[]>();
 const unreadCache = new Map<Role, number>();
 
 function saveStore(newStore: AppNotification[]) {
-  // Purge any mock seeds
-  store = newStore.filter((n) => !n.id.startsWith("n-seed-"));
+  store = deduplicateNotifications(newStore);
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(getUserScopedStorageKey(BASE_NOTIF_STORAGE_KEY), JSON.stringify(store));
@@ -484,9 +501,12 @@ export const NotificationService = {
   circularPublished(title: string, roles?: Role[]) {
     const defaultRoles: Role[] = ["parent", "teacher", "office", "principal", "super-admin"];
     const targetRoles: Role[] = roles && roles.length > 0 ? roles : defaultRoles;
+    const cleanTitle = (title || "School Notice").trim();
+    const detId = `n-cir-${cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
     notify({
-      title: `New Circular: ${title}`,
-      description: `Principal published a new circular: "${title}"`,
+      id: detId,
+      title: `New Circular: ${cleanTitle}`,
+      description: `Principal published a new circular: "${cleanTitle}"`,
       module: "announcement",
       roles: targetRoles,
       priority: "high",

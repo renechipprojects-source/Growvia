@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import { fetchStudents, fetchTeachers, fetchFees, type Student } from "@/lib/supabaseService";
+import { fetchStudents, fetchTeachers, fetchReceipts, type Student } from "@/lib/supabaseService";
 import {
   Users,
   GraduationCap,
@@ -21,6 +21,8 @@ import { requireAuthGuard } from "@/lib/auth";
 import { getPrincipalDashboardStats } from "@/lib/dashboardStatsService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { AnnualPromotionLifecycleSection } from "@/components/promotion/AnnualPromotionLifecycleSection";
+
+import { syncTransportFromSupabase, getStoredVehicles, getStoredRoutes } from "@/modules/transport/transportStore";
 
 export const Route = createFileRoute("/principal/dashboard")({
   beforeLoad: () => {
@@ -69,6 +71,9 @@ function DashboardPage() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersCount, setTeachersCount] = useState(0);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [vehiclesCount, setVehiclesCount] = useState<number | null>(null);
+  const [routesCount, setRoutesCount] = useState<number | null>(null);
+  const [transportLoading, setTransportLoading] = useState(true);
   const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Dynamic daily refresh check (resets at midnight / date change)
@@ -87,16 +92,26 @@ function DashboardPage() {
   const loadData = () => {
     fetchStudents().then(({ data }) => setStudentsList(data || []));
     fetchTeachers().then(({ data }) => setTeachersCount(data?.length || 0));
-    fetchFees().then(({ data }) => setPaymentsList(data || []));
+    fetchReceipts().then(({ data }) => setPaymentsList(data || []));
+    syncTransportFromSupabase().then(() => {
+      setVehiclesCount(getStoredVehicles().length);
+      setRoutesCount(getStoredRoutes().length);
+      setTransportLoading(false);
+    });
   };
 
   useAutoRefresh("students", loadData);
   useAutoRefresh("attendance", loadData);
   useAutoRefresh("staff", loadData);
   useAutoRefresh("fees", loadData);
+  useAutoRefresh("transport", loadData);
 
   useEffect(() => {
     loadData();
+    window.addEventListener("sunshine-transport-update", loadData);
+    return () => {
+      window.removeEventListener("sunshine-transport-update", loadData);
+    };
   }, [currentDateStr]);
 
   const totalStudents = studentsList.length;
@@ -105,35 +120,11 @@ function DashboardPage() {
 
   // Filter Today's Payments only
   const todayPayments = useMemo(() => {
-    const list: any[] = [];
-    paymentsList.forEach((ledger: any) => {
-      if (Array.isArray(ledger.payments) && ledger.payments.length > 0) {
-        ledger.payments.forEach((pay: any) => {
-          const payDate = (pay.date || pay.payment_date || pay.created_at || "").slice(0, 10);
-          if (payDate === currentDateStr) {
-            list.push({
-              id: pay.id || pay.receiptNo,
-              studentName: ledger.studentName || pay.studentName || "Student Payment",
-              receipt_number: pay.receiptNo || pay.id,
-              amount: pay.amount,
-              date: payDate,
-            });
-          }
-        });
-      } else {
-        const pDate = (ledger.payment_date || ledger.paymentDate || ledger.created_at || ledger.updatedAt || "").slice(0, 10);
-        if (pDate === currentDateStr && (ledger.paid > 0 || ledger.amount_paid > 0)) {
-          list.push({
-            id: ledger.id,
-            studentName: ledger.studentName || "Student Payment",
-            receipt_number: ledger.id,
-            amount: ledger.paid || ledger.amount_paid,
-            date: pDate,
-          });
-        }
-      }
+    return paymentsList.filter((pay: any) => {
+      const payDate = (pay.date || pay.paymentDate || pay.payment_date || pay.created_at || "").slice(0, 10);
+      const amount = Number(pay.amountPaid ?? pay.amount_paid ?? pay.amount ?? 0);
+      return payDate === currentDateStr && amount > 0;
     });
-    return list;
   }, [paymentsList, currentDateStr]);
 
   // Filter Today's Admissions only
@@ -151,8 +142,14 @@ function DashboardPage() {
         <StatCard icon={GraduationCap} label="Total Students" value={totalStudents} sub={`${totalStudents} Enrolled`} gradient="from-blue-500 to-sky-500" />
         <StatCard icon={Users} label="Total Teachers" value={teachersCount} sub={`${teachersCount} Active staff`} gradient="from-purple-500 to-indigo-500" />
         <StatCard icon={CalendarCheck} label="Student Attendance" value={`${studentAttendancePct}%`} sub={`${studentPresentCount} present today`} gradient="from-emerald-500 to-teal-500" />
-        <Link to="/principal/transport">
-          <StatCard icon={Bus} label="Transport Fleet" value="4 Vehicles" sub="Active routes" gradient="from-amber-500 to-orange-500" />
+        <Link to="/principal/transport" className="min-w-0 block">
+          <StatCard
+            icon={Bus}
+            label="Transport Fleet"
+            value={transportLoading ? "..." : `${vehiclesCount ?? 0} ${vehiclesCount === 1 ? "Vehicle" : "Vehicles"}`}
+            sub={transportLoading ? "Loading fleet..." : `${routesCount ?? 0} Active ${routesCount === 1 ? "Route" : "Routes"}`}
+            gradient="from-amber-500 to-orange-500"
+          />
         </Link>
       </div>
 

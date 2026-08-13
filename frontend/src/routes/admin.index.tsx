@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { fetchStudents, fetchTeachers, fetchMergedFeeLedgers, type Student } from "@/lib/supabaseService";
+import { fetchStudents, fetchTeachers, fetchReceipts, type Student } from "@/lib/supabaseService";
 import { supabase } from "@/lib/supabase";
 import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState, useMemo } from "react";
@@ -28,48 +28,18 @@ function Dashboard() {
   // Dynamic daily refresh check
   useEffect(() => {
     const interval = setInterval(() => {
-      const nowStr = new Date().toISOString().slice(0, 10);
-      if (nowStr !== currentDateStr) {
-        setCurrentDateStr(nowStr);
+      const today = new Date().toISOString().slice(0, 10);
+      if (today !== currentDateStr) {
+        setCurrentDateStr(today);
       }
     }, 60000);
     return () => clearInterval(interval);
   }, [currentDateStr]);
 
-  const { attendance: liveTodayRecords } = useLiveAttendance(undefined, currentDateStr);
-
   const loadData = () => {
-    fetchStudents().then(({ data }) => setStudentsList(data));
-    fetchTeachers().then(({ data }) => setTeachersCount(data.length));
-
-    // Fetch live payment transactions directly from Supabase / Merged Ledgers
-    supabase
-      .from("gv_fees_payments")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setPaymentsList(data);
-        } else {
-          fetchMergedFeeLedgers().then(({ data: ledgers }) => {
-            const allTx: any[] = [];
-            (ledgers || []).forEach((l) => {
-              (l.payments || []).forEach((p: any) => {
-                allTx.push({
-                  id: p.id || `TX-${Math.random()}`,
-                  student_name: l.studentName,
-                  amount_paid: p.amount,
-                  receipt_number: p.receiptNo || p.id,
-                  created_at: p.date || p.createdAt || p.created_at,
-                  payment_date: p.date || p.createdAt?.slice(0, 10),
-                  status: "Paid",
-                });
-              });
-            });
-            setPaymentsList(allTx);
-          });
-        }
-      });
+    fetchStudents().then(({ data }) => setStudentsList(data || []));
+    fetchTeachers().then(({ data }) => setTeachersCount(data?.length || 0));
+    fetchReceipts().then(({ data }) => setPaymentsList(data || []));
   };
 
   // Register real-time auto refresh for students, attendance & fees modules
@@ -83,6 +53,7 @@ function Dashboard() {
   }, [currentDateStr]);
 
   const totalStudents = studentsList.length;
+  const { attendance: liveTodayRecords } = useLiveAttendance(undefined, currentDateStr);
   const presentToday = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
   const absentToday = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
   const attendancePct = totalStudents > 0 && liveTodayRecords.length > 0 ? Math.round((presentToday / liveTodayRecords.length) * 100) : 0;
@@ -90,10 +61,9 @@ function Dashboard() {
   // Filter Today's Payments ONLY
   const todayPayments = useMemo(() => {
     return paymentsList.filter((p) => {
-      const pDate = (p.payment_date || p.paymentDate || p.created_at || "").slice(0, 10);
-      const amount = Number(p.amount_paid || p.amount || 0);
-      const isPaid = amount > 0 || p.receipt_number || p.receiptNo;
-      return pDate === currentDateStr && isPaid;
+      const pDate = (p.date || p.payment_date || p.paymentDate || p.created_at || "").slice(0, 10);
+      const amount = Number(p.amountPaid || p.amount_paid || p.amount || 0);
+      return pDate === currentDateStr && amount > 0;
     });
   }, [paymentsList, currentDateStr]);
 

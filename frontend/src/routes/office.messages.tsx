@@ -16,7 +16,7 @@ import { NotificationService } from "@/lib/notifications";
 export const Route = createFileRoute("/office/messages")({ component: Messages });
 
 function Messages() {
-  const { messages, dispatchMessage } = useMessages();
+  const { messages, dispatchMessage, markRead } = useMessages();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [selectedId, setSelectedId] = useState<string | null>(messages[0]?.id ?? null);
@@ -42,8 +42,17 @@ function Messages() {
     });
   }, [messages, q, filter]);
 
-  const selected = messages.find((m) => m.id === selectedId) ?? list[0];
+  const selected = useMemo(() => {
+    return messages.find((m) => m.id === selectedId) || list.find((m) => m.id === selectedId) || list[0] || null;
+  }, [messages, list, selectedId]);
+
   const unread = messages.filter((m) => !m.read).length;
+
+  const handleOpenMessage = (m: Message) => {
+    setSelectedId(m.id);
+    markRead(m.id);
+    setDialog(true);
+  };
 
   const handleSendMessage = () => {
     if (!subject.trim() || !body.trim()) {
@@ -113,36 +122,60 @@ function Messages() {
       <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
         {/* List — scrolls internally */}
         <div className="min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-black/5 flex flex-col">
-          <div className="shrink-0 px-4 pt-4 pb-2 text-xs text-muted-foreground">
+          <div className="shrink-0 px-4 pt-4 pb-2 text-xs text-muted-foreground font-medium">
             {list.length} messages
           </div>
-          <ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/50 px-2 pb-2">
-            {list.map((m) => (
-              <li key={m.id}>
-                <button
-                  onClick={() => {
-                    setSelectedId(m.id);
-                    markMessageRead(m.id);
-                    setDialog(true);
-                  }}
-                  className={`w-full text-left px-3 py-3 rounded-2xl transition ${selected?.id === m.id ? "bg-orange-50" : "hover:bg-white/70"}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-2 h-2 w-2 rounded-full shrink-0 ${!m.read ? "bg-orange-500" : "bg-slate-300"}`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium truncate">{m.fromName}</div>
-                        <div className="ml-auto text-xs text-muted-foreground shrink-0">{m.time}</div>
+          <ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/50 p-2 space-y-2">
+            {list.map((m) => {
+              const isSelected = selected?.id === m.id;
+              return (
+                <li key={m.id}>
+                  <button
+                    onClick={() => handleOpenMessage(m)}
+                    className={`w-full text-left p-3.5 rounded-2xl transition-all border ${
+                      isSelected
+                        ? "bg-orange-50/90 border-orange-200 shadow-sm"
+                        : "bg-white/40 hover:bg-white/80 border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="font-semibold text-slate-900 truncate text-sm">
+                          {m.fromName}
+                        </div>
+                        {m.priority === "High" && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">High</Badge>
+                        )}
                       </div>
-                      <div className="text-sm truncate">
-                        <span className="font-medium text-slate-700">{m.subject}:</span>{" "}
-                        <span className="text-muted-foreground">{m.body}</span>
-                      </div>
+                      <div className="text-[11px] text-muted-foreground shrink-0">{m.time}</div>
                     </div>
-                  </div>
-                </button>
-              </li>
-            ))}
+
+                    <div className="mt-1 text-sm font-medium text-slate-800 truncate">
+                      {m.subject}
+                    </div>
+
+                    <div className="mt-1 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {m.body}
+                    </div>
+
+                    <div className="mt-2.5 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">
+                        Target: {m.recipientRole ? m.recipientRole.toUpperCase() : "ALL"}
+                      </span>
+                      {!m.read ? (
+                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-xs">
+                          ● Unread
+                        </Badge>
+                      ) : (
+                        <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+                          ✓ Read
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
             {list.length === 0 && (
               <li className="px-6 py-10 text-center text-sm text-muted-foreground">No messages match.</li>
             )}
@@ -164,17 +197,25 @@ function Messages() {
         </div>
       </div>
 
-      {/* Mobile detail dialog */}
+      {/* Message detail dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="lg:hidden max-w-lg">
-          <DialogHeader><DialogTitle>{selected?.subject}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-2xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg text-slate-900">
+              <MailOpen className="h-5 w-5 text-orange-600" />
+              <span>{selected?.subject || "Message Details"}</span>
+            </DialogTitle>
+          </DialogHeader>
           {selected && (
             <MessageDetail
               m={selected}
+              embedded
               replyText={replyText}
               setReplyText={setReplyText}
-              onSendReply={handleSendReply}
-              embedded
+              onSendReply={() => {
+                handleSendReply();
+                setDialog(false);
+              }}
             />
           )}
         </DialogContent>
@@ -225,46 +266,67 @@ function Messages() {
 
 function MessageDetail({
   m,
-  replyText,
+  embedded = false,
+  replyText = "",
   setReplyText,
   onSendReply,
-  embedded = false,
 }: {
   m: Message;
-  replyText: string;
-  setReplyText: (v: string) => void;
-  onSendReply: () => void;
   embedded?: boolean;
+  replyText?: string;
+  setReplyText?: (v: string) => void;
+  onSendReply?: () => void;
 }) {
   return (
-    <div className={embedded ? "" : "flex-1 min-h-0 flex flex-col"}>
-      <div className={`shrink-0 ${embedded ? "" : "px-5 pt-5 pb-3 border-b border-white/60"}`}>
+    <div className={embedded ? "space-y-4" : "flex-1 min-h-0 flex flex-col"}>
+      <div className={`shrink-0 ${embedded ? "bg-slate-50 p-3 rounded-2xl border" : "px-5 pt-5 pb-3 border-b border-white/60"}`}>
         <div className="flex items-center gap-2">
-          <MailOpen className="h-4 w-4 text-muted-foreground" />
-          <div className="font-semibold truncate">{m.subject}</div>
+          <MailOpen className="h-4 w-4 text-orange-500 shrink-0" />
+          <div className="font-semibold text-slate-900 truncate">{m.subject}</div>
           <Badge className="ml-auto bg-slate-100 text-slate-700">{m.priority}</Badge>
         </div>
-        <div className="mt-1 text-xs text-muted-foreground">From {m.fromName} · {m.time}</div>
+        <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+          <span>From <strong className="text-slate-800">{m.fromName}</strong> · {m.time}</span>
+          <span className={`font-semibold ${m.read ? "text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full" : "text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"}`}>
+            {m.read ? "✓ Read" : "○ Unread"}
+          </span>
+        </div>
+        {m.recipientRole && (
+          <div className="mt-1 text-[11px] text-slate-500">
+            Target Audience: <span className="font-medium text-slate-700">{m.recipientRole.toUpperCase()}</span>
+          </div>
+        )}
       </div>
 
-      <div className={`min-h-0 overflow-y-auto text-sm leading-relaxed ${embedded ? "mt-3" : "flex-1 p-5"}`}>
+      <div className={`min-h-0 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap ${embedded ? "bg-white p-4 rounded-2xl border text-slate-800" : "flex-1 p-5 text-slate-800"}`}>
         {m.body}
       </div>
 
-      <div className="shrink-0 p-3 border-t border-white/60 bg-white/50 space-y-2">
-        <Textarea
-          value={replyText}
-          onChange={(e) => setReplyText(e.target.value)}
-          placeholder={`Reply to ${m.fromName}...`}
-          rows={2}
-          className="bg-white text-xs"
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={onSendReply} className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
-            <Reply className="h-3.5 w-3.5 mr-1" /> Send Reply
-          </Button>
+      {/* Quick Reply Box */}
+      {setReplyText && onSendReply && (
+        <div className={`shrink-0 ${embedded ? "pt-2" : "p-4 border-t border-white/60 bg-white/40"}`}>
+          <Label className="text-xs text-slate-600 flex items-center gap-1 mb-1.5">
+            <Reply className="h-3.5 w-3.5 text-orange-500" /> Quick Reply to {m.fromName}
+          </Label>
+          <div className="flex gap-2">
+            <Textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Type reply message here..."
+              rows={2}
+              className="text-xs bg-white/90"
+            />
+            <Button
+              onClick={onSendReply}
+              disabled={!replyText.trim()}
+              size="sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white self-end shrink-0"
+            >
+              <Send className="h-3.5 w-3.5 mr-1" /> Send
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

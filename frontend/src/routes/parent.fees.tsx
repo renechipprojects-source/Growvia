@@ -18,7 +18,6 @@ function ParentFees() {
   const { t } = useT();
   const { activeChild } = useParent();
   const [feeRecord, setFeeRecord] = useState<FeeLedgerItem | null>(null);
-  const [liveReceipts, setLiveReceipts] = useState<any[]>([]);
 
   const loadData = () => {
     if (!activeChild) return;
@@ -26,27 +25,6 @@ function ParentFees() {
       const match = data.find((f) => f.studentId === activeChild.id);
       if (match) setFeeRecord(match);
       else setFeeRecord(null);
-    });
-
-    import("@/lib/supabase").then(({ supabase }) => {
-      supabase
-        .from("gv_fees_payments")
-        .select("*")
-        .eq("student_id", activeChild.id)
-        .then(({ data }) => {
-          if (data) {
-            const matchRcpts = data
-              .map((r: any) => ({
-                id: r.id,
-                receiptNo: r.receipt_number || `REC-${r.id}`,
-                studentName: r.student_name,
-                amountPaid: r.amount_paid || r.amount_due || 0,
-                method: r.payment_method || "Cash",
-                date: r.payment_date || r.created_at?.slice(0, 10),
-              }));
-            setLiveReceipts(matchRcpts);
-          }
-        });
     });
   };
 
@@ -69,19 +47,7 @@ function ParentFees() {
   if (remainingAmount === 0 && finalFee > 0) status = "Paid";
   else if (totalPaid > 0) status = "Partially Paid";
 
-  const historyItems = (feeRecord?.payments && feeRecord.payments.length > 0)
-    ? feeRecord.payments
-    : liveReceipts.length > 0
-    ? liveReceipts.map((r, i) => ({
-        id: r.receiptNo || i,
-        receiptNo: r.receiptNo || `SUN/26-27/${300 + i}`,
-        amount: r.amountPaid || r.amount || 8500,
-        method: r.method || "Cash",
-        date: r.date || "2026-07-28",
-        collectedBy: r.collectedBy || "Office Staff",
-        installmentNo: i + 1,
-      }))
-    : [];
+  const historyItems = feeRecord?.payments || [];
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1 space-y-4">

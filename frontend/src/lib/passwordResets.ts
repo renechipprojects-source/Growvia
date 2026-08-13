@@ -135,148 +135,119 @@ export function setStatus(id: string, status: ResetStatus) {
           status,
           reason_or_notes: JSON.stringify(safeUpdated),
         }).eq("id", id)
-      ).catch(() => {});
+      ).then(() => {
+        notifyAutoRefresh("requests");
+        notifyAutoRefresh("staff");
+      }).catch(() => {});
 
       return updated;
     }
     return r;
   });
   write(rows);
+  notifyAutoRefresh("requests");
+  notifyAutoRefresh("staff");
 }
 
-export function requestSecurePasswordReset(
+import { notifyAutoRefresh } from "./autoRefreshContext";
+
+export async function requestSecurePasswordReset(
   role: Role,
   identifier: string
-): SecureResetResult {
+): Promise<SecureResetResult> {
   const id = identifier.trim();
-  const genericSuccessMsg =
-    "If an account matches the information provided, password reset instructions have been generated.";
-
   if (!id) {
     return { ok: false, message: "", error: "Please enter your Login ID, Email, or Mobile Number." };
   }
 
-  let foundLoginId = id;
-  let foundName = "User";
+  // Look up account in gv_users
+  const { data: user, error } = await supabase
+    .from("gv_users")
+    .select("id, login_id, full_name, email, mobile, role, status")
+    .or(`login_id.ilike.${id},email.ilike.${id},mobile.ilike.${id},admission_no.ilike.${id},employee_id.ilike.${id}`)
+    .maybeSingle();
 
-  if (role === "office" || role === "principal" || role === "super-admin") {
+  if (error || !user) {
+    // If not found in gv_users, check system users
     const sys = findSystemUserByLoginId(id);
-    if (sys) {
-      if (sys.role === "super-admin") {
-        return { ok: false, message: "", error: "Admin self-reset restricted. Please contact System Owner." };
-      }
-      foundLoginId = sys.loginId;
-      foundName = sys.name;
-    }
-  } else if (role === "teacher") {
-    const creds = listTeacherCredentials();
-    const cred = creds.find(
-      (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.teacherId.toLowerCase() === id.toLowerCase()
-    );
-    if (cred) {
-      foundLoginId = cred.loginId;
-      foundName = (cred as any).name || (cred as any).teacherName || "Teacher";
-    }
-  } else if (role === "parent") {
-    const creds = listParentCredentials();
-    const cred = creds.find(
-      (c) => c.loginId.toLowerCase() === id.toLowerCase() || c.studentId.toLowerCase() === id.toLowerCase()
-    );
-    if (cred) {
-      foundLoginId = cred.loginId;
-      foundName = (cred as any).parentName || (cred as any).studentName || "Parent";
+    if (!sys) {
+      return {
+        ok: false,
+        message: "",
+        error: "No matching account found with that identifier. Please check your details or contact the school office.",
+      };
     }
   }
 
-  const token = generateSecureToken();
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
+  const userRole = user?.role || role;
+  const loginId = user?.login_id || id;
+  const name = user?.full_name || "User";
 
-  const req: ResetRequest = {
-    id: makeId(),
-    role,
-    name: foundName,
-    loginId: foundLoginId,
+  if (userRole === "super-admin" || userRole === "admin") {
+    return {
+      ok: false,
+      message: "",
+      error: "Admin self-reset is restricted. Please contact the System Administrator.",
+    };
+  }
+
+  // Check for existing pending request to prevent duplicate/spam replay
+  const { data: existingPending } = await supabase
+    .from("gv_requests")
+    .select("id, created_at, status, reason_or_notes")
+    .eq("request_type", "password_reset")
+    .eq("status", "Pending");
+
+  const duplicate = (existingPending || []).find((r: any) => {
+    try {
+      const parsed = JSON.parse(r.reason_or_notes || "{}");
+      return parsed.loginId?.toLowerCase() === loginId.toLowerCase();
+    } catch {
+      return false;
+    }
+  });
+
+  if (duplicate) {
+    return {
+      ok: true,
+      message: "A password reset request is already pending for this account. Please allow school administration time to verify and process it.",
+      requestId: duplicate.id,
+    };
+  }
+
+  const reqId = makeId();
+  const meta = {
+    role: userRole,
+    loginId,
+    name,
     identifier: id,
+    email: user?.email || "",
+    mobile: user?.mobile || "",
     requestedAt: new Date().toISOString(),
-    status: "Pending",
-    resetToken: token,
-    expiresAt,
   };
 
-  const rows = read();
-  rows.push(req);
-  write(rows);
+  const { error: insertErr } = await supabase.from("gv_requests").insert([
+    {
+      id: reqId,
+      request_type: "password_reset",
+      applicant_or_child_name: name,
+      status: "Pending",
+      reason_or_notes: JSON.stringify(meta),
+    },
+  ]);
 
-  // Strip resetToken — never persist tokens to the database
-  const { resetToken: _omitToken, ...safeReq } = req;
-  Promise.resolve(
-    supabase.from("gv_requests").insert([
-      {
-        id: req.id,
-        request_type: "password_reset",
-        applicant_or_child_name: req.name,
-        status: "Pending",
-        reason_or_notes: JSON.stringify(safeReq),
-      },
-    ])
-  ).catch(() => {});
+  if (insertErr) {
+    return { ok: false, message: "", error: "Failed to submit request to school server." };
+  }
 
-  // Return request ID (not the token) — the token stays in memory only
+  notifyAutoRefresh("requests");
+  notifyAutoRefresh("staff");
+
+  const targetQueue = (userRole === "parent" || userRole === "teacher") ? "School Office" : "System Administrator";
+
   return {
     ok: true,
-    message: genericSuccessMsg,
-    requestId: req.id,
+    message: `Your password reset request for account "${loginId}" has been submitted to the ${targetQueue}. Once verified, a temporary login password will be issued.`,
+    requestId: reqId,
   };
-}
-
-export function completeSecurePasswordReset(
-  token: string,
-  newPassword: string
-): { ok: boolean; error?: string } {
-  const cleanToken = token.trim();
-  const pwd = newPassword.trim();
-
-  if (!cleanToken) {
-    return { ok: false, error: "Password reset token is required." };
-  }
-  const strengthIssues = passwordStrengthIssues(pwd);
-  if (strengthIssues.length) {
-    return { ok: false, error: "Password does not meet requirements: " + strengthIssues.join(", ") + "." };
-  }
-
-  const rows = read();
-  const req = rows.find((r) => r.resetToken === cleanToken || r.id === cleanToken);
-
-  if (!req) {
-    return { ok: false, error: "Invalid or expired password reset token." };
-  }
-
-  if (req.status === "Used" || req.status === "Expired") {
-    return { ok: false, error: "This password reset token has already been used or expired." };
-  }
-
-  if (req.expiresAt && new Date(req.expiresAt) < new Date()) {
-    req.status = "Expired";
-    write(rows);
-    return { ok: false, error: "This password reset token has expired. Please request a new one." };
-  }
-
-  // Update password securely
-  setTemporaryPasswordFor(req.loginId, pwd);
-
-  // Invalidate single-use token
-  req.status = "Used";
-  req.completedAt = new Date().toISOString();
-  write(rows);
-
-  // Strip resetToken — never persist tokens to the database
-  const { resetToken: _omitUsed, ...safeUsedReq } = req;
-  Promise.resolve(
-    supabase.from("gv_requests").update({
-      status: "Used",
-      reason_or_notes: JSON.stringify(safeUsedReq),
-    }).eq("id", req.id)
-  ).catch(() => {});
-
-  return { ok: true };
 }

@@ -163,27 +163,36 @@ export function getUnreadCountForRole(circulars: any[], role: string): number {
   }).length;
 }
 
+export function normalizeRoleToCanonical(roleStr: string): string {
+  const s = (roleStr || "").toLowerCase().trim();
+  if (s === "admin" || s === "super-admin" || s === "administrator") return "admin";
+  if (s === "principal" || s === "headmaster" || s === "director") return "principal";
+  if (s === "teachers" || s === "teacher" || s === "faculty") return "teacher";
+  if (s === "office staff" || s === "office" || s === "staff" || s === "caretaker" || s === "helper") return "office";
+  if (s === "parents" || s === "parent" || s === "student" || s === "students" || s === "guardian") return "parent";
+  if (s === "all" || s === "everyone" || s === "all roles" || s === "all parents" || s === "all teachers") return "all";
+  return s;
+}
+
 export function isCircularTargetedToRole(circular: any, role: string): boolean {
   if (!circular) return false;
-  const rLower = (role || "").toLowerCase().trim();
-  if (rLower === "principal" || rLower === "super-admin" || rLower === "admin") return true;
+  const canonicalUserRole = normalizeRoleToCanonical(role);
+  if (canonicalUserRole === "admin" || canonicalUserRole === "principal") return true;
 
-  const rawTargets = circular.recipients || circular.target_audience || circular.recipient_role || "All";
-  const recipients = Array.isArray(rawTargets)
+  const rawTargets = circular.recipients || circular.target_audience || circular.recipient_role || "all";
+  const rawList: string[] = Array.isArray(rawTargets)
     ? rawTargets
     : typeof rawTargets === "string"
     ? rawTargets.split(",")
-    : ["All"];
+    : ["all"];
 
-  const recLower = recipients.map((r: string) => String(r).toLowerCase().trim());
-  if (recLower.includes("everyone") || recLower.includes("all") || recLower.includes("all parents") || recLower.includes("all teachers")) return true;
+  const canonicalTargets = rawList
+    .flatMap((r: any) => (typeof r === "string" ? r.split(",") : [String(r)]))
+    .map((r: string) => normalizeRoleToCanonical(r))
+    .filter(Boolean);
 
-  if (rLower === "teacher" && (recLower.includes("teachers") || recLower.includes("teacher"))) return true;
-  if (rLower === "parent" && (recLower.includes("parents") || recLower.includes("parent"))) return true;
-  if (rLower === "office" && (recLower.includes("office staff") || recLower.includes("office") || recLower.includes("staff"))) return true;
-  if (rLower === "student" && (recLower.includes("students") || recLower.includes("student"))) return true;
-
-  return false;
+  if (canonicalTargets.includes("all")) return true;
+  return canonicalTargets.includes(canonicalUserRole);
 }
 
 export function getDeliveryStats(circularId: string, recipients?: string[]) {

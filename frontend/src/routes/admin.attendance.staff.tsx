@@ -119,7 +119,7 @@ function StaffAttendancePage() {
         id: sId,
         name: s.name,
         employeeId: sId,
-        department: DEPARTMENTS[(s as any).role || "Teacher"] ?? "Academics",
+        department: (s as any).department || "Not Assigned",
         designation: (s as any).role || "Teacher",
         checkIn,
         checkOut,

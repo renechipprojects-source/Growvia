@@ -105,7 +105,7 @@ function StaffAttendancePage() {
       return {
         id: sId,
         name: t.name,
-        department: (t as any).department || (idx % 3 === 0 ? "Academic" : idx % 3 === 1 ? "Administration" : "Sports"),
+        department: (t as any).department || "Not Assigned",
         checkIn,
         checkOut,
         workingHours,

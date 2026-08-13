@@ -41,15 +41,22 @@ function ParentCredentialsPage() {
   const [tick, setTick] = useState(0);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
 
+  const loadStudentsList = () => {
+    fetchStudents().then(({ data }) => {
+      setStudentsList(data || []);
+    });
+  };
+
   useEffect(() => {
     return subscribeCredentials(() => setTick((n) => n + 1));
   }, []);
 
   useEffect(() => {
-    fetchStudents().then(({ data }) => {
-      setStudentsList(data || []);
-    });
+    loadStudentsList();
   }, []);
+
+  useAutoRefresh("students", loadStudentsList);
+  useAutoRefresh("parents", loadStudentsList);
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "issued" | "not_issued" | "inactive">("all");

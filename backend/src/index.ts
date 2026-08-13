@@ -1038,9 +1038,13 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       }
 
       if (authUserId) {
+        const updatePayload: any = { auth_user_id: authUserId };
+        if (typeof req.body?.must_change_password === 'boolean') {
+          updatePayload.must_change_password = req.body.must_change_password;
+        }
         await supabaseAdmin
           .from('gv_users')
-          .update({ auth_user_id: authUserId })
+          .update(updatePayload)
           .or(`login_id.eq.${coreAcc.loginId},email.eq.${targetEmail}`);
       }
     }
@@ -1055,6 +1059,147 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
     return res.status(500).json({
       error: err.message,
     });
+  }
+});
+
+function generateSecureTempPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const nums = '23456789';
+  const sym = '!@#$%^&*';
+  const all = upper + lower + nums + sym;
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  let out = pick(upper) + pick(lower) + pick(nums) + pick(sym);
+  for (let i = 4; i < 10; i++) out += pick(all);
+  return out.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+app.post('/api/users/reset-approval', async (req: Request, res: Response) => {
+  try {
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(403).json({ error: 'SUPABASE_SERVICE_ROLE_KEY is required.' });
+    }
+
+    const { requestId, approverRole, customPassword } = req.body || {};
+    if (!requestId || !approverRole) {
+      return res.status(400).json({ error: 'requestId and approverRole are required.' });
+    }
+
+    // 1. Fetch request from gv_requests
+    const { data: requestRow, error: reqErr } = await supabaseAdmin
+      .from('gv_requests')
+      .select('*')
+      .eq('id', requestId)
+      .eq('request_type', 'password_reset')
+      .maybeSingle();
+
+    if (reqErr || !requestRow) {
+      return res.status(404).json({ error: 'Password reset request not found.' });
+    }
+
+    if (requestRow.status === 'Completed' || requestRow.status === 'Used') {
+      return res.status(400).json({ error: 'This reset request has already been processed.' });
+    }
+
+    let meta: any = {};
+    try {
+      meta = JSON.parse(requestRow.reason_or_notes || '{}');
+    } catch {}
+
+    const targetRole = (meta.role || '').toLowerCase();
+    const targetLoginId = meta.loginId;
+
+    if (!targetLoginId) {
+      return res.status(400).json({ error: 'Missing target loginId in request metadata.' });
+    }
+
+    // 2. Server-side role authorization
+    const normApprover = String(approverRole).toLowerCase();
+    const isSuperAdmin = normApprover === 'super-admin' || normApprover === 'admin';
+    const isOffice = normApprover === 'office';
+
+    if (!isSuperAdmin && !isOffice) {
+      return res.status(403).json({ error: 'Unauthorized: Only Office and Admin roles can approve resets.' });
+    }
+
+    if (isOffice) {
+      // Office can ONLY approve Parent and Teacher resets
+      const allowedRolesForOffice = ['parent', 'teacher', 'student'];
+      if (!allowedRolesForOffice.includes(targetRole)) {
+        return res.status(403).json({
+          error: 'Office staff are only authorized to reset passwords for Teachers and Parents.',
+        });
+      }
+    }
+
+    // 3. Generate or use temporary password
+    const tempPassword = customPassword || generateSecureTempPassword();
+
+    // 4. Provision in Supabase Auth & update gv_users
+    const { data: profile } = await supabaseAdmin
+      .from('gv_users')
+      .select('*')
+      .eq('login_id', targetLoginId)
+      .maybeSingle();
+
+    const targetEmail = profile?.email || `${targetLoginId.toLowerCase()}@growvia.edu`;
+
+    const { data: authUserList } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUser = (authUserList?.users || []).find(
+      (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
+    );
+
+    let authUserId = existingAuthUser?.id;
+
+    if (!authUserId) {
+      const { data: newAuth } = await supabaseAdmin.auth.admin.createUser({
+        email: targetEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          login_id: targetLoginId,
+          role: profile?.role || targetRole,
+          full_name: profile?.full_name || meta.name || 'User Account',
+        },
+      });
+      authUserId = newAuth?.user?.id;
+    } else {
+      await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+        password: tempPassword,
+        email_confirm: true,
+      });
+    }
+
+    // Update gv_users
+    await supabaseAdmin
+      .from('gv_users')
+      .update({
+        auth_user_id: authUserId,
+        must_change_password: true,
+      })
+      .eq('login_id', targetLoginId);
+
+    // Update gv_requests to Completed
+    meta.status = 'Completed';
+    meta.completedAt = new Date().toISOString();
+    meta.approvedBy = approverRole;
+
+    await supabaseAdmin
+      .from('gv_requests')
+      .update({
+        status: 'Completed',
+        reason_or_notes: JSON.stringify(meta),
+      })
+      .eq('id', requestId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Temporary password generated and account set to must_change_password=true',
+      loginId: targetLoginId,
+      tempPassword,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

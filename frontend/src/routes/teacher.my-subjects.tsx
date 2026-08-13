@@ -11,12 +11,14 @@ import {
   getStudentsForAssignment,
 } from "@/lib/teacherContext";
 import { useHomework, type Homework } from "@/lib/homeworkStore";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 const searchSchema = z.object({ a: z.string().optional() });
-const TABS = ["Overview", "Students", "Homework", "Marks"];
+const TABS = ["Overview", "Students", "Homework", "Marks", "Remarks"];
 
 export const Route = createFileRoute("/teacher/my-subjects")({
   validateSearch: searchSchema,
@@ -30,14 +32,28 @@ function MySubjects() {
   const active = (a && getAssignment(a)) || assignments[0];
   const [tab, setTab] = useState<string>(TABS[0]);
   const [localSearch, setLocalSearch] = useState("");
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const headerQ = useSearchQuery();
   const q = headerQ || localSearch;
   const { homework } = useHomework();
 
-  const students = active ? getStudentsForAssignment(active) : [];
+  const loadData = useCallback(() => {
+    fetchStudents().then(({ data }) => setAllStudents(data || []));
+  }, []);
+
+  useAutoRefresh("students", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const students = useMemo(() => {
+    return active ? getStudentsForAssignment(active, allStudents) : [];
+  }, [active, allStudents]);
+
   const subjectHomework = active
     ? homework.filter(
-        (h: Homework) => h.className === active.className && h.subject === active.subject,
+        (h: Homework) => h.className.toLowerCase() === active.className.toLowerCase() && h.subject.toLowerCase() === (active.subject || "").toLowerCase(),
       )
     : [];
   const filteredStudents = useMemo(
@@ -137,7 +153,7 @@ function MySubjects() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">
-          {tab === "Overview" && (
+          {(tab === "Overview" || tab === "Students") && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredStudents.map((s: any) => (
                 <Card key={s.id} className="rounded-2xl p-4 border-white/60 bg-white/70">
@@ -155,7 +171,7 @@ function MySubjects() {
             </div>
           )}
 
-          {tab === "Subject Marks" && (
+          {tab === "Marks" && (
             <ul className="space-y-2">
               {filteredStudents.map((s: any, i: number) => (
                 <li key={s.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3">
@@ -172,10 +188,10 @@ function MySubjects() {
             </ul>
           )}
 
-          {tab === "Subject Homework" && (
+          {tab === "Homework" && (
             <div>
               {subjectHomework.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No homework assigned yet.</div>
+                <div className="text-sm text-muted-foreground">No homework assigned yet for {active.subject}.</div>
               ) : (
                 <ul className="space-y-2">
                   {subjectHomework.map((h: Homework) => (
@@ -192,46 +208,24 @@ function MySubjects() {
               <div className="mt-3">
                 <Link to="/teacher/homework">
                   <Button className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
-                    Assign homework <ChevronRight className="h-4 w-4 ml-1" />
+                    Assign homework for {active.subject} <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </Link>
               </div>
             </div>
           )}
 
-          {tab === "Subject Assignments" && (
-            <div className="text-sm text-muted-foreground">
-              Create and track assignments for {active.subject} only. Other subjects are hidden.
-            </div>
-          )}
-
-          {tab === "Subject Attendance" && (
-            <ul className="space-y-2">
-              {filteredStudents.map((s: any, i: number) => (
-                <li key={s.id} className="flex items-center justify-between rounded-2xl bg-white/60 p-3">
-                  <div className="flex items-center gap-3">
-                    <img src={s.avatar} className="h-9 w-9 rounded-xl" alt="" />
-                    <div className="text-sm font-medium">{s.name}</div>
-                  </div>
-                  <Badge className={i % 4 === 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
-                    {i % 4 === 0 ? "Absent" : "Present"}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {tab === "Subject Remarks" && (
+          {tab === "Remarks" && (
             <div>
               <div className="text-sm text-muted-foreground mb-3">
-                Only remarks for {active.subject} are visible here. Behaviour and other-subject remarks are restricted to the class teacher.
+                Only remarks for {active.subject} are visible here. General behaviour and other-subject remarks are restricted to the class teacher.
               </div>
               <ul className="space-y-2">
                 {filteredStudents.slice(0, 8).map((s: any) => (
                   <li key={s.id} className="rounded-2xl bg-white/60 p-3">
                     <div className="text-sm font-medium">{s.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Needs more practice with reading aloud in {active.subject}.
+                      Showing progress in {active.subject}.
                     </div>
                   </li>
                 ))}

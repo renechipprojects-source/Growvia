@@ -174,10 +174,8 @@ function Admissions() {
       toast.error("This enquiry has already been converted.");
       return;
     }
-    if (enquiryId) markConverted(enquiryId);
-    if (v.admissionNo) upsertDocs(v.admissionNo, v.childName, docs);
 
-    const { error } = await createStudent({
+    const { data: createdStu, error } = await createStudent({
       admissionNo: v.admissionNo || autoAdmissionNo(),
       rollNo: 0,
       name: v.childName,
@@ -203,8 +201,16 @@ function Admissions() {
       branch: "Main Branch",
     });
 
-    NotificationService.admissionCreated(v.childName, v.admissionNo || "ADM-2026");
-    toast.success(`${v.childName} admitted (${v.admissionNo}) — synced to Supabase.`);
+    if (error || !createdStu) {
+      toast.error(error || "Failed to create student in database. Admission aborted.");
+      return;
+    }
+
+    if (enquiryId) markConverted(enquiryId);
+    if (v.admissionNo) upsertDocs(v.admissionNo, v.childName, docs);
+
+    NotificationService.admissionCreated(v.childName, createdStu.admissionNo || v.admissionNo || "ADM-2026");
+    toast.success(`${v.childName} admitted (${createdStu.admissionNo || v.admissionNo}) — synced to database.`);
     triggerModuleRefresh("students");
     triggerModuleRefresh("admissions");
     setPhotoBase64("");
@@ -318,8 +324,30 @@ function Admissions() {
 
               <Field label="Parent name" error={errors.parentName?.message}><Input {...register("parentName")} className="bg-white/70" /></Field>
               <Field label="Parent Occupation"><Input {...register("occupation")} className="bg-white/70" placeholder="e.g. Business, Engineer, Doctor" /></Field>
-              <Field label="Phone" error={errors.phone?.message}><Input {...register("phone")} className="bg-white/70" /></Field>
-              <Field label="Alternate Contact"><Input {...register("altPhone")} className="bg-white/70" /></Field>
+              <Field label="Phone" error={errors.phone?.message}>
+                <Input
+                  maxLength={10}
+                  {...register("phone")}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setValue("phone", val, { shouldValidate: true });
+                  }}
+                  placeholder="9876543210"
+                  className="bg-white/70"
+                />
+              </Field>
+              <Field label="Alternate Contact">
+                <Input
+                  maxLength={10}
+                  {...register("altPhone")}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setValue("altPhone", val);
+                  }}
+                  placeholder="9876543211"
+                  className="bg-white/70"
+                />
+              </Field>
               <Field label="Email" error={errors.email?.message}><Input type="email" {...register("email")} className="bg-white/70" /></Field>
 
               <Field label="Class" error={errors.className?.message}>

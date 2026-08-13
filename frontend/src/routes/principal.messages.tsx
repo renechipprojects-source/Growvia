@@ -160,29 +160,19 @@ function PrincipalMessages() {
         {/* Message Detail View */}
         <div className="hidden lg:flex min-h-0 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg flex-col">
           {selected ? (
-            <PrincipalMessageDetail
-              m={selected}
-              replyText={replyText}
-              setReplyText={setReplyText}
-              onSendReply={handleSendReply}
-            />
+            <PrincipalMessageDetail m={selected} />
           ) : (
             <div className="flex-1 grid place-items-center text-sm text-muted-foreground">Select a message</div>
           )}
         </div>
       </div>
 
-      {/* Mobile Detail Dialog */}
+      {/* Message Detail Dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="lg:hidden max-w-lg">
-          <DialogHeader><DialogTitle>{selected?.subject}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>{selected?.subject || "Message Details"}</DialogTitle></DialogHeader>
           {selected && (
-            <PrincipalMessageDetail
-              m={selected}
-              replyText={replyText}
-              setReplyText={setReplyText}
-              onSendReply={handleSendReply}
-            />
+            <PrincipalMessageDetail m={selected} />
           )}
         </DialogContent>
       </Dialog>
@@ -227,14 +217,8 @@ function PrincipalMessages() {
 
 function PrincipalMessageDetail({
   m,
-  replyText,
-  setReplyText,
-  onSendReply,
 }: {
   m: Message;
-  replyText: string;
-  setReplyText: (v: string) => void;
-  onSendReply: () => void;
 }) {
   return (
     <div className="flex flex-col h-full min-h-0 p-5 space-y-4">
@@ -243,25 +227,16 @@ function PrincipalMessageDetail({
           <div className="font-bold text-lg text-slate-900">{m.subject}</div>
           <Badge variant="outline">{m.priority || "Normal"}</Badge>
         </div>
-        <div className="text-xs text-muted-foreground mt-1">From: {m.fromName} · {m.time}</div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+          <span>From: {m.fromName} · {m.time}</span>
+          <span className={`font-semibold ${m.read ? "text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full" : "text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"}`}>
+            {m.read ? "✓ Read" : "○ Unread"}
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto text-sm text-slate-800 leading-relaxed bg-white/50 p-4 rounded-2xl border">
         {m.body}
-      </div>
-
-      <div className="space-y-2 pt-2 border-t">
-        <Label className="text-xs font-semibold uppercase text-slate-700">Reply to Message</Label>
-        <Textarea
-          value={replyText}
-          onChange={(e) => setReplyText(e.target.value)}
-          placeholder="Type your response..."
-          rows={3}
-          className="bg-white/70"
-        />
-        <Button onClick={onSendReply} className="w-full bg-emerald-600 text-white">
-          <Reply className="h-4 w-4 mr-2" /> Send Reply
-        </Button>
       </div>
     </div>
   );

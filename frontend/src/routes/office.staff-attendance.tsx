@@ -14,6 +14,8 @@ import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
+
 export const Route = createFileRoute("/office/staff-attendance")({
   component: OfficeStaffAttendancePage,
   head: () => ({
@@ -52,6 +54,7 @@ function OfficeStaffAttendancePage() {
   const [rowEdits, setRowEdits] = useState<Record<string, { checkIn: string; checkOut: string; status: StaffStatus }>>({});
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
   const { triggerModuleRefresh } = useAutoRefresh();
 
@@ -182,7 +185,7 @@ function OfficeStaffAttendancePage() {
         id: sId,
         name: s.name,
         employeeId: sId,
-        department: DEPARTMENTS[(s as any).role || "Teacher"] ?? "Academics",
+        department: (s as any).department || "Not Assigned",
         designation: (s as any).role || "Teacher",
         checkIn: state.checkIn,
         checkOut: state.checkOut,
@@ -288,16 +291,21 @@ function OfficeStaffAttendancePage() {
           {filtered.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-8 w-8">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStaffId(r.id)}
+                  className="flex items-center gap-2 text-left hover:text-primary transition-colors group focus:outline-none"
+                  title="View Authoritative Staff Profile"
+                >
+                  <Avatar className="h-8 w-8 shrink-0">
                     <AvatarImage src={r.avatar} />
                     <AvatarFallback>{r.name[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-semibold text-slate-900">{r.name}</div>
+                    <div className="font-semibold text-slate-900 group-hover:text-primary">{r.name}</div>
                     <div className="text-[11px] text-muted-foreground">{r.designation}</div>
                   </div>
-                </div>
+                </button>
               </TableCell>
               <TableCell className="font-mono text-xs">{r.employeeId}</TableCell>
               <TableCell>{r.department}</TableCell>
@@ -350,6 +358,13 @@ function OfficeStaffAttendancePage() {
           ))}
         </DataTable>
       </div>
+
+      <StaffProfileModal
+        open={Boolean(selectedStaffId)}
+        onClose={() => setSelectedStaffId(null)}
+        staffId={selectedStaffId || undefined}
+        readOnly={true}
+      />
     </div>
   );
 }

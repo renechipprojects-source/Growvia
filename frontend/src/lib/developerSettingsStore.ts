@@ -527,21 +527,25 @@ export async function uploadSystemAsset(file: File): Promise<string> {
   } catch {}
 
   // 3. Fallback to direct client Supabase Storage upload
-  const { error: uploadError } = await supabase.storage
-    .from("system-assets")
-    .upload(filePath, file, { upsert: true, cacheControl: "3600" });
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from("system-assets")
+      .upload(filePath, file, { upsert: true, cacheControl: "3600" });
 
-  if (uploadError) {
-    throw new Error(`Logo upload failed: ${uploadError.message}`);
+    if (!uploadError) {
+      const { data } = supabase.storage.from("system-assets").getPublicUrl(filePath);
+      if (data?.publicUrl) {
+        return `${data.publicUrl}?v=${Date.now()}`;
+      }
+    } else {
+      console.warn("Direct Supabase Storage upload notice:", uploadError.message);
+    }
+  } catch (err) {
+    console.warn("Supabase storage upload exception:", err);
   }
 
-  const { data } = supabase.storage.from("system-assets").getPublicUrl(filePath);
-
-  if (!data?.publicUrl) {
-    throw new Error("Failed to retrieve public URL for uploaded logo.");
-  }
-
-  return `${data.publicUrl}?v=${Date.now()}`;
+  // If storage upload is restricted by RLS or network, return base64 preview for immediate UI rendering & saving
+  return fileBase64;
 }
 
 export function useDeveloperSettings() {

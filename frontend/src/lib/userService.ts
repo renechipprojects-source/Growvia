@@ -93,7 +93,7 @@ export async function fetchStudentsFromUsers(classNameFilter?: string, sectionFi
     let query = supabase
       .from("gv_users")
       .select("*")
-      .or("role.ilike.%student%,role.eq.student,role.eq.Student");
+      .or("role.eq.student,role.eq.Student,role.ilike.*student*");
 
     const session = getSession();
     if (session && session.role === "teacher") {

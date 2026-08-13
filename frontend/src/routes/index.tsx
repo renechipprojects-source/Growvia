@@ -198,7 +198,7 @@ function Login() {
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
-              <Label htmlFor="loginId" className="text-xs font-semibold text-slate-700">Login ID</Label>
+              <Label htmlFor="loginId" className="text-xs font-semibold text-slate-700">Email Address / Login ID</Label>
               <div className="relative mt-1.5">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -208,7 +208,7 @@ function Login() {
                   autoFocus
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="e.g. ADMIN001 / OFFICE001"
+                  placeholder="e.g. staff@sunshine.edu or ADMIN001"
                   className="pl-9 bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:ring-amber-500/20 text-sm rounded-xl"
                   aria-invalid={!!errors.loginId}
                 />

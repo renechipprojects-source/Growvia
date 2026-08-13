@@ -72,10 +72,10 @@ import { getDeveloperSettings } from "./developerSettingsStore";
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   try {
     const [studentsRes, teachersRes, enquiriesRes, feesRes, circularsRes] = await Promise.all([
-      supabase.from("gv_users").select("id, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
-      supabase.from("gv_users").select("id, role").or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher"),
+      supabase.from("gv_users").select("id, role").or("role.eq.student,role.eq.Student,role.ilike.*student*"),
+      supabase.from("gv_users").select("id, role").or("role.eq.teacher,role.eq.Teacher,role.ilike.*teacher*"),
       supabase.from("gv_requests").select("id").eq("request_type", "enquiry"),
-      supabase.from("gv_fees_payments").select("amount_paid"),
+      supabase.from("gv_fees_payments").select("amount_paid").eq("record_type", "payment_receipt"),
       supabase.from("gv_communications").select("id, title, published_at, created_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
     ]);
 
@@ -133,8 +133,8 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardStats> {
   try {
     const [studentsRes, teachersRes, circularsRes, attendanceRes] = await Promise.all([
-      supabase.from("gv_users").select("id, class_name, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
-      supabase.from("gv_users").select("id, role").or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher"),
+      supabase.from("gv_users").select("id, class_name, role").or("role.eq.student,role.eq.Student,role.ilike.*student*"),
+      supabase.from("gv_users").select("id, role").or("role.eq.teacher,role.eq.Teacher,role.ilike.*teacher*"),
       supabase.from("gv_communications").select("id, title, priority, published_at").eq("message_type", "circular").order("created_at", { ascending: false }).limit(5),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
@@ -210,8 +210,8 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   try {
     const [enquiriesRes, studentsRes, feesRes] = await Promise.all([
       supabase.from("gv_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }),
-      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role").or("role.ilike.%student%,role.eq.student,role.eq.Student").order("created_at", { ascending: false }),
-      supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, created_at").order("created_at", { ascending: false }),
+      supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role").or("role.eq.student,role.eq.Student,role.ilike.*student*").order("created_at", { ascending: false }),
+      supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, record_type, created_at").order("created_at", { ascending: false }),
     ]);
 
     const enquiries = enquiriesRes.data || [];
@@ -225,13 +225,11 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
     const totalEnquiries = enquiries.length;
     const totalStudents = students.length;
 
-    let totalFeeCollected = 0;
-    let pendingFeeBalance = 0;
+    const receiptRows = fees.filter((f: any) => f.record_type === "payment_receipt");
+    const scheduleRows = fees.filter((f: any) => f.record_type === "fee_schedule");
 
-    fees.forEach((f: any) => {
-      totalFeeCollected += Number(f.amount_paid || 0);
-      pendingFeeBalance += Number(f.balance || 0);
-    });
+    const totalFeeCollected = receiptRows.reduce((sum: number, f: any) => sum + Number(f.amount_paid || 0), 0);
+    const pendingFeeBalance = scheduleRows.reduce((sum: number, f: any) => sum + Number(f.balance || 0), 0);
 
     return {
       totalEnquiries,
@@ -244,7 +242,7 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
         className: s.class_name || "Nursery",
         date: s.created_at ? new Date(s.created_at).toLocaleDateString() : "Today",
       })),
-      recentFeeCollections: fees.filter((f: any) => (f.amount_paid || 0) > 0).slice(0, 5).map((f: any) => ({
+      recentFeeCollections: receiptRows.filter((f: any) => (f.amount_paid || 0) > 0).slice(0, 5).map((f: any) => ({
         id: f.id,
         studentName: f.student_name || "Student",
         amount: Number(f.amount_paid || 0),
@@ -270,7 +268,7 @@ export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
 export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats> {
   try {
     const [studentsRes, leaveRes, attendanceRes] = await Promise.all([
-      supabase.from("gv_users").select("id, role").or("role.ilike.%student%,role.eq.student,role.eq.Student"),
+      supabase.from("gv_users").select("id, role").or("role.eq.student,role.eq.Student,role.ilike.*student*"),
       supabase.from("gv_requests").select("id").eq("request_type", "leave").eq("status", "Pending"),
       supabase.from("gv_requests").select("status").eq("request_type", "attendance"),
     ]);
@@ -312,9 +310,9 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
 export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
   try {
     const [studentsRes, messagesRes, feesRes] = await Promise.all([
-      supabase.from("gv_users").select("id, full_name, class_name, role").or("role.ilike.%student%,role.eq.student,role.eq.Student").limit(1).maybeSingle(),
+      supabase.from("gv_users").select("id, full_name, class_name, role").or("role.eq.student,role.eq.Student,role.ilike.*student*").limit(1).maybeSingle(),
       supabase.from("gv_communications").select("id, sender_name, body, created_at").eq("message_type", "message").order("created_at", { ascending: false }).limit(3),
-      supabase.from("gv_fees_payments").select("amount_paid, amount_due, balance").limit(1).maybeSingle(),
+      supabase.from("gv_fees_payments").select("amount_paid, amount_due, balance").eq("record_type", "fee_schedule").limit(1).maybeSingle(),
     ]);
 
     const child = studentsRes.data;
@@ -350,7 +348,7 @@ export async function getParentDashboardStats(): Promise<ParentDashboardStats> {
 export async function getAnnualPromotionAndLifecycleStats(targetYear?: string): Promise<AnnualPromotionLifecycleStats> {
   const year = targetYear || getDeveloperSettings().school?.academicYear || "2026-2027";
   try {
-    let { data: students } = await supabase.from("gv_users").select("id, status, role").or("role.ilike.%student%,role.eq.student,role.eq.Student");
+    let { data: students } = await supabase.from("gv_users").select("id, status, role").or("role.eq.student,role.eq.Student,role.ilike.*student*");
     if (!students || students.length === 0) {
       const { data: allUsers } = await supabase.from("gv_users").select("id, status, role");
       if (allUsers) students = allUsers.filter((u: any) => u.role?.toString().toLowerCase().includes("student"));

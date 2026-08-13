@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-blocks";
 import { useParent } from "@/lib/parentContext";
-import { useMessages, type Message } from "@/lib/messagesStore";
+import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ function ParentMessages() {
         ) : (
           <ul className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
             {inbox.map((m) => (
-              <li key={m.id} className="rounded-2xl bg-white/70 p-4 border border-white/60 shadow-sm">
+              <li key={m.id} onClick={() => markMessageRead(m.id)} className="rounded-2xl bg-white/70 p-4 border border-white/60 shadow-sm cursor-pointer hover:bg-white transition">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-medium text-sm text-slate-900 truncate">{m.fromName}</div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -97,6 +97,9 @@ function ParentMessages() {
                 </div>
                 <div className="text-sm font-semibold mt-1 text-slate-800">{m.subject}</div>
                 <div className="text-sm mt-1 text-slate-700 leading-relaxed">{m.body}</div>
+                {m.read && (
+                  <div className="text-[10px] text-emerald-600 font-semibold mt-2">✓ Read</div>
+                )}
               </li>
             ))}
           </ul>

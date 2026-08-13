@@ -105,19 +105,17 @@ function TeacherMessages() {
               {filtered.map((m: any) => {
                 const student = null;
                 return (
-                  <li key={m.id} className="py-3 flex items-start gap-3">
-                    <span className={`mt-1 h-2 w-2 rounded-full ${!m.read ? "bg-sky-500" : "bg-slate-300"}`} />
+                  <li key={m.id} onClick={() => markMessageRead(m.id)} className="py-3 flex items-start gap-3 cursor-pointer hover:bg-slate-50/70 p-2 rounded-xl transition">
+                    <span className={`mt-1 h-2 w-2 rounded-full ${!m.read ? "bg-sky-500 font-bold" : "bg-slate-300"}`} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <div className="font-medium truncate">{m.fromName}</div>
+                        <div className="font-medium truncate text-slate-900">{m.fromName}</div>
                         <div className="ml-auto text-xs text-muted-foreground">{m.time}</div>
                       </div>
-                      <div className="text-sm font-medium truncate">{m.subject}</div>
-                      <div className="text-xs text-muted-foreground truncate">{m.body}</div>
-                      {student && (
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          Re: {(student as any).name} · {(student as any).className}-{(student as any).section} · {m.priority === "High" && <Badge className="bg-rose-100 text-rose-700 ml-1">High</Badge>}
-                        </div>
+                      <div className="text-sm font-medium truncate text-slate-800">{m.subject}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">{m.body}</div>
+                      {m.read && (
+                        <div className="text-[10px] text-emerald-600 font-semibold mt-1">✓ Read</div>
                       )}
                     </div>
                   </li>

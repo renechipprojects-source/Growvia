@@ -14,6 +14,8 @@ import { getUnreadCountForRole } from "@/lib/circularReadStore";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 import { getSession } from "@/lib/auth";
 
+import { StaffProfileModal } from "@/components/staff/StaffProfileModal";
+
 export function RoleShell({ role }: { role: Role }) {
   return (
     <SearchProvider>
@@ -28,6 +30,7 @@ function RoleShellInner({ role }: { role: Role }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const { query, setQuery } = useSearch();
 
   // Hide the search bar on each role's dashboard/home page. Module-level
@@ -271,22 +274,33 @@ function RoleShellInner({ role }: { role: Role }) {
               )}
               {role !== "teacher" && <SupabaseStatus />}
               <NotificationPanel role={role} />
-              <Badge className={cn("hidden sm:inline-flex", theme.chip)}>
-                <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
-              </Badge>
-              {(() => {
-                const session = getSession();
-                const sessAny = session as any;
-                const avatarSrc = sessAny?.photoUrl || sessAny?.avatarUrl || sessAny?.avatar || (sessAny?.name ? `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(sessAny.name)}` : `https://api.dicebear.com/9.x/notionists/svg?seed=${role}`);
-                const fallbackText = sessAny?.name ? sessAny.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : theme.name.slice(0, 2);
+              <StaffProfileModal
+                open={profileModalOpen}
+                onClose={() => setProfileModalOpen(false)}
+              />
+              <button
+                type="button"
+                onClick={() => setProfileModalOpen(true)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+                title="View & Complete Staff Profile"
+              >
+                <Badge className={cn("hidden sm:inline-flex cursor-pointer", theme.chip)}>
+                  <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
+                </Badge>
+                {(() => {
+                  const session = getSession();
+                  const sessAny = session as any;
+                  const avatarSrc = sessAny?.photoUrl || sessAny?.avatarUrl || sessAny?.avatar || (sessAny?.name ? `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(sessAny.name)}` : `https://api.dicebear.com/9.x/notionists/svg?seed=${role}`);
+                  const fallbackText = sessAny?.name ? sessAny.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : theme.name.slice(0, 2);
 
-                return (
-                  <Avatar className="h-9 w-9 ring-2 ring-white shadow shrink-0">
-                    <AvatarImage src={avatarSrc} alt={session?.name || theme.name} />
-                    <AvatarFallback>{fallbackText}</AvatarFallback>
-                  </Avatar>
-                );
-              })()}
+                  return (
+                    <Avatar className="h-9 w-9 ring-2 ring-white shadow shrink-0 cursor-pointer">
+                      <AvatarImage src={avatarSrc} alt={session?.name || theme.name} />
+                      <AvatarFallback>{fallbackText}</AvatarFallback>
+                    </Avatar>
+                  );
+                })()}
+              </button>
             </div>
           </header>
 

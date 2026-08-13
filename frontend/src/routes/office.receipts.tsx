@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Printer, Search, FileText, CheckCircle2, Building2, User, Calendar, CreditCard, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { fetchReceipts } from "@/lib/supabaseService";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -40,31 +40,23 @@ function ReceiptsPage() {
 
   const loadReceipts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("gv_fees_payments")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error || !data) return;
-
-      const mapped: ReceiptRecord[] = data
-        .filter((d: any) => d.receipt_number || d.amount_paid > 0 || d.record_type === "payment_receipt")
-        .map((d: any) => ({
-          id: d.id,
-          receiptNo: d.receipt_number || `REC-${d.id.slice(-6).toUpperCase()}`,
-          studentId: d.student_id || "STU1001",
-          studentName: d.student_name || "Student",
-          className: d.class_name || "Nursery A",
-          feeType: d.fee_type || "Term Fee",
-          amountPaid: Number(d.amount_paid || d.amount_due || 0),
-          amountDue: Number(d.amount_due || d.amount_paid || 0),
-          balance: Number(d.balance || 0),
-          date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-          mode: d.payment_method || "Cash",
-          transactionRef: d.transaction_ref || d.receipt_number || d.id,
-          collectedBy: d.recorded_by || "Office Staff",
-          status: d.status || "Paid",
-        }));
+      const { data } = await fetchReceipts();
+      const mapped: ReceiptRecord[] = (data || []).map((d: any) => ({
+        id: d.id,
+        receiptNo: d.receiptNo || d.receipt_number || `REC-${String(d.id).slice(-6).toUpperCase()}`,
+        studentId: d.studentId || d.student_id || "STU1001",
+        studentName: d.studentName || d.student_name || "Student",
+        className: d.className || d.class_name || "Nursery A",
+        feeType: d.feeType || d.fee_type || "Term Fee",
+        amountPaid: Number(d.amountPaid || d.amount_paid || d.amount || 0),
+        amountDue: Number(d.amountDue || d.amount_due || 0),
+        balance: Number(d.balance || 0),
+        date: d.date || d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        mode: d.method || d.payment_method || "Cash",
+        transactionRef: d.reference || d.transaction_ref || d.receiptNo || d.id,
+        collectedBy: d.collectedBy || d.recorded_by || "Office Staff",
+        status: d.status || "Paid",
+      }));
 
       setList(mapped);
     } catch (err) {

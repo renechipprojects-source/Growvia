@@ -20,6 +20,7 @@ export interface StudentAttendanceEntry {
 }
 
 import { getUserScopedStorageKey } from "./auth";
+import { notifyAutoRefresh } from "./autoRefreshContext";
 
 const EVENT_NAME = "sunshine-attendance-update";
 const BASE_STORAGE_KEY = "sunshine.attendance.cache.v1";
@@ -179,6 +180,7 @@ export async function saveAttendance(
 
   try {
     await supabase.from("gv_requests").upsert(supabasePayloads);
+    notifyAutoRefresh("attendance");
   } catch {}
 }
 
@@ -273,17 +275,38 @@ export function useLiveAttendance(studentId?: string, date?: string) {
     // Initial fetch
     refreshData();
 
-    // 1. Daily midnight & periodic rollover check (every 30 seconds)
+    // 1. Midnight boundary timer calculation & scheduling
+    let midnightTimerId: ReturnType<typeof setTimeout> | null = null;
+    const scheduleMidnightRollover = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msUntilMidnight = Math.max(1000, tomorrow.getTime() - now.getTime());
+
+      midnightTimerId = setTimeout(() => {
+        if (isMounted) {
+          if (!date) {
+            const freshToday = new Date().toISOString().slice(0, 10);
+            setActiveDate(freshToday);
+          }
+          refreshData();
+          scheduleMidnightRollover();
+        }
+      }, msUntilMidnight);
+    };
+    scheduleMidnightRollover();
+
+    // 2. Periodic check (every 30 seconds) for date transition
     const rolloverTimer = setInterval(() => {
       if (isMounted) {
         const currentToday = new Date().toISOString().slice(0, 10);
         if (!date && currentToday !== activeDate) {
+          setActiveDate(currentToday);
           refreshData();
         }
       }
     }, 30000);
 
-    // 2. Realtime subscription: reflects immediately across all associated pages
+    // 3. Realtime subscription: reflects immediately across all associated pages
     const unsubscribe = subscribeToRealtimeTable({
       table: "gv_requests",
       onPayload: () => {
@@ -291,7 +314,7 @@ export function useLiveAttendance(studentId?: string, date?: string) {
       },
     });
 
-    // 3. Local tab event sync
+    // 4. Local tab event sync
     const handler = () => {
       if (isMounted) setData(getStoredAttendance());
     };
@@ -299,6 +322,7 @@ export function useLiveAttendance(studentId?: string, date?: string) {
 
     return () => {
       isMounted = false;
+      if (midnightTimerId) clearTimeout(midnightTimerId);
       clearInterval(rolloverTimer);
       unsubscribe();
       window.removeEventListener(EVENT_NAME, handler);
@@ -373,5 +397,7 @@ export async function saveStaffAttendanceRecord(staffId: string, staffName: stri
   };
   try {
     await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    notifyAutoRefresh("attendance");
+    notifyAutoRefresh("staff");
   } catch {}
 }

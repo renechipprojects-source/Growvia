@@ -4,11 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, KeyRound, ShieldAlert, CheckCircle2, Lock } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldAlert, CheckCircle2, Send, Clock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requestSecurePasswordReset, completeSecurePasswordReset } from "@/lib/passwordResets";
-import { passwordStrengthIssues } from "@/lib/auth";
+import { requestSecurePasswordReset } from "@/lib/passwordResets";
 import type { Role } from "@/lib/roleConfig";
 
 export const Route = createFileRoute("/forgot-password")({
@@ -46,7 +45,7 @@ function ForgotPassword() {
             </div>
             <div>
               <div className="text-lg font-bold text-slate-900">Reset your password</div>
-              <div className="text-sm text-slate-600">Enter your registered account information to create a new password.</div>
+              <div className="text-sm text-slate-600">Submit a password reset request to school administration.</div>
             </div>
           </div>
 
@@ -63,9 +62,9 @@ function ForgotPassword() {
               <IdentifierForm
                 role="teacher"
                 title="Teacher Password Reset"
-                subtitle="Enter your registered email address, mobile number, or Login ID."
-                label="Registered Identifier"
-                placeholder="e.g. teacher@sunshineschool.edu or 9876543210"
+                subtitle="Enter your registered Login ID, email address, or employee ID."
+                label="Teacher Identifier"
+                placeholder="e.g. TCH101 or teacher@sunshineschool.edu"
               />
             </TabsContent>
 
@@ -73,9 +72,9 @@ function ForgotPassword() {
               <IdentifierForm
                 role="parent"
                 title="Parent Password Reset"
-                subtitle="Enter your registered mobile number, email, or Admission Number."
-                label="Registered Identifier"
-                placeholder="e.g. STU-1001 or 9876543210"
+                subtitle="Enter your registered Login ID, mobile number, or Student Admission Number."
+                label="Parent Identifier"
+                placeholder="e.g. PRT1001, STU-1001 or 9876543210"
               />
             </TabsContent>
 
@@ -84,7 +83,7 @@ function ForgotPassword() {
                 role="office"
                 title="Office Staff Password Reset"
                 subtitle="Enter your registered Office Login ID or email address."
-                label="Registered Identifier"
+                label="Office Staff Identifier"
                 placeholder="e.g. OFFICE001 or office@sunshineschool.edu"
               />
             </TabsContent>
@@ -94,18 +93,20 @@ function ForgotPassword() {
                 role="principal"
                 title="Principal Password Reset"
                 subtitle="Enter your registered Principal Login ID or email address."
-                label="Registered Identifier"
+                label="Principal Identifier"
                 placeholder="e.g. PRINCIPAL001 or principal@sunshineschool.edu"
               />
             </TabsContent>
 
             <TabsContent value="admin" className="mt-6">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <div className="flex items-start gap-2">
-                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 text-amber-600 shrink-0" />
                   <div>
-                    <div className="font-semibold">Admin self-reset restricted.</div>
-                    <div className="mt-1">Please contact the ERP System Administrator to reset System Admin credentials.</div>
+                    <div className="font-bold text-amber-950 text-base">Admin Self-Reset Restricted</div>
+                    <div className="mt-1 text-xs text-amber-800 leading-relaxed">
+                      For school data security, System Administrator credentials cannot be reset through public self-service. Please contact the School ERP System Owner directly.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -137,112 +138,64 @@ function IdentifierForm({
 }) {
   const navigate = useNavigate();
   const [value, setValue] = useState("");
-  const [issuedRequestId, setIssuedRequestId] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // New Password state
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [submittingReset, setSubmittingReset] = useState(false);
-
-  function submitRequest(e: React.FormEvent) {
+  async function submitRequest(e: React.FormEvent) {
     e.preventDefault();
     if (!value.trim()) {
       toast.error("Please enter your registered account information.");
       return;
     }
 
-    const res = requestSecurePasswordReset(role, value);
+    setSubmitting(true);
+    const res = await requestSecurePasswordReset(role, value);
+    setSubmitting(false);
+
     if (!res.ok) {
       toast.error(res.error || "Unable to process password reset request.");
       return;
     }
 
     setResetMessage(res.message);
-    if (res.requestId) {
-      setIssuedRequestId(res.requestId);
-    }
-    toast.success("Password reset request generated.");
+    toast.success("Password reset request submitted.");
   }
 
-  function handleSetNewPassword(e: React.FormEvent) {
-    e.preventDefault();
-    const issues = passwordStrengthIssues(newPassword || "");
-    if (issues.length) {
-      toast.error("Password requirements: " + issues.join(", ") + ".");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("New password and confirm password do not match.");
-      return;
-    }
-    if (!issuedRequestId) {
-      toast.error("Invalid or missing reset request.");
-      return;
-    }
-
-    setSubmittingReset(true);
-    const complete = completeSecurePasswordReset(issuedRequestId, newPassword);
-    setSubmittingReset(false);
-
-    if (!complete.ok) {
-      toast.error(complete.error || "Failed to update password.");
-      return;
-    }
-
-    toast.success("Password reset successfully! You can now log in with your new password.");
-    setTimeout(() => {
-      navigate({ to: "/" });
-    }, 500);
-  }
-
-  if (resetMessage && issuedRequestId) {
+  if (resetMessage) {
     return (
-      <form onSubmit={handleSetNewPassword} className="space-y-4">
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-indigo-950 space-y-2 shadow-xs">
-          <div className="flex items-center gap-2 font-bold text-indigo-900">
-            <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0" /> Account Verified
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-sm text-emerald-950 space-y-3 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-emerald-900 text-base">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> Request Submitted Successfully
           </div>
-          <p className="text-xs text-indigo-800 leading-relaxed">{resetMessage}</p>
-        </div>
-
-        <div className="space-y-3 pt-2">
-          <div className="text-sm font-semibold text-slate-900">Create New Password</div>
-
-          <div>
-            <Label htmlFor="newPassword" className="text-xs font-semibold text-slate-700">New Password</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 6 chars)"
-              className="mt-1 bg-white border-slate-200 text-sm rounded-xl"
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="confirmPassword" className="text-xs font-semibold text-slate-700">Confirm New Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter new password"
-              className="mt-1 bg-white border-slate-200 text-sm rounded-xl"
-            />
+          <p className="text-xs text-emerald-800 leading-relaxed">{resetMessage}</p>
+          <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-medium pt-1">
+            <Clock className="w-3.5 h-3.5 text-emerald-600" />
+            <span>An administrator will review and issue a temporary login credential.</span>
           </div>
         </div>
 
-        <Button
-          type="submit"
-          disabled={submittingReset}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md py-2.5"
-        >
-          <Lock className="w-4 h-4 mr-2" /> Save New Password & Sign In
-        </Button>
-      </form>
+        <div className="flex gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setResetMessage(null);
+              setValue("");
+            }}
+            className="flex-1 rounded-xl text-xs"
+          >
+            Submit Another Request
+          </Button>
+          <Button
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs shadow-md"
+          >
+            Return to Sign In
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -265,8 +218,13 @@ function IdentifierForm({
         />
       </div>
 
-      <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md py-2.5">
-        Request Password Reset
+      <Button
+        type="submit"
+        disabled={submitting}
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md py-2.5"
+      >
+        <Send className="w-4 h-4 mr-2" />
+        {submitting ? "Submitting..." : "Submit Reset Request"}
       </Button>
     </form>
   );

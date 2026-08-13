@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 import { getSession } from "@/lib/auth";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { useHomework } from "@/lib/homeworkStore";
+import { useActivities } from "@/lib/activitiesStore";
+import { useLiveAttendance } from "@/lib/attendanceStore";
 
 export const Route = createFileRoute("/teacher/my-class")({ component: MyClass });
 
@@ -29,6 +32,9 @@ function MyClass() {
   const headerQuery = useSearchQuery();
   const [localSearch, setLocalSearch] = useState("");
   const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const { homework: allHomework } = useHomework();
+  const { activities: allActivities } = useActivities();
+  const { attendance: liveAttendance } = useLiveAttendance(undefined, new Date().toISOString().slice(0, 10));
 
   const loadData = useCallback(() => {
     return fetchStudents().then(({ data }) => setAllStudents(data || []));
@@ -36,6 +42,8 @@ function MyClass() {
 
   useAutoRefresh("students", loadData);
   useAutoRefresh("attendance", loadData);
+  useAutoRefresh("homework", loadData);
+  useAutoRefresh("activities", loadData);
 
   const q = headerQuery || localSearch;
 
@@ -45,11 +53,16 @@ function MyClass() {
   const list = useMemo(() => {
     if (!active) return [];
     const source = allStudents;
-    return source.filter((s) => s.className === cls && (!sec || s.section === sec));
+    return source.filter((s) => s.className.toLowerCase() === cls.toLowerCase() && (!sec || s.section.toUpperCase() === sec.toUpperCase()));
   }, [active, allStudents, cls, sec]);
 
-  const recs: any[] = [];
-  const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
+  const recMap = useMemo(() => {
+    const map = new Map<string, string>();
+    liveAttendance.forEach((r) => {
+      map.set(r.studentId, r.status === "P" ? "Present" : r.status === "A" ? "Absent" : r.status === "L" ? "Late" : "Leave");
+    });
+    return map;
+  }, [liveAttendance]);
 
   const boys = list.filter((s) => s.gender === "Boy" || (s as any).gender === "Male").length;
   const girls = list.filter((s) => s.gender === "Girl" || (s as any).gender === "Female").length;
@@ -57,8 +70,13 @@ function MyClass() {
   const absent = list.filter((s) => recMap.get(s.id) === "Absent").length;
   const attnPct = list.length ? Math.round((present / list.length) * 100) : 0;
 
-  const classHW: any[] = [];
-  const classActs: any[] = [];
+  const classHW = useMemo(() => {
+    return allHomework.filter((h) => h.className.toLowerCase() === cls.toLowerCase());
+  }, [allHomework, cls]);
+
+  const classActs = useMemo(() => {
+    return allActivities.filter((a) => a.className.toLowerCase() === cls.toLowerCase());
+  }, [allActivities, cls]);
   const classRemarks: any[] = [];
   const upcomingBirthdays = list
     .filter((s) => {

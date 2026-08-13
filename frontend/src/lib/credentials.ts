@@ -5,6 +5,7 @@
 import type { Student, Teacher } from "@/lib/mockData";
 import type { Role } from "@/lib/roleConfig";
 import { supabase } from "@/lib/supabase";
+import { notifyAutoRefresh } from "./autoRefreshContext";
 
 
 
@@ -263,6 +264,8 @@ export function setParentStatus(studentId: string, status: CredentialStatus) {
   store.parents[studentId] = updated;
   write(store);
   saveCredToSupabase(updated);
+  notifyAutoRefresh("parents");
+  notifyAutoRefresh("students");
   Promise.resolve(supabase.from("users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
   Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
@@ -309,6 +312,21 @@ export async function createTeacherAuthAccount(params: {
   } catch (e) {
     console.warn("Supabase Auth teacher signUp notice:", e);
   }
+
+  // Always invoke server-side provisioning to ensure auth.users record is created & active
+  try {
+    const { triggerServerUserProvisioning } = await import("./supabaseAuth");
+    const serverRes = await triggerServerUserProvisioning({
+      login_id: loginId,
+      email: teacherEmail,
+      password: password,
+      role: "teacher",
+      name: name,
+    });
+    if (serverRes?.data?.authUserId) {
+      authUserId = serverRes.data.authUserId;
+    }
+  } catch {}
 
   const profilePayload: any = {
     login_id: loginId,
@@ -460,6 +478,7 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   store.teachers[teacherId] = updated;
   write(store);
   saveCredToSupabase(updated);
+  notifyAutoRefresh("staff");
   Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
 }
 
