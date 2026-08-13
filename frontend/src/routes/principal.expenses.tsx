@@ -175,6 +175,27 @@ function PrincipalExpensesOverview() {
                 </div>
               </div>
 
+              {selectedExpense.category.toLowerCase().includes("salary") && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs space-y-1.5">
+                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <Badge className="bg-indigo-600 text-white hover:bg-indigo-600 text-[10px] px-2">Salary</Badge>
+                    <span>Salary Disbursement Details</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Recipient / Staff:</span>
+                    <span className="font-semibold">{selectedExpense.paidTo || "Staff Member"}</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Disbursed Amount:</span>
+                    <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Payment Mode:</span>
+                    <span className="font-semibold">{selectedExpense.paymentMethod || "Bank Transfer"}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-slate-400 font-medium block">Purpose / Description</span>
@@ -182,7 +203,7 @@ function PrincipalExpensesOverview() {
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block">Recipient (Paid To)</span>
-                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.paidTo}</span>
+                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.paidTo || "Vendor / Staff"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block">Transaction Date</span>
@@ -195,14 +216,6 @@ function PrincipalExpensesOverview() {
                   </span>
                 </div>
               </div>
-
-              {selectedExpense.category === "Salary" && (
-                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-xs space-y-1">
-                  <div className="font-bold text-indigo-900">Salary Disbursement Details</div>
-                  <div className="text-indigo-700">Salary Recipient: <span className="font-semibold">{selectedExpense.paidTo}</span></div>
-                  <div className="text-indigo-700">Disbursed Amount: <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span></div>
-                </div>
-              )}
 
               {selectedExpense.notes && (
                 <div className="text-xs">

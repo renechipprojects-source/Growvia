@@ -38,6 +38,7 @@ export function getStoredAssignments(): ClassAssignment[] {
 }
 
 export function saveStoredAssignments(list: ClassAssignment[]) {
+  memoryAssignmentsCache = list;
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(ASSIGNMENTS_STORAGE_KEY, JSON.stringify(list));
@@ -48,7 +49,10 @@ let memoryAssignmentsCache: ClassAssignment[] = getStoredAssignments();
 
 export function readAssignments(): ClassAssignment[] {
   const stored = getStoredAssignments();
-  if (stored.length > 0) return stored;
+  if (stored.length > 0) {
+    memoryAssignmentsCache = stored;
+    return stored;
+  }
   return memoryAssignmentsCache;
 }
 
@@ -111,6 +115,8 @@ interface State {
 
 const Ctx = createContext<State | null>(null);
 
+import { subscribeToRealtimeTable } from "./realtimeService";
+
 export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
   const [assignments, setAssignments] = useState<ClassAssignment[]>(() => {
     const local = getStoredAssignments();
@@ -118,16 +124,59 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    fetchAssignmentsFromSupabase().then((res) => {
-      if (res && res.length > 0) {
-        setAssignments(res);
+    let isMounted = true;
+    const refresh = () => {
+      fetchAssignmentsFromSupabase().then((res) => {
+        if (isMounted && res && res.length > 0) {
+          setAssignments(res);
+        }
+      });
+    };
+
+    refresh();
+
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setAssignments(customEvent.detail);
+      } else {
+        const latest = readAssignments();
+        if (latest && latest.length > 0) setAssignments(latest);
       }
+    };
+
+    const handleModuleRefresh = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.module || detail.module === "assignments" || detail.module === "staff") {
+        refresh();
+      }
+    };
+
+    window.addEventListener("sunshine-class-assignment-update", handleUpdate);
+    window.addEventListener("sunshine-module-refresh", handleModuleRefresh);
+
+    const unsubscribe = subscribeToRealtimeTable({
+      table: "gv_requests",
+      onPayload: () => {
+        if (isMounted) refresh();
+      },
     });
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("sunshine-class-assignment-update", handleUpdate);
+      window.removeEventListener("sunshine-module-refresh", handleModuleRefresh);
+      unsubscribe();
+    };
   }, []);
 
   const saveToSupabase = (newItems: ClassAssignment[]) => {
     memoryAssignmentsCache = newItems;
     saveStoredAssignments(newItems);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sunshine-class-assignment-update", { detail: newItems }));
+    }
+
     const payloads = newItems.map((a) => ({
       id: a.id,
       request_type: "class_assignment",
@@ -139,7 +188,6 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
 
     Promise.resolve(supabase.from("gv_requests").upsert(payloads)).catch(() => {});
 
-    // Also synchronize active Class Teacher allocations with gv_users teacher records
     newItems.forEach((a) => {
       if (a.role === "class" && a.status === "active") {
         const clsString = `${a.className} ${a.section}`.trim();
@@ -159,6 +207,7 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
         updated = updated.map((item) => {
           if (
             item.role === "class" &&
+            item.status === "active" &&
             ((item.className.toLowerCase() === a.className.toLowerCase() && item.section.toUpperCase() === a.section.toUpperCase()) ||
              item.teacherId === a.teacherId || item.teacherName.toLowerCase() === a.teacherName.toLowerCase())
           ) {
@@ -175,7 +224,22 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
 
   const update: State["update"] = useCallback((id, patch) => {
     setAssignments((prev) => {
-      const next = prev.map((a) => (a.id === id ? { ...a, ...patch } : a));
+      let next = prev.map((a) => (a.id === id ? { ...a, ...patch } : a));
+      const target = next.find((a) => a.id === id);
+      if (target && target.role === "class" && target.status === "active") {
+        next = next.map((item) => {
+          if (
+            item.id !== id &&
+            item.role === "class" &&
+            item.status === "active" &&
+            ((item.className.toLowerCase() === target.className.toLowerCase() && item.section.toUpperCase() === target.section.toUpperCase()) ||
+             item.teacherId === target.teacherId || item.teacherName.toLowerCase() === target.teacherName.toLowerCase())
+          ) {
+            return { ...item, status: "inactive" as AssignmentStatus };
+          }
+          return item;
+        });
+      }
       saveToSupabase(next);
       return next;
     });

@@ -19,8 +19,10 @@ export interface StudentAttendanceEntry {
   updatedAt: string;
 }
 
+import { getUserScopedStorageKey } from "./auth";
+
 const EVENT_NAME = "sunshine-attendance-update";
-const STORAGE_KEY = "sunshine.attendance.cache.v1";
+const BASE_STORAGE_KEY = "sunshine.attendance.cache.v1";
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 let memoryAttendanceCache: StudentAttendanceEntry[] = [];
@@ -29,7 +31,7 @@ function loadAttendanceFromStorage(): StudentAttendanceEntry[] {
   if (memoryAttendanceCache.length > 0) return memoryAttendanceCache;
   if (typeof window !== "undefined") {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(getUserScopedStorageKey(BASE_STORAGE_KEY));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -46,7 +48,7 @@ function saveAttendanceToStorage(list: StudentAttendanceEntry[]) {
   memoryAttendanceCache = list;
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      localStorage.setItem(getUserScopedStorageKey(BASE_STORAGE_KEY), JSON.stringify(list));
     } catch {}
   }
 }
@@ -90,8 +92,21 @@ export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEn
       };
     });
 
-    saveAttendanceToStorage(mapped);
-    return mapped;
+    const combinedMap = new Map<string, StudentAttendanceEntry>();
+    cached.forEach((item) => {
+      if (item.studentId && item.date) {
+        combinedMap.set(`${item.studentId}_${item.date}`, item);
+      }
+    });
+    mapped.forEach((item) => {
+      if (item.studentId && item.date) {
+        combinedMap.set(`${item.studentId}_${item.date}`, item);
+      }
+    });
+
+    const combinedList = Array.from(combinedMap.values());
+    saveAttendanceToStorage(combinedList);
+    return combinedList;
   } catch {
     return cached;
   }
@@ -105,7 +120,7 @@ export async function saveAttendance(
   studentList?: { id: string; name: string }[],
   markedBy: string = "Class Teacher"
 ) {
-  const current = memoryAttendanceCache;
+  const current = loadAttendanceFromStorage();
   const updatedMap = new Map(current.map((item) => [`${item.studentId}_${item.date}`, item]));
 
   const time = new Date().toISOString();
@@ -156,9 +171,10 @@ export async function saveAttendance(
     });
   });
 
-  memoryAttendanceCache = Array.from(updatedMap.values());
+  const newList = Array.from(updatedMap.values());
+  saveAttendanceToStorage(newList);
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: memoryAttendanceCache }));
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: newList }));
   }
 
   try {
@@ -290,11 +306,13 @@ export function useLiveAttendance(studentId?: string, date?: string) {
   }, [date]);
 
   let filtered = data;
+  const filterDate = date || activeDate;
   if (studentId) {
     filtered = filtered.filter((i) => i.studentId === studentId);
-  }
-  const filterDate = date || activeDate;
-  if (filterDate) {
+    if (date && date !== "all") {
+      filtered = filtered.filter((i) => i.date === date);
+    }
+  } else if (filterDate && filterDate !== "all") {
     filtered = filtered.filter((i) => i.date === filterDate);
   }
 

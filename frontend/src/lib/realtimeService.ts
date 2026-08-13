@@ -9,55 +9,76 @@ interface RealtimeSubscriptionOptions {
   filter?: string;
 }
 
-const activeChannels = new Map<string, any>();
+interface TableChannelManager {
+  channel: any;
+  callbacks: Set<RealtimeCallback>;
+  isSubscribed: boolean;
+}
+
+const tableChannelManagers = new Map<string, TableChannelManager>();
 
 /**
- * Subscribe to realtime changes on a specific Supabase table.
- * Automatically cleans up subscription when returned unsubscribe function is called.
+ * Subscribe to realtime changes on a specific Supabase table using singleton channel pooling.
+ * Automatically cleans up subscription when all subscribers for a table unmount.
  */
 export function subscribeToRealtimeTable({
   table,
   onPayload,
   filter,
 }: RealtimeSubscriptionOptions): () => void {
-  const channelKey = `rt_${table}_${filter || "all"}_${Math.random().toString(36).substring(7)}`;
-  let isUnsubscribed = false;
+  const managerKey = `${table}_${filter || "all"}`;
 
   try {
-    const channel = supabase
-      .channel(channelKey)
-      .on(
-        "postgres_changes" as any,
-        {
-          event: "*",
-          schema: "public",
-          table: table,
-          filter: filter,
-        },
-        (payload: any) => {
-          if (isUnsubscribed) return;
-          try {
-            onPayload({
+    if (!tableChannelManagers.has(managerKey)) {
+      const callbacks = new Set<RealtimeCallback>();
+
+      const channel = supabase
+        .channel(`rt_singleton_${managerKey}`)
+        .on(
+          "postgres_changes" as any,
+          {
+            event: "*",
+            schema: "public",
+            table: table,
+            filter: filter,
+          },
+          (payload: any) => {
+            // Ignore internal circular read/ack receipts to prevent realtime loops
+            if (payload?.new?.receiver_role === "read" || payload?.new?.receiver_role === "ack") return;
+            const mappedPayload = {
               eventType: payload.eventType,
               new: payload.new,
               old: payload.old,
               table: table,
+            };
+            callbacks.forEach((cb) => {
+              try {
+                cb(mappedPayload);
+              } catch {}
             });
-          } catch {}
-        }
-      )
-      .subscribe((status: string) => {
-        if (status === "SUBSCRIBED" && !isUnsubscribed) {
-          activeChannels.set(channelKey, channel);
-        }
-      });
+          }
+        )
+        .subscribe((status: string) => {
+          if (status === "SUBSCRIBED") {
+            const mgr = tableChannelManagers.get(managerKey);
+            if (mgr) mgr.isSubscribed = true;
+          }
+        });
+
+      tableChannelManagers.set(managerKey, { channel, callbacks, isSubscribed: false });
+    }
+
+    const manager = tableChannelManagers.get(managerKey)!;
+    manager.callbacks.add(onPayload);
 
     return () => {
-      isUnsubscribed = true;
-      try {
-        supabase.removeChannel(channel);
-      } catch {}
-      activeChannels.delete(channelKey);
+      manager.callbacks.delete(onPayload);
+      if (manager.callbacks.size === 0) {
+        try {
+          supabase.removeChannel(manager.channel);
+        } catch {}
+        tableChannelManagers.delete(managerKey);
+      }
     };
   } catch (err) {
     console.warn("Realtime subscription notice:", err);
@@ -70,13 +91,13 @@ export function subscribeToRealtimeTable({
  */
 export const TABLE_TO_MODULE_MAP: Record<string, ERPModule[]> = {
   gv_users: ["students", "staff", "attendance", "promotion", "assignments"],
-  gv_inventory_expenses: ["inventory", "reports"],
+  gv_inventory_expenses: ["inventory", "transport", "reports"],
   gv_fees_payments: ["fees", "reports"],
   gv_communications: ["circulars", "messages", "notifications"],
   gv_requests: ["leaveRequests", "admissions"],
   gv_system_settings: ["reports"],
   GV_users: ["students", "staff", "attendance", "promotion", "assignments"],
-  GV_inventory_expenses: ["inventory", "reports"],
+  GV_inventory_expenses: ["inventory", "transport", "reports"],
   GV_fees_payments: ["fees", "reports"],
   GV_communications: ["circulars", "messages", "notifications"],
   GV_requests: ["leaveRequests", "admissions"],
@@ -86,7 +107,7 @@ export const TABLE_TO_MODULE_MAP: Record<string, ERPModule[]> = {
   teachers: ["staff"],
   fees: ["fees"],
   fees_payments: ["fees"],
-  inventory_expenses: ["inventory"],
+  inventory_expenses: ["inventory", "transport"],
   communications: ["circulars", "messages", "notifications"],
   circulars: ["circulars"],
   messages: ["messages"],

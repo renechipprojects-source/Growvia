@@ -5,6 +5,11 @@ import type { Role } from "@/lib/roleConfig";
 
 const SESSION_KEY = "sunshine.auth";
 
+export function safeNormalizeId(rawId?: string | null): string {
+  if (!rawId) return "";
+  return rawId.trim().toUpperCase();
+}
+
 export type SystemRole = "super-admin" | "principal" | "office";
 
 export interface SystemUser {
@@ -108,10 +113,38 @@ import { redirect } from "@tanstack/react-router";
 
 import { supabase } from "@/lib/supabase";
 
+export function getUserScopedStorageKey(baseKey: string): string {
+  const session = getSession();
+  const userId = session?.loginId ? safeNormalizeId(session.loginId) : "anon";
+  return `${baseKey}.${userId}`;
+}
+
+export function clearAllClientCaches() {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("sunshine.") || k.startsWith("sunshine_"))) {
+        keysToRemove.push(k);
+      }
+    }
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && (k.startsWith("sunshine.") || k.startsWith("sunshine_"))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => {
+      try { localStorage.removeItem(k); } catch {}
+      try { sessionStorage.removeItem(k); } catch {}
+    });
+  } catch {}
+}
+
 export function signOut() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(SESSION_KEY);
-  window.sessionStorage.removeItem(SESSION_KEY);
+  clearAllClientCaches();
   try {
     supabase.auth.signOut().catch(() => {});
   } catch {}

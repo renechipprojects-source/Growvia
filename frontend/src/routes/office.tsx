@@ -5,7 +5,6 @@ import { OfficeTopNav } from "@/components/office/top-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { EnquiryProvider } from "@/lib/enquiryContext";
 import { AlertsProvider } from "@/lib/alertsContext";
-import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { StudentDocsProvider } from "@/lib/studentDocsContext";
 import { InventoryProvider } from "@/lib/inventoryContext";
 import { requireAuthGuard } from "@/lib/auth";
@@ -28,26 +27,24 @@ export const Route = createFileRoute("/office")({
 function OfficeLayout() {
   return (
     <AlertsProvider>
-      <ClassAssignmentProvider>
-        <StudentDocsProvider>
-          <EnquiryProvider>
-            <InventoryProvider>
-              <SidebarProvider>
-                <div className="flex h-screen w-full overflow-hidden bg-muted/30">
-                  <OfficeSidebar />
-                  <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
-                    <OfficeTopNav />
-                    <main className="flex-1 min-w-0 overflow-hidden p-0 w-full max-w-none flex flex-col">
-                      <Outlet />
-                    </main>
-                  </SidebarInset>
-                </div>
-                <Toaster />
-              </SidebarProvider>
-            </InventoryProvider>
-          </EnquiryProvider>
-        </StudentDocsProvider>
-      </ClassAssignmentProvider>
+      <StudentDocsProvider>
+        <EnquiryProvider>
+          <InventoryProvider>
+            <SidebarProvider>
+              <div className="flex h-screen w-full overflow-hidden bg-muted/30">
+                <OfficeSidebar />
+                <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+                  <OfficeTopNav />
+                  <main className="flex-1 min-w-0 overflow-hidden p-0 w-full max-w-none flex flex-col">
+                    <Outlet />
+                  </main>
+                </SidebarInset>
+              </div>
+              <Toaster />
+            </SidebarProvider>
+          </InventoryProvider>
+        </EnquiryProvider>
+      </StudentDocsProvider>
     </AlertsProvider>
   );
 }

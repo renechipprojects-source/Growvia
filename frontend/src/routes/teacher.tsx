@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RoleShell } from "@/components/RoleShell";
 import { AlertsProvider } from "@/lib/alertsContext";
-import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { LeaveProvider } from "@/lib/leaveContext";
 import { requireAuthGuard } from "@/lib/auth";
 
@@ -19,11 +18,9 @@ export const Route = createFileRoute("/teacher")({
   }),
   component: () => (
     <AlertsProvider>
-      <ClassAssignmentProvider>
-        <LeaveProvider>
-          <RoleShell role="teacher" />
-        </LeaveProvider>
-      </ClassAssignmentProvider>
+      <LeaveProvider>
+        <RoleShell role="teacher" />
+      </LeaveProvider>
     </AlertsProvider>
   ),
 });

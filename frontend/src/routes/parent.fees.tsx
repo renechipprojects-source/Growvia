@@ -21,13 +21,9 @@ function ParentFees() {
   const [liveReceipts, setLiveReceipts] = useState<any[]>([]);
 
   const loadData = () => {
-    fetchFees().then(({ data }) => {
-      const match = data.find(
-        (f) =>
-          f.studentId === activeChild.id ||
-          f.studentName === activeChild.name ||
-          (f.className && f.className.includes(activeChild.className))
-      );
+    if (!activeChild) return;
+    fetchFees(activeChild.id).then(({ data }) => {
+      const match = data.find((f) => f.studentId === activeChild.id);
       if (match) setFeeRecord(match);
       else setFeeRecord(null);
     });
@@ -36,10 +32,10 @@ function ParentFees() {
       supabase
         .from("gv_fees_payments")
         .select("*")
+        .eq("student_id", activeChild.id)
         .then(({ data }) => {
           if (data) {
             const matchRcpts = data
-              .filter((r: any) => r.student_name === activeChild.name || r.student_id === activeChild.id)
               .map((r: any) => ({
                 id: r.id,
                 receiptNo: r.receipt_number || `REC-${r.id}`,

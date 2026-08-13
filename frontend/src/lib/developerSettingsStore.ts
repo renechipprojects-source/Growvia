@@ -458,48 +458,37 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
   window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: syncedSettings }));
 }
 
+import { subscribeToRealtimeTable } from "./realtimeService";
+
 export function subscribeToDeveloperSettingsRealtime(onUpdate: (settings: DeveloperSettings) => void): () => void {
-  const channelKey = `sys_settings_rt_${Math.random().toString(36).substring(7)}`;
-  try {
-    const channel = supabase
-      .channel(channelKey)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "gv_system_settings" },
-        (payload: any) => {
-          let remoteSettings: DeveloperSettings | null = null;
-          if (payload?.new?.content) {
-            try {
-              remoteSettings = JSON.parse(payload.new.content) as DeveloperSettings;
-            } catch {}
-          }
+  return subscribeToRealtimeTable({
+    table: "gv_system_settings",
+    onPayload: (payload: any) => {
+      let remoteSettings: DeveloperSettings | null = null;
+      if (payload?.new?.content) {
+        try {
+          remoteSettings = JSON.parse(payload.new.content) as DeveloperSettings;
+        } catch {}
+      }
 
-          const logoUrl =
-            payload?.new?.school_logo_url ||
-            payload?.new?.sidebar_logo_url ||
-            payload?.new?.header_logo ||
-            payload?.new?.login_logo ||
-            remoteSettings?.branding?.schoolLogoUrl;
+      const logoUrl =
+        payload?.new?.school_logo_url ||
+        payload?.new?.sidebar_logo_url ||
+        payload?.new?.header_logo ||
+        payload?.new?.login_logo ||
+        remoteSettings?.branding?.schoolLogoUrl;
 
-          if (remoteSettings && logoUrl) {
-            remoteSettings = synchronizeLogoFields(remoteSettings, logoUrl);
-            try {
-              localStorage.setItem(KEY, JSON.stringify(remoteSettings));
-            } catch {}
-            applyDynamicHeadAndTheme(remoteSettings);
-            window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: remoteSettings }));
-            onUpdate(remoteSettings);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      try { supabase.removeChannel(channel); } catch {}
-    };
-  } catch {
-    return () => {};
-  }
+      if (remoteSettings && logoUrl) {
+        remoteSettings = synchronizeLogoFields(remoteSettings, logoUrl);
+        try {
+          localStorage.setItem(KEY, JSON.stringify(remoteSettings));
+        } catch {}
+        applyDynamicHeadAndTheme(remoteSettings);
+        window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: remoteSettings }));
+        onUpdate(remoteSettings);
+      }
+    },
+  });
 }
 
 import { API_URL as BACKEND_URL } from "./api";

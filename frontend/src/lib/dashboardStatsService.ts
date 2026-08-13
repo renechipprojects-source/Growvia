@@ -407,22 +407,16 @@ export async function getAnnualPromotionAndLifecycleStats(targetYear?: string): 
   }
 }
 
+import { subscribeToRealtimeTable } from "./realtimeService";
+
 export function subscribeToPromotionAndLifecycleUpdates(callback: (data: AnnualPromotionLifecycleStats) => void): () => void {
   const handler = () => {
     getAnnualPromotionAndLifecycleStats().then(callback).catch(() => {});
   };
   handler();
 
-  const channelKey = `promotion_rt_${Math.random().toString(36).substring(7)}`;
-  try {
-    const channel = supabase.channel(channelKey)
-      .on("postgres_changes", { event: "*", schema: "public", table: "gv_users" }, handler)
-      .subscribe();
-
-    return () => {
-      try { supabase.removeChannel(channel); } catch {}
-    };
-  } catch {
-    return () => {};
-  }
+  return subscribeToRealtimeTable({
+    table: "gv_users",
+    onPayload: () => handler(),
+  });
 }

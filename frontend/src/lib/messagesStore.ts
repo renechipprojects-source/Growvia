@@ -20,14 +20,16 @@ export interface Message {
   attachments?: string[];
 }
 
-const MESSAGES_KEY = "sunshine.messages.v3";
+import { getUserScopedStorageKey } from "./auth";
+
+const BASE_MESSAGES_KEY = "sunshine.messages.v3";
 let memoryMessagesCache: Message[] = [];
 
 function readMessages(): Message[] {
   if (memoryMessagesCache.length > 0) return memoryMessagesCache;
   if (typeof window !== "undefined") {
     try {
-      const raw = localStorage.getItem(MESSAGES_KEY);
+      const raw = localStorage.getItem(getUserScopedStorageKey(BASE_MESSAGES_KEY));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -44,19 +46,31 @@ function writeMessages(msgs: Message[]) {
   memoryMessagesCache = msgs;
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(MESSAGES_KEY, JSON.stringify(msgs));
+      localStorage.setItem(getUserScopedStorageKey(BASE_MESSAGES_KEY), JSON.stringify(msgs));
     } catch {}
     window.dispatchEvent(new CustomEvent("sunshine-message"));
   }
 }
 
+import { getSession } from "./auth";
+
 export async function fetchMessagesFromSupabase(): Promise<Message[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_communications")
       .select("*")
-      .eq("message_type", "message")
-      .order("created_at", { ascending: false });
+      .eq("message_type", "message");
+
+    const session = getSession();
+    if (session && (session.role === "teacher" || session.role === "parent" || session.role === "student")) {
+      const uId = session.linkId || session.loginId;
+      const rName = session.role;
+      query = query.or(
+        `sender_id.eq.${uId},receiver_id.eq.${uId},recipient_user_id.eq.${uId},receiver_role.eq.${rName},receiver_role.eq.all,recipient_role.eq.all`
+      );
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) return readMessages();
 

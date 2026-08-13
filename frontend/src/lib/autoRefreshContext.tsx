@@ -84,6 +84,21 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
     });
   }, [triggerModuleRefresh]);
 
+  useEffect(() => {
+    const handleModuleRefresh = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const mod = customEvent.detail?.module;
+      if (mod) {
+        triggerModuleRefresh(mod as ERPModule);
+      }
+    };
+
+    window.addEventListener("sunshine-module-refresh", handleModuleRefresh);
+    return () => {
+      window.removeEventListener("sunshine-module-refresh", handleModuleRefresh);
+    };
+  }, [triggerModuleRefresh]);
+
   // Window Focus & Tab Visibility Event Listeners
   useEffect(() => {
     const handleFocusOrVisibility = () => {
@@ -176,6 +191,10 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
 
 export function notifyAutoRefresh(module: ERPModule) {
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("sunshine-module-refresh", { detail: { module } }));
+    try {
+      window.dispatchEvent(new CustomEvent("sunshine-module-refresh", { detail: { module } }));
+      window.dispatchEvent(new CustomEvent(`sunshine-auto-refresh-${module}`));
+      window.dispatchEvent(new CustomEvent("sunshine-auto-refresh"));
+    } catch {}
   }
 }

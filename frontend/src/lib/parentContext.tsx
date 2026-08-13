@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Household, Student } from "./mockData";
 import { fetchStudents } from "./supabaseService";
-import { getSession } from "./auth";
+import { getSession, getUserScopedStorageKey } from "./auth";
+
+const BASE_STORAGE_KEY = "sunshine.parent.active_child";
 import { useAutoRefresh } from "./autoRefreshContext";
 
 const emptyHousehold: Household = {
@@ -106,7 +108,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
 
   const [activeId, setActiveId] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
+      const stored = window.localStorage.getItem(getUserScopedStorageKey(BASE_STORAGE_KEY));
       if (stored && kids.some((k) => k.id === stored)) return stored;
     }
     return kids[0]?.id ?? "";
@@ -120,7 +122,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined" && activeId) {
-      window.localStorage.setItem(STORAGE_KEY, activeId);
+      window.localStorage.setItem(getUserScopedStorageKey(BASE_STORAGE_KEY), activeId);
     }
   }, [activeId]);
 

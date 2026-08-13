@@ -140,7 +140,7 @@ function Expenses() {
       </div>
 
       {/* Summary Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 shrink-0">
         <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
             <Wallet className="h-5 w-5" />
@@ -158,18 +158,6 @@ function Expenses() {
           <div>
             <div className="text-xs text-slate-500 font-medium">Total Entries</div>
             <div className="text-xl font-bold text-slate-900">{items.length}</div>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-            <CreditCard className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Filtered Total</div>
-            <div className="text-xl font-bold text-slate-900">
-              ₹{filteredItems.reduce((acc, i) => acc + (i.amount || 0), 0).toLocaleString()}
-            </div>
           </div>
         </div>
       </div>
@@ -285,6 +273,27 @@ function Expenses() {
                 </div>
               </div>
 
+              {selectedExpense.category.toLowerCase().includes("salary") && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs space-y-1.5">
+                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <Badge className="bg-indigo-600 text-white hover:bg-indigo-600 text-[10px] px-2">Salary</Badge>
+                    <span>Salary Disbursement Details</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Recipient / Staff:</span>
+                    <span className="font-semibold">{selectedExpense.paidTo || "Staff Member"}</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Disbursed Amount:</span>
+                    <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-800">
+                    <span className="text-indigo-600">Payment Mode:</span>
+                    <span className="font-semibold">{selectedExpense.paymentMethod || "Bank Transfer"}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-slate-400 font-medium block">Purpose / Description</span>
@@ -292,7 +301,7 @@ function Expenses() {
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block">Recipient (Paid To)</span>
-                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.paidTo}</span>
+                  <span className="font-semibold text-slate-800 text-sm">{selectedExpense.paidTo || "Vendor / Staff"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block">Transaction Date</span>
@@ -305,14 +314,6 @@ function Expenses() {
                   </span>
                 </div>
               </div>
-
-              {selectedExpense.category === "Salary" && (
-                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-xs space-y-1">
-                  <div className="font-bold text-indigo-900">Salary Disbursement Details</div>
-                  <div className="text-indigo-700">Salary Recipient: <span className="font-semibold">{selectedExpense.paidTo}</span></div>
-                  <div className="text-indigo-700">Disbursed Amount: <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span></div>
-                </div>
-              )}
 
               {selectedExpense.notes && (
                 <div className="text-xs">

@@ -10,6 +10,7 @@ export type { Student, Teacher, Enquiry, Fee, Expense };
 export function notifyAutoRefresh(moduleName: string) {
   if (typeof window !== "undefined") {
     try {
+      window.dispatchEvent(new CustomEvent("sunshine-module-refresh", { detail: { module: moduleName } }));
       window.dispatchEvent(new CustomEvent(`sunshine-auto-refresh-${moduleName}`));
       window.dispatchEvent(new CustomEvent("sunshine-auto-refresh"));
     } catch {}
@@ -363,46 +364,152 @@ export async function createDiaryEntry(entry: { date: string; mood: string; note
 
 // ─── 2. STUDENTS ─────────────────────────────────────────────────────────────
 
-export async function fetchStudents(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
+let memoryStudentsCache: Student[] = [];
+
+export function getCachedStudentsList(): Student[] {
+  if (memoryStudentsCache.length > 0) return memoryStudentsCache;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(getUserScopedStorageKey("sunshine.students.cache.v1"));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryStudentsCache = parsed;
+          return memoryStudentsCache;
+        }
+      }
+    } catch {}
+  }
+  return memoryStudentsCache;
+}
+
+export function setCachedStudentsList(students: Student[]) {
+  if (!Array.isArray(students)) return;
+  memoryStudentsCache = students;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(getUserScopedStorageKey("sunshine.students.cache.v1"), JSON.stringify(students));
+    } catch {}
+  }
+}
+
+import { getSession, safeNormalizeId } from "./auth";
+import { readAssignments } from "./classAssignmentContext";
+
+export async function fetchStudents(classNameFilter?: string, sectionFilter?: string): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_users")
       .select("*")
-      .or("role.ilike.%student%,role.eq.student,role.eq.Student")
-      .order("full_name", { ascending: true });
+      .or("role.eq.student,role.eq.Student,role.ilike.%student%");
 
-    if (error || !data || data.length === 0) {
-      const cached = getCachedStudentsList();
-      if (cached && cached.length > 0) {
-        return { data: cached, isFromSupabase: false };
+    const session = getSession();
+    if (session && session.role === "teacher") {
+      const sLinkId = safeNormalizeId(session.linkId);
+      const sLoginId = safeNormalizeId(session.loginId);
+      const activeAssignments = readAssignments().filter(
+        (a) =>
+          a.status === "active" &&
+          ((sLinkId && safeNormalizeId(a.teacherId) === sLinkId) ||
+            (sLoginId && safeNormalizeId(a.teacherId) === sLoginId) ||
+            (session.name && a.teacherName.toLowerCase() === session.name.toLowerCase()))
+      );
+
+      if (activeAssignments.length > 0) {
+        const assignedClasses = Array.from(new Set(activeAssignments.map((a) => a.className)));
+        if (assignedClasses.length === 1) {
+          query = query.eq("class_name", assignedClasses[0]);
+        } else if (assignedClasses.length > 1) {
+          const orClause = assignedClasses.map((c) => `class_name.eq.${c}`).join(",");
+          query = query.or(orClause);
+        }
+      } else if ((session as any).className) {
+        const parts = (session as any).className.trim().split(" ");
+        const clsName = parts[0] || (session as any).className;
+        query = query.eq("class_name", clsName);
       }
-      return { data: [], isFromSupabase: false };
     }
 
-    const rows = data || [];
-    const mapped: Student[] = rows.map((d: any) => ({
-      id: d.id || d.login_id,
-      rollNo: d.roll_no || 1,
-      admissionNo: d.admission_no || d.id,
-      name: d.full_name || "Student",
-      age: d.age || 4,
-      dob: d.date_of_birth || "2022-01-01",
-      className: d.class_name || "Nursery",
-      section: d.section || "A",
-      parent: d.parent_name || "Parent",
-      parentId: d.parent_id || `PAR-${d.id}`,
-      phone: d.mobile || "9876543210",
-      gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-      house: d.house || "Red",
-      admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      feeStatus: (d.fee_status as any) || "Pending",
-      avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-      attendance: Number(d.attendance_pct || 95.0),
-      branch: d.branch || "Main Branch",
-    }));
+    if (classNameFilter && classNameFilter !== "all") {
+      query = query.eq("class_name", classNameFilter);
+    }
+    if (sectionFilter && sectionFilter !== "all") {
+      query = query.eq("section", sectionFilter);
+    }
 
-    setCachedStudentsList(mapped);
-    return { data: mapped, isFromSupabase: true };
+    const { data, error } = await query.order("full_name", { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
+      const rows = data.filter((d: any) => {
+        const r = (d.role || "").toLowerCase();
+        return !staffRoles.includes(r);
+      });
+
+      const mapped: Student[] = rows.map((d: any) => ({
+        id: d.id || d.login_id,
+        rollNo: d.roll_no || 1,
+        admissionNo: d.admission_no || d.id,
+        name: d.full_name || "Student",
+        age: d.age || 4,
+        dob: d.date_of_birth || "2022-01-01",
+        className: d.class_name || "Nursery",
+        section: d.section || "A",
+        parent: d.parent_name || "Parent",
+        parentId: d.parent_id || `PAR-${d.id}`,
+        phone: d.mobile || "9876543210",
+        gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+        house: d.house || "Red",
+        admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        feeStatus: (d.fee_status as any) || "Pending",
+        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+        attendance: Number(d.attendance_pct || 95.0),
+        branch: d.branch || "Main Branch",
+      }));
+
+      if (mapped.length > 0) {
+        setCachedStudentsList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/users?role=student`);
+      if (res.ok) {
+        const json = await res.json();
+        const rows = json.data || json || [];
+        if (Array.isArray(rows) && rows.length > 0) {
+          const mapped: Student[] = rows.map((d: any) => ({
+            id: d.id || d.login_id,
+            rollNo: d.roll_no || 1,
+            admissionNo: d.admission_no || d.id,
+            name: d.full_name || "Student",
+            age: d.age || 4,
+            dob: d.date_of_birth || "2022-01-01",
+            className: d.class_name || "Nursery",
+            section: d.section || "A",
+            parent: d.parent_name || "Parent",
+            parentId: d.parent_id || `PAR-${d.id}`,
+            phone: d.mobile || "9876543210",
+            gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
+            house: d.house || "Red",
+            admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+            feeStatus: (d.fee_status as any) || "Pending",
+            avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
+            attendance: Number(d.attendance_pct || 95.0),
+            branch: d.branch || "Main Branch",
+          }));
+          setCachedStudentsList(mapped);
+          return { data: mapped, isFromSupabase: true };
+        }
+      }
+    } catch {}
+
+    const cached = getCachedStudentsList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
+    return { data: [], isFromSupabase: false };
   } catch {
     const cached = getCachedStudentsList();
     if (cached && cached.length > 0) {
@@ -590,6 +697,35 @@ export async function allocateRollNumbersAlphabetically(targetClass?: string, ta
 
 // ─── 3. TEACHERS & STAFF ──────────────────────────────────────────────────
 
+let memoryTeachersCache: Teacher[] = [];
+
+export function getCachedTeachersList(): Teacher[] {
+  if (memoryTeachersCache.length > 0) return memoryTeachersCache;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(getUserScopedStorageKey("sunshine.teachers.cache.v1"));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryTeachersCache = parsed;
+          return memoryTeachersCache;
+        }
+      }
+    } catch {}
+  }
+  return memoryTeachersCache;
+}
+
+export function setCachedTeachersList(teachers: Teacher[]) {
+  if (!Array.isArray(teachers)) return;
+  memoryTeachersCache = teachers;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(getUserScopedStorageKey("sunshine.teachers.cache.v1"), JSON.stringify(teachers));
+    } catch {}
+  }
+}
+
 export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase: boolean }> {
   try {
     const { data, error } = await supabase
@@ -598,24 +734,35 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
       .or("role.ilike.%teacher%,role.eq.teacher,role.eq.Teacher")
       .order("full_name", { ascending: true });
 
-    if (error) return { data: [], isFromSupabase: false };
+    if (!error && data && data.length > 0) {
+      const rows = data || [];
+      const mapped: Teacher[] = rows.map((d: any) => ({
+        id: d.id || d.login_id,
+        name: d.full_name || "Teacher",
+        className: d.class_name || "",
+        subject: d.subject || "General",
+        email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
+        phone: d.mobile || "9876543210",
+        experience: d.experience || 2,
+        joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
+        branch: d.branch || "Main Branch",
+      }));
 
-    const rows = data || [];
-    const mapped: Teacher[] = rows.map((d: any) => ({
-      id: d.id || d.login_id,
-      name: d.full_name || "Teacher",
-      className: d.class_name || "",
-      subject: d.subject || "General",
-      email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
-      phone: d.mobile || "9876543210",
-      experience: d.experience || 2,
-      joined: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(d.full_name || "Teacher")}`,
-      branch: d.branch || "Main Branch",
-    }));
+      setCachedTeachersList(mapped);
+      return { data: mapped, isFromSupabase: true };
+    }
 
-    return { data: mapped, isFromSupabase: true };
+    const cached = getCachedTeachersList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
+    return { data: [], isFromSupabase: false };
   } catch {
+    const cached = getCachedTeachersList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
     return { data: [], isFromSupabase: false };
   }
 }
@@ -919,12 +1066,23 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
 }
 
 
-export async function fetchFees(): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
+export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLedgerItem[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_fees_payments")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select("*");
+
+    const session = getSession();
+    if (session && (session.role === "parent" || session.role === "student")) {
+      const targetId = studentIdFilter || session.linkId || session.loginId;
+      if (targetId) {
+        query = query.eq("student_id", targetId);
+      }
+    } else if (studentIdFilter) {
+      query = query.eq("student_id", studentIdFilter);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
@@ -1101,13 +1259,25 @@ export interface TransportRoute {
   status: "Active" | "Maintenance" | "Inactive";
 }
 
-export async function fetchTransportRoutes(): Promise<TransportRoute[]> {
+export async function fetchTransportRoutes(studentIdFilter?: string): Promise<TransportRoute[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_inventory_expenses")
-      .select("*")
-      .eq("record_type", "transport_route")
-      .order("created_at", { ascending: false });
+      .select("*");
+
+    const session = getSession();
+    if (session && (session.role === "parent" || session.role === "student")) {
+      const targetId = studentIdFilter || session.linkId || session.loginId;
+      if (targetId) {
+        query = query.eq("record_type", "transport_allocation").or(`id.eq.${targetId},id.eq.ALLOC-${targetId},notes.cs.{"studentId":"${targetId}"}`);
+      } else {
+        query = query.eq("record_type", "transport_allocation");
+      }
+    } else {
+      query = query.in("record_type", ["transport_route", "transport_allocation"]);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error || !data || data.length === 0) return [];
 

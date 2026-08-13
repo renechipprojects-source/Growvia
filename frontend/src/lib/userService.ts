@@ -85,48 +85,92 @@ export async function fetchUsers(roleFilter?: string): Promise<{ data: UserRecor
   }
 }
 
-export async function fetchStudentsFromUsers(): Promise<{ data: Student[]; isFromSupabase: boolean }> {
+import { getSession, safeNormalizeId } from "./auth";
+import { readAssignments } from "./classAssignmentContext";
+
+export async function fetchStudentsFromUsers(classNameFilter?: string, sectionFilter?: string): Promise<{ data: Student[]; isFromSupabase: boolean }> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_users")
       .select("*")
-      .or("role.ilike.%student%,role.eq.student,role.eq.Student")
-      .order("full_name", { ascending: true });
+      .or("role.ilike.%student%,role.eq.student,role.eq.Student");
 
-    if (error || !data || data.length === 0) {
-      const cached = getCachedStudentsList();
-      if (cached && cached.length > 0) {
-        return { data: cached, isFromSupabase: false };
+    const session = getSession();
+    if (session && session.role === "teacher") {
+      const sLinkId = safeNormalizeId(session.linkId);
+      const sLoginId = safeNormalizeId(session.loginId);
+      const activeAssignments = readAssignments().filter(
+        (a) =>
+          a.status === "active" &&
+          ((sLinkId && safeNormalizeId(a.teacherId) === sLinkId) ||
+            (sLoginId && safeNormalizeId(a.teacherId) === sLoginId))
+      );
+
+      if (activeAssignments.length > 0) {
+        const assignedClasses = Array.from(new Set(activeAssignments.map((a) => a.className)));
+        if (assignedClasses.length === 1) {
+          query = query.eq("class_name", assignedClasses[0]);
+        } else if (assignedClasses.length > 1) {
+          const orClause = assignedClasses.map((c) => `class_name.eq.${c}`).join(",");
+          query = query.or(orClause);
+        }
+      } else if ((session as any).className) {
+        const parts = (session as any).className.trim().split(" ");
+        const clsName = parts[0] || (session as any).className;
+        query = query.eq("class_name", clsName);
       }
-      return { data: [], isFromSupabase: false };
     }
 
-    const rows = data || [];
-    const mapped: Student[] = rows.map((d: any, idx: number) => ({
-      id: d.id,
-      rollNo: d.roll_no || idx + 1,
-      admissionNo: d.admission_no || d.id,
-      name: d.full_name,
-      age: 4,
-      dob: d.date_of_birth || "2020-01-01",
-      className: d.class_name || "Nursery",
-      section: d.section || "A",
-      parent: d.parent_name || "Parent",
-      parentName: d.parent_name || "Parent",
-      parentId: d.parent_id || `PAR-${d.id}`,
-      phone: d.mobile || "",
-      gender: (d.gender as any) || "Boy",
-      house: (d.house as any) || "Red",
-      admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-      feeStatus: (d.fee_status as any) || "Pending",
-      avatar: d.photo_url || undefined,
-      attendance: Number(d.attendance_pct || 95),
-      attendancePct: Number(d.attendance_pct || 95),
-      branch: d.branch || "Main Branch",
-    }));
+    if (classNameFilter && classNameFilter !== "all") {
+      query = query.eq("class_name", classNameFilter);
+    }
+    if (sectionFilter && sectionFilter !== "all") {
+      query = query.eq("section", sectionFilter);
+    }
 
-    setCachedStudentsList(mapped);
-    return { data: mapped, isFromSupabase: true };
+    const { data, error } = await query.order("full_name", { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
+      const rows = data.filter((d: any) => {
+        const r = (d.role || "").toLowerCase();
+        return !staffRoles.includes(r);
+      });
+
+      const mapped: Student[] = rows.map((d: any, idx: number) => ({
+        id: d.id,
+        rollNo: d.roll_no || idx + 1,
+        admissionNo: d.admission_no || d.id,
+        name: d.full_name,
+        age: 4,
+        dob: d.date_of_birth || "2020-01-01",
+        className: d.class_name || "Nursery",
+        section: d.section || "A",
+        parent: d.parent_name || "Parent",
+        parentName: d.parent_name || "Parent",
+        parentId: d.parent_id || `PAR-${d.id}`,
+        phone: d.mobile || "",
+        gender: (d.gender as any) || "Boy",
+        house: (d.house as any) || "Red",
+        admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        feeStatus: (d.fee_status as any) || "Pending",
+        avatar: d.photo_url || undefined,
+        attendance: Number(d.attendance_pct || 95),
+        attendancePct: Number(d.attendance_pct || 95),
+        branch: d.branch || "Main Branch",
+      }));
+
+      if (mapped.length > 0) {
+        setCachedStudentsList(mapped);
+        return { data: mapped, isFromSupabase: true };
+      }
+    }
+
+    const cached = getCachedStudentsList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
+    }
+    return { data: [], isFromSupabase: false };
   } catch {
     const cached = getCachedStudentsList();
     if (cached && cached.length > 0) {

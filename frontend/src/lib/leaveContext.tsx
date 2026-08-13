@@ -29,13 +29,22 @@ const Ctx = createContext<LeaveState | null>(null);
 
 let memoryLeaveCache: LeaveRequest[] = [];
 
+import { getSession } from "./auth";
+
 export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("gv_requests")
       .select("*")
-      .eq("request_type", "leave")
-      .order("created_at", { ascending: false });
+      .eq("request_type", "leave");
+
+    const session = getSession();
+    if (session && (session.role === "parent" || session.role === "student")) {
+      const uId = session.linkId || session.loginId;
+      query = query.or(`applicant_or_child_name.eq.${uId},reason_or_notes.cs.{"studentId":"${uId}"}`);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error || !data) return memoryLeaveCache;
 

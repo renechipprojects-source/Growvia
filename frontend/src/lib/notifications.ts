@@ -35,7 +35,9 @@ export interface AppNotification {
 
 type Listener = () => void;
 
-const NOTIF_STORAGE_KEY = "sunshine.notifications.v3";
+import { getUserScopedStorageKey } from "./auth";
+
+const BASE_NOTIF_STORAGE_KEY = "sunshine.notifications.v3";
 
 const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, string>>>> = {
   homework: {
@@ -72,7 +74,7 @@ const LINK_BY_MODULE: Partial<Record<NotificationModule, Partial<Record<Role, st
 function getInitialNotifications(): AppNotification[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
+    const raw = window.localStorage.getItem(getUserScopedStorageKey(BASE_NOTIF_STORAGE_KEY));
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -95,7 +97,7 @@ function saveStore(newStore: AppNotification[]) {
   store = newStore.filter((n) => !n.id.startsWith("n-seed-"));
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(store));
+      window.localStorage.setItem(getUserScopedStorageKey(BASE_NOTIF_STORAGE_KEY), JSON.stringify(store));
       window.dispatchEvent(new CustomEvent("sunshine-notification"));
     } catch {}
   }
@@ -285,10 +287,9 @@ export function syncLiveDatabaseNotifications() {
     .catch(() => {});
 }
 
-// Run initial sync & set live polling interval on script load
+// Run initial sync on script load
 if (typeof window !== "undefined") {
   syncLiveDatabaseNotifications();
-  setInterval(() => syncLiveDatabaseNotifications(), 15000);
 
   window.addEventListener("storage", (e) => {
     if (e.key === NOTIF_STORAGE_KEY && e.newValue) {
