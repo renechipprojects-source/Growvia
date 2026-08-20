@@ -106,8 +106,8 @@ function OfficeInventory() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4 p-6">
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-4 w-full max-w-none">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <PageHeader title="Live Inventory & Stock Center" />
         <Button onClick={handleOpenAdd} className="bg-slate-900 text-white rounded-xl shadow-xs hover:bg-slate-800">
           <Plus className="h-4 w-4 mr-2" />
@@ -162,8 +162,8 @@ function OfficeInventory() {
       </div>
 
       {/* Full Width Inventory Table */}
-      <div className="flex-1 min-h-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-        <div className="overflow-y-auto overflow-x-auto flex-1 max-h-[calc(100vh-260px)]">
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
               <tr>

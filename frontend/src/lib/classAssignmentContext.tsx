@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { sanitizeTeacherName } from "./credentials";
 
 export type AssignmentRole = "class" | "subject";
 export type AssignmentStatus = "active" | "inactive";
@@ -73,10 +74,11 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
           }
         } catch {}
 
+        const cleanName = sanitizeTeacherName(meta.teacherName || d.applicant_or_child_name, meta.teacherId || d.applicant_or_child_name);
         return {
           id: d.id,
-          teacherId: meta.teacherId || d.applicant_or_child_name || "TCH100",
-          teacherName: d.applicant_or_child_name || meta.teacherName || "Teacher",
+          teacherId: meta.teacherId || "TCH100",
+          teacherName: cleanName,
           academicYear: meta.academicYear || "2026-27",
           role: meta.role || "class",
           className: d.class_name || meta.className || "Nursery",
@@ -177,23 +179,32 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
       window.dispatchEvent(new CustomEvent("sunshine-class-assignment-update", { detail: newItems }));
     }
 
-    const payloads = newItems.map((a) => ({
-      id: a.id,
-      request_type: "class_assignment",
-      applicant_or_child_name: a.teacherName,
-      leave_type_or_interested_class: `${a.className} ${a.section}`.trim(),
-      status: a.status,
-      reason_or_notes: JSON.stringify(a),
-    }));
+    const payloads = newItems.map((a) => {
+      const cleanName = sanitizeTeacherName(a.teacherName, a.teacherId);
+      const cleanItem = { ...a, teacherName: cleanName };
+      return {
+        id: a.id,
+        request_type: "class_assignment",
+        applicant_or_child_name: cleanName,
+        leave_type_or_interested_class: `${a.className} ${a.section}`.trim(),
+        status: a.status,
+        reason_or_notes: JSON.stringify(cleanItem),
+      };
+    });
 
     Promise.resolve(supabase.from("gv_requests").upsert(payloads)).catch(() => {});
 
     newItems.forEach((a) => {
       if (a.role === "class" && a.status === "active") {
         const clsString = `${a.className} ${a.section}`.trim();
-        if (a.teacherId && (a.teacherId.startsWith("TCH") || a.teacherId.startsWith("EMP"))) {
-          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId);
-        } else if (a.teacherName) {
+        if (a.teacherId) {
+          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId).then(({ data, error }) => {
+            if (error || !data || (Array.isArray(data) && data.length === 0)) {
+              supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("login_id", a.teacherId);
+            }
+          });
+        }
+        if (a.teacherName && a.teacherName !== "Select Teacher" && a.teacherName !== "Unassigned") {
           supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("full_name", a.teacherName);
         }
       }

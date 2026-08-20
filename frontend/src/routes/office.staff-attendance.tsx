@@ -241,7 +241,7 @@ function OfficeStaffAttendancePage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
+    <div className="space-y-4 w-full max-w-none">
       <div className="flex items-center justify-between">
         <PageHeader
           title="Staff Attendance Register"

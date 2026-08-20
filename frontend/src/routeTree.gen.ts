@@ -26,10 +26,12 @@ import { Route as AdminExpensesRouteImport } from './routes/admin.expenses'
 import { Route as AdminFeesRouteImport } from './routes/admin.fees'
 import { Route as AdminHealthRouteImport } from './routes/admin.health'
 import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
+import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminParentsRouteImport } from './routes/admin.parents'
 import { Route as AdminPasswordResetsRouteImport } from './routes/admin.password-resets'
 import { Route as AdminSchoolBrandingRouteImport } from './routes/admin.school-branding'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
+import { Route as AdminTeachersRouteImport } from './routes/admin.teachers'
 import { Route as AdminTransportRouteImport } from './routes/admin.transport'
 import { Route as OfficeIndexRouteImport } from './routes/office.index'
 import { Route as OfficeAdmissionsRouteImport } from './routes/office.admissions'
@@ -72,6 +74,8 @@ import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
 import { Route as PrincipalHealthRouteImport } from './routes/principal.health'
 import { Route as PrincipalInventoryRouteImport } from './routes/principal.inventory'
 import { Route as PrincipalMessagesRouteImport } from './routes/principal.messages'
+import { Route as PrincipalParentsRouteImport } from './routes/principal.parents'
+import { Route as PrincipalSchoolBrandingRouteImport } from './routes/principal.school-branding'
 import { Route as PrincipalStudentsRouteImport } from './routes/principal.students'
 import { Route as PrincipalTeachersRouteImport } from './routes/principal.teachers'
 import { Route as PrincipalTransportRouteImport } from './routes/principal.transport'
@@ -180,6 +184,11 @@ const AdminInventoryRoute = AdminInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMessagesRoute = AdminMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminParentsRoute = AdminParentsRouteImport.update({
   id: '/parents',
   path: '/parents',
@@ -198,6 +207,11 @@ const AdminSchoolBrandingRoute = AdminSchoolBrandingRouteImport.update({
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
   id: '/students',
   path: '/students',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTeachersRoute = AdminTeachersRouteImport.update({
+  id: '/teachers',
+  path: '/teachers',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTransportRoute = AdminTransportRouteImport.update({
@@ -411,6 +425,16 @@ const PrincipalMessagesRoute = PrincipalMessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => PrincipalRoute,
 } as any)
+const PrincipalParentsRoute = PrincipalParentsRouteImport.update({
+  id: '/parents',
+  path: '/parents',
+  getParentRoute: () => PrincipalRoute,
+} as any)
+const PrincipalSchoolBrandingRoute = PrincipalSchoolBrandingRouteImport.update({
+  id: '/school-branding',
+  path: '/school-branding',
+  getParentRoute: () => PrincipalRoute,
+} as any)
 const PrincipalStudentsRoute = PrincipalStudentsRouteImport.update({
   id: '/students',
   path: '/students',
@@ -541,10 +565,12 @@ export interface FileRoutesByFullPath {
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/teachers': typeof AdminTeachersRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
@@ -584,6 +610,8 @@ export interface FileRoutesByFullPath {
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/messages': typeof PrincipalMessagesRoute
+  '/principal/parents': typeof PrincipalParentsRoute
+  '/principal/school-branding': typeof PrincipalSchoolBrandingRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -623,10 +651,12 @@ export interface FileRoutesByTo {
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/teachers': typeof AdminTeachersRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
@@ -666,6 +696,8 @@ export interface FileRoutesByTo {
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/messages': typeof PrincipalMessagesRoute
+  '/principal/parents': typeof PrincipalParentsRoute
+  '/principal/school-branding': typeof PrincipalSchoolBrandingRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -711,10 +743,12 @@ export interface FileRoutesById {
   '/admin/fees': typeof AdminFeesRouteWithChildren
   '/admin/health': typeof AdminHealthRoute
   '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/parents': typeof AdminParentsRoute
   '/admin/password-resets': typeof AdminPasswordResetsRoute
   '/admin/school-branding': typeof AdminSchoolBrandingRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/teachers': typeof AdminTeachersRoute
   '/admin/transport': typeof AdminTransportRoute
   '/office/admissions': typeof OfficeAdmissionsRoute
   '/office/circulars': typeof OfficeCircularsRoute
@@ -754,6 +788,8 @@ export interface FileRoutesById {
   '/principal/health': typeof PrincipalHealthRoute
   '/principal/inventory': typeof PrincipalInventoryRoute
   '/principal/messages': typeof PrincipalMessagesRoute
+  '/principal/parents': typeof PrincipalParentsRoute
+  '/principal/school-branding': typeof PrincipalSchoolBrandingRoute
   '/principal/students': typeof PrincipalStudentsRoute
   '/principal/teachers': typeof PrincipalTeachersRoute
   '/principal/transport': typeof PrincipalTransportRoute
@@ -800,10 +836,12 @@ export interface FileRouteTypes {
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
+    | '/admin/messages'
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/school-branding'
     | '/admin/students'
+    | '/admin/teachers'
     | '/admin/transport'
     | '/office/admissions'
     | '/office/circulars'
@@ -843,6 +881,8 @@ export interface FileRouteTypes {
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/messages'
+    | '/principal/parents'
+    | '/principal/school-branding'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -882,10 +922,12 @@ export interface FileRouteTypes {
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
+    | '/admin/messages'
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/school-branding'
     | '/admin/students'
+    | '/admin/teachers'
     | '/admin/transport'
     | '/office/admissions'
     | '/office/circulars'
@@ -925,6 +967,8 @@ export interface FileRouteTypes {
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/messages'
+    | '/principal/parents'
+    | '/principal/school-branding'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -969,10 +1013,12 @@ export interface FileRouteTypes {
     | '/admin/fees'
     | '/admin/health'
     | '/admin/inventory'
+    | '/admin/messages'
     | '/admin/parents'
     | '/admin/password-resets'
     | '/admin/school-branding'
     | '/admin/students'
+    | '/admin/teachers'
     | '/admin/transport'
     | '/office/admissions'
     | '/office/circulars'
@@ -1012,6 +1058,8 @@ export interface FileRouteTypes {
     | '/principal/health'
     | '/principal/inventory'
     | '/principal/messages'
+    | '/principal/parents'
+    | '/principal/school-branding'
     | '/principal/students'
     | '/principal/teachers'
     | '/principal/transport'
@@ -1172,6 +1220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminInventoryRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/messages': {
+      id: '/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AdminMessagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/parents': {
       id: '/admin/parents'
       path: '/parents'
@@ -1198,6 +1253,13 @@ declare module '@tanstack/react-router' {
       path: '/students'
       fullPath: '/admin/students'
       preLoaderRoute: typeof AdminStudentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/teachers': {
+      id: '/admin/teachers'
+      path: '/teachers'
+      fullPath: '/admin/teachers'
+      preLoaderRoute: typeof AdminTeachersRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/transport': {
@@ -1494,6 +1556,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalMessagesRouteImport
       parentRoute: typeof PrincipalRoute
     }
+    '/principal/parents': {
+      id: '/principal/parents'
+      path: '/parents'
+      fullPath: '/principal/parents'
+      preLoaderRoute: typeof PrincipalParentsRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
+    '/principal/school-branding': {
+      id: '/principal/school-branding'
+      path: '/school-branding'
+      fullPath: '/principal/school-branding'
+      preLoaderRoute: typeof PrincipalSchoolBrandingRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
     '/principal/students': {
       id: '/principal/students'
       path: '/students'
@@ -1672,10 +1748,12 @@ interface AdminRouteChildren {
   AdminFeesRoute: typeof AdminFeesRouteWithChildren
   AdminHealthRoute: typeof AdminHealthRoute
   AdminInventoryRoute: typeof AdminInventoryRoute
+  AdminMessagesRoute: typeof AdminMessagesRoute
   AdminParentsRoute: typeof AdminParentsRoute
   AdminPasswordResetsRoute: typeof AdminPasswordResetsRoute
   AdminSchoolBrandingRoute: typeof AdminSchoolBrandingRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
+  AdminTeachersRoute: typeof AdminTeachersRoute
   AdminTransportRoute: typeof AdminTransportRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminAttendanceStaffRoute: typeof AdminAttendanceStaffRoute
@@ -1692,10 +1770,12 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFeesRoute: AdminFeesRouteWithChildren,
   AdminHealthRoute: AdminHealthRoute,
   AdminInventoryRoute: AdminInventoryRoute,
+  AdminMessagesRoute: AdminMessagesRoute,
   AdminParentsRoute: AdminParentsRoute,
   AdminPasswordResetsRoute: AdminPasswordResetsRoute,
   AdminSchoolBrandingRoute: AdminSchoolBrandingRoute,
   AdminStudentsRoute: AdminStudentsRoute,
+  AdminTeachersRoute: AdminTeachersRoute,
   AdminTransportRoute: AdminTransportRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminAttendanceStaffRoute: AdminAttendanceStaffRoute,
@@ -1795,6 +1875,8 @@ interface PrincipalRouteChildren {
   PrincipalHealthRoute: typeof PrincipalHealthRoute
   PrincipalInventoryRoute: typeof PrincipalInventoryRoute
   PrincipalMessagesRoute: typeof PrincipalMessagesRoute
+  PrincipalParentsRoute: typeof PrincipalParentsRoute
+  PrincipalSchoolBrandingRoute: typeof PrincipalSchoolBrandingRoute
   PrincipalStudentsRoute: typeof PrincipalStudentsRoute
   PrincipalTeachersRoute: typeof PrincipalTeachersRoute
   PrincipalTransportRoute: typeof PrincipalTransportRoute
@@ -1813,6 +1895,8 @@ const PrincipalRouteChildren: PrincipalRouteChildren = {
   PrincipalHealthRoute: PrincipalHealthRoute,
   PrincipalInventoryRoute: PrincipalInventoryRoute,
   PrincipalMessagesRoute: PrincipalMessagesRoute,
+  PrincipalParentsRoute: PrincipalParentsRoute,
+  PrincipalSchoolBrandingRoute: PrincipalSchoolBrandingRoute,
   PrincipalStudentsRoute: PrincipalStudentsRoute,
   PrincipalTeachersRoute: PrincipalTeachersRoute,
   PrincipalTransportRoute: PrincipalTransportRoute,

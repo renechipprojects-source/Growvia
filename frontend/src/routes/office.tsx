@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { OfficeSidebar } from "@/components/office/app-sidebar";
 import { OfficeTopNav } from "@/components/office/top-nav";
-import { Toaster } from "@/components/ui/sonner";
 import { EnquiryProvider } from "@/lib/enquiryContext";
 import { AlertsProvider } from "@/lib/alertsContext";
 import { StudentDocsProvider } from "@/lib/studentDocsContext";
@@ -35,12 +34,11 @@ function OfficeLayout() {
                 <OfficeSidebar />
                 <SidebarInset className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
                   <OfficeTopNav />
-                  <main className="flex-1 min-w-0 overflow-hidden p-0 w-full max-w-none flex flex-col">
+                  <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 w-full max-w-none">
                     <Outlet />
                   </main>
                 </SidebarInset>
               </div>
-              <Toaster />
             </SidebarProvider>
           </InventoryProvider>
         </EnquiryProvider>

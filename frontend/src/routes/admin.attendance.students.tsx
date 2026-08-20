@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { fetchStudents, toCanonicalAdmissionNo, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance, getStudentAttendanceDetails, type StudentAttendanceEntry } from "@/lib/attendanceStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -104,7 +104,7 @@ function StudentAttendancePage() {
       const details = getStudentAttendanceDetails(s.id, s);
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
       const status = live ? MARK_LABEL[live.status as Mark] : "Not Marked";
-      return [s.id, s.admissionNo || "ADM-1001", s.name, s.className || "Playgroup", s.section || "A", status, `${details.percentage}%`];
+      return [s.id, toCanonicalAdmissionNo(s.admissionNo, s.id), s.name, s.className || "Playgroup", s.section || "A", status, `${details.percentage}%`];
     });
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((row: any) => row.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -168,7 +168,7 @@ function StudentAttendancePage() {
                     <span>{s.name}</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{s.admissionNo || s.id}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{toCanonicalAdmissionNo(s.admissionNo, s.id)}</TableCell>
                 <TableCell>{s.className || "Playgroup"} - {s.section || "A"}</TableCell>
                 <TableCell>
                   {statusMark ? (
@@ -277,7 +277,7 @@ export function AttendanceDetailsModal({
               <div>
                 <div className="text-base font-bold text-slate-900">{student.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  Adm No: <span className="font-mono">{student.admissionNo || `ADM-${student.id}`}</span> · Roll No: <span className="font-semibold">{student.rollNo || 1}</span>
+                  Adm No: <span className="font-mono">{toCanonicalAdmissionNo(student.admissionNo, student.id)}</span> · Roll No: <span className="font-semibold">{student.rollNo || 1}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Class: {student.className || "Playgroup"} - {student.section || "A"} · Parent: {student.parent || "Parent"}

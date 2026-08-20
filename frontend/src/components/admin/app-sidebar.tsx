@@ -30,14 +30,7 @@ type OperationEntry = Item | Group;
 const operations: OperationEntry[] = [
   { title: "School Branding", url: "/admin/school-branding", icon: Sparkles },
   { title: "Circulars", url: "/admin/circulars", icon: Megaphone },
-  {
-    title: "Attendance",
-    icon: CalendarCheck,
-    items: [
-      { title: "Student Attendance", url: "/admin/attendance/students", icon: UserRound },
-      { title: "Staff Attendance", url: "/admin/attendance/staff", icon: UserCog },
-    ],
-  },
+  { title: "Messages", url: "/admin/messages", icon: Megaphone },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
   { title: "Transport", url: "/admin/transport", icon: Bus },
 ];
@@ -48,12 +41,20 @@ const groups: Group[] = [
     items: [
       { title: "Students", url: "/admin/students", icon: UserRound },
       { title: "Parents", url: "/admin/parents", icon: Users },
+      { title: "Staff / Teachers", url: "/admin/teachers", icon: GraduationCap },
     ],
   },
   {
     title: "Academics", icon: GraduationCap,
     items: [
       { title: "Classes", url: "/admin/classes", icon: GraduationCap },
+    ],
+  },
+  {
+    title: "Attendance", icon: CalendarCheck,
+    items: [
+      { title: "Student Attendance", url: "/admin/attendance/students", icon: UserRound },
+      { title: "Staff Attendance", url: "/admin/attendance/staff", icon: UserCog },
     ],
   },
   {
@@ -108,7 +109,7 @@ export function AppSidebar() {
               {settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}
             </div>
             <div className="text-[11px] font-medium text-slate-500 truncate">
-              Academic Session {settings.school.academicYear}
+              Admin Portal
             </div>
           </div>
         </div>

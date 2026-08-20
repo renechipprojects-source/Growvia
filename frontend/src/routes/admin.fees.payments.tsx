@@ -5,7 +5,7 @@ import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/da
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, CreditCard, Calendar, CheckCircle2 } from "lucide-react";
-import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchMergedFeeLedgers, toCanonicalAdmissionNo, type FeeLedgerItem } from "@/lib/supabaseService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
 
@@ -87,7 +87,7 @@ function PaymentsPage() {
 
       return [
         f.studentName,
-        f.admissionNo || "ADM-1001",
+        toCanonicalAdmissionNo(f.admissionNo, f.id),
         f.className,
         finalFee,
         paid,
@@ -158,7 +158,7 @@ function PaymentsPage() {
             return (
               <TableRow key={f.id} className="hover:bg-muted/30">
                 <TableCell className="font-semibold text-slate-800">{f.studentName}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{f.admissionNo || "ADM-1001"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{toCanonicalAdmissionNo(f.admissionNo, f.id)}</TableCell>
                 <TableCell>{f.className}</TableCell>
                 <TableCell className="font-bold text-slate-900">₹{finalFee.toLocaleString()}</TableCell>
                 <TableCell className="font-semibold text-emerald-700">₹{paid.toLocaleString()}</TableCell>

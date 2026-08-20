@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Search, DoorOpen, Users, ExternalLink, UserCheck, BookOpen, GraduationCap } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
@@ -7,27 +7,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
+import { sanitizeTeacherName } from "@/lib/credentials";
 import { getStoredMasterClasses, subscribeMasterClasses, fetchMasterClassesFromSupabase, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+
+import { Button } from "@/components/ui/button";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { addMasterClass, updateMasterClass, deleteMasterClass } from "@/lib/masterClassesStore";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/principal/classes")({
   head: () => ({
     meta: [
       { title: "Classes | Principal Portal" },
-      { name: "description", content: "View classes, sections, class teachers and class strength." },
+      { name: "description", content: "View and manage classes, sections, class teachers and class strength." },
     ],
   }),
   component: ClassesPage,
 });
 
 function ClassesPage() {
+  const navigate = useNavigate();
   const [masterClasses, setMasterClasses] = useState<MasterClassItem[]>(getStoredMasterClasses);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
   const [q, setQ] = useState("");
   const [sec, setSec] = useState("all");
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
+
+  // Add / Edit Class Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<MasterClassItem | null>(null);
+  const [form, setForm] = useState({
+    name: "Nursery",
+    section: "A",
+    classTeacher: "Ananya Sen",
+    room: "Room 101",
+    capacity: 30,
+  });
 
   const loadData = () => {
     fetchMasterClassesFromSupabase().then((res) => setMasterClasses(res || []));
@@ -48,23 +66,56 @@ function ClassesPage() {
     });
   }, []);
 
+  const handleOpenAdd = () => {
+    setEditingClass(null);
+    setForm({
+      name: "Nursery",
+      section: "A",
+      classTeacher: teachersList[0]?.name || "Ananya Sen",
+      room: "Room 101",
+      capacity: 30,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (c: MasterClassItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingClass(c);
+    setForm({
+      name: c.name,
+      section: c.section,
+      classTeacher: c.classTeacher,
+      room: c.room,
+      capacity: c.capacity,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) {
+      toast.error("Class name is required.");
+      return;
+    }
+    if (editingClass) {
+      updateMasterClass(editingClass.id, form);
+      toast.success(`Updated ${form.name} Section ${form.section}`);
+    } else {
+      addMasterClass(form);
+      toast.success(`Added new class ${form.name} Section ${form.section}`);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string, fullName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete ${fullName}?`)) {
+      deleteMasterClass(id);
+      toast.success(`Deleted ${fullName}`);
+    }
+  };
+
   const derivedClassesList = useMemo(() => {
     const normalize = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
-
-    const getEffectiveSection = (s: { className?: string; section?: string }) => {
-      const sec = (s.section || "").trim().toUpperCase();
-      if (sec) return sec;
-      const cls = (s.className || "").trim().toUpperCase();
-      if (cls.endsWith(" B") || cls.endsWith("-B") || cls.endsWith("SECTION B")) return "B";
-      if (cls.endsWith(" C") || cls.endsWith("-C") || cls.endsWith("SECTION C")) return "C";
-      if (cls.endsWith(" A") || cls.endsWith("-A") || cls.endsWith("SECTION A")) return "A";
-      return "A";
-    };
-
-    const getEffectiveClassName = (s: { className?: string }) => {
-      let cls = (s.className || "").trim();
-      return cls.replace(/[\s\-_]*(section\s*)?[a-c]$/i, "").trim();
-    };
 
     return masterClasses.map((m) => {
       const mClassNorm = normalize(m.name);
@@ -73,19 +124,14 @@ function ClassesPage() {
       const studentsInClass = studentsList.filter((s) => {
         const sRaw = (s.className || (s as any).class_name || "").trim();
         const sNorm = normalize(sRaw);
-
         const classMatches = sNorm.includes(mClassNorm) || mClassNorm.includes(sNorm) || sNorm.startsWith(mClassNorm);
-
         let sSec = (s.section || "").trim().toUpperCase();
         if (!sSec) {
           if (/\b(b|sec-b|section-b)\b/i.test(sRaw) || sRaw.endsWith(" B")) sSec = "B";
           else if (/\b(c|sec-c|section-c)\b/i.test(sRaw) || sRaw.endsWith(" C")) sSec = "C";
           else sSec = "A";
         }
-
-        const secMatches = sSec === mSec;
-
-        return classMatches && secMatches;
+        return classMatches && sSec === mSec;
       });
 
       const teacher = teachersList.find((t) => t.name === m.classTeacher) ||
@@ -120,7 +166,21 @@ function ClassesPage() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4">
-      <PageHeader title="Classes" description="Overview of every class, section, class teacher, and student list. Click any card to view full class details." />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Classes Overview" description="Overview of every class, section, class teacher, and student list." />
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => navigate({ to: "/office/class-assignment", search: { tab: "student-mapping" } })}
+            variant="outline"
+            className="bg-white text-indigo-700 border-slate-200 rounded-xl text-xs font-semibold"
+          >
+            <UserCheck className="mr-1.5 h-4 w-4 text-indigo-600" /> Student Class Mapping
+          </Button>
+          <Button onClick={handleOpenAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
+            <Plus className="h-4 w-4 mr-2" /> Add Class
+          </Button>
+        </div>
+      </div>
 
       <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className="flex flex-col md:flex-row gap-3 shrink-0">
@@ -157,18 +217,46 @@ function ClassesPage() {
                       <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                     </div>
                   </div>
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-semibold">
-                    {c.section}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600"
+                      onClick={(e) => handleOpenEdit(masterClasses.find((m) => m.id === c.id) || { id: c.id, name: c.className, section: c.section, fullName: c.name, classTeacher: c.classTeacher, capacity: c.capacity, room: c.room }, e)}
+                      title="Edit Class"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-rose-600"
+                      onClick={(e) => handleDelete(c.id, c.name, e)}
+                      title="Delete Class"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><DoorOpen className="w-3.5 h-3.5" /> Room {c.room || "101"}</span>
-                    <span className="flex items-center gap-1.5 font-semibold text-foreground"><Users className="w-3.5 h-3.5 text-primary" /> {count} live students</span>
+                  <div className="flex items-start justify-between text-muted-foreground">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                        <DoorOpen className="w-3.5 h-3.5 text-indigo-500" /> {c.room || "Room 101"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground pl-5 font-normal">
+                        {c.capacity ? `Capacity: ${c.capacity} students` : "Capacity: Not Assigned"}
+                      </span>
+                    </div>
+                    <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <Users className="w-3.5 h-3.5 text-primary" /> {count} live students
+                    </span>
                   </div>
-                  <div className="pt-2 border-t">
-                    <div className="text-[11px] uppercase text-muted-foreground font-medium">Class Teacher</div>
-                    <div className="text-sm mt-0.5 font-medium">{teacher}</div>
+                  <div className="pt-2 border-t flex justify-between items-center">
+                    <div>
+                      <div className="text-[11px] uppercase text-muted-foreground font-medium">Class Teacher</div>
+                      <div className="text-sm mt-0.5 font-medium">{teacher}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -188,6 +276,79 @@ function ClassesPage() {
           studentsList={studentsList}
         />
       )}
+
+      {/* Add / Edit Class Dialog */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingClass ? "Edit Class Details" : "Add New Class"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Class Name</label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Nursery, Grade 1, Playgroup"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Section</label>
+              <Input
+                value={form.section}
+                onChange={(e) => setForm((p) => ({ ...p, section: e.target.value }))}
+                placeholder="e.g. A, B, C, Rose"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Class Teacher</label>
+              <Select
+                value={form.classTeacher}
+                onValueChange={(v) => setForm((p) => ({ ...p, classTeacher: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select Class Teacher" /></SelectTrigger>
+                <SelectContent>
+                  {teachersList.map((t) => (
+                    <SelectItem key={t.id} value={sanitizeTeacherName(t.name, t.id)}>{sanitizeTeacherName(t.name, t.id)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Room Number</label>
+                <Input
+                  value={form.room}
+                  onChange={(e) => setForm((p) => ({ ...p, room: e.target.value }))}
+                  placeholder="e.g. Room 101"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Capacity</label>
+                <Input
+                  type="number"
+                  value={form.capacity}
+                  onChange={(e) => setForm((p) => ({ ...p, capacity: Number(e.target.value) || 30 }))}
+                  placeholder="30"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                {editingClass ? "Save Changes" : "Create Class"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

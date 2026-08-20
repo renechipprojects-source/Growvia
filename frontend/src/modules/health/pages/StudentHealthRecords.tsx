@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toCanonicalAdmissionNo } from "@/lib/credentials";
 import { HeartPulse, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,7 @@ export function StudentHealthRecordsPage() {
     setEditing(null);
     setForm({
       student: "",
-      admissionNumber: "ADM-" + Math.floor(1000 + Math.random() * 9000),
+      admissionNumber: toCanonicalAdmissionNo(undefined, Math.floor(1000 + Math.random() * 9000)),
       bloodGroup: "O+",
       heightCm: 120,
       weightKg: 25,

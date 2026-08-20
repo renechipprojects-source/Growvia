@@ -5,6 +5,7 @@ import { CircularList } from "@/components/circulars/CircularList";
 import { fetchCirculars } from "@/lib/supabaseService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
+
 export const Route = createFileRoute("/admin/circulars")({
   component: AdminCircularsPage,
 });
@@ -23,7 +24,7 @@ function AdminCircularsPage() {
   useAutoRefresh("circulars", loadCirculars);
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none p-6 space-y-6">
+    <div className="space-y-6 w-full max-w-none">
       <PageHeader
         title="Circulars & Notices"
         description="Read-only organization-wide notice archive"

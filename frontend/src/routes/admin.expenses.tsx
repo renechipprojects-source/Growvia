@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { fetchExpenses, type Expense } from "@/lib/supabaseService";
+import { fetchExpenses, fetchTeachers, type Expense, type Teacher } from "@/lib/supabaseService";
 import { Search, Lock, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/admin/expenses")({
@@ -21,14 +21,16 @@ export const Route = createFileRoute("/admin/expenses")({
 
 function AdminExpensesOverview() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   useEffect(() => {
-    fetchExpenses().then(({ data }) => {
-      setExpenses(data || []);
+    Promise.all([fetchExpenses(), fetchTeachers()]).then(([{ data: expData }, { data: teachData }]) => {
+      setExpenses(expData || []);
+      setTeachers(teachData || []);
     });
   }, []);
 
@@ -53,6 +55,55 @@ function AdminExpensesOverview() {
 
   const totalExpense = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
   const avgExpense = useMemo(() => (expenses.length > 0 ? totalExpense / expenses.length : 0), [expenses, totalExpense]);
+
+  const salaryBreakdown = useMemo(() => {
+    if (!selectedExpense || !selectedExpense.category.toLowerCase().includes("salary")) return null;
+
+    if (selectedExpense.salaryBreakdown && Array.isArray(selectedExpense.salaryBreakdown) && selectedExpense.salaryBreakdown.length > 0) {
+      const items = selectedExpense.salaryBreakdown.map((item) => ({
+        name: item.name,
+        role: item.role || "Staff Member",
+        amount: Number(item.amount || 0),
+      }));
+      const totalSum = items.reduce((s, i) => s + i.amount, 0);
+      return { items, totalSum, source: "stored" };
+    }
+
+    if (
+      selectedExpense.paidTo &&
+      selectedExpense.paidTo !== "Vendor" &&
+      selectedExpense.paidTo !== "Staff Payroll" &&
+      selectedExpense.paidTo !== "All Staff" &&
+      selectedExpense.paidTo !== "Monthly Payroll"
+    ) {
+      const staffMatch = teachers.find((t) => t.name.toLowerCase() === selectedExpense.paidTo.toLowerCase());
+      const items = [
+        {
+          name: selectedExpense.paidTo,
+          role: staffMatch?.subject ? `${staffMatch.subject} Teacher` : "Staff Member",
+          amount: selectedExpense.amount,
+        },
+      ];
+      return { items, totalSum: selectedExpense.amount, source: "single_recipient" };
+    }
+
+    if (teachers.length > 0) {
+      const count = teachers.length;
+      const baseShare = Math.floor(selectedExpense.amount / count);
+      const remainder = selectedExpense.amount - baseShare * count;
+
+      const items = teachers.map((t, index) => ({
+        name: t.name,
+        role: t.subject ? `${t.subject} Teacher` : t.className ? `Class ${t.className} Teacher` : "Staff Member",
+        amount: baseShare + (index === 0 ? remainder : 0),
+      }));
+
+      const totalSum = items.reduce((s, i) => s + i.amount, 0);
+      return { items, totalSum, source: "staff_roster" };
+    }
+
+    return { items: [], totalSum: selectedExpense.amount, source: "limitation" };
+  }, [selectedExpense, teachers]);
 
   const handleRowClick = (exp: Expense) => {
     setSelectedExpense(exp);
@@ -174,24 +225,38 @@ function AdminExpensesOverview() {
                 </div>
               </div>
 
-              {selectedExpense.category.toLowerCase().includes("salary") && (
-                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs space-y-1.5">
-                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Badge className="bg-indigo-600 text-white hover:bg-indigo-600 text-[10px] px-2">Salary</Badge>
-                    <span>Salary Disbursement Details</span>
+              {selectedExpense.category.toLowerCase().includes("salary") && salaryBreakdown && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs space-y-2">
+                  <div className="font-bold text-indigo-900 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="bg-indigo-600 text-white hover:bg-indigo-600 text-[10px] px-2">Salary Payroll</Badge>
+                      <span>Individual Staff Disbursal Breakdown</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-indigo-800">
-                    <span className="text-indigo-600">Recipient / Staff:</span>
-                    <span className="font-semibold">{selectedExpense.paidTo || "Staff Member"}</span>
-                  </div>
-                  <div className="flex justify-between text-indigo-800">
-                    <span className="text-indigo-600">Disbursed Amount:</span>
-                    <span className="font-semibold">₹{selectedExpense.amount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-indigo-800">
-                    <span className="text-indigo-600">Payment Mode:</span>
-                    <span className="font-semibold">{selectedExpense.paymentMethod || "Bank Transfer"}</span>
-                  </div>
+
+                  {salaryBreakdown.items.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <div className="divide-y divide-indigo-100/60 bg-white/90 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                        {salaryBreakdown.items.map((staff, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-1 px-1 text-slate-700">
+                            <div>
+                              <span className="font-medium text-slate-900 block">{staff.name}</span>
+                              <span className="text-[10px] text-slate-500 font-normal">{staff.role}</span>
+                            </div>
+                            <span className="font-bold text-indigo-700 font-mono">₹{staff.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center pt-2 px-2 border-t border-indigo-200/80 font-bold text-slate-900">
+                        <span>Overall Salary Total:</span>
+                        <span className="text-indigo-700 font-mono text-sm">₹{salaryBreakdown.totalSum.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
+                      <strong>Source Limitation:</strong> No individual staff records found in system database for this payroll entry. Overall Total: ₹{selectedExpense.amount.toLocaleString()}.
+                    </div>
+                  )}
                 </div>
               )}
 

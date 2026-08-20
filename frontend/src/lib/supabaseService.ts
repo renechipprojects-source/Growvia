@@ -1,11 +1,54 @@
 import { supabase } from "./supabase";
-import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
-import { generateParentCredential } from "./credentials";
+import { generateParentCredential, toCanonicalAdmissionNo, generateCanonicalAdmissionNo, sanitizeTeacherName } from "./credentials";
+export { toCanonicalAdmissionNo, generateCanonicalAdmissionNo, sanitizeTeacherName };
 import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
 import { API_URL } from "./api";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
+
+export function getNextAdmissionNo(existingStudents: Student[] = [], year: number = 2026): string {
+  const yy = String(year).slice(-2);
+  let maxSeq = 0;
+  existingStudents.forEach((s) => {
+    const adm = toCanonicalAdmissionNo(s.admissionNo, s.id, year);
+    if (adm.startsWith(yy) && adm.length === 6) {
+      const seqNum = parseInt(adm.slice(2), 10);
+      if (!isNaN(seqNum) && seqNum > maxSeq) {
+        maxSeq = seqNum;
+      }
+    }
+  });
+  return generateCanonicalAdmissionNo(year, maxSeq + 1);
+}
+
+function normalizeStudents(students: Student[]): Student[] {
+  const parentIdMap = new Map<string, string>();
+  return students.map((s) => {
+    const cleanPhone = (s.phone || "").replace(/[^0-9]/g, "");
+    const cleanName = (s.parent || "").trim().toLowerCase();
+    const key = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanName;
+
+    let canonicalParentId = s.parentId;
+    if (key) {
+      if (!parentIdMap.has(key)) {
+        const preferredId = s.parentId && s.parentId.startsWith("PAR-") && !s.parentId.includes("STU")
+          ? s.parentId
+          : `PAR-${cleanPhone.length >= 10 ? cleanPhone.slice(-10) : s.id}`;
+        parentIdMap.set(key, preferredId);
+      }
+      canonicalParentId = parentIdMap.get(key)!;
+    } else {
+      canonicalParentId = s.parentId || `PAR-${s.id}`;
+    }
+
+    return {
+      ...s,
+      parentId: canonicalParentId,
+      admissionNo: toCanonicalAdmissionNo(s.admissionNo, s.id),
+    };
+  });
+}
 
 export function notifyAutoRefresh(moduleName: string) {
   if (typeof window !== "undefined") {
@@ -151,6 +194,35 @@ export interface FeeLedgerItem {
 
 // ─── 1. CIRCULARS & NOTICES ──────────────────────────────────────────────
 
+let memoryCircularsCache: Circular[] = [];
+
+export function getCachedCircularsList(): Circular[] {
+  if (memoryCircularsCache.length > 0) return memoryCircularsCache;
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("sunshine.circulars.cache.v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          memoryCircularsCache = parsed;
+          return memoryCircularsCache;
+        }
+      }
+    } catch {}
+  }
+  return memoryCircularsCache;
+}
+
+export function setCachedCircularsList(circulars: Circular[]) {
+  if (!Array.isArray(circulars)) return;
+  memoryCircularsCache = circulars;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("sunshine.circulars.cache.v1", JSON.stringify(circulars));
+    } catch {}
+  }
+}
+
 export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupabase: boolean }> {
   try {
     const { data, error } = await supabase
@@ -193,18 +265,21 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
         subject: meta.subject || d.title,
         description: meta.description || d.body || "",
         content: meta.description || d.body || "",
-        published_date: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        publishDate: d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        expiryDate: "2026-12-31",
+        published_date: d.published_at?.slice(0, 10) || meta.publishDate || new Date().toISOString().split("T")[0],
+        publishDate: meta.publishDate || d.published_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
+        expiryDate: meta.expiryDate || "2026-12-31",
         target_audience: d.recipient_role || meta.target_audience || "All",
         recipients: recipientsList,
         author: d.sender_name || "Principal Office",
         priority: d.priority || meta.priority || "Medium",
         status: meta.status || "Published",
         attachment: meta.attachmentName,
+        attachmentName: meta.attachmentName,
         attachmentUrl: d.attachment_url || meta.attachmentUrl,
-        createdAt: d.created_at || new Date().toISOString(),
-        history: [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
+        createdAt: d.created_at || d.published_at || new Date().toISOString(),
+        history: Array.isArray(meta.history) && meta.history.length > 0
+          ? meta.history
+          : [{ at: d.created_at || new Date().toISOString(), action: meta.status || "Published" }],
       };
     });
 
@@ -217,19 +292,27 @@ export async function fetchCirculars(): Promise<{ data: Circular[]; isFromSupaba
 
 export async function createCircular(circular: any): Promise<{ data: any | null; error: string | null }> {
   try {
+    const publishDate = circular.publishDate || circular.published_date || new Date().toISOString().slice(0, 10);
+    const expiryDate = circular.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
     const meta = {
       subject: circular.subject || circular.title,
       description: circular.description || circular.content || circular.title,
       priority: circular.priority || "Medium",
+      publishDate,
+      expiryDate,
       recipients: Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers"],
       attachmentName: circular.attachmentName || circular.attachment,
       attachmentUrl: circular.attachmentUrl,
       status: circular.status || "Published",
+      history: Array.isArray(circular.history) && circular.history.length > 0
+        ? circular.history
+        : [{ at: new Date().toISOString(), action: circular.status || "Published" }],
     };
 
-    const targetId = (circular.id && circular.id.startsWith("COM-CIRC-"))
-      ? circular.id
-      : `COM-CIRC-${Date.now().toString().slice(-4)}`;
+    const targetId = circular.id && circular.id.trim().length > 0
+      ? circular.id.trim()
+      : `COM-CIRC-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
     const payload = {
       id: targetId,
@@ -288,7 +371,7 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
 }
 
 export async function deleteCircular(id: string) {
-  circularsCacheMemory = circularsCacheMemory.filter((c) => c.id !== id);
+  memoryCircularsCache = memoryCircularsCache.filter((c) => c.id !== id);
   const localList = getCachedCircularsList().filter((c) => c.id !== id);
   setCachedCircularsList(localList);
 
@@ -382,28 +465,28 @@ export async function createDiaryEntry(entry: { date: string; mood: string; note
 let memoryStudentsCache: Student[] = [];
 
 export function getCachedStudentsList(): Student[] {
-  if (memoryStudentsCache.length > 0) return memoryStudentsCache;
+  if (memoryStudentsCache.length > 0) return normalizeStudents(memoryStudentsCache);
   if (typeof window !== "undefined") {
     try {
       const raw = localStorage.getItem(getUserScopedStorageKey("sunshine.students.cache.v1"));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          memoryStudentsCache = parsed;
+          memoryStudentsCache = normalizeStudents(parsed);
           return memoryStudentsCache;
         }
       }
     } catch {}
   }
-  return memoryStudentsCache;
+  return normalizeStudents(memoryStudentsCache);
 }
 
 export function setCachedStudentsList(students: Student[]) {
   if (!Array.isArray(students)) return;
-  memoryStudentsCache = students;
+  memoryStudentsCache = normalizeStudents(students);
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(getUserScopedStorageKey("sunshine.students.cache.v1"), JSON.stringify(students));
+      localStorage.setItem(getUserScopedStorageKey("sunshine.students.cache.v1"), JSON.stringify(memoryStudentsCache));
     } catch {}
   }
 }
@@ -463,28 +546,32 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
 
       const mapped: Student[] = rows.map((d: any) => ({
         id: d.id || d.login_id,
-        rollNo: d.roll_no || 1,
-        admissionNo: d.admission_no || d.id,
-        name: d.full_name || "Student",
-        age: d.age || 4,
-        dob: d.date_of_birth || "2022-01-01",
-        className: d.class_name || "Nursery",
+        rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
+        admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
+        name: d.full_name || d.name || "Student",
+        age: d.age ? Number(d.age) : 4,
+        dob: d.date_of_birth || d.dob || undefined as any,
+        className: d.class_name || d.className || "Nursery",
         section: d.section || "A",
-        parent: d.parent_name || "Parent",
-        parentId: d.parent_id || `PAR-${d.id}`,
-        phone: d.mobile || "9876543210",
-        gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-        house: d.house || "Red",
-        admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-        feeStatus: (d.fee_status as any) || "Pending",
-        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-        attendance: Number(d.attendance_pct || 95.0),
+        parent: d.parent_name || d.parent || "Parent",
+        parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
+        phone: d.mobile || d.phone || undefined as any,
+        gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
+        house: d.house || undefined as any,
+        address: d.address || undefined,
+        email: d.email || undefined,
+        bloodGroup: d.blood_group || d.bloodGroup || undefined,
+        admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
+        feeStatus: (d.fee_status as any) || d.feeStatus || "Pending",
+        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
+        attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
         branch: d.branch || "Main Branch",
       }));
 
-      if (mapped.length > 0) {
-        setCachedStudentsList(mapped);
-        return { data: mapped, isFromSupabase: true };
+      const normalized = normalizeStudents(mapped);
+      if (normalized.length > 0) {
+        setCachedStudentsList(normalized);
+        return { data: normalized, isFromSupabase: true };
       }
     }
 
@@ -497,7 +584,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
           const mapped: Student[] = rows.map((d: any) => ({
             id: d.id || d.login_id,
             rollNo: d.roll_no || 1,
-            admissionNo: d.admission_no || d.id,
+            admissionNo: toCanonicalAdmissionNo(d.admission_no, d.id),
             name: d.full_name || "Student",
             age: d.age || 4,
             dob: d.date_of_birth || "2022-01-01",
@@ -514,8 +601,9 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
             attendance: Number(d.attendance_pct || 95.0),
             branch: d.branch || "Main Branch",
           }));
-          setCachedStudentsList(mapped);
-          return { data: mapped, isFromSupabase: true };
+          const normalized = normalizeStudents(mapped);
+          setCachedStudentsList(normalized);
+          return { data: normalized, isFromSupabase: true };
         }
       }
     } catch {}
@@ -544,14 +632,55 @@ export async function createStudent(student: Omit<Student, "id"> & {
   address?: string;
   email?: string;
 }) {
+  const existingList = getCachedStudentsList();
+  const cleanPhone = (student.phone || "").replace(/[^0-9]/g, "");
+  const cleanName = (student.parent || student.fatherName || student.motherName || "").trim().toLowerCase();
+
+  let existingParentStudent = existingList.find((s) => {
+    const pPhone = (s.phone || "").replace(/[^0-9]/g, "");
+    const pName = (s.parent || "").trim().toLowerCase();
+    return (cleanPhone.length >= 10 && pPhone.endsWith(cleanPhone.slice(-10))) || (cleanName.length > 0 && pName === cleanName);
+  });
+
+  if (!existingParentStudent && (cleanPhone.length >= 10 || cleanName.length > 0)) {
+    try {
+      let query = supabase.from("gv_users").select("id, parent_id, parent_name, mobile").or("role.eq.student,role.eq.Student,role.ilike.*student*");
+      if (cleanPhone.length >= 10) {
+        query = query.ilike("mobile", `%${cleanPhone.slice(-10)}%`);
+      } else if (cleanName.length > 0) {
+        query = query.ilike("parent_name", `%${cleanName}%`);
+      }
+      const { data: dbMatches } = await query;
+      if (dbMatches && dbMatches.length > 0) {
+        const match = dbMatches[0];
+        existingParentStudent = {
+          id: match.id,
+          parentId: match.parent_id,
+          parent: match.parent_name,
+          phone: match.mobile,
+        } as any;
+      }
+    } catch {}
+  }
+
   const ts = Date.now().toString();
   const newId = student.id || `STU-${ts.slice(-6)}`;
-  const parentId = student.parentId || `PAR-${ts.slice(-6)}`;
+  const parentId =
+    student.parentId ||
+    existingParentStudent?.parentId ||
+    (cleanPhone.length >= 10
+      ? `PAR-${cleanPhone.slice(-10)}`
+      : `PAR-${cleanName.replace(/[^a-z0-9]/g, "") || ts.slice(-6)}`);
+
+  const admissionYear = new Date().getFullYear();
+  const canonicalAdmNo = student.admissionNo
+    ? toCanonicalAdmissionNo(student.admissionNo, newId, admissionYear)
+    : getNextAdmissionNo(existingList, admissionYear);
 
   const newStuObj: Student = {
     id: newId,
     rollNo: student.rollNo || 1,
-    admissionNo: student.admissionNo || newId,
+    admissionNo: canonicalAdmNo,
     name: student.name,
     age: student.age || 4,
     dob: student.dob || "2022-01-01",
@@ -573,7 +702,7 @@ export async function createStudent(student: Omit<Student, "id"> & {
     id: newId,
     login_id: newId,
     email: student.email || `${newId.toLowerCase()}@sunshine.edu`,
-    admission_no: student.admissionNo || newId,
+    admission_no: canonicalAdmNo,
     full_name: student.name,
     role: "student",
     class_name: student.className || "Nursery",
@@ -665,13 +794,15 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
       const fallbackAdm = await supabase.from("gv_users").update(payload).eq("admission_no", id).select();
       data = fallbackAdm.data;
     }
+    const updatedObj = updatedList.find((s) => s.id === id || s.admissionNo === id);
     notifyAutoRefresh("students");
     notifyAutoRefresh("admissions");
     notifyAutoRefresh("reports");
     notifyAutoRefresh("fees");
-    return { data, error: null };
+    return { data: data && data.length > 0 ? data : [updatedObj], error: null };
   } catch (err: any) {
-    return { data: null, error: null };
+    const updatedObj = updatedList.find((s) => s.id === id || s.admissionNo === id);
+    return { data: [updatedObj], error: null };
   }
 }
 
@@ -768,7 +899,7 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
 
         return {
           id: d.id || d.login_id,
-          name: d.full_name || "Teacher",
+          name: sanitizeTeacherName(d.full_name || d.name, d.login_id),
           className: d.class_name || "",
           subject: d.subject || "General",
           email: d.email || `${(d.full_name || "teacher").toLowerCase().replace(/\s+/g, ".")}@sunshine.edu`,
@@ -1061,19 +1192,24 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
 
     const feeMap = new Map<string, FeeLedgerItem>();
     (feData || []).forEach((f) => {
-      const key = (f.studentId || f.admissionNo || f.studentName).toLowerCase();
-      if (!feeMap.has(key)) {
-        feeMap.set(key, f);
-      }
+      if (f.studentId) feeMap.set(f.studentId.toLowerCase(), f);
+      if (f.admissionNo) feeMap.set(f.admissionNo.toLowerCase(), f);
+      if (f.studentName) feeMap.set(f.studentName.toLowerCase(), f);
     });
 
     const combined: FeeLedgerItem[] = (stData || []).map((s) => {
-      const key = (s.id || s.admissionNo || s.name).toLowerCase();
-      const existing = feeMap.get(key);
+      const canonicalAdm = toCanonicalAdmissionNo(s.admissionNo, s.id);
+      const k1 = (s.id || "").toLowerCase();
+      const k2 = (s.admissionNo || "").toLowerCase();
+      const k3 = canonicalAdm.toLowerCase();
+      const k4 = (s.name || "").toLowerCase();
+
+      const existing = feeMap.get(k1) || feeMap.get(k2) || feeMap.get(k3) || feeMap.get(k4);
       if (existing) {
         return recalculateFeeLedger({
           ...existing,
-          admissionNo: existing.admissionNo || s.admissionNo || s.id,
+          studentId: s.id,
+          admissionNo: canonicalAdm,
           studentName: s.name || existing.studentName,
           className: s.className || existing.className,
           section: s.section || existing.section || "A",
@@ -1084,7 +1220,7 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
         id: `FP-${s.id}`,
         studentId: s.id,
         studentName: s.name,
-        admissionNo: s.admissionNo || s.id,
+        admissionNo: canonicalAdm,
         className: s.className || "Nursery",
         section: s.section || "A",
         rollNo: s.rollNo || 1,

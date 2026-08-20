@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, DoorOpen, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
+import { sanitizeTeacherName } from "@/lib/credentials";
 import { getStoredMasterClasses, subscribeMasterClasses, updateMasterClass, addMasterClass, fetchMasterClassesFromSupabase, type MasterClassItem } from "@/lib/masterClassesStore";
 import { ClassDetailsModal } from "@/components/classes/ClassDetailsModal";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
@@ -61,6 +62,12 @@ function OfficeClassesPage() {
     });
   }, []);
 
+  const [isCustomClassName, setIsCustomClassName] = useState(false);
+  const [isCustomSection, setIsCustomSection] = useState(false);
+
+  const PRESET_CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"];
+  const PRESET_SECTIONS = ["A", "B", "C", "D", "E"];
+
   const handleOpenEdit = (c: MasterClassItem) => {
     setEditingItem(c);
     setFormData({
@@ -70,6 +77,8 @@ function OfficeClassesPage() {
       capacity: c.capacity,
       classTeacher: c.classTeacher || "Unassigned",
     });
+    setIsCustomClassName(!PRESET_CLASSES.includes(c.name));
+    setIsCustomSection(!PRESET_SECTIONS.includes(c.section));
     setIsEditOpen(true);
   };
 
@@ -82,48 +91,65 @@ function OfficeClassesPage() {
       capacity: 30,
       classTeacher: "Unassigned",
     });
+    setIsCustomClassName(false);
+    setIsCustomSection(false);
     setIsEditOpen(true);
   };
 
   const handleSaveClass = () => {
     if (!formData.name.trim()) {
-      toast.error("Please enter a class name");
+      toast.error("Class name is required");
+      return;
+    }
+    if (!formData.section.trim()) {
+      toast.error("Section is required");
+      return;
+    }
+    if (Number(formData.capacity) <= 0) {
+      toast.error("Capacity must be greater than 0");
       return;
     }
 
     if (formData.classTeacher && formData.classTeacher !== "Unassigned") {
-      const matchTeach = teachersList.find((t) => t.name === formData.classTeacher);
+      const matchTeach = teachersList.find((t) => t.name === formData.classTeacher || t.id === formData.classTeacher);
+      const selectedTeacherName = matchTeach?.name || formData.classTeacher;
+      const selectedTeacherId = matchTeach?.id || `TCH-${Date.now()}`;
       createAssignment({
-        teacherId: matchTeach?.id || `TCH-${Date.now()}`,
-        teacherName: formData.classTeacher,
+        teacherId: selectedTeacherId,
+        teacherName: selectedTeacherName,
         academicYear: "2026-27",
         role: "class",
         className: formData.name.trim(),
-        section: formData.section.trim().toUpperCase(),
+        section: formData.section.trim(),
         status: "active",
       });
     }
 
+    const teacherMatch = teachersList.find((t) => t.name === formData.classTeacher || t.id === formData.classTeacher);
+
     if (editingItem) {
       updateMasterClass(editingItem.id, {
         name: formData.name.trim(),
-        section: formData.section.trim().toUpperCase(),
+        section: formData.section.trim(),
         room: formData.room.trim() || "Room 101",
         capacity: Number(formData.capacity) || 30,
-        classTeacher: formData.classTeacher,
+        classTeacher: teacherMatch?.name || formData.classTeacher,
+        teacherId: teacherMatch?.id || "",
       });
       toast.success(`Updated ${formData.name} - Section ${formData.section}`);
     } else {
       addMasterClass({
         name: formData.name.trim(),
-        section: formData.section.trim().toUpperCase(),
+        section: formData.section.trim(),
         room: formData.room.trim() || "Room 101",
         capacity: Number(formData.capacity) || 30,
-        classTeacher: formData.classTeacher,
+        classTeacher: teacherMatch?.name || formData.classTeacher,
+        teacherId: teacherMatch?.id || "",
       });
-      toast.success(`Created class ${formData.name} - Section ${formData.section}`);
+      toast.success(`Added new class ${formData.name} - Section ${formData.section}`);
     }
 
+    fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
     setIsEditOpen(false);
     loadData();
   };
@@ -138,8 +164,17 @@ function OfficeClassesPage() {
     });
   }, [classesList, search, filterValues]);
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    classesList.forEach((c) => {
+      if (c.section) set.add(c.section.trim());
+    });
+    ["A", "B", "C", "D", "1", "2"].forEach((s) => set.add(s));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [classesList]);
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
+    <div className="space-y-4 w-full max-w-none">
       <PageHeader
         title="Classes Overview & Management"
         description="View live school classes, sections, assigned class teachers, and edit class settings."
@@ -150,10 +185,10 @@ function OfficeClassesPage() {
         }
       />
 
-      <div className="shrink-0">
+      <div>
         <FilterBar
           searchPlaceholder="Search class name, section, teacher..."
-          filters={[{ label: "Section", options: ["A", "B", "C", "D"] }]}
+          filters={[{ label: "Section", options: sectionOptions }]}
           search={search}
           onSearchChange={setSearch}
           filterValues={filterValues}
@@ -162,7 +197,7 @@ function OfficeClassesPage() {
         />
       </div>
 
-      <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-2 w-full">
         <DataTable
           columns={["Class Name", "Section", "Live Student Count", "Class Teacher", "Room & Capacity", "Action"]}
           total={filtered.length}
@@ -212,8 +247,13 @@ function OfficeClassesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-xs text-slate-600">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <DoorOpen className="w-3.5 h-3.5 text-indigo-500" /> {c.room}
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                      <DoorOpen className="w-3.5 h-3.5 text-indigo-500" /> {c.room || "Room 101"}
+                    </div>
+                    <div className="text-[11px] text-slate-500 pl-5 font-normal">
+                      {c.capacity ? `Capacity: ${c.capacity} students` : "Capacity: Not Assigned"}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -247,23 +287,89 @@ function OfficeClassesPage() {
           </DialogHeader>
           <div className="space-y-4 py-2 text-sm">
             <div>
-              <Label>Class Name</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Playgroup, Nursery, LKG, UKG, Grade 1"
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Section</Label>
-                <Select value={formData.section} onValueChange={(v) => setFormData((f) => ({ ...f, section: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <div className="flex items-center justify-between">
+                <Label>Class Name</Label>
+                {isCustomClassName && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsCustomClassName(false); setFormData((f) => ({ ...f, name: PRESET_CLASSES[0] })); }}
+                    className="text-[11px] text-indigo-600 hover:underline font-medium"
+                  >
+                    Select from presets
+                  </button>
+                )}
+              </div>
+              {!isCustomClassName ? (
+                <Select
+                  value={formData.name}
+                  onValueChange={(v) => {
+                    if (v === "__CUSTOM__") {
+                      setIsCustomClassName(true);
+                      setFormData((f) => ({ ...f, name: "" }));
+                    } else {
+                      setFormData((f) => ({ ...f, name: v }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select class name" /></SelectTrigger>
                   <SelectContent>
-                    {["A", "B", "C", "D"].map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}
+                    {PRESET_CLASSES.map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                    <SelectItem value="__CUSTOM__" className="font-semibold text-indigo-600">+ Custom Class Name...</SelectItem>
                   </SelectContent>
                 </Select>
+              ) : (
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Grade 10, Robotics Club, Pre-K Special"
+                  className="mt-1"
+                  autoFocus
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label>Section</Label>
+                  {isCustomSection && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsCustomSection(false); setFormData((f) => ({ ...f, section: PRESET_SECTIONS[0] })); }}
+                      className="text-[11px] text-indigo-600 hover:underline font-medium"
+                    >
+                      Presets
+                    </button>
+                  )}
+                </div>
+                {!isCustomSection ? (
+                  <Select
+                    value={formData.section}
+                    onValueChange={(v) => {
+                      if (v === "__CUSTOM__") {
+                        setIsCustomSection(true);
+                        setFormData((f) => ({ ...f, section: "" }));
+                      } else {
+                        setFormData((f) => ({ ...f, section: v }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select section" /></SelectTrigger>
+                    <SelectContent>
+                      {PRESET_SECTIONS.map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}
+                      <SelectItem value="__CUSTOM__" className="font-semibold text-indigo-600">+ Custom Section...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={formData.section}
+                    onChange={(e) => setFormData((f) => ({ ...f, section: e.target.value }))}
+                    placeholder="e.g. Rose, 1, 101, Alpha"
+                    className="mt-1"
+                  />
+                )}
               </div>
               <div>
                 <Label>Capacity</Label>
@@ -280,7 +386,7 @@ function OfficeClassesPage() {
               <Input
                 value={formData.room}
                 onChange={(e) => setFormData((f) => ({ ...f, room: e.target.value }))}
-                placeholder="e.g. Room 101"
+                placeholder="e.g. Room 101, Lab 3"
                 className="mt-1"
               />
             </div>
@@ -291,7 +397,7 @@ function OfficeClassesPage() {
                 <SelectContent>
                   <SelectItem value="Unassigned">Unassigned</SelectItem>
                   {teachersList.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                    <SelectItem key={t.id} value={sanitizeTeacherName(t.name, t.id)}>{sanitizeTeacherName(t.name, t.id)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

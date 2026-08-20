@@ -94,7 +94,7 @@ function ReceiptsPage() {
   const schoolName = settings.school?.schoolName || settings.branding?.schoolName || "Sunshine Play School";
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none space-y-6">
+    <div className="space-y-6 w-full max-w-none">
       <PageHeader
         title="Fee Payment Receipts Hub"
         subtitle="Live database audit of all issued receipts, payment modes, fee ledgers, and printable official receipts."
@@ -117,8 +117,8 @@ function ReceiptsPage() {
       </div>
 
       {/* Receipts Table */}
-      <div className="rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-lg flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="overflow-y-auto overflow-x-auto flex-1 max-h-[calc(100vh-260px)]">
+      <div className="rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-xs uppercase text-slate-600 border-b border-slate-200">
               <tr>

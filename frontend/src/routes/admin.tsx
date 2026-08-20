@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { TopNav } from "@/components/admin/top-nav";
-import { Toaster } from "@/components/ui/sonner";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin")({
@@ -24,7 +23,6 @@ function AdminLayout() {
           </main>
         </SidebarInset>
       </div>
-      <Toaster />
     </SidebarProvider>
   );
 }

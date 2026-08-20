@@ -33,8 +33,8 @@ function Enquiries() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="shrink-0">
+    <div className="space-y-4 w-full max-w-none">
+      <div>
         <PageHeader
           title="Enquiries"
           subtitle="Drag cards to move through the pipeline."
@@ -48,7 +48,7 @@ function Enquiries() {
           }
         />
       </div>
-      <div className="flex-1 min-h-0">
+      <div>
         <EnquiryKanban />
       </div>
 

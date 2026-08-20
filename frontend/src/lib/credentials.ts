@@ -7,6 +7,60 @@ import type { Role } from "@/lib/roleConfig";
 import { supabase } from "@/lib/supabase";
 import { notifyAutoRefresh } from "./autoRefreshContext";
 
+export function generateCanonicalAdmissionNo(year: number = 2026, sequence: number = 1): string {
+  const yy = String(year).slice(-2);
+  const nnnn = String(Math.max(1, sequence)).padStart(4, "0");
+  return `${yy}${nnnn}`;
+}
+
+export function toCanonicalAdmissionNo(rawNo?: string | number, id?: string | number, joinYear?: number | string): string {
+  const str = String(rawNo ?? "").trim();
+
+  // If already exactly 6 numeric digits, return immediately
+  if (/^\d{6}$/.test(str)) {
+    return str;
+  }
+
+  // Extract all digits from rawNo or fallback id
+  const digitsOnly = str.replace(/\D/g, "") || String(id ?? "").replace(/\D/g, "");
+
+  // Determine YY (Joining Year)
+  let yy = "26";
+  if (joinYear !== undefined && joinYear !== null && String(joinYear).trim() !== "") {
+    yy = String(joinYear).trim().slice(-2);
+  } else if (digitsOnly.length === 8 && (digitsOnly.startsWith("202") || digitsOnly.startsWith("203"))) {
+    // e.g. 20260001 -> 26, 20270001 -> 27
+    yy = digitsOnly.slice(2, 4);
+  } else if (digitsOnly.length === 6 && (digitsOnly.startsWith("24") || digitsOnly.startsWith("25") || digitsOnly.startsWith("26") || digitsOnly.startsWith("27") || digitsOnly.startsWith("28") || digitsOnly.startsWith("29") || digitsOnly.startsWith("30"))) {
+    // e.g. 270001 -> 27, 260005 -> 26
+    yy = digitsOnly.slice(0, 2);
+  } else if (str.includes("2027") || str.includes("27-") || str.includes("/27") || str.includes("-27")) {
+    yy = "27";
+  } else if (str.includes("2028") || str.includes("28-") || str.includes("/28") || str.includes("-28")) {
+    yy = "28";
+  } else if (str.includes("2025") || str.includes("25-") || str.includes("/25") || str.includes("-25")) {
+    yy = "25";
+  } else if (str.includes("2024") || str.includes("24-") || str.includes("/24") || str.includes("-24")) {
+    yy = "24";
+  }
+
+  // Determine Sequence NNNN
+  let seq = 1;
+  if (digitsOnly.length >= 4) {
+    const rawSeq = parseInt(digitsOnly.slice(-4), 10);
+    seq = isNaN(rawSeq) || rawSeq === 0 ? 1 : rawSeq;
+  } else if (digitsOnly.length > 0) {
+    const rawSeq = parseInt(digitsOnly, 10);
+    seq = isNaN(rawSeq) || rawSeq === 0 ? 1 : rawSeq;
+  }
+
+  if (seq > 9999) {
+    seq = (seq % 9999) || 1;
+  }
+
+  return `${yy}${String(seq).padStart(4, "0")}`;
+}
+
 
 
 export type CredentialStatus = "Active" | "Inactive";
@@ -126,15 +180,32 @@ if (typeof window !== "undefined") {
 // ─── Suggestions ────────────────────────────────────────────────────────────
 
 export function suggestParentLoginId(student: Partial<Student>): string {
-  const adm = student.admissionNo || student.id || "ADM1001";
-  const cleaned = adm.replace(/[^A-Za-z0-9]/g, "");
-  return cleaned.toUpperCase();
+  return toCanonicalAdmissionNo(student.admissionNo, student.id);
 }
 
 export function alternativeParentLoginId(student: Partial<Student>): string {
   const phone = student.phone || "9876543210";
   const digits = phone.replace(/\D/g, "");
   return digits.slice(-10) || phone;
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function sanitizeTeacherName(rawName?: string, fallbackId?: string): string {
+  if (!rawName) {
+    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) {
+      return fallbackId;
+    }
+    return "Assigned Teacher";
+  }
+  const trimmed = rawName.trim();
+  if (UUID_PATTERN.test(trimmed)) {
+    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) {
+      return fallbackId;
+    }
+    return "Assigned Teacher";
+  }
+  return trimmed;
 }
 
 export function suggestTeacherLoginId(teacher: Partial<Teacher>): string {
@@ -173,7 +244,7 @@ export function generateParentCredential(
 ): ParentCredential {
   const student = opts?.student || {
     id: studentId,
-    admissionNo: `ADM-${studentId}`,
+    admissionNo: toCanonicalAdmissionNo(undefined, studentId),
     parent: "Parent User",
     phone: "9876543210",
   } as any;
@@ -201,7 +272,11 @@ export function generateParentCredential(
   write(store);
   saveCredToSupabase(cred);
 
-  const parentUserId = `PAR-${loginId.toUpperCase()}`;
+  const cleanPhone = (student.phone || "").replace(/\D/g, "");
+  const parentUserId =
+    student.parentId ||
+    (cleanPhone.length >= 10 ? `PAR-${cleanPhone.slice(-10)}` : `PAR-${loginId.toUpperCase()}`);
+
   const parentPayload = {
     id: parentUserId,
     auth_user_id: parentUserId,
@@ -218,22 +293,16 @@ export function generateParentCredential(
     supabase.from("gv_users").upsert([parentPayload], { onConflict: "login_id" })
   ).catch(() => {});
 
-  // Trigger backend Supabase Auth provisioning
-  try {
-    import("./api").then(({ API_URL }) => {
-      fetch(`${API_URL}/api/users/provision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          login_id: loginId,
-          password: cred.password,
-          role: "parent",
-          email: `${loginId.toLowerCase()}@growvia.edu`,
-          full_name: student.parent || "Parent User",
-        }),
-      }).catch(() => {});
-    });
-  } catch {}
+  const provisionPromise = import("./supabaseAuth").then(({ triggerServerUserProvisioning }) =>
+    triggerServerUserProvisioning({
+      login_id: loginId,
+      password: cred.password,
+      role: "parent",
+      email: `${loginId.toLowerCase()}@growvia.edu`,
+      name: student.parent || "Parent User",
+    })
+  );
+  (cred as any)._provisionPromise = provisionPromise;
 
   return cred;
 }
@@ -410,32 +479,15 @@ export function generateTeacherCredential(
   write(store);
   saveCredToSupabase(cred);
 
-  Promise.resolve(
-    createTeacherAuthAccount({
-      teacherId,
-      loginId,
-      password,
-      name: teacher.name || "Teacher",
-      email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
-      mobile: teacher.phone,
-    })
-  ).catch(() => {});
-
-  try {
-    import("./api").then(({ API_URL }) => {
-      fetch(`${API_URL}/api/users/provision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          login_id: loginId,
-          password,
-          role: "teacher",
-          email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
-          full_name: teacher.name || "Teacher User",
-        }),
-      }).catch(() => {});
-    });
-  } catch {}
+  const provisionPromise = createTeacherAuthAccount({
+    teacherId,
+    loginId,
+    password,
+    name: teacher.name || "Teacher",
+    email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
+    mobile: teacher.phone,
+  });
+  (cred as any)._provisionPromise = provisionPromise;
 
   return cred;
 }

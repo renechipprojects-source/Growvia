@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Eye, Plus, Pencil, Trash2, GraduationCap, DoorOpen } from "lucide-react";
+import { Eye, Plus, Pencil, Trash2, GraduationCap, DoorOpen, UserCheck } from "lucide-react";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
+import { sanitizeTeacherName } from "@/lib/credentials";
 import {
   getStoredMasterClasses,
   addMasterClass,
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/admin/classes")({
 });
 
 function ClassesPage() {
+  const navigate = useNavigate();
   const [classesList, setClassesList] = useState<MasterClassItem[]>(getStoredMasterClasses);
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -123,17 +125,40 @@ function ClassesPage() {
     }
   };
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    classesList.forEach((c) => {
+      if (c.section) set.add(c.section.trim());
+    });
+    ["A", "B", "C", "D", "1", "2"].forEach((s) => set.add(s));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [classesList]);
+
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
         title="Classes Overview"
         description="Master school classes, sections, assigned class teachers, and student capacity."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => navigate({ to: "/office/class-assignment", search: { tab: "student-mapping" } })}
+              variant="outline"
+              className="bg-white text-indigo-700 border-slate-200 rounded-xl text-xs font-semibold"
+            >
+              <UserCheck className="mr-1.5 h-4 w-4 text-indigo-600" /> Student Class Mapping
+            </Button>
+            <Button onClick={handleCreateNew} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold">
+              <Plus className="mr-1.5 h-4 w-4" /> Add Class
+            </Button>
+          </div>
+        }
       />
 
       <div className="shrink-0">
         <FilterBar
           searchPlaceholder="Search class name, section, teacher..."
-          filters={[{ label: "Section", options: ["A", "B", "C", "D"] }]}
+          filters={[{ label: "Section", options: sectionOptions }]}
           search={search}
           onSearchChange={setSearch}
           filterValues={filterValues}
@@ -184,8 +209,13 @@ function ClassesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-xs text-slate-600">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <DoorOpen className="w-3.5 h-3.5 text-indigo-500" /> {c.room}
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                      <DoorOpen className="w-3.5 h-3.5 text-indigo-500" /> {c.room || "Room 101"}
+                    </div>
+                    <div className="text-[11px] text-slate-500 pl-5 font-normal">
+                      {c.capacity ? `Capacity: ${c.capacity} students` : "Capacity: Not Assigned"}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -232,9 +262,9 @@ function ClassesPage() {
                 <Label className="font-semibold text-slate-700">Section</Label>
                 <Input
                   value={form.section}
-                  onChange={(e) => setForm((f) => ({ ...f, section: e.target.value.toUpperCase() }))}
-                  placeholder="A, B, C..."
-                  className="mt-1 bg-white rounded-xl uppercase"
+                  onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))}
+                  placeholder="e.g. A, B, 1, 101, Rose"
+                  className="mt-1 bg-white rounded-xl"
                 />
               </div>
               <div>
@@ -255,11 +285,14 @@ function ClassesPage() {
                   <SelectValue placeholder="Select class teacher" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teachersList.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>
-                      {t.name} ({t.subject || "Teacher"})
-                    </SelectItem>
-                  ))}
+                  {teachersList.map((t) => {
+                    const cleanName = sanitizeTeacherName(t.name, t.id);
+                    return (
+                      <SelectItem key={t.id} value={cleanName}>
+                        {cleanName} ({t.subject || "Teacher"})
+                      </SelectItem>
+                    );
+                  })}
                   <SelectItem value="Unassigned">Unassigned</SelectItem>
                 </SelectContent>
               </Select>

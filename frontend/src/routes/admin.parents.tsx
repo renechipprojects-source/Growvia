@@ -33,7 +33,6 @@ export interface Parent {
   phone: string;
   occupation: string;
   children: string[];
-  preferredChannel: string;
   emergencyContact: string;
   avatar: string;
 }
@@ -64,7 +63,6 @@ function ParentsPage() {
             phone: s.phone || "+91 98765 43210",
             occupation: getOccupation(s.id),
             children: [s.name],
-            preferredChannel: "WhatsApp / Call",
             emergencyContact: s.phone || "+91 98765 43210",
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`,
           });
@@ -88,18 +86,16 @@ function ParentsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const ch = filterValues["Channel"];
     return parentList.filter((p) => {
       if (q && !`${p.name} ${p.email} ${p.phone} ${p.children.join(" ")}`.toLowerCase().includes(q)) return false;
-      if (ch && ch !== "all" && p.preferredChannel?.toLowerCase() !== ch.toLowerCase()) return false;
       return true;
     });
-  }, [parentList, search, filterValues]);
+  }, [parentList, search]);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) return;
-    const headers = ["Parent Name", "Phone", "Email", "Occupation", "Children", "Channel"];
-    const rows = filtered.map(p => [p.name, p.phone, p.email, p.occupation, p.children.join(";"), p.preferredChannel]);
+    const headers = ["Parent Name", "Phone", "Email", "Occupation", "Children"];
+    const rows = filtered.map(p => [p.name, p.phone, p.email, p.occupation, p.children.join(";")]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -121,7 +117,7 @@ function ParentsPage() {
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2">
         <FilterBar
           searchPlaceholder="Search parents by name, child, phone..."
-          filters={[{ label: "Channel", options: ["Email", "SMS", "WhatsApp"] }]}
+          filters={[]}
           search={search}
           onSearchChange={setSearch}
           filterValues={filterValues}

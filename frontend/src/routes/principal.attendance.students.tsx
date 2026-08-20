@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { fetchStudents, toCanonicalAdmissionNo, type Student } from "@/lib/supabaseService";
 import { useLiveAttendance, getStudentAttendanceDetails } from "@/lib/attendanceStore";
 import { AttendanceDetailsModal } from "@/routes/admin.attendance.students";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
@@ -64,7 +64,7 @@ function StudentAttendancePage() {
         className: s.className || "Nursery",
         section: s.section || "A",
         status: st as "P" | "A" | "L" | "Lv" | null,
-        admissionNo: s.admissionNo || `ADM-${1000 + idx}`,
+        admissionNo: toCanonicalAdmissionNo(s.admissionNo, s.id || idx),
         rollNo: s.rollNo || idx + 1,
         parent: s.parent || "Parent",
         rawStudent: s,

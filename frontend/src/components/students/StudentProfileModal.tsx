@@ -8,6 +8,7 @@ import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { useAcademicYear } from "@/lib/academicYearContext";
 import { getPromotionHistory, getActivityTimeline } from "@/lib/promotionStore";
 import { cn } from "@/lib/utils";
+import { toCanonicalAdmissionNo } from "@/lib/credentials";
 
 interface StudentProfileModalProps {
   open: boolean;
@@ -22,12 +23,14 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
 
   if (!student) return null;
 
-  const parentName = typeof student.parent === "object" ? student.parent?.name : student.parent || "Parent / Guardian";
-  const parentPhone = typeof student.parent === "object" ? student.parent?.phone : student.phone || "+91 98765 43210";
+  const parentName = typeof student.parent === "object" ? student.parent?.name : student.parent || "N/A";
+  const parentPhone = typeof student.parent === "object" ? student.parent?.phone : student.phone || "N/A";
   const avatarUrl = student.avatar || student.avatarSeed || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(student.name)}`;
 
-  const promotionHistory = getPromotionHistory().filter((p) => p.studentId === student.id || p.studentId === "STU1001");
-  const activityTimeline = getActivityTimeline(student.id || "STU1001");
+  const promotionHistory = getPromotionHistory().filter((p) => p.studentId === student.id);
+  const activityTimeline = getActivityTimeline(student.id);
+
+  const canonicalAdmNo = toCanonicalAdmissionNo(student.admissionNo, student.id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -42,12 +45,12 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
               <div>
                 <DialogTitle className="text-xl font-bold text-slate-900 leading-snug">{student.name}</DialogTitle>
                 <div className="text-xs text-slate-500 font-medium mt-0.5">
-                  Admission #{student.admissionNo || student.id} · Roll #{student.rollNo || 1} · Class {student.className}-{student.section || "A"}
+                  Admission No: <span className="font-mono font-bold text-slate-700">{canonicalAdmNo}</span> {student.rollNo ? `· Roll #${student.rollNo}` : ""} · Class {student.className}{student.section ? `-${student.section}` : ""}
                 </div>
               </div>
             </div>
             <Badge className={cn("text-xs px-3 py-1 font-semibold rounded-full shrink-0 border", student.status === "Graduated" ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-emerald-100 text-emerald-800 border-emerald-200")}>
-              {student.status || "Enrolled Student"}
+              {student.status || "Enrolled"}
             </Badge>
           </div>
 
@@ -82,12 +85,12 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
                 <GraduationCap className="h-4 w-4 text-indigo-600" /> Student Profile Details
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
-                <div><span className="text-slate-400 block font-medium">Date of Birth</span><span className="font-semibold text-slate-800">{student.dob || "2022-01-15"}</span></div>
-                <div><span className="text-slate-400 block font-medium">Gender</span><span className="font-semibold text-slate-800">{student.gender || "Male"}</span></div>
-                <div><span className="text-slate-400 block font-medium">Blood Group</span><span className="font-semibold text-slate-800">{student.bloodGroup || "O+"}</span></div>
-                <div><span className="text-slate-400 block font-medium">Admission Date</span><span className="font-semibold text-slate-800">{student.joinedOn || student.admissionDate || "2024-06-01"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Date of Birth</span><span className="font-semibold text-slate-800">{student.dob || student.dateOfBirth || "N/A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Gender</span><span className="font-semibold text-slate-800">{student.gender || "N/A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Blood Group</span><span className="font-semibold text-slate-800">{student.bloodGroup || "N/A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">House / Group</span><span className="font-semibold text-slate-800">{student.house || "N/A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Admission Date</span><span className="font-semibold text-slate-800">{student.joinedOn || student.admissionDate || "N/A"}</span></div>
                 <div><span className="text-slate-400 block font-medium">Academic Year</span><span className="font-semibold text-slate-800">{student.academicYear || activeYear}</span></div>
-                <div><span className="text-slate-400 block font-medium">Status</span><span className="font-semibold text-emerald-600">{student.status || "Enrolled"}</span></div>
               </div>
             </div>
 
@@ -99,8 +102,8 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
               <div className="grid grid-cols-2 gap-3 text-xs pt-1">
                 <div><span className="text-slate-400 block font-medium">Parent / Guardian</span><span className="font-semibold text-slate-800">{parentName}</span></div>
                 <div><span className="text-slate-400 block font-medium">Phone Number</span><span className="font-semibold text-slate-800">{parentPhone}</span></div>
-                <div><span className="text-slate-400 block font-medium">Email Address</span><span className="font-semibold text-slate-800">{student.email || "parent@sunshine.edu"}</span></div>
-                <div><span className="text-slate-400 block font-medium">Residential Address</span><span className="font-semibold text-slate-800">{student.address || "Bengaluru, Karnataka"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Email Address</span><span className="font-semibold text-slate-800">{student.email || "N/A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Residential Address</span><span className="font-semibold text-slate-800">{student.address || "N/A"}</span></div>
               </div>
             </div>
 
@@ -110,14 +113,14 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
                 <UserCheck className="h-4 w-4 text-emerald-600" /> Academic, Class & Subject Teachers
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
-                <div><span className="text-slate-400 block font-medium">Assigned Class</span><span className="font-semibold text-slate-800">{student.className}-{student.section || "A"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Assigned Class</span><span className="font-semibold text-slate-800">{student.className}{student.section ? `-${student.section}` : ""}</span></div>
                 <div>
                   <span className="text-slate-400 block font-medium">Class Teacher</span>
                   <span className="font-bold text-indigo-700">
                     {getClassTeacher(student.className || "Nursery", student.section || "A")?.teacherName || "Unassigned"}
                   </span>
                 </div>
-                <div><span className="text-slate-400 block font-medium">Attendance Rate</span><span className="font-bold text-emerald-600">96% Present</span></div>
+                <div><span className="text-slate-400 block font-medium">Attendance Rate</span><span className="font-bold text-emerald-600">{(student.attendance !== undefined && student.attendance !== null) ? `${student.attendance}% Present` : "N/A"}</span></div>
               </div>
             </div>
 
@@ -126,13 +129,18 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
               <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-2">
                 <FileText className="h-4 w-4 text-indigo-600" /> Attached Documents
               </div>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-sm">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Birth Certificate.pdf
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-sm">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Parent Address Proof.pdf
-                </span>
+              <div className="pt-1">
+                {student.documents && student.documents.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {student.documents.map((doc: any, i: number) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {doc.name || doc}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-slate-400 text-xs italic">No attached documents available.</div>
+                )}
               </div>
             </div>
           </div>

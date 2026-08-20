@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useEnquiries } from "@/lib/enquiryContext";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { useStudentDocs, DEFAULT_DOCS, type DocEntry } from "@/lib/studentDocsContext";
-import { createStudent } from "@/lib/supabaseService";
+import { createStudent, getNextAdmissionNo, fetchStudents, toCanonicalAdmissionNo } from "@/lib/supabaseService";
 import { NotificationService } from "@/lib/notifications";
 import type { ClassName, Section } from "@/lib/mockData";
 
@@ -66,8 +66,8 @@ export const Route = createFileRoute("/office/admissions")({
   component: Admissions,
 });
 
-function autoAdmissionNo() {
-  return `SUN/26-${String(Math.floor(1000 + Math.random() * 8999))}`;
+function autoAdmissionNo(existingStudents: any[] = [], year: number = 2026) {
+  return getNextAdmissionNo(existingStudents, year);
 }
 
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
@@ -153,6 +153,20 @@ function Admissions() {
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } =
     useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults });
 
+  const [existingStudents, setExistingStudents] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchStudents().then(({ data }) => {
+      if (data) setExistingStudents(data);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (existingStudents.length > 0) {
+      setValue("admissionNo", getNextAdmissionNo(existingStudents, 2026));
+    }
+  }, [existingStudents, setValue]);
+
   useEffect(() => { reset(defaults); }, [defaults, reset]);
 
   const { upsert: upsertDocs } = useStudentDocs();
@@ -190,7 +204,7 @@ function Admissions() {
       occupation: v.occupation || "Business / Service",
       address: v.address,
       email: v.email,
-      parentId: `PRT-${Date.now().toString().slice(-4)}`,
+      parentId: undefined,
       phone: v.phone,
       gender: (v.gender as "Boy" | "Girl") || "Boy",
       house: "Red",
@@ -209,8 +223,8 @@ function Admissions() {
     if (enquiryId) markConverted(enquiryId);
     if (v.admissionNo) upsertDocs(v.admissionNo, v.childName, docs);
 
-    NotificationService.admissionCreated(v.childName, createdStu.admissionNo || v.admissionNo || "ADM-2026");
-    toast.success(`${v.childName} admitted (${createdStu.admissionNo || v.admissionNo}) — synced to database.`);
+    NotificationService.admissionCreated(v.childName, toCanonicalAdmissionNo(createdStu.admissionNo || v.admissionNo));
+    toast.success(`${v.childName} admitted (${toCanonicalAdmissionNo(createdStu.admissionNo || v.admissionNo)}) — synced to database.`);
     triggerModuleRefresh("students");
     triggerModuleRefresh("admissions");
     setPhotoBase64("");
@@ -219,8 +233,8 @@ function Admissions() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="shrink-0">
+    <div className="space-y-4 w-full max-w-none">
+      <div>
         <PageHeader
           title="New Admission"
           subtitle={enquiry ? `Converting enquiry ${enquiry.id} · ${enquiry.childName}` : "Convert an enquiry into a student."}
@@ -233,13 +247,13 @@ function Admissions() {
       </div>
 
       {alreadyConverted && (
-        <div className="mb-3 shrink-0 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           This enquiry has already been converted. Duplicate admissions are not allowed.
         </div>
       )}
 
-      <div className="flex-1 min-h-0 grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 min-h-0 overflow-y-auto">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
           <SectionCard title="Admission Form">
             <form
               onSubmit={handleSubmit(onSubmit)}
@@ -422,7 +436,7 @@ function Admissions() {
           </SectionCard>
         </div>
 
-        <div className="min-h-0 overflow-y-auto space-y-4">
+        <div className="space-y-4">
           {enquiry && (
             <SectionCard title="Source Enquiry">
               <ul className="text-sm space-y-1.5">

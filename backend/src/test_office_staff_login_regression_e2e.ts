@@ -46,8 +46,10 @@ async function runOfficeStaffLoginRegression() {
 
   console.log("  ✓ Credential object generated:", { loginId: cred.loginId, password: cred.password });
 
-  // Wait 1.5s for async provisioning to finalize in gv_users and auth.users
-  await new Promise((r) => setTimeout(r, 1500));
+  if ((cred as any)._provisionPromise) {
+    await (cred as any)._provisionPromise;
+  }
+  await new Promise((r) => setTimeout(r, 500));
 
   console.log("\n[STEP 2] Verifying Supabase gv_users table record...");
   const { data: gvUsers, error: gvErr } = await adminSupabase
@@ -89,7 +91,7 @@ async function runOfficeStaffLoginRegression() {
   console.log("\n[STEP 4] Testing authentication with Generated EMAIL...");
   const anonSupabase = createClient(
     SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.b3m1Qx1m-qUe0a6d5952m5t91118151216"
+    process.env.VITE_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY
   );
 
   const emailAuthRes = await anonSupabase.auth.signInWithPassword({

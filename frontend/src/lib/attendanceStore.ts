@@ -21,6 +21,7 @@ export interface StudentAttendanceEntry {
 
 import { getUserScopedStorageKey } from "./auth";
 import { notifyAutoRefresh } from "./autoRefreshContext";
+import { toCanonicalAdmissionNo } from "./credentials";
 
 const EVENT_NAME = "sunshine-attendance-update";
 const BASE_STORAGE_KEY = "sunshine.attendance.cache.v1";
@@ -82,7 +83,7 @@ export async function fetchAttendanceFromSupabase(): Promise<StudentAttendanceEn
         studentName: d.applicant_or_child_name || meta.studentName || "Student",
         className: d.class_name || meta.className || "Nursery",
         section: d.section || meta.section || "A",
-        admissionNo: meta.admissionNo || `ADM-${d.id}`,
+        admissionNo: toCanonicalAdmissionNo(meta.admissionNo, d.id),
         rollNo: meta.rollNo || 1,
         parentName: meta.parentName || "Parent",
         date: meta.date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -140,7 +141,7 @@ export async function saveAttendance(
       studentName: sName,
       className: className || (student as any)?.className || "Playgroup",
       section: section || (student as any)?.section || "A",
-      admissionNo: (student as any)?.admissionNo || `ADM-${studentId}`,
+      admissionNo: toCanonicalAdmissionNo((student as any)?.admissionNo, studentId),
       rollNo: (student as any)?.rollNo || 1,
       parentName: (student as any)?.parent || "Parent",
       date,
@@ -223,7 +224,7 @@ export function getStudentAttendanceDetails(studentId: string, fallbackStudent?:
   return {
     studentId,
     studentName: records[0]?.studentName || fallbackStudent?.name || "Student",
-    admissionNo: records[0]?.admissionNo || fallbackStudent?.admissionNo || `ADM-${studentId}`,
+    admissionNo: toCanonicalAdmissionNo(records[0]?.admissionNo || fallbackStudent?.admissionNo, studentId),
     className: records[0]?.className || fallbackStudent?.className || "Playgroup",
     section: records[0]?.section || fallbackStudent?.section || "A",
     rollNo: records[0]?.rollNo || fallbackStudent?.rollNo || 1,

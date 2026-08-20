@@ -98,9 +98,18 @@ export function DataTable({
   const childrenArray = Array.isArray(children) ? children.flat() : children ? [children] : [];
   const realTotal = total ?? childrenArray.length;
   const totalPages = Math.ceil(childrenArray.length / pageSize) || 1;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(1);
+    }
+  }, [childrenArray.length, totalPages, page]);
+
+  const currentPage = Math.min(page, totalPages);
+
   const paginatedChildren = hidePagination
     ? childrenArray
-    : childrenArray.slice((page - 1) * pageSize, page * pageSize);
+    : childrenArray.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <Card className="mt-4 flex w-full max-w-none flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/75 backdrop-blur-xl shadow-lg shadow-slate-900/5">
@@ -139,19 +148,19 @@ export function DataTable({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={page <= 1}
+                  disabled={currentPage <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="h-8 text-xs"
                 >
                   Previous
                 </Button>
                 <span className="text-xs font-medium text-muted-foreground px-2">
-                  Page {page} of {totalPages}
+                  Page {currentPage} of {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={page >= totalPages}
+                  disabled={currentPage >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="h-8 text-xs"
                 >

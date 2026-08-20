@@ -9,6 +9,7 @@ import {
   setTeacherStatus,
   subscribeCredentials,
   suggestTeacherLoginId,
+  sanitizeTeacherName,
 } from "@/lib/credentials";
 import { printableSlip } from "@/routes/office.parent-credentials";
 import { validateIndianMobile } from "@/lib/utils";
@@ -163,7 +164,7 @@ function TeacherCredentialsPage() {
   const notIssued = Math.max(0, teachers.length - allCreds.length);
 
   return (
-    <div className="w-full flex flex-1 min-h-0 flex-col overflow-y-auto space-y-4 pb-12 pr-1">
+    <div className="w-full space-y-4 pb-12">
       <PageHeader
         title="Teacher & Staff Login Accounts"
         subtitle="Generate, reset, activate or deactivate teacher logins. Add new staff to issue accounts instantly."
@@ -392,7 +393,7 @@ function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherI
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Generate teacher login</DialogTitle>
-          <DialogDescription>{teacher.name} · {teacher.id} · {teacher.className}</DialogDescription>
+          <DialogDescription>{sanitizeTeacherName(teacher.name, teacher.id)} · {teacher.id} · {teacher.className}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div>

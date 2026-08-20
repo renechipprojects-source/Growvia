@@ -42,10 +42,12 @@ export interface Student {
   avatarSeed?: string;
 }
 
+import { FilterBar } from "@/components/admin/data-table";
+
 export const Route = createFileRoute("/principal/students")({
   head: () => ({
     meta: [
-      { title: "Student Directory — Sunshine ERP" },
+      { title: "Student Directory — Principal Portal" },
       { name: "description", content: "Directory of enrolled students across all grades." },
     ],
   }),
@@ -54,8 +56,8 @@ export const Route = createFileRoute("/principal/students")({
 
 function StudentsPage() {
   const [items, setItems] = useState<Student[]>([]);
-  const [query, setQuery] = useState("");
-  const [cls, setCls] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Student | null>(null);
 
   const loadData = () => {
@@ -103,96 +105,76 @@ function StudentsPage() {
   }, []);
 
   const handleAutoAssignRollNumbers = async () => {
-    const targetCls = cls !== "all" ? cls : undefined;
+    const targetCls = filterValues["Class"] !== "all" ? filterValues["Class"] : undefined;
     await allocateRollNumbersAlphabetically(targetCls);
     toast.success("Alphabetical Roll Numbers assigned for class section(s)!");
     loadData();
   };
 
-  const classOptions = useMemo(() => {
-    const set = new Set<string>();
-
-    masterClasses.forEach((m) => {
-      if (m.name) {
-        set.add(m.name.trim());
-        if (m.section) {
-          set.add(`${m.name.trim()} - Section ${m.section.trim().toUpperCase()}`);
-        }
-      }
-    });
-
-    items.forEach((s) => {
-      if (s.className) {
-        set.add(s.className.trim());
-        if (s.section) {
-          set.add(`${s.className.trim()} - Section ${s.section.trim().toUpperCase()}`);
-        }
-      }
-    });
-
-    ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"].forEach((c) => set.add(c));
-    return Array.from(set).sort();
-  }, [masterClasses, items]);
-
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    const normalize = (str: string) => (str || "").toLowerCase().replace(/[\s\-_]+/g, "");
-    const targetClsNorm = cls === "all" ? "" : normalize(cls);
+    const q = search.trim().toLowerCase();
+    const cls = filterValues["Class"];
+    const sec = filterValues["Section"];
+    const st = filterValues["Status"];
+    const feeSt = filterValues["Fee Status"];
+    const normalize = (str?: string) => (str || "").replace(/\s+/g, "").toLowerCase();
 
     return items.filter((s) => {
-      const matchQ = !q ||
-        s.name.toLowerCase().includes(q) ||
-        s.admissionNo.toLowerCase().includes(q) ||
-        s.parent.name.toLowerCase().includes(q);
-
-      if (!matchQ) return false;
-      if (!targetClsNorm) return true;
-
-      const sClassNorm = normalize(s.className || "");
-      const sFullNorm = normalize(`${s.className || ""} ${s.section || ""}`);
-
-      return (
-        sClassNorm.includes(targetClsNorm) ||
-        targetClsNorm.includes(sClassNorm) ||
-        sFullNorm.includes(targetClsNorm) ||
-        targetClsNorm.includes(sFullNorm)
-      );
+      if (q && !`${s.name} ${s.admissionNo} ${s.parent.name} ${s.parent.phone}`.toLowerCase().includes(q)) return false;
+      if (cls && cls !== "all" && normalize(s.className) !== normalize(cls)) return false;
+      if (sec && sec !== "all" && s.section?.toLowerCase() !== sec.toLowerCase()) return false;
+      return true;
     });
-  }, [items, query, cls]);
+  }, [items, search, filterValues]);
+
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return;
+    const headers = ["Admission No", "Name", "Class", "Section", "Roll No", "Parent", "Phone"];
+    const rows = filtered.map(s => [s.admissionNo, s.name, s.className, s.section, s.rollNo, s.parent.name, s.parent.phone]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `students_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((s) => {
+      if (s.section) set.add(s.section.trim());
+    });
+    ["A", "B", "C", "D", "1", "2"].forEach((sec) => set.add(sec));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [items]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
       <div>
         <PageHeader
-          title="Students"
-          description="View-only student directory. Search or filter by class to find a student and open their profile."
+          title="Students Directory"
+          description="View student profiles, enrollment, and health records."
         />
       </div>
 
       <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col">
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-3 pt-1">
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, admission no. or parent"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={cls} onValueChange={setCls}>
-              <SelectTrigger className="md:w-64">
-                <SelectValue placeholder="Filter by class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes & Sections</SelectItem>
-                {classOptions.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <FilterBar
+            searchPlaceholder="Search by name, admission no, parent, or phone..."
+            filters={[
+              { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
+              { label: "Section", options: sectionOptions },
+              { label: "Status", options: ["Active", "Inactive"] },
+              { label: "Fee Status", options: ["Paid", "Partial", "Due"] },
+            ]}
+            search={search}
+            onSearchChange={setSearch}
+            filterValues={filterValues}
+            onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+            onExport={handleExportCSV}
+          />
         </div>
 
         <div className="mt-3 flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-260px)] rounded-lg border">
@@ -301,40 +283,30 @@ function StudentDialog({ student, onClose }: { student: Student | null; onClose:
 
             <Section title="Fee Ledger & Status">
               <Grid>
-                <KV k="Total Annual Fee" v="₹8,500" />
-                <KV k="Total Paid So Far" v="₹8,500" />
-                <KV k="Pending Balance" v="₹0" />
-                <KV k="Fee Payment Status" v="Paid (3/3 Installments)" />
+                <KV k="Fee Payment Status" v={student.feeStatus || "N/A"} />
               </Grid>
             </Section>
 
             <Section title="Academic & Attendance Summary">
               <Grid>
-                <KV k="Term Performance" v={`${student.academic.term} (${student.academic.average}%)`} />
-                <KV k="Attendance Rate" v={`${Math.round((student.attendance.present / student.attendance.total) * 100)}% (${student.attendance.present}/100 Days)`} />
-                <KV k="Teacher Remarks" v={student.teacherRemarks} wide />
+                <KV k="Attendance Rate" v={student.attendance !== undefined && student.attendance !== null ? `${student.attendance}% Present` : "N/A"} />
+                {student.teacherRemarks && <KV k="Teacher Remarks" v={student.teacherRemarks} wide />}
               </Grid>
             </Section>
 
             <Section title="Submitted Student Documents">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
-                  <span>Birth Certificate</span>
-                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
+              {student.documents && student.documents.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {student.documents.map((doc: any, i: number) => (
+                    <div key={i} className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
+                      <span>{doc.name || doc}</span>
+                      <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">{doc.status || "Uploaded"}</Badge>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
-                  <span>Immunization Record</span>
-                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
-                  <span>Address Proof</span>
-                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 border flex justify-between items-center">
-                  <span>Transfer Certificate</span>
-                  <Badge className="bg-sky-100 text-sky-700 text-[10px]">Submitted</Badge>
-                </div>
-              </div>
+              ) : (
+                <div className="text-slate-400 text-xs italic py-1">No attached documents available.</div>
+              )}
             </Section>
           </>
         )}

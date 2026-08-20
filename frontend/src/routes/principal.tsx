@@ -7,15 +7,20 @@ import { getSession } from "@/lib/auth";
 
 const titleMap: Record<string, string> = {
   "/principal/dashboard": "Dashboard",
-  "/principal/students": "Students",
-  "/principal/teachers": "Teachers",
-  "/principal/classes": "Classes",
+  "/principal/students": "Students Directory",
+  "/principal/parents": "Parents Directory",
+  "/principal/teachers": "Teachers & Staff",
+  "/principal/classes": "Classes Overview",
   "/principal/attendance/students": "Student Attendance",
   "/principal/attendance/staff": "Staff Attendance",
   "/principal/circulars": "Circular Management",
-  "/principal/inventory": "Inventory",
-  "/principal/transport": "Transport",
+  "/principal/inventory": "Live Inventory",
+  "/principal/transport": "Transport Fleet",
   "/principal/fees": "Fees Overview",
+  "/principal/expenses": "Operating Expenses",
+  "/principal/school-branding": "School Branding",
+  "/principal/events": "School Events",
+  "/principal/messages": "Message Center",
 };
 
 import { requireAuthGuard } from "@/lib/auth";

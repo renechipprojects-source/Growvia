@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
+import { fetchStudents, allocateRollNumbersAlphabetically, toCanonicalAdmissionNo } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export interface AdminStudent {
@@ -42,27 +42,48 @@ function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   const loadData = () => {
-    fetchStudents().then(({ data }) => {
-      const sourceList = data || [];
-      const mapped: AdminStudent[] = sourceList.map((s: any) => ({
-        id: s.id,
-        admissionNo: s.admissionNo || s.id,
-        name: s.name,
-        gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
-        dob: s.dob || "2022-01-01",
-        age: s.age || 3,
-        className: s.className as any,
-        section: s.section as any,
-        parent: typeof s.parent === "string" ? s.parent : s.parent?.name || "Parent",
-        phone: s.phone || "",
-        address: "Bengaluru",
-        status: "Active",
-        feesStatus: s.feeStatus === "Paid" ? "Paid" : s.feeStatus === "Partial" ? "Partial" : "Due",
-        joinedOn: s.admissionDate || new Date().toISOString().split("T")[0],
-        bloodGroup: "O+",
-        allergies: [],
-        avatar: s.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(s.name)}`,
-      }));
+    Promise.all([fetchStudents(), fetchFees()]).then(([{ data: studentList }, { data: feeList }]) => {
+      const sourceList = studentList || [];
+      const feeMap = new Map<string, string>();
+
+      (feeList || []).forEach((f) => {
+        const key1 = (f.studentId || "").toLowerCase();
+        const key2 = (f.admissionNo || "").toLowerCase();
+        const canonicalKey = toCanonicalAdmissionNo(f.admissionNo || f.studentId).toLowerCase();
+        const st = f.status === "Paid" ? "Paid" : f.paid > 0 ? "Partial" : "Due";
+        if (key1) feeMap.set(key1, st);
+        if (key2) feeMap.set(key2, st);
+        if (canonicalKey) feeMap.set(canonicalKey, st);
+      });
+
+      const mapped: AdminStudent[] = sourceList.map((s: any) => {
+        const canonicalAdm = toCanonicalAdmissionNo(s.admissionNo || s.id, s.id);
+        const calcStatus =
+          feeMap.get(canonicalAdm.toLowerCase()) ||
+          feeMap.get((s.id || "").toLowerCase()) ||
+          feeMap.get((s.admissionNo || "").toLowerCase()) ||
+          (s.feeStatus === "Paid" ? "Paid" : s.feeStatus === "Partial" ? "Partial" : "Due");
+
+        return {
+          id: s.id,
+          admissionNo: canonicalAdm,
+          name: s.name,
+          gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
+          dob: s.dob || undefined,
+          age: s.age || 3,
+          className: s.className as any,
+          section: s.section as any,
+          parent: typeof s.parent === "string" ? s.parent : s.parent?.name || "Parent",
+          phone: s.phone || "",
+          address: s.address || undefined,
+          status: s.status || "Active",
+          feesStatus: calcStatus,
+          joinedOn: s.admissionDate || undefined,
+          bloodGroup: s.bloodGroup || undefined,
+          allergies: s.allergies || [],
+          avatar: s.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(s.name)}`,
+        };
+      });
       setItemList(mapped);
     });
   };
@@ -84,16 +105,42 @@ function StudentsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const cleanQ = q.replace(/[^a-z0-9]/g, "");
     const cls = filterValues["Class"];
     const sec = filterValues["Section"];
     const st = filterValues["Status"];
+    const feeSt = filterValues["Fee Status"];
     const normalize = (str?: string) => (str || "").replace(/\s+/g, "").toLowerCase();
 
     return itemList.filter((s) => {
-      if (q && !`${s.name} ${s.admissionNo} ${s.parent || ""} ${s.phone || ""}`.toLowerCase().includes(q)) return false;
+      if (q) {
+        const canonicalAdm = toCanonicalAdmissionNo(s.admissionNo, s.id).toLowerCase();
+        const rawAdm = (s.admissionNo || "").toLowerCase();
+        const name = (s.name || "").toLowerCase();
+        const parent = (s.parent || "").toLowerCase();
+        const phone = (s.phone || "").toLowerCase();
+        const cleanPhone = phone.replace(/\D/g, "");
+        const id = (s.id || "").toLowerCase();
+
+        const matchesQuery =
+          name.includes(q) ||
+          rawAdm.includes(q) ||
+          canonicalAdm.includes(q) ||
+          parent.includes(q) ||
+          phone.includes(q) ||
+          id.includes(q) ||
+          (cleanQ.length > 0 && (
+            canonicalAdm.includes(cleanQ) ||
+            cleanPhone.includes(cleanQ)
+          ));
+
+        if (!matchesQuery) return false;
+      }
+
       if (cls && cls !== "all" && normalize(s.className) !== normalize(cls)) return false;
       if (sec && sec !== "all" && s.section?.toLowerCase() !== sec.toLowerCase()) return false;
       if (st && st !== "all" && s.status?.toLowerCase() !== st.toLowerCase()) return false;
+      if (feeSt && feeSt !== "all" && s.feesStatus?.toLowerCase() !== feeSt.toLowerCase()) return false;
       return true;
     });
   }, [itemList, search, filterValues]);
@@ -111,6 +158,15 @@ function StudentsPage() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    itemList.forEach((s) => {
+      if (s.section) set.add(s.section.trim());
+    });
+    ["A", "B", "C", "D", "1", "2"].forEach((sec) => set.add(sec));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [itemList]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
@@ -130,11 +186,12 @@ function StudentsPage() {
         </div>
 
         <FilterBar
-          searchPlaceholder="Search by name, admission no, parent..."
+          searchPlaceholder="Search by name, admission no, parent, or phone..."
           filters={[
             { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
-            { label: "Section", options: ["A", "B", "C"] },
+            { label: "Section", options: sectionOptions },
             { label: "Status", options: ["Active", "Inactive"] },
+            { label: "Fee Status", options: ["Paid", "Partial", "Due"] },
           ]}
           search={search}
           onSearchChange={setSearch}

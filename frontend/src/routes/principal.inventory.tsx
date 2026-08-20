@@ -69,8 +69,8 @@ function InventoryPage() {
   return (
     <div className="w-full max-w-none flex flex-1 min-h-0 flex-col">
       <PageHeader
-        title="Inventory"
-        description="Read-only view. Additions and edits are managed by the Office."
+        title="Live Inventory Management"
+        description="Real-time institutional stock levels, restock outlays, and asset tracking."
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
@@ -115,7 +115,7 @@ function InventoryPage() {
             </Select>
           </div>
           <ScrollTable
-            columns={["Item", "Code", "Category", "Unit", "Stock", "Min", "Vendor", "Updated"]}
+            columns={["Item", "Code", "Category", "Unit", "Stock", "Min", "Vendor", "Actions"]}
           >
             {filteredItems.map((i) => {
               const low = i.qty < i.minQty;
@@ -130,7 +130,35 @@ function InventoryPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{i.minQty}</TableCell>
                   <TableCell>{vendorName(i.vendorId)}</TableCell>
-                  <TableCell className="text-xs">{i.updatedAt}</TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => {
+                          const invStore = useInventory.getState ? useInventory.getState() : null;
+                          const addAmount = prompt(`Restock "${i.name}". Enter additional quantity:`, "10");
+                          if (addAmount && !isNaN(Number(addAmount)) && Number(addAmount) > 0) {
+                            if (invStore) invStore.updateItem(i.id, { qty: i.qty + Number(addAmount) });
+                          }
+                        }}
+                        className="px-2 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
+                        title="Restock Item"
+                      >
+                        + Restock
+                      </button>
+                      <button
+                        onClick={() => {
+                          const invStore = useInventory.getState ? useInventory.getState() : null;
+                          if (confirm(`Delete "${i.name}" from inventory?`)) {
+                            if (invStore) invStore.deleteItem(i.id);
+                          }
+                        }}
+                        className="px-2 py-1 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition"
+                        title="Delete Item"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}

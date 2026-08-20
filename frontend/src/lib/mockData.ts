@@ -27,6 +27,9 @@ export interface Student {
   attendance: number;
   branch: string;
   email?: string;
+  address?: string;
+  bloodGroup?: string;
+  documents?: Array<{ name: string; status: string }>;
   occupation?: string;
   parentOccupation?: string;
 }
@@ -175,9 +178,8 @@ function generateStudent(
   const firstPool = gender === "Boy" ? FIRST_BOYS : FIRST_GIRLS;
   const surname = household.fatherName.split(" ").slice(-1)[0];
   const first = firstPool[Math.floor(seedRand() * firstPool.length)];
-  const name = `${first} ${surname}`;
   const id = `STU${++studentCounter}`;
-  const admissionNo = `SUN/26-${(2000 + studentCounter).toString().slice(-4)}`;
+  const admissionNo = `26${String(studentCounter).padStart(4, "0")}`;
   const age = CLASS_AGE[className];
   const birthMonth = 1 + Math.floor(seedRand() * 12);
   const birthDay = 1 + Math.floor(seedRand() * 27);

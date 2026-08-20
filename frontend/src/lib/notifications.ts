@@ -176,14 +176,14 @@ function addDeletedId(id: string) {
   ).catch(() => {});
 }
 
-const saveNotifToSupabase = (n: AppNotification) => {
+export const saveNotifToSupabase = (n: AppNotification) => {
   const payload = {
     id: `notif_${n.id}`,
     request_type: "app_notification",
     applicant_or_child_name: n.title,
     reason_or_notes: JSON.stringify(n),
   };
-  Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
+  return Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
 };
 
 // Automatically sync live database notifications from Supabase
@@ -229,9 +229,17 @@ export function syncLiveDatabaseNotifications() {
             if (row.reason_or_notes && (row.reason_or_notes.startsWith("{") || row.reason_or_notes.startsWith("["))) {
               const n: AppNotification = JSON.parse(row.reason_or_notes);
               const isDel = deletedSet.has(n.id) || deletedSet.has(row.id) || deletedSet.has(`notif_${n.id}`);
-              if (!isDel && !store.some((x) => x.id === n.id)) {
-                store.unshift(n);
-                updated = true;
+              if (!isDel) {
+                const existingIdx = store.findIndex((x) => x.id === n.id || `notif_${x.id}` === row.id || x.id === row.id);
+                if (existingIdx >= 0) {
+                  if (n.read && !store[existingIdx].read) {
+                    store[existingIdx].read = true;
+                    updated = true;
+                  }
+                } else {
+                  store.unshift(n);
+                  updated = true;
+                }
               }
             }
           } catch {}
@@ -246,14 +254,20 @@ export function syncLiveDatabaseNotifications() {
       fetchCirculars().then(({ data }) => {
         if (data && data.length > 0) {
           let updated = false;
+          let activeRole = "principal";
+          try {
+            const session = getSession();
+            if (session?.role) activeRole = session.role;
+          } catch {}
+
           data.forEach((c) => {
             const notifId = `n-cir-${c.id || c.title}`;
             const isDel = deletedSet.has(notifId) || (c.id && deletedSet.has(c.id)) || deletedSet.has(c.title);
             if (!isDel) {
-              const read = (c.id ? isCircularRead(c.id, "principal") || isCircularRead(c.id, "all") : false) || isCircularRead(notifId, "principal");
+              const readFromStore = (c.id ? isCircularRead(c.id, activeRole) || isCircularRead(c.id, "all") : false) || isCircularRead(notifId, activeRole);
               const existingIdx = store.findIndex((n) => n.id === notifId);
               if (existingIdx >= 0) {
-                if (read && !store[existingIdx].read) {
+                if (readFromStore && !store[existingIdx].read) {
                   store[existingIdx].read = true;
                   updated = true;
                 }
@@ -264,7 +278,7 @@ export function syncLiveDatabaseNotifications() {
                   description: c.content || c.title,
                   module: "announcement",
                   timestamp: c.published_date ? new Date(c.published_date).getTime() : Date.now(),
-                  read,
+                  read: readFromStore,
                   priority: "high",
                   roles: ["parent", "teacher", "office", "principal", "super-admin"],
                 });
@@ -347,19 +361,65 @@ export function unreadCountForRole(role: Role): number {
   return n;
 }
 
-import { markAllCircularsAsRead, isCircularRead } from "./circularReadStore";
+import { getSession } from "./auth";
+import { markAllCircularsAsRead, isCircularRead, markCircularAsRead } from "./circularReadStore";
 import { notifyAutoRefresh } from "./autoRefreshContext";
 
 export function markRead(id: string) {
-  const next = store.map((n) => (n.id === id ? { ...n, read: true } : n));
+  let targetNotif: AppNotification | null = null;
+  const next = store.map((n) => {
+    if (n.id === id || n.id === `notif_${id}` || n.id === `n-cir-${id}`) {
+      const updated = { ...n, read: true };
+      targetNotif = updated;
+      return updated;
+    }
+    return n;
+  });
+
   saveStore(next);
+
+  if (targetNotif) {
+    saveNotifToSupabase(targetNotif);
+    const notif = targetNotif as AppNotification;
+    if (notif.module === "announcement" || (notif.id && notif.id.startsWith("n-cir-"))) {
+      const circId = notif.id.replace(/^n-cir-/, "");
+      try {
+        const session = getSession();
+        const userRole = session?.role || "principal";
+        markCircularAsRead(circId, userRole);
+      } catch {}
+    }
+  } else {
+    // If not found in store directly, still persist read state to Supabase for id
+    const dummyNotif: AppNotification = {
+      id,
+      title: "Notification",
+      description: "",
+      module: "announcement",
+      timestamp: Date.now(),
+      read: true,
+      priority: "medium",
+      roles: ["parent", "teacher", "office", "principal", "super-admin"],
+    };
+    saveNotifToSupabase(dummyNotif);
+  }
+
   notifyAutoRefresh("notifications");
 }
 
 export function markAllRead(role: Role) {
   markAllCircularsAsRead(role);
-  const next = store.map((n) => (isNotificationAllowedForRole(n, role) ? { ...n, read: true } : n));
+  const updatedNotifs: AppNotification[] = [];
+  const next = store.map((n) => {
+    if (isNotificationAllowedForRole(n, role)) {
+      const updated = { ...n, read: true };
+      updatedNotifs.push(updated);
+      return updated;
+    }
+    return n;
+  });
   saveStore(next);
+  updatedNotifs.forEach((n) => saveNotifToSupabase(n));
   notifyAutoRefresh("notifications");
 }
 
@@ -393,6 +453,7 @@ export function clearAllNotifications(role: Role) {
 }
 
 export interface NotifyInput {
+  id?: string;
   title: string;
   description: string;
   module: NotificationModule;
@@ -433,7 +494,7 @@ export function getNotificationLinkForRole(n: AppNotification, userRole: Role | 
 
 export function notify(input: NotifyInput) {
   const n: AppNotification = {
-    id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: input.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: input.title,
     description: input.description,
     module: input.module,

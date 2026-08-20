@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
-import { fetchStudents, fetchFees, fetchMergedFeeLedgers, saveFeeRecord, saveReceipt, recalculateFeeLedger, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
+import { fetchStudents, fetchFees, fetchMergedFeeLedgers, saveFeeRecord, saveReceipt, recalculateFeeLedger, toCanonicalAdmissionNo, type FeeLedgerItem, type PaymentTransaction } from "@/lib/supabaseService";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -282,8 +282,8 @@ function FeeCollection() {
   };
 
   return (
-    <div className="flex flex-1 h-full min-h-0 flex-col overflow-hidden w-full max-w-none gap-3.5 p-3 md:p-4 bg-slate-50/50">
-      <div className="shrink-0">
+    <div className="space-y-4 w-full max-w-none">
+      <div>
         <PageHeader title="Fee Collection & Ledger Management" subtitle="Manage student fee structures, record payments, issue receipts, and track collection analytics." />
       </div>
 
@@ -366,9 +366,9 @@ function FeeCollection() {
         </div>
       </div>
 
-      {/* Main Student Fee Table (Dedicated Scroll Container) */}
-      <div className="flex-1 min-h-[420px] max-h-[calc(100vh-270px)] rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+      {/* Main Student Fee Table */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-10">
               <tr>
@@ -432,7 +432,7 @@ function FeeCollection() {
 
                   return (
                     <tr key={f.id} className="hover:bg-slate-50/80 transition">
-                      <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-600">{f.admissionNo || "ADM-1001"}</td>
+                      <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-600">{toCanonicalAdmissionNo(f.admissionNo, f.id)}</td>
                       <td className="px-3 py-3.5 text-xs text-slate-500 font-medium">#{f.rollNo || (idx + 1)}</td>
                       <td className="px-4 py-3.5 font-semibold text-slate-900">{f.studentName}</td>
                       <td className="px-3 py-3.5 text-xs font-medium text-slate-700">{f.className}</td>
@@ -539,7 +539,7 @@ function FeeCollection() {
                   <div>
                     <div className="text-base font-bold text-slate-900">{activeLedger.studentName}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      Admission No: <span className="font-mono font-semibold text-slate-800">{activeLedger.admissionNo || "ADM-1001"}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
+                      Admission No: <span className="font-mono font-semibold text-slate-800">{toCanonicalAdmissionNo(activeLedger.admissionNo, activeLedger.id)}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
                     </div>
                     <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || activeYear}</div>
                   </div>
@@ -662,7 +662,7 @@ function FeeCollection() {
             <div className="space-y-4 text-xs">
               <div className="rounded-xl bg-amber-50 p-3 border border-amber-200">
                 <div className="font-bold text-slate-900">{activeLedger.studentName}</div>
-                <div className="text-muted-foreground">Class: {activeLedger.className} · Adm No: {activeLedger.admissionNo || "ADM-1001"}</div>
+                <div className="text-muted-foreground">Class: {activeLedger.className} · Adm No: {toCanonicalAdmissionNo(activeLedger.admissionNo, activeLedger.id)}</div>
               </div>
 
               <div>
@@ -726,7 +726,7 @@ function FeeCollection() {
             <div className="space-y-3 text-xs">
               <div className="rounded-xl bg-orange-50 p-3 border border-orange-200">
                 <div className="font-semibold text-slate-900">{activeLedger.studentName}</div>
-                <div className="text-muted-foreground mt-0.5">Class: {activeLedger.className} · Adm No: {activeLedger.admissionNo || "ADM-1001"}</div>
+                <div className="text-muted-foreground mt-0.5">Class: {activeLedger.className} · Adm No: {toCanonicalAdmissionNo(activeLedger.admissionNo, activeLedger.id)}</div>
                 <div className="text-rose-700 font-medium mt-1">Pending Balance: ₹{Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0)).toLocaleString()}</div>
               </div>
 

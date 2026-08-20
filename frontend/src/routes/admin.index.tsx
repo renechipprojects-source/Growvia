@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Users, UserCheck, UserX, GraduationCap, CreditCard, UserPlus, Sparkles,
+  Users, UserCheck, UserX, GraduationCap, CreditCard, UserPlus, Sparkles, Bus,
 } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { useLiveAttendance } from "@/lib/attendanceStore";
 import { useEffect, useState, useMemo } from "react";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { syncTransportFromSupabase, getStoredVehicles, getStoredRoutes } from "@/modules/transport/transportStore";
 
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
@@ -23,6 +24,9 @@ function Dashboard() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [teachersCount, setTeachersCount] = useState(0);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [vehiclesCount, setVehiclesCount] = useState<number | null>(null);
+  const [routesCount, setRoutesCount] = useState<number | null>(null);
+  const [transportLoading, setTransportLoading] = useState(true);
   const [currentDateStr, setCurrentDateStr] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Dynamic daily refresh check
@@ -40,6 +44,11 @@ function Dashboard() {
     fetchStudents().then(({ data }) => setStudentsList(data || []));
     fetchTeachers().then(({ data }) => setTeachersCount(data?.length || 0));
     fetchReceipts().then(({ data }) => setPaymentsList(data || []));
+    syncTransportFromSupabase().then(() => {
+      setVehiclesCount(getStoredVehicles().length);
+      setRoutesCount(getStoredRoutes().length);
+      setTransportLoading(false);
+    });
   };
 
   // Register real-time auto refresh for students, attendance & fees modules
@@ -47,6 +56,7 @@ function Dashboard() {
   useAutoRefresh("attendance", loadData);
   useAutoRefresh("staff", loadData);
   useAutoRefresh("fees", loadData);
+  useAutoRefresh("transport", loadData);
 
   useEffect(() => {
     loadData();
@@ -55,7 +65,6 @@ function Dashboard() {
   const totalStudents = studentsList.length;
   const { attendance: liveTodayRecords } = useLiveAttendance(undefined, currentDateStr);
   const presentToday = liveTodayRecords.filter((r) => r.status === "P" || r.status === "L").length;
-  const absentToday = liveTodayRecords.filter((r) => r.status === "A" || r.status === "Lv").length;
   const attendancePct = totalStudents > 0 && liveTodayRecords.length > 0 ? Math.round((presentToday / liveTodayRecords.length) * 100) : 0;
 
   // Filter Today's Payments ONLY
@@ -85,9 +94,17 @@ function Dashboard() {
       <div className="mt-4 space-y-6 pb-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5" />} tone="default" sub={`${totalStudents} Enrolled`} />
-          <StatCard label="Present Today" value={presentToday} tone="success" icon={<UserCheck className="h-5 w-5" />} sub={`${attendancePct}% Attendance`} />
-          <StatCard label="Absent Today" value={absentToday} tone="warning" icon={<UserX className="h-5 w-5" />} sub={totalStudents > 0 ? "Action required" : "No absences"} />
           <StatCard label="Total Staff" value={teachersCount} tone="purple" icon={<GraduationCap className="h-5 w-5" />} sub={`${teachersCount} Active staff`} />
+          <StatCard label="Student Attendance" value={`${attendancePct}%`} tone="success" icon={<UserCheck className="h-5 w-5" />} sub={`${presentToday} present today`} />
+          <Link to="/admin/transport" className="min-w-0 block">
+            <StatCard
+              label="Transport Fleet"
+              value={transportLoading ? "..." : `${vehiclesCount ?? 0} ${vehiclesCount === 1 ? "Vehicle" : "Vehicles"}`}
+              tone="warning"
+              icon={<Bus className="h-5 w-5" />}
+              sub={transportLoading ? "Loading fleet..." : `${routesCount ?? 0} Active ${routesCount === 1 ? "Route" : "Routes"}`}
+            />
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

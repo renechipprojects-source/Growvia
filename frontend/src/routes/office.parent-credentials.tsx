@@ -24,6 +24,7 @@ import {
 import { Eye, EyeOff, KeyRound, Printer, RefreshCw, Search, ShieldCheck, ShieldOff, UserPlus, Copy, Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/parent-credentials")({
   head: () => ({
@@ -84,7 +85,7 @@ function ParentCredentialsPage() {
   const notIssued = studentsList.length - allCreds.length;
 
   return (
-    <div className="w-full flex flex-1 min-h-0 flex-col overflow-y-auto space-y-4 pb-12 pr-1">
+    <div className="w-full space-y-4 pb-12">
       <PageHeader
         title="Parent Login Credentials"
         subtitle="Issue, reset, view and print login credentials for parents."

@@ -31,7 +31,12 @@ export const Route = createFileRoute("/office/new-enquiry")({ component: NewEnqu
 
 function NewEnquiry() {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
-    useForm<V>({ resolver: zodResolver(schema), defaultValues: { interestedClass: "", source: "" } });
+    useForm<V>({
+      resolver: zodResolver(schema),
+      mode: "onSubmit",
+      reValidateMode: "onSubmit",
+      defaultValues: { childName: "", age: "", parentName: "", phone: "", interestedClass: "", source: "", notes: "" },
+    });
 
   return (
     <div>
@@ -55,7 +60,7 @@ function NewEnquiry() {
                 return;
               }
               toast.success(`Enquiry created for ${v.childName} — synced to Supabase.`);
-              reset();
+              reset({ childName: "", age: "", parentName: "", phone: "", interestedClass: "", source: "", notes: "" });
             })}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
@@ -68,20 +73,20 @@ function NewEnquiry() {
                 {...register("phone")}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                  setValue("phone", val, { shouldValidate: true });
+                  setValue("phone", val);
                 }}
                 placeholder="9876543210"
                 className="bg-white/70"
               />
             </F>
             <F label="Interested class" err={errors.interestedClass?.message}>
-              <Select value={watch("interestedClass")} onValueChange={(v) => setValue("interestedClass", v, { shouldValidate: true })}>
+              <Select value={watch("interestedClass")} onValueChange={(v) => setValue("interestedClass", v)}>
                 <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>{["Playgroup", "Nursery", "LKG", "UKG"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </F>
             <F label="Source" err={errors.source?.message}>
-              <Select value={watch("source")} onValueChange={(v) => setValue("source", v, { shouldValidate: true })}>
+              <Select value={watch("source")} onValueChange={(v) => setValue("source", v)}>
                 <SelectTrigger className="bg-white/70"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>{["Walk-in", "Phone", "WhatsApp", "Referral"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>

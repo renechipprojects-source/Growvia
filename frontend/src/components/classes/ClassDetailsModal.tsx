@@ -60,7 +60,7 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
               </div>
             </div>
             <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-xs px-3 py-1 font-semibold rounded-full shrink-0">
-              Capacity: {strengthCount} / 20
+              Capacity: {strengthCount} / {classInfo.capacity ? classInfo.capacity : "Not Assigned"}
             </Badge>
           </div>
         </DialogHeader>
@@ -75,7 +75,7 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
               <div><span className="text-slate-400 block font-medium">Class Name</span><span className="font-semibold text-slate-800">{classNameStr}</span></div>
               <div><span className="text-slate-400 block font-medium">Section</span><span className="font-semibold text-slate-800">{sectionStr}</span></div>
               <div><span className="text-slate-400 block font-medium">Classroom</span><span className="font-semibold text-slate-800">{roomStr}</span></div>
-              <div><span className="text-slate-400 block font-medium">Enrolled Strength</span><span className="font-semibold text-emerald-600">{strengthCount} Kids</span></div>
+              <div><span className="text-slate-400 block font-medium">Capacity</span><span className="font-semibold text-slate-800">{classInfo.capacity ? `${classInfo.capacity} Students` : "Not Assigned"}</span></div>
             </div>
           </div>
 

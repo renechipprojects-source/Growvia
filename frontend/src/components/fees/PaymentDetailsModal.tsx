@@ -58,22 +58,27 @@ export function PaymentDetailsModal({
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
-          {/* Student Banner */}
-          <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Student Record</div>
-              <div className="text-lg font-bold text-white flex items-center gap-2 mt-0.5">
-                <User className="h-4 w-4 text-indigo-400" /> {ledger.studentName}
+          {/* Student Banner (Professional Light Theme) */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 text-slate-900 flex items-center justify-between shadow-xs">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50 border border-indigo-100/80 px-2.5 py-0.5 rounded-full inline-block">
+                Student Record
+              </span>
+              <div className="text-base font-bold text-slate-900 flex items-center gap-2 pt-0.5">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                  {ledger.studentName[0] || "S"}
+                </div>
+                {ledger.studentName}
               </div>
-              <div className="text-xs text-slate-300 mt-1 flex items-center gap-3 font-mono">
-                <span>Adm: {ledger.admissionNo || "ADM-1001"}</span>
-                <span>•</span>
-                <span>Class: {ledger.className}</span>
+              <div className="text-xs text-slate-600 flex items-center gap-3 font-mono pt-0.5">
+                <span>Adm No: <strong className="text-slate-800">{toCanonicalAdmissionNo(ledger.admissionNo, ledger.studentId || ledger.id)}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span>Class: <strong className="text-slate-800">{ledger.className}</strong></span>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-400">Total Applicable Fee</div>
-              <div className="text-xl font-extrabold text-amber-400 font-mono">₹{finalFee.toLocaleString()}</div>
+            <div className="text-right bg-slate-50/80 border border-slate-200/70 p-3 rounded-xl">
+              <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Total Applicable Fee</div>
+              <div className="text-lg font-extrabold text-indigo-700 font-mono mt-0.5">₹{finalFee.toLocaleString()}</div>
             </div>
           </div>
 

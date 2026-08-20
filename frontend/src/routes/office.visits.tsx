@@ -109,7 +109,7 @@ function VisitsPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4 pr-1">
+    <div className="space-y-4 w-full max-w-none">
       <div className="flex items-center justify-between">
         <PageHeader
           title="Today's School Visits"
@@ -164,7 +164,7 @@ function VisitsPage() {
       </div>
 
       {/* Visits Cards Grid */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+      <div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredVisits.map((e, i) => {
             const isCompleted = e.status === "Visit Completed";

@@ -53,8 +53,21 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
           }
         } catch {}
 
-        const name = meta.name || (d.leave_type_or_interested_class ? d.leave_type_or_interested_class.split(" ")[0] : "Nursery");
-        const section = meta.section || (d.leave_type_or_interested_class ? d.leave_type_or_interested_class.split(" ")[1] : "A");
+        let name = meta.name;
+        let section = meta.section;
+        if (!name && d.leave_type_or_interested_class) {
+          const raw = d.leave_type_or_interested_class.trim();
+          const lastSpace = raw.lastIndexOf(" ");
+          if (lastSpace > 0) {
+            name = raw.slice(0, lastSpace).trim();
+            section = raw.slice(lastSpace + 1).trim();
+          } else {
+            name = raw;
+            section = "A";
+          }
+        }
+        if (!name) name = "Nursery";
+        if (!section) section = "A";
 
         return {
           id: d.id,
@@ -165,8 +178,9 @@ export function saveStoredMasterClasses(list: MasterClassItem[]) {
 export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & { id?: string }): MasterClassItem {
   const current = getStoredMasterClasses();
   const name = item.name.trim();
-  const section = (item.section || "A").trim().toUpperCase();
-  const id = item.id || `CLS-${name.replace(/\s+/g, "")}-${section}`;
+  const section = (item.section || "A").trim();
+  const cleanSlug = `${name.replace(/[^a-zA-Z0-9]/g, "")}-${section.replace(/[^a-zA-Z0-9]/g, "")}`;
+  const id = item.id || `CLS-${cleanSlug}`;
   const newItem: MasterClassItem = {
     id,
     name,
@@ -175,7 +189,7 @@ export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & 
     classTeacher: item.classTeacher || "Unassigned",
     teacherId: item.teacherId || "",
     room: item.room || "Room 101",
-    capacity: item.capacity || 30,
+    capacity: Number(item.capacity || 30),
   };
   const updated = [...current.filter((c) => c.id !== id), newItem];
   saveStoredMasterClasses(updated);
@@ -188,13 +202,14 @@ export function updateMasterClass(id: string, updates: Partial<MasterClassItem>)
   const next = current.map((c) => {
     if (c.id === id) {
       const name = updates.name ? updates.name.trim() : c.name;
-      const section = updates.section ? updates.section.trim().toUpperCase() : c.section;
+      const section = updates.section ? updates.section.trim() : c.section;
       updatedItem = {
         ...c,
         ...updates,
         name,
         section,
         fullName: `${name} - Section ${section}`,
+        capacity: updates.capacity !== undefined ? Number(updates.capacity) : c.capacity,
       };
       return updatedItem;
     }

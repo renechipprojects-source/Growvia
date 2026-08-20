@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { fetchEvents, type SchoolEvent } from "@/lib/supabaseService";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { fetchEvents, createEvent, updateEvent, deleteEvent, type SchoolEvent } from "@/lib/supabaseService";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/events")({
   component: EventsPage,
-  head: () => ({ meta: [{ title: "Events — Sunshine Play School" }] }),
+  head: () => ({ meta: [{ title: "Events — Admin Portal" }] }),
 });
 
 function EventsPage() {
@@ -22,6 +24,18 @@ function EventsPage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+
+  // Add / Edit Modal State
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    date: new Date().toISOString().slice(0, 10),
+    time: "09:00",
+    location: "Main Auditorium",
+    type: "Academic" as const,
+  });
 
   const loadEvents = async () => {
     try {
@@ -43,6 +57,64 @@ function EventsPage() {
     };
   }, []);
 
+  const openAdd = () => {
+    setEditingId(null);
+    setForm({
+      title: "",
+      description: "",
+      date: new Date().toISOString().slice(0, 10),
+      time: "09:00",
+      location: "Main Auditorium",
+      type: "Academic",
+    });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (e: SchoolEvent) => {
+    setEditingId(e.id);
+    setForm({
+      title: e.title,
+      description: e.description || "",
+      date: e.date,
+      time: e.time || "09:00",
+      location: e.location || "Main Auditorium",
+      type: (e.type as any) || "Academic",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.title.trim()) {
+      toast.error("Event title is required.");
+      return;
+    }
+    try {
+      if (editingId) {
+        await updateEvent(editingId, form);
+        toast.success("Event updated.");
+      } else {
+        await createEvent({ ...form, audience: ["All"] as any });
+        toast.success("Event created.");
+      }
+      setDialogOpen(false);
+      loadEvents();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save event.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this event?")) {
+      try {
+        await deleteEvent(id);
+        toast.success("Event deleted.");
+        loadEvents();
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to delete event.");
+      }
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const st = filterValues["Status"];
@@ -59,7 +131,12 @@ function EventsPage() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
-      <PageHeader title="Events" description="View upcoming and past school events and activities." />
+      <div className="flex items-center justify-between mb-2">
+        <PageHeader title="Events" description="Manage school events, schedules, and activities." />
+        <Button onClick={openAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
+          <Plus className="h-4 w-4 mr-2" /> Add New Event
+        </Button>
+      </div>
       
       <div className="shrink-0 space-y-4">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -107,13 +184,31 @@ function EventsPage() {
                     {e.description || "School event scheduled for campus students and guardians."}
                   </p>
                 </CardContent>
-                <CardFooter className="pt-0">
+                <CardFooter className="pt-0 flex gap-2">
                   <Button
                     variant="outline"
-                    className="w-full text-xs font-medium"
+                    className="flex-1 text-xs font-medium"
                     onClick={() => setSelectedEvent(e)}
                   >
-                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View Full Details
+                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View Details
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 p-0 text-slate-600 hover:text-indigo-600"
+                    onClick={() => openEdit(e)}
+                    title="Edit Event"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 p-0 text-slate-600 hover:text-rose-600"
+                    onClick={() => handleDelete(e.id)}
+                    title="Delete Event"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </CardFooter>
               </Card>
@@ -156,6 +251,92 @@ function EventsPage() {
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setSelectedEvent(null)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit Event Dialog Modal */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingId ? "Edit School Event" : "Create New School Event"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Event Title</label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder="e.g. Annual Sports Day 2026"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Description</label>
+              <Textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Event description and details..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Date</label>
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Time</label>
+                <Input
+                  value={form.time}
+                  onChange={(e) => setForm((p) => ({ ...p, time: e.target.value }))}
+                  placeholder="09:00 AM"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Location / Venue</label>
+                <Input
+                  value={form.location}
+                  onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+                  placeholder="Main Auditorium"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Category</label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v: any) => setForm((p) => ({ ...p, type: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Academic">Academic</SelectItem>
+                    <SelectItem value="Cultural">Cultural</SelectItem>
+                    <SelectItem value="Sports">Sports</SelectItem>
+                    <SelectItem value="Holiday">Holiday</SelectItem>
+                    <SelectItem value="Meeting">Meeting</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                {editingId ? "Save Event Changes" : "Create Event"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

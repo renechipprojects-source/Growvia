@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Sparkles, Upload, Save, Building2, MapPin, Phone, Mail, Clock, RefreshCw } from "lucide-react";
-import { useDeveloperSettings, saveDeveloperSettings, uploadSystemAsset, synchronizeLogoFields } from "@/lib/developerSettingsStore";
+import { Upload, Save, Building2, RotateCcw, RefreshCw } from "lucide-react";
+import { useDeveloperSettings, saveDeveloperSettings, uploadSystemAsset, synchronizeLogoFields, DEFAULT_DEV_SETTINGS } from "@/lib/developerSettingsStore";
 import { validateIndianMobile } from "@/lib/utils";
 import { requireAuthGuard } from "@/lib/auth";
 
@@ -71,7 +71,7 @@ function SchoolBrandingPage() {
     e.preventDefault();
 
     if (!form.school.schoolName.trim()) {
-      toast.error("School Name is required.");
+      toast.error("School Full Name is required.");
       return;
     }
 
@@ -89,9 +89,17 @@ function SchoolBrandingPage() {
       await saveDeveloperSettings(form);
       toast.success("School branding & Login Page configuration saved successfully!");
     } catch (err: any) {
-      toast.error(err?.message || "Failed to save settings.");
+      toast.error(err?.message || "Failed to save settings to database.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (confirm("Reset branding settings to default institutional values?")) {
+      setForm({ ...DEFAULT_DEV_SETTINGS });
+      setLogoPreview(DEFAULT_DEV_SETTINGS.branding.schoolLogoUrl || "");
+      toast.info("Branding form reset to defaults. Click 'Save Branding Settings' to persist.");
     }
   };
 
@@ -136,14 +144,20 @@ function SchoolBrandingPage() {
             <div className="md:col-span-8 space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>School Full Name</Label>
+                  <Label>School Full Name *</Label>
                   <Input
+                    required
                     value={form.school.schoolName}
                     onChange={(e) =>
                       setForm((p) => ({
                         ...p,
                         school: { ...p.school, schoolName: e.target.value },
-                        branding: { ...p.branding, schoolName: e.target.value },
+                        branding: {
+                          ...p.branding,
+                          schoolName: e.target.value,
+                          sidebarSchoolName: e.target.value,
+                          sidebarTitle: e.target.value,
+                        },
                       }))
                     }
                     placeholder="e.g. Sunshine Play School"
@@ -151,35 +165,51 @@ function SchoolBrandingPage() {
                   />
                 </div>
                 <div>
-                  <Label>Academic Session</Label>
+                  <Label>Short Name / Acronym</Label>
                   <Input
-                    value={form.school.academicYear}
+                    value={form.branding.shortName}
                     onChange={(e) =>
                       setForm((p) => ({
                         ...p,
-                        school: { ...p.school, academicYear: e.target.value },
+                        branding: { ...p.branding, shortName: e.target.value },
                       }))
                     }
-                    placeholder="e.g. 2026-2027"
+                    placeholder="e.g. SPS"
                     className="mt-1 bg-white"
                   />
                 </div>
               </div>
 
-              <div>
-                <Label>School Motto / Tagline</Label>
-                <Input
-                  value={form.school.motto}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      school: { ...p.school, motto: e.target.value },
-                      branding: { ...p.branding, tagline: e.target.value },
-                    }))
-                  }
-                  placeholder="e.g. Play, Learn & Grow Together"
-                  className="mt-1 bg-white"
-                />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>School Motto / Tagline</Label>
+                  <Input
+                    value={form.school.motto}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        school: { ...p.school, motto: e.target.value },
+                        branding: { ...p.branding, tagline: e.target.value },
+                      }))
+                    }
+                    placeholder="e.g. Play, Learn & Grow Together"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label>School Website URL</Label>
+                  <Input
+                    value={form.school.website}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        school: { ...p.school, website: e.target.value },
+                      }))
+                    }
+                    placeholder="https://sunshineplayschool.edu"
+                    className="mt-1 bg-white"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -188,7 +218,7 @@ function SchoolBrandingPage() {
         {/* Section 2: Login Page Customization */}
         <SectionCard title="Login Page Branding">
           <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-3 gap-4">
               <div>
                 <Label>Login Page Title</Label>
                 <Input
@@ -204,7 +234,7 @@ function SchoolBrandingPage() {
                 />
               </div>
               <div>
-                <Label>Login Subtitle / Badge</Label>
+                <Label>Login Subtitle</Label>
                 <Input
                   value={form.loginPage.subtitle}
                   onChange={(e) =>
@@ -214,6 +244,20 @@ function SchoolBrandingPage() {
                     }))
                   }
                   placeholder="e.g. Play School Operations"
+                  className="mt-1 bg-white"
+                />
+              </div>
+              <div>
+                <Label>Badge Text</Label>
+                <Input
+                  value={form.loginPage.badgeText}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      loginPage: { ...p.loginPage, badgeText: e.target.value },
+                    }))
+                  }
+                  placeholder="e.g. GROWVIA v2.4"
                   className="mt-1 bg-white"
                 />
               </div>
@@ -303,8 +347,18 @@ function SchoolBrandingPage() {
           </div>
         </SectionCard>
 
-        {/* Save Bar */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t">
+        {/* Action Bar */}
+        <div className="flex items-center justify-between gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleReset}
+            className="rounded-2xl"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset Defaults
+          </Button>
+
           <Button
             type="submit"
             disabled={saving}

@@ -7,14 +7,13 @@ import { Input } from "@/components/ui/input";
 import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
 import { Search, Eye, Wallet, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
-import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { FilterBar } from "@/components/admin/data-table";
 
 export const Route = createFileRoute("/principal/fees")({
   head: () => ({
     meta: [
       { title: "Fees Overview | Principal Portal" },
-      { name: "description", content: "Read-only overview of student fee collection and ledger status." },
+      { name: "description", content: "School-wide fee collection, ledgers, and installment status." },
     ],
   }),
   component: PrincipalFeesOverview,
@@ -22,7 +21,8 @@ export const Route = createFileRoute("/principal/fees")({
 
 function PrincipalFeesOverview() {
   const [feeRecords, setFeeRecords] = useState<FeeLedgerItem[]>([]);
-  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [activeLedger, setActiveLedger] = useState<FeeLedgerItem | null>(null);
   const [openModal, setOpenModal] = useState(false);
 
@@ -39,15 +39,47 @@ function PrincipalFeesOverview() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return feeRecords;
-    return feeRecords.filter(
-      (f) =>
-        f.studentName.toLowerCase().includes(q) ||
-        (f.className && f.className.toLowerCase().includes(q)) ||
-        (f.admissionNo && f.admissionNo.toLowerCase().includes(q))
-    );
-  }, [feeRecords, query]);
+    const q = search.trim().toLowerCase();
+    const st = filterValues["Status"];
+    const cls = filterValues["Class"];
+    const sec = filterValues["Section"];
+
+    return feeRecords.filter((ledger) => {
+      const matchSearch =
+        !q ||
+        ledger.studentName.toLowerCase().includes(q) ||
+        toCanonicalAdmissionNo(ledger.admissionNo, ledger.id).toLowerCase().includes(q) ||
+        (ledger.className && ledger.className.toLowerCase().includes(q));
+      const matchStatus = !st || st === "all" || ledger.status === st;
+      const matchClass = !cls || cls === "all" || ledger.className?.toLowerCase() === cls.toLowerCase();
+      const matchSection = !sec || sec === "all" || ledger.section?.toLowerCase() === sec.toLowerCase();
+      return matchSearch && matchStatus && matchClass && matchSection;
+    });
+  }, [feeRecords, search, filterValues]);
+
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return;
+    const headers = ["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Payment Status"];
+    const rows = filtered.map((f) => {
+      const finalFee = f.finalFee || (f.originalFee || f.amount || 8500) - (f.discountAmount || 0);
+      const paid = (f.payments && f.payments.length > 0)
+        ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        : (f.paid || 0);
+      const remaining = Math.max(0, finalFee - paid);
+      let status = "Unpaid";
+      if (remaining === 0 && finalFee > 0) status = "Paid";
+      else if (paid > 0) status = "Partially Paid";
+      return [f.studentName, toCanonicalAdmissionNo(f.admissionNo, f.id), f.className, finalFee, paid, remaining, status];
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `student_fees_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const totalExpected = feeRecords.reduce((sum, f) => sum + (f.finalFee || f.originalFee || f.amount || 8500), 0);
   const totalPaid = feeRecords.reduce((sum, f) => sum + (f.paid || 0), 0);
@@ -58,7 +90,7 @@ function PrincipalFeesOverview() {
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4">
       <PageHeader
         title="Fees Overview"
-        subtitle="Read-only view of school-wide fee collection, pending balances, and installment progress."
+        subtitle="School-wide fee collection, pending balances, installment progress, and filters."
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -69,13 +101,19 @@ function PrincipalFeesOverview() {
       </div>
 
       <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="relative max-w-xs mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search student or class..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-9 text-xs"
+        <div className="shrink-0 mb-3">
+          <FilterBar
+            searchPlaceholder="Search student name, admission no., class..."
+            filters={[
+              { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
+              { label: "Section", options: ["A", "B", "C"] },
+              { label: "Status", options: ["Paid", "Partial", "Pending"] },
+            ]}
+            search={search}
+            onSearchChange={setSearch}
+            filterValues={filterValues}
+            onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+            onExport={handleExportCSV}
           />
         </div>
 
@@ -116,7 +154,7 @@ function PrincipalFeesOverview() {
                 return (
                   <tr key={f.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-semibold text-slate-800">{f.studentName}</td>
-                    <td className="px-4 py-3 font-mono text-muted-foreground">{f.admissionNo || "ADM-1001"}</td>
+                    <td className="px-4 py-3 font-mono text-muted-foreground">{toCanonicalAdmissionNo(f.admissionNo, f.id)}</td>
                     <td className="px-4 py-3">{f.className}</td>
                     <td className="px-4 py-3 font-bold text-slate-900">₹{finalFee.toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-emerald-700">₹{paid.toLocaleString()}</td>

@@ -456,6 +456,10 @@ export async function saveDeveloperSettings(settings: DeveloperSettings): Promis
 
   applyDynamicHeadAndTheme(syncedSettings);
   window.dispatchEvent(new CustomEvent("sunshine-dev-settings", { detail: syncedSettings }));
+
+  if (!isSaved && saveErr) {
+    throw new Error(`Failed to persist settings to Supabase: ${saveErr}`);
+  }
 }
 
 import { subscribeToRealtimeTable } from "./realtimeService";

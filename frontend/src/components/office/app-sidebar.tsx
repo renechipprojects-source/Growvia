@@ -71,13 +71,21 @@ const admissions: Group = {
 };
 
 const students: Group = {
-  title: "Students",
+  title: "Students & Staff",
   icon: Baby,
   items: [
     { title: "Students", url: "/office/students", icon: Baby },
     { title: "Classes", url: "/office/classes", icon: GraduationCap },
     { title: "Class Assignment", url: "/office/class-assignment", icon: UserCheck },
     { title: "Promotion Mapping", url: "/office/promotion-mapping", icon: GraduationCap },
+  ],
+};
+
+const attendance: Group = {
+  title: "Attendance",
+  icon: CalendarCheck,
+  items: [
+    { title: "Staff Attendance", url: "/office/staff-attendance", icon: UserCheck },
   ],
 };
 
@@ -101,7 +109,6 @@ const access: Group = {
 };
 
 const operations: Item[] = [
-  { title: "Staff Attendance", url: "/office/staff-attendance", icon: UserCheck },
   { title: "Circulars", url: "/office/circulars", icon: Megaphone },
   { title: "Inventory", url: "/office/inventory", icon: Boxes },
   { title: "Transport", url: "/office/transport", icon: Bus },
@@ -134,7 +141,7 @@ export function OfficeSidebar() {
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-sm font-semibold">{settings.branding.sidebarSchoolName || settings.branding.sidebarTitle || settings.school.schoolName}</div>
-            <div className="truncate text-xs text-muted-foreground">Academic Session {settings.school.academicYear}</div>
+            <div className="truncate text-xs text-muted-foreground">Office Portal</div>
           </div>
         </Link>
       </SidebarHeader>
@@ -162,6 +169,7 @@ export function OfficeSidebar() {
             <SidebarMenu>
               <NavGroup group={admissions} pathname={pathname} />
               <NavGroup group={students} pathname={pathname} />
+              <NavGroup group={attendance} pathname={pathname} />
               <NavGroup group={fees} pathname={pathname} />
               <NavGroup group={access} pathname={pathname} />
             </SidebarMenu>
