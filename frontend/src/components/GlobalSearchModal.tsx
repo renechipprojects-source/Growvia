@@ -6,6 +6,7 @@ import { Search, UserRound, Users, UserCog, GraduationCap, ArrowRight } from "lu
 import { useNavigate } from "@tanstack/react-router";
 import { fetchStudents, fetchTeachers } from "@/lib/supabaseService";
 import { readAssignments } from "@/lib/classAssignmentContext";
+import { getSession } from "@/lib/auth";
 
 interface GlobalSearchModalProps {
   open: boolean;
@@ -53,13 +54,16 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
         });
       });
 
+      const session = getSession();
+      const rolePrefix = session?.role === "principal" ? "/principal" : session?.role === "office" ? "/office" : "/admin";
+
       (tchs || []).forEach((t) => {
         liveList.push({
           id: t.id,
           type: "Teacher",
           name: t.name,
           detail: `Emp ID: ${t.id} · Subject: ${t.subject || "General"}`,
-          route: "/principal/teachers",
+          route: `${rolePrefix}/teachers`,
         });
       });
 
@@ -70,7 +74,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
           type: "Class",
           name: `Class ${c}`,
           detail: `Room 10${idx + 1} · Active Section`,
-          route: "/admin/classes",
+          route: `${rolePrefix}/classes`,
         });
       });
 

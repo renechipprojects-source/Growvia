@@ -49,6 +49,7 @@ import { Route as OfficeParentCredentialsRouteImport } from './routes/office.par
 import { Route as OfficePasswordResetsRouteImport } from './routes/office.password-resets'
 import { Route as OfficePromotionMappingRouteImport } from './routes/office.promotion-mapping'
 import { Route as OfficeReceiptsRouteImport } from './routes/office.receipts'
+import { Route as OfficeReportsRouteImport } from './routes/office.reports'
 import { Route as OfficeStaffAttendanceRouteImport } from './routes/office.staff-attendance'
 import { Route as OfficeStudentsRouteImport } from './routes/office.students'
 import { Route as OfficeTeacherCredentialsRouteImport } from './routes/office.teacher-credentials'
@@ -65,9 +66,11 @@ import { Route as ParentHomeworkRouteImport } from './routes/parent.homework'
 import { Route as ParentLeaveRouteImport } from './routes/parent.leave'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
 import { Route as PrincipalIndexRouteImport } from './routes/principal.index'
+import { Route as PrincipalActivitiesRouteImport } from './routes/principal.activities'
 import { Route as PrincipalCircularsRouteImport } from './routes/principal.circulars'
 import { Route as PrincipalClassesRouteImport } from './routes/principal.classes'
 import { Route as PrincipalDashboardRouteImport } from './routes/principal.dashboard'
+import { Route as PrincipalEnquiriesRouteImport } from './routes/principal.enquiries'
 import { Route as PrincipalEventsRouteImport } from './routes/principal.events'
 import { Route as PrincipalExpensesRouteImport } from './routes/principal.expenses'
 import { Route as PrincipalFeesRouteImport } from './routes/principal.fees'
@@ -299,6 +302,11 @@ const OfficeReceiptsRoute = OfficeReceiptsRouteImport.update({
   path: '/receipts',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeReportsRoute = OfficeReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeStaffAttendanceRoute = OfficeStaffAttendanceRouteImport.update({
   id: '/staff-attendance',
   path: '/staff-attendance',
@@ -380,6 +388,11 @@ const PrincipalIndexRoute = PrincipalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PrincipalRoute,
 } as any)
+const PrincipalActivitiesRoute = PrincipalActivitiesRouteImport.update({
+  id: '/activities',
+  path: '/activities',
+  getParentRoute: () => PrincipalRoute,
+} as any)
 const PrincipalCircularsRoute = PrincipalCircularsRouteImport.update({
   id: '/circulars',
   path: '/circulars',
@@ -393,6 +406,11 @@ const PrincipalClassesRoute = PrincipalClassesRouteImport.update({
 const PrincipalDashboardRoute = PrincipalDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => PrincipalRoute,
+} as any)
+const PrincipalEnquiriesRoute = PrincipalEnquiriesRouteImport.update({
+  id: '/enquiries',
+  path: '/enquiries',
   getParentRoute: () => PrincipalRoute,
 } as any)
 const PrincipalEventsRoute = PrincipalEventsRouteImport.update({
@@ -587,6 +605,7 @@ export interface FileRoutesByFullPath {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
+  '/office/reports': typeof OfficeReportsRoute
   '/office/staff-attendance': typeof OfficeStaffAttendanceRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
@@ -601,9 +620,11 @@ export interface FileRoutesByFullPath {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/principal/activities': typeof PrincipalActivitiesRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
+  '/principal/enquiries': typeof PrincipalEnquiriesRoute
   '/principal/events': typeof PrincipalEventsRoute
   '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
@@ -673,6 +694,7 @@ export interface FileRoutesByTo {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
+  '/office/reports': typeof OfficeReportsRoute
   '/office/staff-attendance': typeof OfficeStaffAttendanceRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
@@ -687,9 +709,11 @@ export interface FileRoutesByTo {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/principal/activities': typeof PrincipalActivitiesRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
+  '/principal/enquiries': typeof PrincipalEnquiriesRoute
   '/principal/events': typeof PrincipalEventsRoute
   '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
@@ -765,6 +789,7 @@ export interface FileRoutesById {
   '/office/password-resets': typeof OfficePasswordResetsRoute
   '/office/promotion-mapping': typeof OfficePromotionMappingRoute
   '/office/receipts': typeof OfficeReceiptsRoute
+  '/office/reports': typeof OfficeReportsRoute
   '/office/staff-attendance': typeof OfficeStaffAttendanceRoute
   '/office/students': typeof OfficeStudentsRoute
   '/office/teacher-credentials': typeof OfficeTeacherCredentialsRoute
@@ -779,9 +804,11 @@ export interface FileRoutesById {
   '/parent/homework': typeof ParentHomeworkRoute
   '/parent/leave': typeof ParentLeaveRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/principal/activities': typeof PrincipalActivitiesRoute
   '/principal/circulars': typeof PrincipalCircularsRoute
   '/principal/classes': typeof PrincipalClassesRoute
   '/principal/dashboard': typeof PrincipalDashboardRoute
+  '/principal/enquiries': typeof PrincipalEnquiriesRoute
   '/principal/events': typeof PrincipalEventsRoute
   '/principal/expenses': typeof PrincipalExpensesRoute
   '/principal/fees': typeof PrincipalFeesRoute
@@ -858,6 +885,7 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
+    | '/office/reports'
     | '/office/staff-attendance'
     | '/office/students'
     | '/office/teacher-credentials'
@@ -872,9 +900,11 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
+    | '/principal/activities'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
+    | '/principal/enquiries'
     | '/principal/events'
     | '/principal/expenses'
     | '/principal/fees'
@@ -944,6 +974,7 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
+    | '/office/reports'
     | '/office/staff-attendance'
     | '/office/students'
     | '/office/teacher-credentials'
@@ -958,9 +989,11 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
+    | '/principal/activities'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
+    | '/principal/enquiries'
     | '/principal/events'
     | '/principal/expenses'
     | '/principal/fees'
@@ -1035,6 +1068,7 @@ export interface FileRouteTypes {
     | '/office/password-resets'
     | '/office/promotion-mapping'
     | '/office/receipts'
+    | '/office/reports'
     | '/office/staff-attendance'
     | '/office/students'
     | '/office/teacher-credentials'
@@ -1049,9 +1083,11 @@ export interface FileRouteTypes {
     | '/parent/homework'
     | '/parent/leave'
     | '/parent/messages'
+    | '/principal/activities'
     | '/principal/circulars'
     | '/principal/classes'
     | '/principal/dashboard'
+    | '/principal/enquiries'
     | '/principal/events'
     | '/principal/expenses'
     | '/principal/fees'
@@ -1381,6 +1417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeReceiptsRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/office/reports': {
+      id: '/office/reports'
+      path: '/reports'
+      fullPath: '/office/reports'
+      preLoaderRoute: typeof OfficeReportsRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/office/staff-attendance': {
       id: '/office/staff-attendance'
       path: '/staff-attendance'
@@ -1493,6 +1536,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalIndexRouteImport
       parentRoute: typeof PrincipalRoute
     }
+    '/principal/activities': {
+      id: '/principal/activities'
+      path: '/activities'
+      fullPath: '/principal/activities'
+      preLoaderRoute: typeof PrincipalActivitiesRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
     '/principal/circulars': {
       id: '/principal/circulars'
       path: '/circulars'
@@ -1512,6 +1562,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/principal/dashboard'
       preLoaderRoute: typeof PrincipalDashboardRouteImport
+      parentRoute: typeof PrincipalRoute
+    }
+    '/principal/enquiries': {
+      id: '/principal/enquiries'
+      path: '/enquiries'
+      fullPath: '/principal/enquiries'
+      preLoaderRoute: typeof PrincipalEnquiriesRouteImport
       parentRoute: typeof PrincipalRoute
     }
     '/principal/events': {
@@ -1801,6 +1858,7 @@ interface OfficeRouteChildren {
   OfficePasswordResetsRoute: typeof OfficePasswordResetsRoute
   OfficePromotionMappingRoute: typeof OfficePromotionMappingRoute
   OfficeReceiptsRoute: typeof OfficeReceiptsRoute
+  OfficeReportsRoute: typeof OfficeReportsRoute
   OfficeStaffAttendanceRoute: typeof OfficeStaffAttendanceRoute
   OfficeStudentsRoute: typeof OfficeStudentsRoute
   OfficeTeacherCredentialsRoute: typeof OfficeTeacherCredentialsRoute
@@ -1825,6 +1883,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficePasswordResetsRoute: OfficePasswordResetsRoute,
   OfficePromotionMappingRoute: OfficePromotionMappingRoute,
   OfficeReceiptsRoute: OfficeReceiptsRoute,
+  OfficeReportsRoute: OfficeReportsRoute,
   OfficeStaffAttendanceRoute: OfficeStaffAttendanceRoute,
   OfficeStudentsRoute: OfficeStudentsRoute,
   OfficeTeacherCredentialsRoute: OfficeTeacherCredentialsRoute,
@@ -1866,9 +1925,11 @@ const ParentRouteWithChildren =
   ParentRoute._addFileChildren(ParentRouteChildren)
 
 interface PrincipalRouteChildren {
+  PrincipalActivitiesRoute: typeof PrincipalActivitiesRoute
   PrincipalCircularsRoute: typeof PrincipalCircularsRoute
   PrincipalClassesRoute: typeof PrincipalClassesRoute
   PrincipalDashboardRoute: typeof PrincipalDashboardRoute
+  PrincipalEnquiriesRoute: typeof PrincipalEnquiriesRoute
   PrincipalEventsRoute: typeof PrincipalEventsRoute
   PrincipalExpensesRoute: typeof PrincipalExpensesRoute
   PrincipalFeesRoute: typeof PrincipalFeesRoute
@@ -1886,9 +1947,11 @@ interface PrincipalRouteChildren {
 }
 
 const PrincipalRouteChildren: PrincipalRouteChildren = {
+  PrincipalActivitiesRoute: PrincipalActivitiesRoute,
   PrincipalCircularsRoute: PrincipalCircularsRoute,
   PrincipalClassesRoute: PrincipalClassesRoute,
   PrincipalDashboardRoute: PrincipalDashboardRoute,
+  PrincipalEnquiriesRoute: PrincipalEnquiriesRoute,
   PrincipalEventsRoute: PrincipalEventsRoute,
   PrincipalExpensesRoute: PrincipalExpensesRoute,
   PrincipalFeesRoute: PrincipalFeesRoute,
