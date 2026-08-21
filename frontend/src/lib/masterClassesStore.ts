@@ -10,42 +10,90 @@ export interface MasterClassItem {
 }
 
 import { supabase } from "@/lib/supabase";
-import { notifyAutoRefresh, fetchStudents, fetchTeachers } from "@/lib/supabaseService";
+import { notifyAutoRefresh } from "@/lib/supabaseService";
 
 export const INITIAL_CLASSES: MasterClassItem[] = [];
 
-const STORAGE_KEY = "sunshine.master_classes.v3";
+const STORAGE_KEY = "sunshine.master_classes.v4";
+const INITIALIZED_KEY = "sunshine.master_classes.initialized.v4";
+const DELETED_KEY = "sunshine.master_classes.deleted.v4";
 const EVENT_NAME = "sunshine_classes_updated";
 
 let memoryCache: MasterClassItem[] | null = null;
+let deletedIdsCache: Set<string> = new Set();
+
+const DEFAULT_INITIAL_CLASSES: MasterClassItem[] = [
+  { id: "CLS-Playgroup-A", name: "Playgroup", section: "A", fullName: "Playgroup - Section A", classTeacher: "Unassigned", room: "Room 101", capacity: 25 },
+  { id: "CLS-Nursery-A", name: "Nursery", section: "A", fullName: "Nursery - Section A", classTeacher: "Ananya Sen", room: "Room 102", capacity: 30 },
+  { id: "CLS-LKG-A", name: "LKG", section: "A", fullName: "LKG - Section A", classTeacher: "Vikram Malhotra", room: "Room 103", capacity: 30 },
+  { id: "CLS-UKG-A", name: "UKG", section: "A", fullName: "UKG - Section A", classTeacher: "Pooja Sharma", room: "Room 104", capacity: 30 },
+  { id: "CLS-Grade1-A", name: "Grade 1", section: "A", fullName: "Grade 1 - Section A", classTeacher: "Rahul Verma", room: "Room 105", capacity: 35 },
+  { id: "CLS-Grade2-A", name: "Grade 2", section: "A", fullName: "Grade 2 - Section A", classTeacher: "Sneha Patel", room: "Room 106", capacity: 35 },
+];
+
+export function getStoredDeletedIds(): Set<string> {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(DELETED_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch {}
+  }
+  return deletedIdsCache;
+}
 
 export function getStoredMasterClasses(): MasterClassItem[] {
-  if (memoryCache) return memoryCache;
+  const deleted = getStoredDeletedIds();
+  if (memoryCache) {
+    return memoryCache.filter((c) => !deleted.has(c.id));
+  }
   if (typeof window !== "undefined") {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          memoryCache = parsed;
-          return parsed;
+          const filtered = parsed.filter((c) => !deleted.has(c.id));
+          memoryCache = filtered;
+          return filtered;
         }
       }
     } catch {}
   }
-  memoryCache = [];
-  return [];
+  memoryCache = DEFAULT_INITIAL_CLASSES.filter((c) => !deleted.has(c.id));
+  return memoryCache;
 }
 
 export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[]> {
   try {
-    const { data, error } = await supabase
-      .from("gv_requests")
-      .select("*")
-      .eq("request_type", "class");
+    const [{ data: classData }, { data: delMarker }] = await Promise.all([
+      supabase.from("gv_requests").select("*").eq("request_type", "class"),
+      supabase.from("gv_requests").select("*").eq("id", "SYSTEM_DELETED_CLASSES").maybeSingle(),
+    ]);
 
-    if (!error && data && data.length > 0) {
-      const mapped: MasterClassItem[] = data.map((d: any) => {
+    let remoteDeleted = new Set<string>();
+    if (delMarker && delMarker.reason_or_notes) {
+      try {
+        const parsed = JSON.parse(delMarker.reason_or_notes);
+        if (Array.isArray(parsed)) remoteDeleted = new Set(parsed);
+      } catch {}
+    }
+
+    const localDeleted = getStoredDeletedIds();
+    const mergedDeleted = new Set([...Array.from(remoteDeleted), ...Array.from(localDeleted)]);
+    deletedIdsCache = mergedDeleted;
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(mergedDeleted)));
+      } catch {}
+    }
+
+    if (classData && classData.length > 0) {
+      const activeRows = classData.filter((d: any) => d.id !== "SYSTEM_DELETED_CLASSES" && !mergedDeleted.has(d.id));
+      const mapped: MasterClassItem[] = activeRows.map((d: any) => {
         let meta: any = {};
         try {
           if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
@@ -85,85 +133,54 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+          localStorage.setItem(INITIALIZED_KEY, "true");
         } catch {}
       }
       return mapped;
     }
-  } catch {}
 
-  const stored = getStoredMasterClasses();
-  if (stored && stored.length > 0) return stored;
-
-  try {
-    const [{ data: students }, { data: teachers }] = await Promise.all([
-      fetchStudents(),
-      fetchTeachers(),
-    ]);
-
-    const classMap = new Map<string, MasterClassItem>();
-
-    (teachers || []).forEach((t) => {
-      if (t.className) {
-        const parts = t.className.trim().split(" ");
-        const name = parts[0] || t.className;
-        const section = parts[1] || (t as any).section || "A";
-        const key = `${name}-${section}`.toLowerCase();
-        if (!classMap.has(key)) {
-          classMap.set(key, {
-            id: `CLS-${name}-${section}`,
-            name,
-            section,
-            fullName: `${name} - Section ${section}`,
-            classTeacher: t.name || "Unassigned",
-            teacherId: t.id || "",
-            room: "Room 101",
-            capacity: 30,
-          });
-        }
+    const isInitialized = typeof window !== "undefined" && localStorage.getItem(INITIALIZED_KEY) === "true";
+    if (isInitialized || delMarker) {
+      memoryCache = [];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        } catch {}
       }
-    });
-
-    (students || []).forEach((s) => {
-      if (s.className) {
-        const name = s.className;
-        const section = s.section || "A";
-        const key = `${name}-${section}`.toLowerCase();
-        if (!classMap.has(key)) {
-          classMap.set(key, {
-            id: `CLS-${name}-${section}`,
-            name,
-            section,
-            fullName: `${name} - Section ${section}`,
-            classTeacher: "Unassigned",
-            room: "Room 101",
-            capacity: 30,
-          });
-        }
+      return [];
+    } else {
+      const activeDefaults = DEFAULT_INITIAL_CLASSES.filter((c) => !mergedDeleted.has(c.id));
+      saveStoredMasterClasses(activeDefaults);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(INITIALIZED_KEY, "true");
+        } catch {}
       }
-    });
-
-    const derived = Array.from(classMap.values());
-    if (derived.length > 0) {
-      memoryCache = derived;
-      return derived;
+      return activeDefaults;
     }
-  } catch {}
+  } catch (err) {
+    console.warn("Error fetching master classes from Supabase:", err);
+  }
 
-  return [];
+  return getStoredMasterClasses();
 }
 
 export function saveStoredMasterClasses(list: MasterClassItem[]) {
-  memoryCache = list;
+  const deleted = getStoredDeletedIds();
+  const cleanList = list.filter((c) => !deleted.has(c.id));
+  memoryCache = cleanList;
+
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanList));
+      localStorage.setItem(INITIALIZED_KEY, "true");
       window.dispatchEvent(new Event(EVENT_NAME));
     } catch {}
   }
 
   notifyAutoRefresh("classes");
 
-  const payloads = list.map((c) => ({
+  const payloads = cleanList.map((c) => ({
     id: c.id,
     request_type: "class",
     leave_type_or_interested_class: `${c.name} ${c.section}`.trim(),
@@ -172,7 +189,9 @@ export function saveStoredMasterClasses(list: MasterClassItem[]) {
     reason_or_notes: JSON.stringify(c),
   }));
 
-  Promise.resolve(supabase.from("gv_requests").upsert(payloads, { onConflict: "id" })).catch(() => {});
+  if (payloads.length > 0) {
+    Promise.resolve(supabase.from("gv_requests").upsert(payloads, { onConflict: "id" })).catch(() => {});
+  }
 }
 
 export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & { id?: string }): MasterClassItem {
@@ -181,6 +200,17 @@ export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & 
   const section = (item.section || "A").trim();
   const cleanSlug = `${name.replace(/[^a-zA-Z0-9]/g, "")}-${section.replace(/[^a-zA-Z0-9]/g, "")}`;
   const id = item.id || `CLS-${cleanSlug}`;
+
+  // Remove from deleted tracking if re-added
+  deletedIdsCache.delete(id);
+  const localDeleted = getStoredDeletedIds();
+  localDeleted.delete(id);
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(localDeleted)));
+    } catch {}
+  }
+
   const newItem: MasterClassItem = {
     id,
     name,
@@ -193,6 +223,12 @@ export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & 
   };
   const updated = [...current.filter((c) => c.id !== id), newItem];
   saveStoredMasterClasses(updated);
+
+  // Sync relational Class Assignment
+  if (newItem.classTeacher && newItem.classTeacher !== "Unassigned") {
+    syncClassAssignmentForMasterClass(newItem);
+  }
+
   return newItem;
 }
 
@@ -216,14 +252,106 @@ export function updateMasterClass(id: string, updates: Partial<MasterClassItem>)
     return c;
   });
   saveStoredMasterClasses(next);
+
+  if (updatedItem && updates.classTeacher !== undefined) {
+    syncClassAssignmentForMasterClass(updatedItem);
+  }
+
   return updatedItem;
 }
 
-export function deleteMasterClass(id: string) {
+export async function deleteMasterClass(id: string): Promise<void> {
   const current = getStoredMasterClasses();
+  const target = current.find((c) => c.id === id);
   const next = current.filter((c) => c.id !== id);
-  saveStoredMasterClasses(next);
-  Promise.resolve(supabase.from("gv_requests").delete().eq("id", id)).catch(() => {});
+
+  memoryCache = next;
+  deletedIdsCache.add(id);
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(deletedIdsCache)));
+      localStorage.setItem(INITIALIZED_KEY, "true");
+      window.dispatchEvent(new Event(EVENT_NAME));
+    } catch {}
+  }
+
+  notifyAutoRefresh("classes");
+
+  try {
+    // 1. Delete class record from gv_requests
+    await supabase.from("gv_requests").delete().eq("id", id);
+
+    // 2. Persist deleted class ID marker in database
+    const delArray = Array.from(deletedIdsCache);
+    await supabase.from("gv_requests").upsert([
+      {
+        id: "SYSTEM_DELETED_CLASSES",
+        request_type: "system_meta",
+        applicant_or_child_name: "SYSTEM_DELETED_CLASSES",
+        reason_or_notes: JSON.stringify(delArray),
+      },
+    ], { onConflict: "id" });
+
+    // 3. Cascading cleanup of class assignments
+    if (target) {
+      const classStr = `${target.name} ${target.section}`.trim();
+      const { data: assignments } = await supabase
+        .from("gv_requests")
+        .select("id")
+        .eq("request_type", "class_assignment")
+        .eq("leave_type_or_interested_class", classStr);
+
+      if (assignments && assignments.length > 0) {
+        for (const a of assignments) {
+          await supabase.from("gv_requests").delete().eq("id", a.id);
+        }
+      }
+
+      // Clear teacher profile class_name in gv_users
+      if (target.classTeacher && target.classTeacher !== "Unassigned") {
+        await supabase
+          .from("gv_users")
+          .update({ class_name: null, section: null })
+          .or(`full_name.eq.${target.classTeacher},login_id.eq.${target.teacherId || target.classTeacher}`);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to complete cascading deletion for master class from Supabase:", err);
+  }
+}
+
+async function syncClassAssignmentForMasterClass(c: MasterClassItem) {
+  try {
+    const classStr = `${c.name} ${c.section}`.trim();
+    const assignmentPayload = {
+      id: `CA-${c.id}`,
+      request_type: "class_assignment",
+      applicant_or_child_name: c.classTeacher,
+      leave_type_or_interested_class: classStr,
+      status: "active",
+      reason_or_notes: JSON.stringify({
+        id: `CA-${c.id}`,
+        teacherId: c.teacherId || c.classTeacher,
+        teacherName: c.classTeacher,
+        role: "class",
+        className: c.name,
+        section: c.section,
+        academicYear: "2026-27",
+        status: "active",
+      }),
+    };
+    await supabase.from("gv_requests").upsert([assignmentPayload], { onConflict: "id" });
+
+    if (c.classTeacher && c.classTeacher !== "Unassigned") {
+      await supabase
+        .from("gv_users")
+        .update({ class_name: classStr, section: c.section })
+        .or(`full_name.eq.${c.classTeacher},login_id.eq.${c.teacherId || c.classTeacher}`);
+    }
+    notifyAutoRefresh("assignments");
+  } catch {}
 }
 
 export function subscribeMasterClasses(callback: () => void) {

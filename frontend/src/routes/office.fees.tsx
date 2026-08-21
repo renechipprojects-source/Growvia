@@ -133,6 +133,16 @@ function FeeCollection() {
     };
   }, [feeList]);
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    feeList.forEach((f) => {
+      if (f.section && typeof f.section === "string" && f.section.trim()) {
+        set.add(f.section.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [feeList]);
+
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     return feeList.filter((f) => {
@@ -143,7 +153,7 @@ function FeeCollection() {
         f.className.toLowerCase().includes(t);
       const matchStatus = statusFilter === "All" || f.status === statusFilter;
       const matchClass = classFilter === "All" || f.className.toLowerCase().includes(classFilter.toLowerCase());
-      const matchSection = sectionFilter === "All" || (f.section && f.section.toUpperCase() === sectionFilter.toUpperCase());
+      const matchSection = sectionFilter === "All" || (f.section && f.section.trim().toLowerCase() === sectionFilter.trim().toLowerCase());
       return matchSearch && matchStatus && matchClass && matchSection;
     });
   }, [feeList, q, statusFilter, classFilter, sectionFilter]);
@@ -219,15 +229,19 @@ function FeeCollection() {
     toast.success(`Fee structure updated for ${updated.studentName}! Final Fee: ₹${updated.finalFee.toLocaleString()}`);
   };
 
-  const handleRecordPayment = () => {
-    if (!activeLedger) return;
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  const handleRecordPayment = async () => {
+    if (!activeLedger || submittingPayment) return;
     const paidAmt = Number(amountPaid || 0);
     if (paidAmt <= 0) return toast.error("Please enter a valid payment amount.");
 
     const remainingBal = Math.max(0, (activeLedger.finalFee || activeLedger.amount) - (activeLedger.paid || 0));
-    if (paidAmt > remainingBal) {
+    if (paidAmt > remainingBal && remainingBal > 0) {
       return toast.error(`Payment amount (₹${paidAmt.toLocaleString()}) cannot exceed remaining balance (₹${remainingBal.toLocaleString()}).`);
     }
+
+    setSubmittingPayment(true);
 
     const nextInstNo = (activeLedger.payments?.length || 0) + 1;
     const rcptNo = `SUN/26-27/${Math.floor(4000 + Math.random() * 6000)}`;
@@ -235,7 +249,7 @@ function FeeCollection() {
     const newTxn: PaymentTransaction = {
       id: `TXN-${Date.now()}`,
       feeLedgerId: activeLedger.id,
-      studentId: activeLedger.studentId,
+      studentId: activeLedger.studentId || activeLedger.admissionNo,
       receiptNo: rcptNo,
       amount: paidAmt,
       date,
@@ -251,9 +265,6 @@ function FeeCollection() {
       ...activeLedger,
       payments: [...(activeLedger.payments || []), newTxn],
     });
-
-    setFeeList((prev) => prev.map((f) => (f.id === activeLedger.id ? updatedLedger : f)));
-    saveFeeRecord(updatedLedger);
 
     const rcpt: Receipt = {
       id: newTxn.id,
@@ -273,7 +284,17 @@ function FeeCollection() {
       collectedBy: "Office Staff",
     };
 
-    saveReceipt(rcpt);
+    // Authoritative database persistence before declaring success
+    const saveRes = await saveReceipt(rcpt);
+    await saveFeeRecord(updatedLedger);
+
+    setSubmittingPayment(false);
+
+    if (saveRes.error) {
+      return toast.error(`Failed to record payment in database: ${saveRes.error}`);
+    }
+
+    setFeeList((prev) => prev.map((f) => (f.id === activeLedger.id ? updatedLedger : f)));
     setReceipt(rcpt);
     setOpenRecordModal(false);
 
@@ -340,14 +361,16 @@ function FeeCollection() {
 
           {/* Section Filter */}
           <Select value={sectionFilter} onValueChange={setSectionFilter}>
-            <SelectTrigger className="w-[100px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
+            <SelectTrigger className="w-[110px] h-9 text-xs bg-white border-slate-200 rounded-xl font-medium">
               <SelectValue placeholder="Sec: All" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Sec</SelectItem>
-              <SelectItem value="A">Sec A</SelectItem>
-              <SelectItem value="B">Sec B</SelectItem>
-              <SelectItem value="C">Sec C</SelectItem>
+              {sectionOptions.map((s) => (
+                <SelectItem key={s} value={s}>
+                  Sec {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

@@ -14,20 +14,30 @@ export async function triggerServerUserProvisioning(params?: {
   role?: string;
   name?: string;
 }) {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(`${BACKEND_URL}/api/users/provision`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params || {}),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
-    if (res.ok) {
-      const data = await res.json();
-      return { success: true, data };
-    }
-  } catch {}
+  const backendUrls = Array.from(new Set([
+    BACKEND_URL,
+    "http://localhost:5000",
+    ""
+  ])).filter((u) => typeof u === "string");
+
+  for (const baseUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/provision` : "/api/users/provision";
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params || {}),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, data };
+      }
+    } catch {}
+  }
 
   // Fallback for node test environments or offline backend: execute directly using service role if available
   const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
@@ -81,22 +91,32 @@ export async function triggerServerUserProvisioning(params?: {
 }
 
 export async function resolveLoginIdViaServer(identifier: string) {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(`${BACKEND_URL}/api/users/resolve-login-id`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.success && data?.email) {
-        return data;
+  const backendUrls = Array.from(new Set([
+    BACKEND_URL,
+    "http://localhost:5000",
+    ""
+  ])).filter((u) => typeof u === "string");
+
+  for (const baseUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/resolve-login-id` : "/api/users/resolve-login-id";
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data?.email) {
+          return data;
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   // Fallback for node test environments: resolve using service role if key available
   const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
@@ -155,20 +175,23 @@ export async function login(loginId: string, password: string) {
     const id = canonicalId;
     let userData: any = null;
 
-    // 1. Primary lookup via frontendSupabase gv_users
+    // 1. Primary lookup via frontendSupabase gv_users using exact field queries
     try {
-      const { data } = await supabase
-        .from("gv_users")
-        .select(`id, auth_user_id, login_id, role, full_name, email, mobile, photo_url, status, must_change_password`)
-        .or(`login_id.ilike.${id},email.ilike.${rawId},login_id.ilike.${rawId},login_id.ilike.${cleanId}`)
-        .maybeSingle();
-
-      if (data) userData = data;
+      const { data: d1 } = await supabase.from("gv_users").select("*").ilike("login_id", rawId).maybeSingle();
+      if (d1) userData = d1;
+      else {
+        const { data: d2 } = await supabase.from("gv_users").select("*").ilike("email", rawId).maybeSingle();
+        if (d2) userData = d2;
+        else {
+          const { data: d3 } = await supabase.from("gv_users").select("*").ilike("login_id", id).maybeSingle();
+          if (d3) userData = d3;
+        }
+      }
     } catch {}
 
     // 2. If RLS blocked anon query or user not found directly, resolve via server endpoint
     if (!userData) {
-      const serverRes = await resolveLoginIdViaServer(id);
+      const serverRes = await resolveLoginIdViaServer(id) || await resolveLoginIdViaServer(rawId);
       if (serverRes?.profile) {
         userData = serverRes.profile;
       }
@@ -177,19 +200,19 @@ export async function login(loginId: string, password: string) {
     // 3. Fallback: check stored local credentials
     if (!userData && !rawId.includes("@")) {
       const teacherCreds = listTeacherCredentials();
-      const matchTeach = teacherCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase());
+      const matchTeach = teacherCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase() || c.loginId.toLowerCase() === rawId.toLowerCase());
       if (matchTeach) {
         userData = {
           id: `TCH-${matchTeach.teacherId}`,
           login_id: matchTeach.loginId,
-          email: `${matchTeach.loginId.toLowerCase()}@sunshine.edu`,
+          email: `${matchTeach.loginId.toLowerCase()}@sunshineschool.edu`,
           role: "teacher",
           full_name: "Teacher User",
           status: matchTeach.status.toLowerCase(),
         };
       } else {
         const parentCreds = listParentCredentials();
-        const matchPar = parentCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase());
+        const matchPar = parentCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase() || c.loginId.toLowerCase() === rawId.toLowerCase());
         if (matchPar) {
           userData = {
             id: `PAR-${matchPar.loginId}`,
@@ -204,34 +227,57 @@ export async function login(loginId: string, password: string) {
     }
 
     let profile: any = userData;
-    let emailToAuth = profile?.email || (rawId.includes("@") ? rawId : `${id.toLowerCase()}@growvia.edu`);
 
-    // Attempt Supabase Auth sign-in (strict password verification)
-    let authResult = await supabase.auth.signInWithPassword({
-      email: emailToAuth,
-      password,
-    }).catch(() => ({ data: { user: null, session: null }, error: { message: "Auth unavailable" } }));
+    const emailCandidates: string[] = [];
+    if (rawId.includes("@")) emailCandidates.push(rawId);
+    if (profile?.email) emailCandidates.push(profile.email);
+    emailCandidates.push(`${rawId.toLowerCase()}@sunshineschool.edu`);
+    emailCandidates.push(`${rawId.toLowerCase()}@growvia.edu`);
+    emailCandidates.push(`${id.toLowerCase()}@sunshineschool.edu`);
+    emailCandidates.push(`${id.toLowerCase()}@growvia.edu`);
+    emailCandidates.push(`${cleanId}@sunshineschool.edu`);
+    emailCandidates.push(`${cleanId}@growvia.edu`);
 
-    // If initial sign-in failed and user profile does NOT exist in database, attempt JIT fallback provisioning
-    if (!authResult.data?.user && !profile) {
-      await triggerServerUserProvisioning({
-        login_id: id,
-        email: emailToAuth,
-        password,
-        role: "teacher",
-        name: "Staff User",
-      }).catch(() => {});
+    // Remove duplicates
+    const uniqueCandidates = Array.from(new Set(emailCandidates.filter(Boolean)));
 
-      await new Promise((r) => setTimeout(r, 800));
+    let authResult: any = null;
+    let successfulEmail: string | null = null;
 
-      authResult = await supabase.auth.signInWithPassword({
-        email: emailToAuth,
-        password,
-      }).catch(() => ({ data: { user: null, session: null }, error: { message: "Auth unavailable" } }));
+    for (const candEmail of uniqueCandidates) {
+      try {
+        const res = await supabase.auth.signInWithPassword({
+          email: candEmail,
+          password,
+        });
+        if (res.data?.user) {
+          authResult = res;
+          successfulEmail = candEmail;
+          break;
+        }
+      } catch {}
+    }
+
+    // If initial sign-in failed, try resolving exact auth email via server endpoint
+    if (!authResult?.data?.user) {
+      const serverRes = await resolveLoginIdViaServer(rawId) || await resolveLoginIdViaServer(id);
+      if (serverRes?.email) {
+        try {
+          const res = await supabase.auth.signInWithPassword({
+            email: serverRes.email,
+            password,
+          });
+          if (res.data?.user) {
+            authResult = res;
+            successfulEmail = serverRes.email;
+            if (serverRes.profile) profile = serverRes.profile;
+          }
+        } catch {}
+      }
     }
 
     // Require successful password verification
-    if (!authResult.data?.user) {
+    if (!authResult?.data?.user) {
       return {
         success: false,
         error: "Invalid Login ID or password.",

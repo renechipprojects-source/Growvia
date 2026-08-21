@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { sanitizeTeacherName } from "./credentials";
+import { getStoredMasterClasses, saveStoredMasterClasses } from "./masterClassesStore";
 
 export type AssignmentRole = "class" | "subject";
 export type AssignmentStatus = "active" | "inactive";
@@ -197,6 +198,20 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
     newItems.forEach((a) => {
       if (a.role === "class" && a.status === "active") {
         const clsString = `${a.className} ${a.section}`.trim();
+        const cleanName = sanitizeTeacherName(a.teacherName, a.teacherId);
+
+        try {
+          const currentMasters = getStoredMasterClasses();
+          const matchIndex = currentMasters.findIndex(
+            (m) => m.name.toLowerCase() === a.className.toLowerCase() && m.section.toUpperCase() === a.section.toUpperCase()
+          );
+          if (matchIndex >= 0 && currentMasters[matchIndex].classTeacher !== cleanName) {
+            currentMasters[matchIndex].classTeacher = cleanName;
+            currentMasters[matchIndex].teacherId = a.teacherId;
+            saveStoredMasterClasses(currentMasters);
+          }
+        } catch {}
+
         if (a.teacherId) {
           supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId).then(({ data, error }) => {
             if (error || !data || (Array.isArray(data) && data.length === 0)) {
@@ -204,8 +219,8 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
             }
           });
         }
-        if (a.teacherName && a.teacherName !== "Select Teacher" && a.teacherName !== "Unassigned") {
-          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("full_name", a.teacherName);
+        if (cleanName && cleanName !== "Select Teacher" && cleanName !== "Unassigned") {
+          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("full_name", cleanName);
         }
       }
     });

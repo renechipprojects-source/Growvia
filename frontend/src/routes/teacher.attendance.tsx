@@ -17,6 +17,8 @@ import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { z } from "zod";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
 
+import { StaffSelfAttendanceCard } from "@/components/staff/StaffSelfAttendanceCard";
+
 const searchSchema = z.object({ a: z.string().optional() });
 
 export const Route = createFileRoute("/teacher/attendance")({
@@ -104,16 +106,11 @@ function Att() {
   };
   const pct = counts.total ? Math.round((counts.P / counts.total) * 100) : 0;
 
-  if (assignments.length === 0 || !active) {
-    return (
-      <div>
-        <PageHeader title="Attendance" subtitle="Attendance recording is managed by Class Teachers. You are not currently assigned as a Class Teacher." />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto">
+      <div className="shrink-0 mb-2">
+        <StaffSelfAttendanceCard />
+      </div>
       <div className="shrink-0">
         <PageHeader
           title="Attendance"

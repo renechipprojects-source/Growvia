@@ -181,6 +181,8 @@ export interface FeeLedgerItem {
   amount: number;
   paid: number;
   remainingAmount: number;
+  advanceAmount?: number;
+  balance?: number;
   totalInstallments: number;
   paidInstallments: number;
   installmentsUsed?: number;
@@ -295,13 +297,17 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
     const publishDate = circular.publishDate || circular.published_date || new Date().toISOString().slice(0, 10);
     const expiryDate = circular.expiryDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
+    const validRecipients = (Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers", "Office Staff"])
+      .map((r: any) => String(r).trim())
+      .filter((r: string) => r !== "Admin");
+
     const meta = {
       subject: circular.subject || circular.title,
       description: circular.description || circular.content || circular.title,
       priority: circular.priority || "Medium",
       publishDate,
       expiryDate,
-      recipients: Array.isArray(circular.recipients) && circular.recipients.length > 0 ? circular.recipients : ["Parents", "Teachers"],
+      recipients: validRecipients.length > 0 ? validRecipients : ["Parents", "Teachers", "Office Staff"],
       attachmentName: circular.attachmentName || circular.attachment,
       attachmentUrl: circular.attachmentUrl,
       status: circular.status || "Published",
@@ -322,7 +328,7 @@ export async function createCircular(circular: any): Promise<{ data: any | null;
       sender_id: circular.senderId || circular.sender_id || "PRINCIPAL001",
       sender_name: circular.senderName || circular.author || "Principal Office",
       sender_role: circular.senderRole || "principal",
-      recipient_role: Array.isArray(circular.recipients) ? circular.recipients.join(",") : "all",
+      recipient_role: validRecipients.join(","),
       priority: circular.priority || "Medium",
       published_at: new Date().toISOString(),
     };
@@ -1150,14 +1156,23 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
 export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerItem {
   const payments = Array.isArray(ledger.payments) ? ledger.payments : [];
   const paymentsSum = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-  const paid = Math.max(paymentsSum, Number(ledger.paid || 0));
+  // Authoritative Paid Total: paymentsSum is sole source when transaction records exist
+  const paid = payments.length > 0 ? paymentsSum : Math.max(0, Number(ledger.paid || 0));
 
   const rawOrig = Number(ledger.originalFee ?? ledger.amount ?? 12000);
-  const originalFee = rawOrig;
+  const originalFee = rawOrig > 0 ? rawOrig : 12000;
   const discountAmount = Math.max(0, Number(ledger.discountAmount ?? 0));
   const finalFee = Math.max(0, originalFee - discountAmount);
-  const remainingAmount = finalFee - paid;
-  const status: "Paid" | "Partial" | "Pending" = remainingAmount <= 0 && finalFee > 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
+
+  // Authoritative calculations
+  const remainingAmount = Math.max(0, finalFee - paid);
+  const advanceAmount = Math.max(0, paid - finalFee);
+  const status: "Paid" | "Partial" | "Pending" =
+    paid >= finalFee && finalFee > 0
+      ? "Paid"
+      : paid > 0
+      ? "Partial"
+      : "Pending";
 
   return {
     id: ledger.id || `FP-${Date.now()}`,
@@ -1172,13 +1187,16 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     finalFee,
     paid,
     remainingAmount,
+    advanceAmount,
     amount: finalFee,
     balance: remainingAmount,
     status,
-    term: ledger.term || "Full Year",
+    totalInstallments: ledger.totalInstallments || 3,
+    paidInstallments: payments.length > 0 ? payments.length : (paid >= finalFee ? 3 : paid > 0 ? 1 : 0),
+    term: (ledger as any).term || "Full Year",
     academicYear: ledger.academicYear || "2024-2025",
-    receiptNumber: ledger.receiptNumber,
-    paymentDate: ledger.paymentDate,
+    receiptNumber: (ledger as any).receiptNumber,
+    paymentDate: (ledger as any).paymentDate,
     payments,
   };
 }
@@ -1259,6 +1277,24 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
 
+    // Build student lookup index to resolve student_id, admissionNo, or student_name to canonical student ID
+    const studentLookupMap = new Map<string, string>();
+    try {
+      const { data: stList } = await fetchStudents();
+      if (stList && stList.length > 0) {
+        stList.forEach((s) => {
+          studentLookupMap.set(s.id.toLowerCase(), s.id);
+          if (s.admissionNo) {
+            studentLookupMap.set(s.admissionNo.toLowerCase(), s.id);
+            studentLookupMap.set(toCanonicalAdmissionNo(s.admissionNo, s.id).toLowerCase(), s.id);
+          }
+          if (s.name) {
+            studentLookupMap.set(s.name.toLowerCase(), s.id);
+          }
+        });
+      }
+    } catch {}
+
     const studentLedgerMap = new Map<string, {
       studentId: string;
       studentName: string;
@@ -1269,10 +1305,21 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
     }>();
 
     rows.forEach((d: any) => {
-      const key = (d.student_id || d.student_name || "unknown").toLowerCase();
-      if (!studentLedgerMap.has(key)) {
-        studentLedgerMap.set(key, {
-          studentId: d.student_id || key,
+      const rawId = (d.student_id || "").toLowerCase();
+      const rawName = (d.student_name || "").toLowerCase();
+      const canonicalAdm = toCanonicalAdmissionNo(d.student_id, d.student_id).toLowerCase();
+
+      const canonicalId =
+        studentLookupMap.get(rawId) ||
+        studentLookupMap.get(canonicalAdm) ||
+        studentLookupMap.get(rawName) ||
+        rawId ||
+        rawName ||
+        "unknown";
+
+      if (!studentLedgerMap.has(canonicalId)) {
+        studentLedgerMap.set(canonicalId, {
+          studentId: d.student_id || canonicalId,
           studentName: d.student_name || "Student",
           className: d.class_name || "Nursery",
           originalFee: Number(d.amount_due || 12000),
@@ -1280,11 +1327,13 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           payments: [],
         });
       }
-      const ledger = studentLedgerMap.get(key)!;
+      const ledger = studentLedgerMap.get(canonicalId)!;
+      if (d.student_name && ledger.studentName === "Student") ledger.studentName = d.student_name;
+      if (d.class_name && ledger.className === "Nursery") ledger.className = d.class_name;
+
       if (d.record_type === "fee_schedule" && d.amount_due) {
         ledger.originalFee = Number(d.amount_due);
       }
-      // Attach to payments ONLY if this is a genuine payment receipt record
       if (d.record_type === "payment_receipt" && (d.receipt_number || d.amount_paid)) {
         const receiptNo = d.receipt_number || `REC-${d.id}`;
         if (!ledger.payments.some((p) => p.receiptNo === receiptNo || p.id === d.id)) {
@@ -1304,6 +1353,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
     });
 
     const mapped: FeeLedgerItem[] = Array.from(studentLedgerMap.values()).map((item) => {
+      item.payments.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       const totalPaid = item.payments.reduce((sum, p) => sum + p.amount, 0);
       return recalculateFeeLedger({
         id: `FP-${item.studentId}`,

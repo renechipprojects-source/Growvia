@@ -14,6 +14,8 @@ import { getSession } from "@/lib/auth";
 
 import { useLiveAttendance } from "@/lib/attendanceStore";
 
+import { StaffSelfAttendanceCard } from "@/components/staff/StaffSelfAttendanceCard";
+
 export const Route = createFileRoute("/teacher/")({ component: Dash });
 
 function Dash() {
@@ -72,6 +74,10 @@ function Dash() {
           </Link>
         }
       />
+
+      <div className="mt-3">
+        <StaffSelfAttendanceCard />
+      </div>
 
       {/* Counters — dynamic */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">

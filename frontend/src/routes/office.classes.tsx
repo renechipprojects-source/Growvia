@@ -159,7 +159,7 @@ function OfficeClassesPage() {
     const sec = filterValues["Section"];
     return classesList.filter((c) => {
       const matchQ = !q || c.fullName.toLowerCase().includes(q) || c.classTeacher.toLowerCase().includes(q);
-      const matchSec = !sec || sec === "all" || c.section.toUpperCase() === sec.toUpperCase();
+      const matchSec = !sec || sec === "all" || c.section.trim().toLowerCase() === sec.trim().toLowerCase();
       return matchQ && matchSec;
     });
   }, [classesList, search, filterValues]);
@@ -167,9 +167,10 @@ function OfficeClassesPage() {
   const sectionOptions = useMemo(() => {
     const set = new Set<string>();
     classesList.forEach((c) => {
-      if (c.section) set.add(c.section.trim());
+      if (c.section && typeof c.section === "string" && c.section.trim()) {
+        set.add(c.section.trim());
+      }
     });
-    ["A", "B", "C", "D", "1", "2"].forEach((s) => set.add(s));
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
   }, [classesList]);
 

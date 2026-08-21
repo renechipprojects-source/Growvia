@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Calendar, CheckCircle2, AlertCircle, Receipt, User, GraduationCap } from "lucide-react";
-import type { FeeLedgerItem } from "@/lib/supabaseService";
+import { toCanonicalAdmissionNo, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export function PaymentDetailsModal({
   open,
@@ -14,19 +14,25 @@ export function PaymentDetailsModal({
 }) {
   if (!ledger) return null;
 
-  const origFee = ledger.originalFee || ledger.amount || 8500;
+  const origFee = ledger.originalFee || ledger.amount || 12000;
   const discAmt = ledger.discountAmount || 0;
-  const finalFee = ledger.finalFee || (origFee - discAmt);
+  const finalFee = ledger.finalFee || Math.max(0, origFee - discAmt);
   const paid = (ledger.payments && ledger.payments.length > 0)
     ? ledger.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
     : (ledger.paid || 0);
   const remaining = Math.max(0, finalFee - paid);
+  const advance = Math.max(0, paid - finalFee);
 
   let status = "Unpaid";
   let statusTone = "bg-rose-50 text-rose-700 border-rose-200";
   if (remaining === 0 && finalFee > 0) {
-    status = "Paid";
-    statusTone = "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (advance > 0) {
+      status = "Paid (Advance)";
+      statusTone = "bg-blue-50 text-blue-700 border-blue-200";
+    } else {
+      status = "Paid";
+      statusTone = "bg-emerald-50 text-emerald-700 border-emerald-200";
+    }
   } else if (paid > 0) {
     status = "Partially Paid";
     statusTone = "bg-amber-50 text-amber-700 border-amber-200";
@@ -104,7 +110,7 @@ export function PaymentDetailsModal({
           </div>
 
           {/* Summary Metric Counters */}
-          <div className="grid grid-cols-2 gap-3 text-center">
+          <div className={`grid ${advance > 0 ? "grid-cols-3" : "grid-cols-2"} gap-3 text-center`}>
             <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80">
               <div className="text-xs font-semibold text-emerald-800">Total Amount Paid</div>
               <div className="text-lg font-bold text-emerald-700 font-mono mt-0.5">₹{paid.toLocaleString()}</div>
@@ -113,6 +119,12 @@ export function PaymentDetailsModal({
               <div className="text-xs font-semibold text-rose-800">Remaining Balance Due</div>
               <div className="text-lg font-bold text-rose-700 font-mono mt-0.5">₹{remaining.toLocaleString()}</div>
             </div>
+            {advance > 0 && (
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200/80">
+                <div className="text-xs font-semibold text-blue-800">Advance / Excess Credit</div>
+                <div className="text-lg font-bold text-blue-700 font-mono mt-0.5">₹{advance.toLocaleString()}</div>
+              </div>
+            )}
           </div>
 
           {/* Installments History */}

@@ -4,9 +4,11 @@ import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchMergedFeeLedgers, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchMergedFeeLedgers, toCanonicalAdmissionNo, type FeeLedgerItem } from "@/lib/supabaseService";
 import { Search, Eye, Wallet, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
 import { FilterBar } from "@/components/admin/data-table";
 
 export const Route = createFileRoute("/principal/fees")({
@@ -86,15 +88,22 @@ function PrincipalFeesOverview() {
   const totalPending = Math.max(0, totalExpected - totalPaid);
   const collectionPct = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    feeRecords.forEach((f) => {
+      if (f.section && typeof f.section === "string" && f.section.trim()) {
+        set.add(f.section.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [feeRecords]);
+
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4">
-      <PageHeader
-        title="Fees Overview"
-        subtitle="School-wide fee collection, pending balances, installment progress, and filters."
-      />
+      <PageHeader title="Fees & Accounts" description="Overview of student fee ledgers, collected amounts, and pending balances." />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total Expected Fees" value={`₹${totalExpected.toLocaleString()}`} icon={Wallet} gradient="from-purple-500 to-indigo-500" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Expected Fee" value={`₹${totalExpected.toLocaleString()}`} icon={Wallet} gradient="from-indigo-500 to-purple-500" />
         <StatCard label="Total Collected" value={`₹${totalPaid.toLocaleString()}`} icon={CheckCircle} gradient="from-emerald-500 to-teal-500" />
         <StatCard label="Pending Balance" value={`₹${totalPending.toLocaleString()}`} icon={AlertTriangle} gradient="from-amber-500 to-orange-500" />
         <StatCard label="Collection Rate" value={`${collectionPct}%`} icon={Clock} gradient="from-sky-500 to-blue-500" />
@@ -106,7 +115,7 @@ function PrincipalFeesOverview() {
             searchPlaceholder="Search student name, admission no., class..."
             filters={[
               { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
-              { label: "Section", options: ["A", "B", "C"] },
+              { label: "Section", options: sectionOptions },
               { label: "Status", options: ["Paid", "Partial", "Pending"] },
             ]}
             search={search}

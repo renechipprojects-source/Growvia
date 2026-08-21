@@ -291,12 +291,12 @@ function GenerateDialog({ studentId, studentsList, onClose, onDone }: { studentI
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
               if (!password.trim()) {
                 toast.error("Password cannot be empty");
                 return;
               }
-              generateParentCredential(student.id, {
+              await generateParentCredential(student.id, {
                 loginIdBasis: basis === "mobile" ? "mobile" : "admission",
                 customLoginId: basis === "custom" ? custom : undefined,
                 password: password.trim(),

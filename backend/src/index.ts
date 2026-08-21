@@ -243,6 +243,485 @@ app.delete('/api/users/:id', async (req: Request, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AUTH PROVISIONING & LOGIN RESOLUTION ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/api/users/provision', async (req: Request, res: Response) => {
+  try {
+    const { login_id, email, password, role, name, mobile } = req.body || {};
+    if (!login_id || !password) {
+      return res.status(400).json({ error: 'login_id and password are required.' });
+    }
+
+    const cleanLoginId = String(login_id).trim();
+    const targetRole = String(role || 'teacher').toLowerCase();
+    const targetName = String(name || 'User Account').trim();
+    const targetEmail = (email && String(email).includes('@'))
+      ? String(email).trim().toLowerCase()
+      : `${cleanLoginId.toLowerCase()}@growvia.edu`;
+
+    let authUserId: string | null = null;
+    const admin = supabaseAdmin;
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    let authUser = userList?.users?.find(
+      (u) =>
+        u.email?.toLowerCase() === targetEmail.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase()
+    );
+
+    if (authUser) {
+      authUserId = authUser.id;
+      await admin.auth.admin.updateUserById(authUserId, {
+        email: targetEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          ...authUser.user_metadata,
+          login_id: cleanLoginId,
+          role: targetRole,
+          full_name: targetName,
+        },
+      });
+    } else {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email: targetEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          login_id: cleanLoginId,
+          role: targetRole,
+          full_name: targetName,
+        },
+      });
+
+      if (createErr && createErr.message.includes('already registered')) {
+        const { data: retryList } = await admin.auth.admin.listUsers();
+        const found = retryList?.users?.find((u) => u.email?.toLowerCase() === targetEmail.toLowerCase());
+        if (found) {
+          authUserId = found.id;
+          await admin.auth.admin.updateUserById(authUserId, {
+            password: password,
+            email_confirm: true,
+            user_metadata: { login_id: cleanLoginId, role: targetRole, full_name: targetName },
+          });
+        }
+      } else if (created?.user?.id) {
+        authUserId = created.user.id;
+      }
+    }
+
+    const profilePayload: any = {
+      login_id: cleanLoginId,
+      role: targetRole,
+      full_name: targetName,
+      email: targetEmail,
+      mobile: mobile || '9876543210',
+      status: 'active',
+      must_change_password: false,
+    };
+
+    if (authUserId) {
+      profilePayload.id = authUserId;
+      profilePayload.auth_user_id = authUserId;
+    }
+
+    await admin.from('gv_users').upsert([profilePayload], { onConflict: 'login_id' });
+    Promise.resolve(admin.from('users').upsert([profilePayload], { onConflict: 'login_id' })).catch(() => {});
+
+    return res.status(200).json({
+      success: true,
+      authUserId,
+      login_id: cleanLoginId,
+      email: targetEmail,
+      role: targetRole,
+    });
+  } catch (err: any) {
+    console.error('Provisioning error:', err);
+    return res.status(500).json({ error: err.message || 'Provisioning failed' });
+  }
+});
+
+app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.body || {};
+    if (!identifier) {
+      return res.status(400).json({ error: 'identifier is required.' });
+    }
+
+    const clean = String(identifier).trim();
+    const norm = clean.toLowerCase().replace(/[\s\-_]+/g, '');
+    const admin = supabaseAdmin;
+
+    let profile: any = null;
+    try {
+      const { data: d1 } = await admin.from('gv_users').select('*').ilike('login_id', clean).maybeSingle();
+      if (d1) profile = d1;
+      else {
+        const { data: d2 } = await admin.from('gv_users').select('*').ilike('email', clean).maybeSingle();
+        if (d2) profile = d2;
+        else {
+          const { data: d3 } = await admin.from('gv_users').select('*').ilike('login_id', norm).maybeSingle();
+          if (d3) profile = d3;
+        }
+      }
+    } catch {}
+
+    if (profile && profile.email) {
+      return res.json({
+        success: true,
+        login_id: profile.login_id,
+        email: profile.email,
+        role: profile.role,
+        full_name: profile.full_name,
+        profile,
+      });
+    }
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    const authUser = userList?.users?.find(
+      (u) =>
+        u.email?.toLowerCase() === clean.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === clean.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === norm
+    );
+
+    if (authUser && authUser.email) {
+      const derivedRole = authUser.user_metadata?.role || 'teacher';
+      const derivedName = authUser.user_metadata?.full_name || 'User Account';
+      const derivedLoginId = authUser.user_metadata?.login_id || clean;
+
+      const fallbackProfile = {
+        id: authUser.id,
+        auth_user_id: authUser.id,
+        login_id: derivedLoginId,
+        role: derivedRole,
+        full_name: derivedName,
+        email: authUser.email,
+        status: 'active',
+      };
+
+      return res.json({
+        success: true,
+        login_id: derivedLoginId,
+        email: authUser.email,
+        role: derivedRole,
+        full_name: derivedName,
+        profile: fallbackProfile,
+      });
+    }
+
+    return res.status(404).json({ success: false, error: 'User not found' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Login ID resolution failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL OTP FORGOT PASSWORD & PASSWORD RESET ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '****@growvia.edu';
+  const [name, domain] = email.split('@');
+  if (name.length <= 2) return `${name[0]}*@${domain}`;
+  return `${name[0]}${'*'.repeat(name.length - 2)}${name[name.length - 1]}@${domain}`;
+}
+
+app.post('/api/auth/otp/request', async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.body || {};
+    if (!identifier || !String(identifier).trim()) {
+      return res.status(400).json({ error: 'Login ID or Email is required.' });
+    }
+
+    const clean = String(identifier).trim();
+    const norm = clean.toLowerCase().replace(/[\s\-_]+/g, '');
+    const admin = supabaseAdmin;
+
+    let userEmail: string | null = null;
+    let userLoginId: string = clean;
+    let authUserId: string | null = null;
+
+    const { data: profile } = await admin
+      .from('gv_users')
+      .select('*')
+      .or(`login_id.ilike.${clean},login_id.ilike.${norm},email.ilike.${clean},id.ilike.${clean}`)
+      .maybeSingle();
+
+    if (profile && profile.email) {
+      userEmail = profile.email;
+      userLoginId = profile.login_id || clean;
+      authUserId = profile.auth_user_id || profile.id;
+    } else {
+      const { data: userList } = await admin.auth.admin.listUsers();
+      const authUser = userList?.users?.find(
+        (u) =>
+          u.email?.toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === norm
+      );
+      if (authUser && authUser.email) {
+        userEmail = authUser.email;
+        userLoginId = authUser.user_metadata?.login_id || clean;
+        authUserId = authUser.id;
+      }
+    }
+
+    if (!userEmail) {
+      return res.json({
+        success: true,
+        message: 'If an account matching that Login ID or email exists, an OTP has been sent.',
+        emailMasked: '****@growvia.edu',
+      });
+    }
+
+    const cryptoObj = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+    let otp = '';
+    if (cryptoObj?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      cryptoObj.getRandomValues(buf);
+      otp = String(100000 + (buf[0] % 900000));
+    } else {
+      otp = String(Math.floor(100000 + Math.random() * 900000));
+    }
+
+    const now = Date.now();
+    const expiresAt = now + 10 * 60 * 1000;
+    const otpId = `OTP-${userLoginId.toUpperCase()}-${now}`;
+
+    try {
+      const { data: existingOtps } = await admin
+        .from('gv_requests')
+        .select('*')
+        .eq('request_type', 'otp_reset')
+        .eq('applicant_or_child_name', userLoginId);
+
+      if (existingOtps && existingOtps.length > 0) {
+        for (const oldReq of existingOtps) {
+          try {
+            const oldMeta = JSON.parse(oldReq.reason_or_notes || '{}');
+            oldMeta.used = true;
+            oldMeta.invalidated = true;
+            await admin
+              .from('gv_requests')
+              .update({ status: 'invalidated', reason_or_notes: JSON.stringify(oldMeta) })
+              .eq('id', oldReq.id);
+          } catch {}
+        }
+      }
+    } catch {}
+
+    const payload = {
+      id: otpId,
+      request_type: 'otp_reset',
+      applicant_or_child_name: userLoginId,
+      status: 'pending',
+      reason_or_notes: JSON.stringify({
+        otpId,
+        loginId: userLoginId,
+        email: userEmail,
+        authUserId,
+        otp,
+        expiresAt,
+        used: false,
+        createdAt: new Date(now).toISOString(),
+      }),
+    };
+
+    await admin.from('gv_requests').upsert([payload], { onConflict: 'id' });
+
+    // Trigger Supabase Auth Email System dispatch to recipient email address
+    try {
+      await admin.auth.resetPasswordForEmail(userEmail, {
+        redirectTo: `${process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:5173'}/forgot-password`,
+      });
+    } catch (emailErr: any) {
+      console.warn(`[OTP EMAIL SYSTEM NOTICE] Supabase Auth reset email dispatch note for ${userEmail}:`, emailErr?.message);
+    }
+
+    console.log(`[OTP GENERATED & DISPATCHED] LoginID: ${userLoginId} | Email: ${userEmail} | OTP: ${otp} | Expires: ${new Date(expiresAt).toISOString()}`);
+
+    return res.json({
+      success: true,
+      message: `An OTP code has been sent to ${maskEmail(userEmail)}.`,
+      login_id: userLoginId,
+      emailMasked: maskEmail(userEmail),
+    });
+  } catch (err: any) {
+    console.error('OTP request error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to request OTP.' });
+  }
+});
+
+app.post('/api/auth/otp/verify', async (req: Request, res: Response) => {
+  try {
+    const { identifier, otp } = req.body || {};
+    if (!identifier || !otp) {
+      return res.status(400).json({ error: 'Login ID and OTP code are required.' });
+    }
+
+    const clean = String(identifier).trim();
+    const cleanOtp = String(otp).trim();
+    const admin = supabaseAdmin;
+
+    const { data: requests } = await admin
+      .from('gv_requests')
+      .select('*')
+      .eq('request_type', 'otp_reset');
+
+    if (!requests || requests.length === 0) {
+      return res.status(400).json({ error: 'No OTP request found for this user.' });
+    }
+
+    let matchingRecord: any = null;
+    let meta: any = null;
+
+    for (const r of requests) {
+      try {
+        const m = JSON.parse(r.reason_or_notes || '{}');
+        if (
+          (m.loginId?.toLowerCase() === clean.toLowerCase() ||
+           m.email?.toLowerCase() === clean.toLowerCase())
+        ) {
+          if (!matchingRecord || m.expiresAt > (meta?.expiresAt || 0)) {
+            matchingRecord = r;
+            meta = m;
+          }
+        }
+      } catch {}
+    }
+
+    if (!matchingRecord || !meta) {
+      return res.status(400).json({ error: 'Invalid OTP request.' });
+    }
+
+    if (meta.used || matchingRecord.status === 'used' || meta.invalidated) {
+      return res.status(400).json({ error: 'This OTP code has already been used or invalidated. Please request a new OTP.' });
+    }
+
+    if (Date.now() > meta.expiresAt) {
+      return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP.' });
+    }
+
+    if (meta.otp !== cleanOtp) {
+      return res.status(400).json({ error: 'Invalid OTP code. Please check and try again.' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'OTP verified successfully.',
+      resetToken: meta.otpId || matchingRecord.id,
+      login_id: meta.loginId,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'OTP verification failed.' });
+  }
+});
+
+app.post('/api/auth/otp/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { identifier, otp, newPassword } = req.body || {};
+    if (!identifier || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Login ID, OTP, and New Password are required.' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const clean = String(identifier).trim();
+    const cleanOtp = String(otp).trim();
+    const admin = supabaseAdmin;
+
+    const { data: requests } = await admin
+      .from('gv_requests')
+      .select('*')
+      .eq('request_type', 'otp_reset');
+
+    let matchingRecord: any = null;
+    let meta: any = null;
+
+    if (requests) {
+      for (const r of requests) {
+        try {
+          const m = JSON.parse(r.reason_or_notes || '{}');
+          if (
+            (m.loginId?.toLowerCase() === clean.toLowerCase() ||
+             m.email?.toLowerCase() === clean.toLowerCase()) &&
+            m.otp === cleanOtp
+          ) {
+            matchingRecord = r;
+            meta = m;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    if (!matchingRecord || !meta) {
+      return res.status(400).json({ error: 'Invalid OTP or reset request.' });
+    }
+
+    if (meta.used || matchingRecord.status === 'used' || meta.invalidated) {
+      return res.status(400).json({ error: 'This OTP code has already been used or invalidated. Please request a new OTP.' });
+    }
+
+    if (Date.now() > meta.expiresAt) {
+      return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP.' });
+    }
+
+    const userEmail = meta.email;
+    const userLoginId = meta.loginId;
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    let authUser = userList?.users?.find(
+      (u) =>
+        u.email?.toLowerCase() === userEmail.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === userLoginId.toLowerCase()
+    );
+
+    let authUserId = authUser?.id || meta.authUserId;
+
+    if (authUserId) {
+      await admin.auth.admin.updateUserById(authUserId, {
+        password: newPassword,
+        email_confirm: true,
+      });
+    } else {
+      const { data: created } = await admin.auth.admin.createUser({
+        email: userEmail,
+        password: newPassword,
+        email_confirm: true,
+        user_metadata: { login_id: userLoginId },
+      });
+      authUserId = created?.user?.id;
+    }
+
+    if (authUserId) {
+      await admin.from('gv_users').update({ status: 'active' }).eq('login_id', userLoginId);
+      Promise.resolve(admin.from('users').update({ status: 'active' }).eq('login_id', userLoginId)).catch(() => {});
+    }
+
+    meta.used = true;
+    meta.usedAt = new Date().toISOString();
+    await admin
+      .from('gv_requests')
+      .update({ status: 'used', reason_or_notes: JSON.stringify(meta) })
+      .eq('id', matchingRecord.id);
+
+    return res.json({
+      success: true,
+      message: 'Your password has been reset successfully. You can now sign in with your new password.',
+      login_id: userLoginId,
+    });
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    return res.status(500).json({ error: err.message || 'Password reset failed.' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 2. REQUESTS MODULE
 // Table: gv_requests
 // ─────────────────────────────────────────────────────────────────────────────

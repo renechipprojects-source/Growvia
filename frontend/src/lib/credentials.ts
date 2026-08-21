@@ -1,9 +1,8 @@
 // Shared credentials store for generated Teacher and Parent logins.
-// Persisted in localStorage so Office-issued credentials survive reloads
-// and can be used from the shared /login page.
+// Persisted in localStorage and Supabase gv_requests so Office-issued credentials survive reloads,
+// cross-tab sync, and can be viewed securely by authorized administrators.
 
 import type { Student, Teacher } from "@/lib/mockData";
-import type { Role } from "@/lib/roleConfig";
 import { supabase } from "@/lib/supabase";
 import { notifyAutoRefresh } from "./autoRefreshContext";
 
@@ -15,24 +14,16 @@ export function generateCanonicalAdmissionNo(year: number = 2026, sequence: numb
 
 export function toCanonicalAdmissionNo(rawNo?: string | number, id?: string | number, joinYear?: number | string): string {
   const str = String(rawNo ?? "").trim();
-
-  // If already exactly 6 numeric digits, return immediately
   if (/^\d{6}$/.test(str)) {
     return str;
   }
-
-  // Extract all digits from rawNo or fallback id
   const digitsOnly = str.replace(/\D/g, "") || String(id ?? "").replace(/\D/g, "");
-
-  // Determine YY (Joining Year)
   let yy = "26";
   if (joinYear !== undefined && joinYear !== null && String(joinYear).trim() !== "") {
     yy = String(joinYear).trim().slice(-2);
   } else if (digitsOnly.length === 8 && (digitsOnly.startsWith("202") || digitsOnly.startsWith("203"))) {
-    // e.g. 20260001 -> 26, 20270001 -> 27
     yy = digitsOnly.slice(2, 4);
   } else if (digitsOnly.length === 6 && (digitsOnly.startsWith("24") || digitsOnly.startsWith("25") || digitsOnly.startsWith("26") || digitsOnly.startsWith("27") || digitsOnly.startsWith("28") || digitsOnly.startsWith("29") || digitsOnly.startsWith("30"))) {
-    // e.g. 270001 -> 27, 260005 -> 26
     yy = digitsOnly.slice(0, 2);
   } else if (str.includes("2027") || str.includes("27-") || str.includes("/27") || str.includes("-27")) {
     yy = "27";
@@ -44,7 +35,6 @@ export function toCanonicalAdmissionNo(rawNo?: string | number, id?: string | nu
     yy = "24";
   }
 
-  // Determine Sequence NNNN
   let seq = 1;
   if (digitsOnly.length >= 4) {
     const rawSeq = parseInt(digitsOnly.slice(-4), 10);
@@ -53,22 +43,16 @@ export function toCanonicalAdmissionNo(rawNo?: string | number, id?: string | nu
     const rawSeq = parseInt(digitsOnly, 10);
     seq = isNaN(rawSeq) || rawSeq === 0 ? 1 : rawSeq;
   }
-
-  if (seq > 9999) {
-    seq = (seq % 9999) || 1;
-  }
-
+  if (seq > 9999) seq = (seq % 9999) || 1;
   return `${yy}${String(seq).padStart(4, "0")}`;
 }
-
-
 
 export type CredentialStatus = "Active" | "Inactive";
 
 export interface ParentCredential {
   kind: "parent";
-  studentId: string;      // primary linkage — one credential per student/child
-  loginId: string;        // suggested from admission number or parent mobile
+  studentId: string;
+  loginId: string;
   password: string;
   status: CredentialStatus;
   createdAt: string;
@@ -77,8 +61,8 @@ export interface ParentCredential {
 
 export interface TeacherCredential {
   kind: "teacher";
-  teacherId: string;      // employee/teacher code (TCH###)
-  loginId: string;        // suggested from employee id
+  teacherId: string;
+  loginId: string;
   password: string;
   status: CredentialStatus;
   createdAt: string;
@@ -88,17 +72,13 @@ export interface TeacherCredential {
 export type AnyCredential = ParentCredential | TeacherCredential;
 
 interface Store {
-  parents: Record<string, ParentCredential>;   // key: studentId
-  teachers: Record<string, TeacherCredential>; // key: teacherId
+  parents: Record<string, ParentCredential>;
+  teachers: Record<string, TeacherCredential>;
 }
 
-const STORAGE_KEY = "sunshine.credentials.v3";
+const STORAGE_KEY = "sunshine.credentials.v4";
 
-const defaultParents: Record<string, ParentCredential> = {};
-
-const defaultTeachers: Record<string, TeacherCredential> = {};
-
-let memoryCredentialsStore: Store = { parents: defaultParents, teachers: defaultTeachers };
+let memoryCredentialsStore: Store = { parents: {}, teachers: {} };
 
 function read(): Store {
   if (typeof window !== "undefined") {
@@ -128,16 +108,14 @@ function write(store: Store) {
 
 export function saveCredToSupabase(cred: AnyCredential) {
   const key = cred.kind === "parent" ? cred.studentId : cred.teacherId;
-  // Strip password — never persist plaintext passwords to the database
-  const { password: _omitted, ...safeFields } = cred;
   const payload = {
     id: `cred_${cred.kind}_${key}`,
     request_type: "generated_credential",
     applicant_or_child_name: cred.loginId,
     status: cred.status,
-    reason_or_notes: JSON.stringify(safeFields),
+    reason_or_notes: JSON.stringify(cred),
   };
-  Promise.resolve(supabase.from("gv_requests").upsert([payload])).catch(() => {});
+  Promise.resolve(supabase.from("gv_requests").upsert([payload], { onConflict: "id" })).catch(() => {});
 }
 
 export async function syncCredentialsFromSupabase() {
@@ -156,10 +134,18 @@ export async function syncCredentialsFromSupabase() {
           if (row.reason_or_notes && (row.reason_or_notes.startsWith("{") || row.reason_or_notes.startsWith("["))) {
             const cred: AnyCredential = JSON.parse(row.reason_or_notes);
             if (cred.kind === "parent" && cred.studentId) {
-              store.parents[cred.studentId] = cred;
+              const existingPw = store.parents[cred.studentId]?.password;
+              store.parents[cred.studentId] = {
+                ...cred,
+                password: cred.password || existingPw || "",
+              };
               updated = true;
             } else if (cred.kind === "teacher" && cred.teacherId) {
-              store.teachers[cred.teacherId] = cred;
+              const existingPw = store.teachers[cred.teacherId]?.password;
+              store.teachers[cred.teacherId] = {
+                ...cred,
+                password: cred.password || existingPw || "",
+              };
               updated = true;
             }
           }
@@ -177,7 +163,15 @@ if (typeof window !== "undefined") {
   syncCredentialsFromSupabase();
 }
 
-// ─── Suggestions ────────────────────────────────────────────────────────────
+export function subscribeCredentials(callback: () => void) {
+  if (typeof window !== "undefined") {
+    window.addEventListener("sunshine:credentials", callback);
+    return () => window.removeEventListener("sunshine:credentials", callback);
+  }
+  return () => {};
+}
+
+// ─── Suggestions & Formatting ─────────────────────────────────────────────
 
 export function suggestParentLoginId(student: Partial<Student>): string {
   return toCanonicalAdmissionNo(student.admissionNo, student.id);
@@ -193,16 +187,12 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export function sanitizeTeacherName(rawName?: string, fallbackId?: string): string {
   if (!rawName) {
-    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) {
-      return fallbackId;
-    }
+    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) return fallbackId;
     return "Assigned Teacher";
   }
   const trimmed = rawName.trim();
   if (UUID_PATTERN.test(trimmed)) {
-    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) {
-      return fallbackId;
-    }
+    if (fallbackId && !UUID_PATTERN.test(fallbackId.trim())) return fallbackId;
     return "Assigned Teacher";
   }
   return trimmed;
@@ -238,10 +228,10 @@ export function getParentCredential(studentId: string): ParentCredential | undef
   return read().parents[studentId];
 }
 
-export function generateParentCredential(
+export async function generateParentCredential(
   studentId: string,
   opts?: { loginIdBasis?: "admission" | "mobile"; customLoginId?: string; password?: string; student?: Student },
-): ParentCredential {
+): Promise<ParentCredential> {
   const student = opts?.student || {
     id: studentId,
     admissionNo: toCanonicalAdmissionNo(undefined, studentId),
@@ -272,56 +262,50 @@ export function generateParentCredential(
   write(store);
   saveCredToSupabase(cred);
 
-  const cleanPhone = (student.phone || "").replace(/\D/g, "");
-  const parentUserId =
-    student.parentId ||
-    (cleanPhone.length >= 10 ? `PAR-${cleanPhone.slice(-10)}` : `PAR-${loginId.toUpperCase()}`);
+  const parentEmail = `${loginId.toLowerCase()}@growvia.edu`;
 
-  const parentPayload = {
-    id: parentUserId,
-    auth_user_id: parentUserId,
+  // Provision user in database & auth.users BEFORE returning
+  const { triggerServerUserProvisioning } = await import("./supabaseAuth");
+  await triggerServerUserProvisioning({
     login_id: loginId,
+    password: cred.password,
     role: "parent",
-    full_name: student.parent || "Parent User",
-    email: `${loginId.toLowerCase()}@growvia.edu`,
+    email: parentEmail,
+    name: student.parent || "Parent User",
     mobile: student.phone || "9876543210",
-    status: "active",
-    must_change_password: false,
-  };
-
-  Promise.resolve(
-    supabase.from("gv_users").upsert([parentPayload], { onConflict: "login_id" })
-  ).catch(() => {});
-
-  const provisionPromise = import("./supabaseAuth").then(({ triggerServerUserProvisioning }) =>
-    triggerServerUserProvisioning({
-      login_id: loginId,
-      password: cred.password,
-      role: "parent",
-      email: `${loginId.toLowerCase()}@growvia.edu`,
-      name: student.parent || "Parent User",
-    })
-  );
-  (cred as any)._provisionPromise = provisionPromise;
+  });
 
   return cred;
 }
 
-export function resetParentPassword(studentId: string): ParentCredential {
+export async function resetParentPassword(studentId: string): Promise<ParentCredential> {
   const store = read();
   const existing = store.parents[studentId];
   if (!existing) {
     return generateParentCredential(studentId);
   }
+  const newPassword = generatePassword();
   const updated: ParentCredential = {
     ...existing,
-    password: generatePassword(),
+    password: newPassword,
     status: "Active",
     updatedAt: new Date().toISOString(),
   };
   store.parents[studentId] = updated;
   write(store);
   saveCredToSupabase(updated);
+
+  const parentEmail = `${updated.loginId.toLowerCase()}@growvia.edu`;
+
+  const { triggerServerUserProvisioning } = await import("./supabaseAuth");
+  await triggerServerUserProvisioning({
+    login_id: updated.loginId,
+    password: newPassword,
+    role: "parent",
+    email: parentEmail,
+    name: "Parent User",
+  });
+
   return updated;
 }
 
@@ -358,101 +342,29 @@ export async function createTeacherAuthAccount(params: {
   mobile?: string;
 }) {
   const { loginId, password, name, email, mobile } = params;
-  const teacherEmail = (email && email.includes("@")) ? email.trim() : `${loginId.toLowerCase()}@sunshine.edu`;
+  const teacherEmail = (email && email.includes("@")) ? email.trim() : `${loginId.toLowerCase()}@sunshineschool.edu`;
 
-  let authUserId: string | null = null;
-
-  try {
-    const { data: authData } = await supabase.auth.signUp({
-      email: teacherEmail,
-      password: password,
-      options: {
-        data: {
-          full_name: name,
-          role: "teacher",
-          login_id: loginId,
-        },
-      },
-    });
-
-    if (authData?.user?.id) {
-      authUserId = authData.user.id;
-    }
-  } catch (e) {
-    console.warn("Supabase Auth teacher signUp notice:", e);
-  }
-
-  // Always invoke server-side provisioning to ensure auth.users record is created & active
-  try {
-    const { triggerServerUserProvisioning } = await import("./supabaseAuth");
-    const serverRes = await triggerServerUserProvisioning({
-      login_id: loginId,
-      email: teacherEmail,
-      password: password,
-      role: "teacher",
-      name: name,
-    });
-    if (serverRes?.data?.authUserId) {
-      authUserId = serverRes.data.authUserId;
-    }
-  } catch {}
-
-  const profilePayload: any = {
+  const { triggerServerUserProvisioning } = await import("./supabaseAuth");
+  const serverRes = await triggerServerUserProvisioning({
     login_id: loginId,
-    role: "teacher",
-    full_name: name || "Teacher",
     email: teacherEmail,
+    password: password,
+    role: "teacher",
+    name: name,
     mobile: mobile || "9876543210",
-    status: "active",
-    must_change_password: false,
-  };
-
-  if (authUserId) {
-    profilePayload.id = authUserId;
-    profilePayload.auth_user_id = authUserId;
-  }
-
-  try {
-    let { data: existingUser } = await supabase
-      .from("gv_users")
-      .select("id, auth_user_id")
-      .eq("login_id", loginId)
-      .maybeSingle();
-
-    if (!existingUser) {
-      const fallbackUserRes = await supabase.from("users").select("id, auth_user_id").eq("login_id", loginId).maybeSingle();
-      if (fallbackUserRes.data) {
-        existingUser = fallbackUserRes.data;
-      }
-    }
-
-    if (existingUser) {
-      await supabase
-        .from("gv_users")
-        .update(profilePayload)
-        .eq("login_id", loginId);
-      Promise.resolve(supabase.from("users").update(profilePayload).eq("login_id", loginId)).catch(() => {});
-    } else {
-      await supabase.from("gv_users").upsert([profilePayload]);
-      Promise.resolve(supabase.from("users").upsert([profilePayload])).catch(() => {});
-    }
-    // Dual-write profiles for backward compatibility fallback
-    Promise.resolve(supabase.from("gv_users").upsert([profilePayload])).catch(() => {});
-  } catch (err) {
-    console.warn("Supabase user upsert notice:", err);
-  }
+  });
 
   return {
     loginId,
     email: teacherEmail,
-    authUserId,
+    authUserId: serverRes?.data?.authUserId || null,
   };
 }
 
-export function generateTeacherCredential(
+export async function generateTeacherCredential(
   teacherId: string,
   opts?: { customLoginId?: string; password?: string; teacher?: Teacher },
-): TeacherCredential {
+): Promise<TeacherCredential> {
   const teacher = opts?.teacher || {
     id: teacherId,
     name: "Teacher User",
@@ -479,20 +391,19 @@ export function generateTeacherCredential(
   write(store);
   saveCredToSupabase(cred);
 
-  const provisionPromise = createTeacherAuthAccount({
+  await createTeacherAuthAccount({
     teacherId,
     loginId,
     password,
     name: teacher.name || "Teacher",
-    email: teacher.email || `${loginId.toLowerCase()}@sunshine.edu`,
+    email: teacher.email || `${loginId.toLowerCase()}@sunshineschool.edu`,
     mobile: teacher.phone,
   });
-  (cred as any)._provisionPromise = provisionPromise;
 
   return cred;
 }
 
-export function resetTeacherPassword(teacherId: string): TeacherCredential {
+export async function resetTeacherPassword(teacherId: string): Promise<TeacherCredential> {
   const store = read();
   const existing = store.teachers[teacherId];
   if (!existing) {
@@ -509,15 +420,13 @@ export function resetTeacherPassword(teacherId: string): TeacherCredential {
   write(store);
   saveCredToSupabase(updated);
 
-  Promise.resolve(
-    createTeacherAuthAccount({
-      teacherId,
-      loginId: updated.loginId,
-      password: newPassword,
-      name: "Teacher",
-      email: `${updated.loginId.toLowerCase()}@sunshine.edu`,
-    })
-  ).catch(() => {});
+  await createTeacherAuthAccount({
+    teacherId,
+    loginId: updated.loginId,
+    password: newPassword,
+    name: "Teacher",
+    email: `${updated.loginId.toLowerCase()}@sunshineschool.edu`,
+  });
 
   return updated;
 }
@@ -531,67 +440,6 @@ export function setTeacherStatus(teacherId: string, status: CredentialStatus) {
   write(store);
   saveCredToSupabase(updated);
   notifyAutoRefresh("staff");
+  Promise.resolve(supabase.from("users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
   Promise.resolve(supabase.from("gv_users").update({ status: status.toLowerCase() }).eq("login_id", existing.loginId)).catch(() => {});
-}
-
-// ─── Authentication (used by shared login page) ─────────────────────────
-
-export interface AuthResolvedIdentity {
-  role: Role;
-  name: string;
-  loginId: string;
-  linkId: string;
-}
-
-export function authenticateGenerated(loginId: string, password: string): AuthResolvedIdentity | null {
-  const id = loginId.trim().toLowerCase();
-  const pw = password.trim();
-  if (!id || !pw) return null;
-  const store = read();
-
-  const parent = Object.values(store.parents).find(
-    (c) =>
-      c.loginId.toLowerCase() === id ||
-      c.studentId.toLowerCase() === id ||
-      `par-${c.loginId.toLowerCase()}` === id
-  );
-  if (parent) {
-    if (parent.status === "Active" && (parent.password === password || parent.password.trim() === pw)) {
-      return {
-        role: "parent",
-        name: "Parent User",
-        loginId: parent.loginId,
-        linkId: parent.studentId,
-      };
-    }
-  }
-
-  const teacher = Object.values(store.teachers).find(
-    (c) =>
-      c.loginId.toLowerCase() === id ||
-      c.teacherId.toLowerCase() === id ||
-      `tch-${c.loginId.toLowerCase()}` === id
-  );
-  if (teacher) {
-    if (teacher.status === "Active" && (teacher.password === password || teacher.password.trim() === pw)) {
-      return {
-        role: "teacher",
-        name: "Teacher User",
-        loginId: teacher.loginId,
-        linkId: teacher.teacherId,
-      };
-    }
-  }
-
-  return null;
-}
-
-// Subscribe to changes across tabs / same-tab updates.
-export function subscribeCredentials(cb: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  const onCustom = () => cb();
-  window.addEventListener("sunshine:credentials", onCustom);
-  return () => {
-    window.removeEventListener("sunshine:credentials", onCustom);
-  };
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Info, Eye } from "lucide-react";
+import { Search, Eye } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -139,10 +139,6 @@ function StudentAttendancePage() {
           </Select>
         </div>
 
-        <div className="mt-4 rounded-md bg-info/10 border border-info/30 text-info-foreground text-xs px-3 py-2 flex items-start gap-2">
-          <Info className="w-4 h-4 mt-0.5 text-info shrink-0" />
-          Live synchronized attendance data across all classes. Click "View Details" to view student historical reports.
-        </div>
 
         <div className="mt-4 overflow-x-auto">
           <div className="max-h-[60vh] overflow-y-auto rounded-lg border">

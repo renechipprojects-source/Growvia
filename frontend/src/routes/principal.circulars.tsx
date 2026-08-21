@@ -16,8 +16,8 @@ import { createCircular, fetchCirculars, deleteCircular as deleteCircularService
 import { NotificationService, markAllRead, type Role } from "@/lib/notifications";
 import { CircularDetailsModal } from "@/components/circulars/CircularDetailsModal";
 
-export type RecipientRole = "Admin" | "Teachers" | "Office Staff" | "Parents";
-export const ALL_RECIPIENTS: RecipientRole[] = ["Admin", "Teachers", "Office Staff", "Parents"];
+export type RecipientRole = "Teachers" | "Office Staff" | "Parents";
+export const ALL_RECIPIENTS: RecipientRole[] = ["Teachers", "Office Staff", "Parents"];
 
 export interface Circular {
   id: string;

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { fetchStudents, allocateRollNumbersAlphabetically, toCanonicalAdmissionNo } from "@/lib/supabaseService";
+import { fetchStudents, fetchFees, allocateRollNumbersAlphabetically, toCanonicalAdmissionNo } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 
 export interface AdminStudent {
@@ -162,9 +162,10 @@ function StudentsPage() {
   const sectionOptions = useMemo(() => {
     const set = new Set<string>();
     itemList.forEach((s) => {
-      if (s.section) set.add(s.section.trim());
+      if (s.section && typeof s.section === "string" && s.section.trim()) {
+        set.add(s.section.trim());
+      }
     });
-    ["A", "B", "C", "D", "1", "2"].forEach((sec) => set.add(sec));
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
   }, [itemList]);
 

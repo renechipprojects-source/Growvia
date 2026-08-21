@@ -144,9 +144,10 @@ function StudentsPage() {
   const sectionOptions = useMemo(() => {
     const set = new Set<string>();
     items.forEach((s) => {
-      if (s.section) set.add(s.section.trim());
+      if (s.section && typeof s.section === "string" && s.section.trim()) {
+        set.add(s.section.trim());
+      }
     });
-    ["A", "B", "C", "D", "1", "2"].forEach((sec) => set.add(sec));
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
   }, [items]);
 

@@ -44,11 +44,9 @@ export const ROLES: Record<Role, RoleTheme> = {
     nav: [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { to: "/admin/teachers", label: "Users & Teachers", icon: Users },
-      { to: "/admin/school-branding", label: "School Identity", icon: Building2 },
       { to: "/admin/classes", label: "Academic Overview", icon: GraduationCap },
       { to: "/admin/fees/payments", label: "Revenue & Payments", icon: DollarSign },
       { to: "/admin/students", label: "Student Analytics", icon: BarChart3 },
-      { to: "/admin/school-branding", label: "Settings", icon: Settings },
     ],
   },
   principal: {

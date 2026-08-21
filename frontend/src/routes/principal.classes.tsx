@@ -4,7 +4,7 @@ import { Search, DoorOpen, Users, ExternalLink, UserCheck, BookOpen, GraduationC
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { fetchStudents, fetchTeachers, type Student, type Teacher } from "@/lib/supabaseService";
 import { sanitizeTeacherName } from "@/lib/credentials";
@@ -106,10 +106,11 @@ function ClassesPage() {
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string, fullName: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, fullName: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete ${fullName}?`)) {
-      deleteMasterClass(id);
+      await deleteMasterClass(id);
+      setMasterClasses((prev) => prev.filter((c) => c.id !== id));
       toast.success(`Deleted ${fullName}`);
     }
   };
@@ -152,13 +153,21 @@ function ClassesPage() {
     });
   }, [masterClasses, studentsList, teachersList]);
 
-  const sections = useMemo(() => Array.from(new Set(derivedClassesList.map((c) => c.section))), [derivedClassesList]);
+  const sections = useMemo(() => {
+    const set = new Set<string>();
+    derivedClassesList.forEach((c) => {
+      if (c.section && typeof c.section === "string" && c.section.trim()) {
+        set.add(c.section.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [derivedClassesList]);
 
   const filtered = useMemo(
     () =>
       derivedClassesList.filter((c) => {
         const matchQ = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.classTeacher.toLowerCase().includes(q.toLowerCase());
-        const matchS = sec === "all" || c.section.toUpperCase() === sec.toUpperCase();
+        const matchS = !sec || sec === "all" || c.section.trim().toLowerCase() === sec.trim().toLowerCase();
         return matchQ && matchS;
       }),
     [derivedClassesList, q, sec],
@@ -192,7 +201,11 @@ function ClassesPage() {
             <SelectTrigger className="md:w-40"><SelectValue placeholder="Section" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sections</SelectItem>
-              {sections.map((s) => <SelectItem key={s} value={s}>Section {s}</SelectItem>)}
+              {sections.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s.length === 1 && isNaN(Number(s)) ? `Section ${s}` : s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

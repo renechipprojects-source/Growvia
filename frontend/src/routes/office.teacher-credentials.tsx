@@ -439,12 +439,12 @@ function GenerateDialog({ teacherId, teachersList, onClose, onDone }: { teacherI
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
               if (!password.trim()) {
                 toast.error("Password cannot be empty");
                 return;
               }
-              generateTeacherCredential(teacher.id, {
+              await generateTeacherCredential(teacher.id, {
                 customLoginId: mode === "custom" ? custom : undefined,
                 password: password.trim(),
                 teacher,

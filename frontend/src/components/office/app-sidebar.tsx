@@ -5,6 +5,7 @@ import {
   Sparkles,
   ClipboardList,
   Calendar,
+  CalendarCheck,
   ClipboardCheck,
   Baby,
   UserCheck,

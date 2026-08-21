@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { PartyPopper, CalendarDays, MapPin, Eye, Clock, Users, Sparkles } from "lucide-react";
+import { PartyPopper, CalendarDays, MapPin, Eye, Clock, Users, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar } from "@/components/admin/data-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { fetchEvents, createEvent, updateEvent, deleteEvent, type SchoolEvent } from "@/lib/supabaseService";
 import { toast } from "sonner";
 

@@ -71,8 +71,8 @@ export type Circular = {
   history: { at: string; action: string }[];
 };
 
-export type RecipientRole = "Admin" | "Teachers" | "Office Staff" | "Parents";
-export const ALL_RECIPIENTS: RecipientRole[] = ["Admin", "Teachers", "Office Staff", "Parents"];
+export type RecipientRole = "Teachers" | "Office Staff" | "Parents";
+export const ALL_RECIPIENTS: RecipientRole[] = ["Teachers", "Office Staff", "Parents"];
 
 export type EventAudience = "Admin" | "Office Staff" | "Teachers" | "Parents";
 export const ALL_EVENT_AUDIENCES: EventAudience[] = ["Admin", "Office Staff", "Teachers", "Parents"];

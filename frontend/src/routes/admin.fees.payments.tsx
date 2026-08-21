@@ -106,6 +106,16 @@ function PaymentsPage() {
     document.body.removeChild(link);
   };
 
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    feeLedgers.forEach((f) => {
+      if (f.section && typeof f.section === "string" && f.section.trim()) {
+        set.add(f.section.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  }, [feeLedgers]);
+
   return (
     <div className="flex flex-1 min-h-0 flex-col w-full max-w-none gap-3">
       <PageHeader
@@ -125,7 +135,7 @@ function PaymentsPage() {
           searchPlaceholder="Search student name, admission no., class..."
           filters={[
             { label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] },
-            { label: "Section", options: ["A", "B", "C"] },
+            { label: "Section", options: sectionOptions },
             { label: "Status", options: ["Paid", "Partial", "Pending"] },
           ]}
           search={search}

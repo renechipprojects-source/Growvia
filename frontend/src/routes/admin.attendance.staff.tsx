@@ -3,14 +3,13 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { CalendarCheck, UserCheck, UserX, Clock, Download } from "lucide-react";
 import { PageHeader, StatCard } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
-import { fetchStaffAttendanceFromSupabase, saveStaffAttendanceRecord } from "@/lib/attendanceStore";
+import { fetchStaffAttendanceFromSupabase, getLocalDateString } from "@/lib/attendanceStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/attendance/staff")({
   component: StaffAttendancePage,
@@ -22,7 +21,7 @@ export const Route = createFileRoute("/admin/attendance/staff")({
   }),
 });
 
-type StaffStatus = "Not Marked" | "Present" | "Late" | "Absent" | "Leave";
+type StaffStatus = "Not Marked" | "Present" | "Late" | "Absent" | "Leave" | "Checked Out";
 
 interface StaffAttendanceRow {
   id: string;
@@ -45,8 +44,9 @@ const DEPARTMENTS: Record<string, string> = {
 };
 
 function StaffAttendancePage() {
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
-  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
+  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string }>>({});
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
@@ -54,65 +54,37 @@ function StaffAttendancePage() {
     fetchTeachers().then(({ data }) => {
       setTeachersList(data || []);
     });
-    fetchStaffAttendanceFromSupabase().then((res) => {
+    fetchStaffAttendanceFromSupabase(selectedDate).then((res) => {
       setLiveAttendanceMap(res || {});
     });
-  }, []);
+  }, [selectedDate]);
 
   useAutoRefresh("attendance", loadData);
   useAutoRefresh("staff", loadData);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
-
-  const handleStatusChange = (staffId: string, staffName: string, newStatus: StaffStatus) => {
-    let checkIn = "—";
-    let checkOut = "—";
-
-    if (newStatus === "Present") {
-      checkIn = "08:30 AM";
-      checkOut = "04:30 PM";
-    } else if (newStatus === "Late") {
-      checkIn = "09:15 AM";
-      checkOut = "04:30 PM";
-    }
-
-    setLiveAttendanceMap((prev) => ({
-      ...prev,
-      [staffId]: {
-        status: newStatus,
-        checkIn,
-        checkOut,
-      },
-    }));
-    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn, checkOut);
-    toast.success(`Updated attendance for ${staffName} to ${newStatus}`);
-  };
+  }, [loadData, selectedDate]);
 
   const rows: StaffAttendanceRow[] = useMemo(() => {
     return teachersList.map((s, i) => {
       const sId = s.id || `STF-${i}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[s.name];
-      const hasRecord = Boolean(rec && rec.status);
-      const status: StaffStatus = hasRecord ? (rec.status as StaffStatus) : "Not Marked";
 
-      let checkIn: string | null = null;
-      let checkOut: string | null = null;
+      let status: StaffStatus = "Not Marked";
+      let checkIn = "—";
+      let checkOut = "—";
       let workingHours = "—";
 
-      if (status === "Present") {
-        checkIn = rec?.checkIn || "08:30 AM";
-        checkOut = rec?.checkOut || "04:30 PM";
-        workingHours = "8h 00m";
-      } else if (status === "Late") {
-        checkIn = rec?.checkIn || "09:15 AM";
-        checkOut = rec?.checkOut || "04:30 PM";
-        workingHours = "7h 15m";
-      } else if (status === "Absent" || status === "Leave") {
-        checkIn = "—";
-        checkOut = "—";
-        workingHours = "0h 00m";
+      if (rec && rec.checkIn && rec.checkIn !== "—") {
+        checkIn = rec.checkIn;
+        checkOut = rec.checkOut || "—";
+        workingHours = rec.workingHours || "—";
+        if (rec.checkOut && rec.checkOut !== "—") {
+          status = "Checked Out";
+        } else {
+          status = (rec.status as StaffStatus) || "Present";
+        }
       }
 
       return {
@@ -176,10 +148,16 @@ function StaffAttendancePage() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1">
-      <div>
+      <div className="flex items-center justify-between">
         <PageHeader
           title="Staff Attendance"
           description="View real-time staff attendance recorded by the office attendance system."
+        />
+        <Input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value || getLocalDateString())}
+          className="w-40 h-9 bg-white text-xs font-semibold border-slate-300 shadow-sm"
         />
       </div>
 

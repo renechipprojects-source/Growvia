@@ -5,10 +5,9 @@ import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
-import { fetchStaffAttendanceFromSupabase, saveStaffAttendanceRecord } from "@/lib/attendanceStore";
+import { fetchStaffAttendanceFromSupabase, getLocalDateString } from "@/lib/attendanceStore";
 
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/principal/attendance/staff")({
   head: () => ({
@@ -20,20 +19,23 @@ export const Route = createFileRoute("/principal/attendance/staff")({
   component: StaffAttendancePage,
 });
 
-function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" | "Late" }) {
+function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" | "Late" | "Checked Out" | "Not Marked" }) {
   const map = {
     Present: "bg-success/15 text-success border-success/30",
-    Late: "bg-warning/20 text-warning-foreground border-warning/40",
+    "Checked Out": "bg-indigo-100 text-indigo-700 border-indigo-300",
     Absent: "bg-destructive/10 text-destructive border-destructive/30",
     "Half Day": "bg-warning/20 text-warning-foreground border-warning/40",
     Leave: "bg-purple-100 text-purple-700 border-purple-300",
-  };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${map[s] || map.Present}`}>{s}</span>;
+    Late: "bg-amber-100 text-amber-700 border-amber-300",
+    "Not Marked": "bg-slate-100 text-slate-600 border-slate-300",
+  } as const;
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${(map as any)[s] || map["Not Marked"]}`}>{s}</span>;
 }
 
 function StaffAttendancePage() {
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
-  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
+  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string }>>({});
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("all");
 
@@ -41,7 +43,7 @@ function StaffAttendancePage() {
     fetchTeachers().then(({ data }) => {
       setTeachersList((data as any) || []);
     });
-    fetchStaffAttendanceFromSupabase().then((res) => {
+    fetchStaffAttendanceFromSupabase(selectedDate).then((res) => {
       setLiveAttendanceMap(res || {});
     });
   };
@@ -51,55 +53,28 @@ function StaffAttendancePage() {
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  const handleStatusChange = (staffId: string, staffName: string, newStatus: string) => {
-    let checkIn = "—";
-    let checkOut = "—";
-
-    if (newStatus === "Present") {
-      checkIn = "08:30 AM";
-      checkOut = "04:30 PM";
-    } else if (newStatus === "Late") {
-      checkIn = "09:15 AM";
-      checkOut = "04:30 PM";
-    }
-
-    setLiveAttendanceMap((prev) => ({
-      ...prev,
-      [staffId]: {
-        status: newStatus,
-        checkIn,
-        checkOut,
-      },
-    }));
-    saveStaffAttendanceRecord(staffId, staffName, newStatus, checkIn, checkOut);
-    toast.success(`Updated attendance for ${staffName} to ${newStatus}`);
-  };
+  }, [selectedDate]);
 
   const staffData = useMemo(() => {
     return teachersList.map((t, idx) => {
       const sId = t.id || `STF-${idx}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[t.name];
-      const hasRecord = Boolean(rec && rec.status);
-      const status = hasRecord ? rec.status : "Not Marked";
 
+      let status = "Not Marked";
       let checkIn = "—";
       let checkOut = "—";
       let workingHours = "—";
 
-      if (status === "Present") {
-        checkIn = rec?.checkIn || "08:30 AM";
-        checkOut = rec?.checkOut || "04:30 PM";
-        workingHours = "8h 00m";
-      } else if (status === "Late") {
-        checkIn = rec?.checkIn || "09:15 AM";
-        checkOut = rec?.checkOut || "04:30 PM";
-        workingHours = "7h 15m";
-      } else if (status === "Absent" || status === "Leave") {
-        checkIn = "—";
-        checkOut = "—";
-        workingHours = "0h 00m";
+      if (rec && rec.checkIn && rec.checkIn !== "—") {
+        checkIn = rec.checkIn;
+        checkOut = rec.checkOut || "—";
+        workingHours = rec.workingHours || "—";
+
+        if (rec.checkOut && rec.checkOut !== "—") {
+          status = "Checked Out";
+        } else {
+          status = rec.status || "Present";
+        }
       }
 
       return {
@@ -135,6 +110,12 @@ function StaffAttendancePage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search staff by name" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value || getLocalDateString())}
+            className="md:w-44 h-10 bg-white text-xs font-semibold border-slate-300 shadow-sm"
+          />
           <Select value={dept} onValueChange={setDept}>
             <SelectTrigger className="md:w-52"><SelectValue placeholder="Department" /></SelectTrigger>
             <SelectContent>

@@ -109,6 +109,8 @@ export function writeSession(session: Session, remember: boolean = true) {
   store.setItem(SESSION_KEY, JSON.stringify({ ...session, email: session.loginId }));
 }
 
+export const setSession = writeSession;
+
 import { redirect } from "@tanstack/react-router";
 
 import { supabase } from "@/lib/supabase";

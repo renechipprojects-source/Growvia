@@ -350,7 +350,15 @@ export function useLiveAttendance(studentId?: string, date?: string) {
   };
 }
 
-export async function fetchStaffAttendanceFromSupabase(): Promise<Record<string, { status: string; checkIn: string; checkOut: string }>> {
+export function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export async function fetchStaffAttendanceFromSupabase(targetDate?: string): Promise<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }>> {
+  const dateToFetch = targetDate || getLocalDateString();
   try {
     const { data, error } = await supabase
       .from("gv_requests")
@@ -359,18 +367,29 @@ export async function fetchStaffAttendanceFromSupabase(): Promise<Record<string,
 
     if (error || !data) return {};
 
-    const out: Record<string, { status: string; checkIn: string; checkOut: string }> = {};
+    const out: Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }> = {};
     data.forEach((d: any) => {
       try {
         const meta = d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))
           ? JSON.parse(d.reason_or_notes)
           : {};
-        const sId = meta.staffId || d.applicant_or_child_name || d.id;
-        out[sId] = {
-          status: d.status || meta.status || "Present",
-          checkIn: meta.checkIn || "08:30 AM",
-          checkOut: meta.checkOut || "04:30 PM",
-        };
+        const recDate = meta.date || (d.id ? d.id.split("-").slice(-3).join("-") : "");
+        if (recDate === dateToFetch) {
+          const sId = meta.staffId || d.applicant_or_child_name || d.id;
+          const recObj = {
+            status: d.status || meta.status || "Present",
+            checkIn: meta.checkIn || "08:30 AM",
+            checkOut: meta.checkOut || "04:30 PM",
+            workingHours: meta.workingHours || "—",
+            checkInTimestamp: meta.checkInTimestamp || "",
+            checkOutTimestamp: meta.checkOutTimestamp || "",
+            date: recDate,
+          };
+          out[sId] = recObj;
+          if (meta.staffName) {
+            out[meta.staffName] = recObj;
+          }
+        }
       } catch {}
     });
     return out;
@@ -379,8 +398,8 @@ export async function fetchStaffAttendanceFromSupabase(): Promise<Record<string,
   }
 }
 
-export async function saveStaffAttendanceRecord(staffId: string, staffName: string, status: string, checkIn = "08:30 AM", checkOut = "04:30 PM") {
-  const dateStr = new Date().toISOString().slice(0, 10);
+export async function saveStaffAttendanceRecord(staffId: string, staffName: string, status: string, checkIn = "08:30 AM", checkOut = "04:30 PM", targetDate?: string) {
+  const dateStr = targetDate || getLocalDateString();
   const id = `ATT-STF-${staffId}-${dateStr}`;
   const payload = {
     id,
@@ -400,5 +419,129 @@ export async function saveStaffAttendanceRecord(staffId: string, staffName: stri
     await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
     notifyAutoRefresh("attendance");
     notifyAutoRefresh("staff");
-  } catch {}
+  } catch (err) {
+    console.warn("Failed to save staff attendance record:", err);
+  }
+}
+
+export async function markStaffTimeIn(staffId: string, staffName: string): Promise<{ success: boolean; message: string }> {
+  const todayStr = getLocalDateString();
+  const existingMap = await fetchStaffAttendanceFromSupabase(todayStr);
+  const existing = existingMap[staffId] || existingMap[staffName];
+
+  if (existing && existing.checkIn && existing.checkIn !== "—" && existing.checkIn !== "") {
+    return {
+      success: false,
+      message: `You have already marked Time In for today at ${existing.checkIn}.`,
+    };
+  }
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const status = (hours < 9 || (hours === 9 && minutes === 0)) ? "Present" : "Late";
+
+  const id = `ATT-STF-${staffId}-${todayStr}`;
+  const payload = {
+    id,
+    request_type: "staff_attendance",
+    applicant_or_child_name: staffName,
+    status: status,
+    reason_or_notes: JSON.stringify({
+      staffId,
+      staffName,
+      date: todayStr,
+      status,
+      checkIn: timeStr,
+      checkOut: "—",
+      checkInTimestamp: now.toISOString(),
+      workingHours: "—",
+    }),
+  };
+
+  try {
+    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    notifyAutoRefresh("attendance");
+    notifyAutoRefresh("staff");
+    return {
+      success: true,
+      message: `Time In marked successfully at ${timeStr} (${status}).`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Failed to mark Time In.",
+    };
+  }
+}
+
+export async function markStaffTimeOut(staffId: string, staffName: string): Promise<{ success: boolean; message: string }> {
+  const todayStr = getLocalDateString();
+  const existingMap = await fetchStaffAttendanceFromSupabase(todayStr);
+  const existing = existingMap[staffId] || existingMap[staffName];
+
+  if (!existing || !existing.checkIn || existing.checkIn === "—") {
+    return {
+      success: false,
+      message: "You must mark Time In before marking Time Out.",
+    };
+  }
+
+  if (existing.checkOut && existing.checkOut !== "—") {
+    return {
+      success: false,
+      message: `You have already marked Time Out for today at ${existing.checkOut}.`,
+    };
+  }
+
+  const now = new Date();
+  const timeOutStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+
+  let workingHours = "8h 00m";
+  if (existing.checkInTimestamp) {
+    const inTime = new Date(existing.checkInTimestamp).getTime();
+    const outTime = now.getTime();
+    if (outTime > inTime) {
+      const diffMs = outTime - inTime;
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      workingHours = `${diffHrs}h ${diffMins}m`;
+    }
+  }
+
+  const id = `ATT-STF-${staffId}-${todayStr}`;
+  const payload = {
+    id,
+    request_type: "staff_attendance",
+    applicant_or_child_name: staffName,
+    status: existing.status,
+    reason_or_notes: JSON.stringify({
+      staffId,
+      staffName,
+      date: todayStr,
+      status: existing.status,
+      checkIn: existing.checkIn,
+      checkOut: timeOutStr,
+      checkInTimestamp: existing.checkInTimestamp,
+      checkOutTimestamp: now.toISOString(),
+      workingHours,
+    }),
+  };
+
+  try {
+    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    notifyAutoRefresh("attendance");
+    notifyAutoRefresh("staff");
+    return {
+      success: true,
+      message: `Time Out marked successfully at ${timeOutStr}. Total working time: ${workingHours}.`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Failed to mark Time Out.",
+    };
+  }
 }
