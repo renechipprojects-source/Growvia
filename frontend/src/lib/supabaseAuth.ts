@@ -13,6 +13,7 @@ export async function triggerServerUserProvisioning(params?: {
   password?: string;
   role?: string;
   name?: string;
+  mobile?: string;
 }) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
@@ -296,7 +297,7 @@ export async function login(loginId: string, password: string) {
       profile = {
         id: authResult.data.user.id,
         login_id: id,
-        email: emailToAuth,
+        email: successfulEmail || profile?.email || `${id.toLowerCase()}@sunshineschool.edu`,
         role: authResult.data.user.user_metadata?.role || "teacher",
         full_name: authResult.data.user.user_metadata?.full_name || "User Account",
         status: "active",
