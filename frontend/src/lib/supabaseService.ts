@@ -174,6 +174,7 @@ export interface FeeLedgerItem {
   rollNo?: number;
   className: string;
   section?: string;
+  feeType?: string;
   academicYear?: string;
   originalFee: number;
   discountAmount: number;
@@ -1211,6 +1212,7 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     className: ledger.className || "Nursery",
     section: ledger.section || "A",
     rollNo: ledger.rollNo || 1,
+    feeType: ledger.feeType || (ledger as any).feeType || "Standard",
     originalFee,
     discountAmount,
     finalFee,
@@ -1273,6 +1275,7 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
         className: s.className || "Nursery",
         section: s.section || "A",
         rollNo: s.rollNo || 1,
+        feeType: (s as any).feePlan || "Standard",
         originalFee: defaultStuFee,
         discountAmount: 0,
         paid: s.feeStatus === "Paid" ? defaultStuFee : 0,
@@ -1330,6 +1333,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       studentId: string;
       studentName: string;
       className: string;
+      feeType: string;
       originalFee: number;
       discountAmount: number;
       payments: PaymentTransaction[];
@@ -1353,6 +1357,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           studentId: d.student_id || canonicalId,
           studentName: d.student_name || "Student",
           className: d.class_name || "Nursery",
+          feeType: d.fee_type || "Standard",
           originalFee: Number(d.amount_due || 0),
           discountAmount: 0,
           payments: [],
@@ -1364,6 +1369,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
 
       if (d.record_type === "fee_schedule" && d.amount_due) {
         ledger.originalFee = Number(d.amount_due);
+        if (d.fee_type) ledger.feeType = d.fee_type;
       }
       if (d.record_type === "payment_receipt" && (d.receipt_number || d.amount_paid)) {
         const receiptNo = d.receipt_number || `REC-${d.id}`;
@@ -1391,6 +1397,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
         studentId: item.studentId,
         studentName: item.studentName,
         className: item.className,
+        feeType: item.feeType,
         originalFee: item.originalFee,
         discountAmount: item.discountAmount,
         paid: totalPaid,
@@ -1468,7 +1475,7 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
       student_id: recalculated.studentId,
       student_name: recalculated.studentName,
       class_name: recalculated.className,
-      fee_type: "Term Fee",
+      fee_type: recalculated.feeType || "Standard",
       amount_due: recalculated.originalFee,
       amount_paid: recalculated.paid,
       balance: recalculated.remainingAmount,

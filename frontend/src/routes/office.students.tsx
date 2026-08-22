@@ -4,6 +4,7 @@ import { DataTable } from "@/components/DataTable";
 import { type Student } from "@/lib/mockData";
 import { fetchStudents, updateStudent, toCanonicalAdmissionNo } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+import { EditStudentModal } from "@/components/students/EditStudentModal";
 import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
 import { useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2, Loader2, UserCheck } from "lucide-react";
+import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2, Loader2, UserCheck, Edit } from "lucide-react";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
