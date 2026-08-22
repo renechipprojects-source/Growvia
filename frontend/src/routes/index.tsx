@@ -45,7 +45,7 @@ function Login() {
         let user = sessionData?.session?.user;
         if (!user) {
           const { data: userData } = await supabase.auth.getUser();
-          user = userData?.user;
+          user = userData?.user ?? undefined;
         }
 
         if (!user) {
