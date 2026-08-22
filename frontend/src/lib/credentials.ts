@@ -262,7 +262,10 @@ export async function generateParentCredential(
   write(store);
   saveCredToSupabase(cred);
 
-  const parentEmail = `${loginId.toLowerCase()}@growvia.edu`;
+  const rawEmail = (student as any).email || (student as any).parentEmail;
+  const parentEmail = (rawEmail && typeof rawEmail === "string" && rawEmail.includes("@"))
+    ? rawEmail.trim().toLowerCase()
+    : `${loginId.toLowerCase()}@growvia.edu`;
 
   // Provision user in database & auth.users BEFORE returning
   const { triggerServerUserProvisioning } = await import("./supabaseAuth");
