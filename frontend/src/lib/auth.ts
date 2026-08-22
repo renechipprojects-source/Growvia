@@ -266,7 +266,7 @@ export async function changePasswordForCurrentUser(newPassword: string): Promise
       return { ok: false, error: authErr.message || "Failed to update password in auth system." };
     }
     // Auth succeeded — now update the must_change_password flag (best-effort)
-    supabase.from("gv_users").update({ must_change_password: false }).eq("login_id", s.loginId).catch(() => {});
+    Promise.resolve(supabase.from("gv_users").update({ must_change_password: false }).eq("login_id", s.loginId)).catch(() => {});
   } catch (err: any) {
     return { ok: false, error: err?.message || "Password update failed." };
   }
@@ -291,7 +291,7 @@ export function setTemporaryPasswordFor(loginId: string, tempPassword: string): 
         }),
       }).catch(() => {});
     });
-    supabase.from("gv_users").update({ must_change_password: true }).eq("login_id", loginId).catch(() => {});
+    Promise.resolve(supabase.from("gv_users").update({ must_change_password: true }).eq("login_id", loginId)).catch(() => {});
     return true;
   } catch {
     return false;
