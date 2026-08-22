@@ -363,28 +363,55 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
         else {
           const { data: d3 } = await admin.from('gv_users').select('*').ilike('login_id', norm).maybeSingle();
           if (d3) profile = d3;
+          else {
+            const { data: d4 } = await admin.from('gv_users').select('*').ilike('id', clean).maybeSingle();
+            if (d4) profile = d4;
+          }
         }
       }
     } catch {}
 
-    if (profile && profile.email) {
-      return res.json({
-        success: true,
-        login_id: profile.login_id,
-        email: profile.email,
-        role: profile.role,
-        full_name: profile.full_name,
-        profile,
-      });
+    if (profile) {
+      let authEmail = profile.email;
+      if (profile.auth_user_id) {
+        try {
+          const { data: authUserData } = await admin.auth.admin.getUserById(profile.auth_user_id);
+          if (authUserData?.user?.email) {
+            authEmail = authUserData.user.email;
+          }
+        } catch {}
+      }
+
+      if (authEmail) {
+        return res.json({
+          success: true,
+          login_id: profile.login_id,
+          email: authEmail,
+          role: profile.role,
+          full_name: profile.full_name,
+          profile: {
+            ...profile,
+            email: authEmail,
+          },
+        });
+      }
     }
 
-    const { data: userList } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const authUser = userList?.users?.find(
-      (u) =>
-        u.email?.toLowerCase() === clean.toLowerCase() ||
-        u.user_metadata?.login_id?.toString().toLowerCase() === clean.toLowerCase() ||
-        u.user_metadata?.login_id?.toString().toLowerCase() === norm
-    );
+    let page = 1;
+    let authUser: any = null;
+    while (!authUser && page <= 5) {
+      const { data: userList } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+      const users = userList?.users || [];
+      if (users.length === 0) break;
+      authUser = users.find(
+        (u) =>
+          u.email?.toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === norm
+      );
+      if (users.length < 100) break;
+      page++;
+    }
 
     if (authUser && authUser.email) {
       const derivedRole = authUser.user_metadata?.role || 'teacher';
@@ -442,16 +469,17 @@ app.post('/api/users/update-email', async (req: Request, res: Response) => {
       authUserId = profile.auth_user_id || profile.id;
     }
 
-    const { data: userList } = await admin.auth.admin.listUsers();
-    let authUser = userList?.users?.find(
-      (u) =>
-        (authUserId && u.id === authUserId) ||
-        u.email?.toLowerCase() === clean.toLowerCase() ||
-        u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
-    );
+    if (!authUserId) {
+      const { data: userList } = await admin.auth.admin.listUsers({ perPage: 100 });
+      let authUser = userList?.users?.find(
+        (u) =>
+          u.email?.toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+      );
+      if (authUser) authUserId = authUser.id;
+    }
 
-    if (authUser) {
-      authUserId = authUser.id;
+    if (authUserId) {
       await admin.auth.admin.updateUserById(authUserId, {
         email: targetEmail,
         email_confirm: true,
@@ -499,16 +527,17 @@ app.post('/api/users/update-password', async (req: Request, res: Response) => {
       authUserId = profile.auth_user_id || profile.id;
     }
 
-    const { data: userList } = await admin.auth.admin.listUsers();
-    let authUser = userList?.users?.find(
-      (u) =>
-        (authUserId && u.id === authUserId) ||
-        u.email?.toLowerCase() === clean.toLowerCase() ||
-        u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
-    );
+    if (!authUserId) {
+      const { data: userList } = await admin.auth.admin.listUsers({ perPage: 100 });
+      let authUser = userList?.users?.find(
+        (u) =>
+          u.email?.toLowerCase() === clean.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+      );
+      if (authUser) authUserId = authUser.id;
+    }
 
-    if (authUser) {
-      authUserId = authUser.id;
+    if (authUserId) {
       await admin.auth.admin.updateUserById(authUserId, {
         password: new_password,
         email_confirm: true,
