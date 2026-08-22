@@ -3,187 +3,184 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, KeyRound, ShieldCheck, CheckCircle2, Send, Clock, Lock, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, KeyRound, CheckCircle2, Send, Lock, Eye, EyeOff, MailCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { requestOtpForIdentifier, verifyOtpCode, resetPasswordWithOtp } from "@/lib/passwordResets";
+import { supabase } from "@/lib/supabase";
 import { login } from "@/lib/supabaseAuth";
 import { setSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
     meta: [
-      { title: "Reset Your Password — Email OTP" },
-      { name: "description", content: "Secure email OTP password reset portal for all accounts." },
+      { title: "Reset Your Password — Sunshine ERP" },
+      { name: "description", content: "Authoritative Supabase Auth password recovery portal for all accounts." },
     ],
   }),
   component: ForgotPasswordPage,
 });
 
-type Step = "identifier" | "otp" | "password" | "success";
+type Step = "identifier" | "sent" | "password" | "success";
+
+function maskEmail(email: string): string {
+  if (!email || !email.includes("@")) return "****@sunshine.edu";
+  const [name, domain] = email.split("@");
+  if (name.length <= 2) return `${name[0]}*@${domain}`;
+  return `${name[0]}${"*".repeat(name.length - 2)}${name[name.length - 1]}@${domain}`;
+}
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>("identifier");
   const [identifier, setIdentifier] = useState("");
+  const [targetEmail, setTargetEmail] = useState("");
   const [maskedEmail, setMaskedEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
 
-  // Expiry timer (10 mins = 600s)
-  const [expirySeconds, setExpirySeconds] = useState(600);
-  // Resend cooldown timer (60s)
-  const [resendSeconds, setResendSeconds] = useState(60);
-
+  // Detect Supabase Auth PASSWORD_RECOVERY event or URL hash recovery token
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (step === "otp" && expirySeconds > 0) {
-      timer = setInterval(() => {
-        setExpirySeconds((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
+      setStep("password");
+      toast.info("Password recovery token detected. Please enter your new password below.");
     }
-    return () => clearInterval(timer);
-  }, [step, expirySeconds]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (step === "otp" && resendSeconds > 0) {
-      timer = setInterval(() => {
-        setResendSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [step, resendSeconds]);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setStep("password");
+        toast.info("Authenticated for password recovery. Enter your new password.");
+      }
+    });
 
-  const formatTimer = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
-  // STEP 1: Request OTP
-  const handleRequestOtp = async (e: React.FormEvent) => {
+  // STEP 1: Request Recovery Email via Supabase Auth
+  const handleRequestRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier.trim()) {
-      toast.error("Please enter your Login ID or registered Email.");
+    const clean = identifier.trim();
+    if (!clean) {
+      toast.error("Please enter your registered Email or Login ID.");
       return;
     }
 
     setLoading(true);
-    const res = await requestOtpForIdentifier(identifier.trim());
-    setLoading(false);
 
-    if (!res.success) {
-      toast.error(res.message);
-      return;
-    }
+    try {
+      let emailToUse = clean.includes("@") ? clean.toLowerCase() : "";
+      let loginIdResolved = clean;
 
-    setMaskedEmail(res.emailMasked || "your registered email");
-    if (res.otpDevFallback) {
-      setDevOtp(res.otpDevFallback);
+      if (!emailToUse) {
+        const norm = clean.toLowerCase().replace(/[\s\-_]+/g, "");
+        const { data: profile } = await supabase
+          .from("gv_users")
+          .select("email, login_id")
+          .or(`login_id.ilike.${clean},login_id.ilike.${norm},id.ilike.${clean}`)
+          .maybeSingle();
+
+        if (profile?.email) {
+          emailToUse = profile.email;
+          loginIdResolved = profile.login_id || clean;
+        }
+      }
+
+      if (!emailToUse) {
+        // Safe neutral notice to prevent email enumeration
+        setMaskedEmail("your registered email");
+        setStep("sent");
+        setLoading(false);
+        toast.success("If an account exists for that identifier, recovery instructions have been sent.");
+        return;
+      }
+
+      setTargetEmail(emailToUse);
+      setMaskedEmail(maskEmail(emailToUse));
+
+      const redirectUrl = `${window.location.origin}/forgot-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(emailToUse, {
+        redirectTo: redirectUrl,
+      });
+
+      setLoading(false);
+
+      if (error) {
+        if (error.message.includes("rate limit")) {
+          toast.error("Email rate limit exceeded. Please wait a few minutes before trying again.");
+        } else {
+          toast.error(error.message || "Failed to send recovery email.");
+        }
+        return;
+      }
+
+      setStep("sent");
+      toast.success(`Password recovery email sent to ${maskEmail(emailToUse)}!`);
+    } catch (err: any) {
+      setLoading(false);
+      toast.error(err?.message || "Failed to process recovery request.");
     }
-    setStep("otp");
-    setExpirySeconds(600);
-    setResendSeconds(60);
-    toast.success(`Verification OTP sent to ${res.emailMasked || "your email"}.`);
   };
 
-  // Resend OTP
-  const handleResendOtp = async () => {
-    if (resendSeconds > 0) return;
-    setLoading(true);
-    const res = await requestOtpForIdentifier(identifier.trim());
-    setLoading(false);
-
-    if (!res.success) {
-      toast.error(res.message);
-      return;
-    }
-
-    if (res.otpDevFallback) {
-      setDevOtp(res.otpDevFallback);
-    }
-    setOtp("");
-    setExpirySeconds(600);
-    setResendSeconds(60);
-    toast.success(`Fresh OTP code sent to ${res.emailMasked || "your email"}.`);
-  };
-
-  // STEP 2: Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp.trim()) {
-      toast.error("Please enter the 6-digit OTP code.");
-      return;
-    }
-
-    if (expirySeconds <= 0) {
-      toast.error("OTP code has expired. Please click Resend OTP.");
-      return;
-    }
-
-    setLoading(true);
-    const res = await verifyOtpCode(identifier.trim(), otp.trim());
-    setLoading(false);
-
-    if (!res.success) {
-      toast.error(res.message);
-      return;
-    }
-
-    setStep("password");
-    toast.success("OTP verified successfully! Set your new password.");
-  };
-
-  // STEP 3: Reset Password
-  const handleResetPassword = async (e: React.FormEvent) => {
+  // STEP 2: Update Password directly in Supabase Auth
+  const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword) {
       toast.error("Please enter a new password.");
       return;
     }
-
     if (newPassword.length < 6) {
       toast.error("Password must be at least 6 characters long.");
       return;
     }
-
     if (newPassword !== confirmPassword) {
       toast.error("New password and confirm password do not match.");
       return;
     }
 
     setLoading(true);
-    const res = await resetPasswordWithOtp(identifier.trim(), otp.trim(), newPassword);
-    setLoading(false);
 
-    if (!res.success) {
-      toast.error(res.message);
-      return;
+    try {
+      // 1. Primary client updateUser against current recovery session
+      const { error: updateErr } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateErr) {
+        // Fallback: update via server endpoint if available
+        const { updateServerAuthPassword } = await import("@/lib/supabaseAuth");
+        const res = await updateServerAuthPassword(targetEmail || identifier, newPassword);
+        if (!res?.success) {
+          setLoading(false);
+          toast.error(updateErr.message || "Password update failed.");
+          return;
+        }
+      }
+
+      setLoading(false);
+      setStep("success");
+      toast.success("Your password has been updated in Supabase Auth!");
+    } catch (err: any) {
+      setLoading(false);
+      toast.error(err?.message || "Failed to update password.");
     }
-
-    setStep("success");
-    toast.success("Password reset successfully!");
   };
 
   const handleLoginNow = async () => {
+    const loginIdentifier = targetEmail || identifier.trim();
     setLoading(true);
-    const loginRes = await login(identifier.trim(), newPassword);
+    const loginRes = await login(loginIdentifier, newPassword);
     setLoading(false);
 
     if (loginRes.success && loginRes.profile) {
       const userObj = {
-        loginId: loginRes.profile.login_id || identifier.trim(),
+        loginId: loginRes.profile.login_id || loginIdentifier,
         role: loginRes.profile.role as any,
         name: loginRes.profile.full_name || "User",
-        linkId: loginRes.profile.login_id || identifier.trim(),
+        linkId: loginRes.profile.login_id || loginIdentifier,
       };
       setSession(userObj);
       toast.success(`Welcome back, ${userObj.name}!`);
@@ -201,9 +198,9 @@ function ForgotPasswordPage() {
           ? "/parent"
           : "/";
 
-      navigate({ to: targetPath });
+      window.location.href = targetPath;
     } else {
-      navigate({ to: "/" });
+      window.location.href = "/";
     }
   };
 
@@ -212,7 +209,7 @@ function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <button
           onClick={() => navigate({ to: "/" })}
-          className="mb-4 inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors"
+          className="mb-4 inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" /> Back to sign in
         </button>
@@ -224,22 +221,22 @@ function ForgotPasswordPage() {
             </div>
             <div>
               <div className="text-lg font-bold text-white">Reset Password</div>
-              <div className="text-xs text-slate-400">Cryptographically secure Email OTP verification</div>
+              <div className="text-xs text-slate-400">Authoritative Supabase Auth password recovery</div>
             </div>
           </div>
 
-          {/* STEP 1: IDENTIFIER INPUT */}
+          {/* STEP 1: IDENTIFIER / EMAIL INPUT */}
           {step === "identifier" && (
-            <form onSubmit={handleRequestOtp} className="space-y-4">
+            <form onSubmit={handleRequestRecovery} className="space-y-4">
               <div>
                 <Label htmlFor="identifier" className="text-xs font-medium text-slate-300">
-                  Login ID or Registered Email
+                  Registered Email or Login ID
                 </Label>
                 <Input
                   id="identifier"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. TCH1528, PRT1528, 260001, or name@sunshineschool.edu"
+                  placeholder="e.g. staff@sunshineschool.edu or ADMIN001"
                   className="mt-1.5 bg-white/10 border-white/20 text-white placeholder:text-slate-500 text-sm rounded-xl h-11 focus:ring-indigo-500"
                   autoFocus
                 />
@@ -248,75 +245,57 @@ function ForgotPasswordPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl h-11 shadow-lg disabled:opacity-50"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-11 rounded-xl shadow-lg shadow-indigo-600/30 transition cursor-pointer"
               >
-                <Send className="w-4 h-4 mr-2" />
-                {loading ? "Sending OTP..." : "Send Verification OTP"}
+                {loading ? "Sending Recovery Link..." : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Send className="h-4 w-4" /> Send Recovery Link
+                  </span>
+                )}
               </Button>
             </form>
           )}
 
-          {/* STEP 2: OTP VERIFICATION */}
-          {step === "otp" && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="rounded-xl bg-indigo-500/10 border border-indigo-400/20 p-3 text-xs text-indigo-200">
-                <span>An OTP code was sent to </span>
-                <span className="font-semibold text-white">{maskedEmail}</span>.
-                {devOtp && (
-                  <div className="mt-1.5 pt-1.5 border-t border-indigo-400/20 text-[11px] font-mono text-emerald-300">
-                    🔑 [E2E Test Mode OTP]: <span className="font-bold tracking-widest">{devOtp}</span>
-                  </div>
-                )}
+          {/* STEP 2: EMAIL SENT NOTICE */}
+          {step === "sent" && (
+            <div className="space-y-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+                <MailCheck className="w-8 h-8" />
               </div>
 
               <div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="otp" className="text-xs font-medium text-slate-300">
-                    6-Digit OTP Code
-                  </Label>
-                  <div className="flex items-center gap-1 text-[11px] font-mono text-amber-400">
-                    <Clock className="w-3 h-3" />
-                    <span>Expires in {formatTimer(expirySeconds)}</span>
-                  </div>
-                </div>
-                <Input
-                  id="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="e.g. 849201"
-                  className="mt-1.5 bg-white/10 border-white/20 text-white placeholder:text-slate-500 text-center font-mono text-xl tracking-widest rounded-xl h-12 focus:ring-indigo-500"
-                  maxLength={6}
-                  autoFocus
-                />
+                <h3 className="text-base font-bold text-white">Check Your Inbox</h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                  We sent password recovery instructions to <strong className="text-emerald-400 font-semibold">{maskedEmail}</strong>.
+                </p>
+                <p className="text-xs text-slate-400 mt-2">
+                  Click the link in the email to automatically open password reset, or enter your new password below if you have the recovery link open.
+                </p>
               </div>
 
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-400">Didn't receive the code?</span>
-                <button
+              <div className="pt-2 flex flex-col gap-2">
+                <Button
                   type="button"
-                  onClick={handleResendOtp}
-                  disabled={resendSeconds > 0 || loading}
-                  className="text-indigo-400 hover:text-indigo-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  onClick={() => setStep("password")}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-10 rounded-xl cursor-pointer"
                 >
-                  <RefreshCw className="w-3 h-3" />
-                  {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend OTP"}
-                </button>
+                  I Have The Recovery Link / Session — Set Password
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep("identifier")}
+                  className="w-full border-white/20 text-slate-300 hover:bg-white/10 h-10 rounded-xl cursor-pointer"
+                >
+                  Resend / Enter Different Email
+                </Button>
               </div>
-
-              <Button
-                type="submit"
-                disabled={loading || expirySeconds <= 0}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl h-11 shadow-lg disabled:opacity-50"
-              >
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                {loading ? "Verifying..." : "Verify OTP Code"}
-              </Button>
-            </form>
+            </div>
           )}
 
           {/* STEP 3: SET NEW PASSWORD */}
           {step === "password" && (
-            <form onSubmit={handleResetPassword} className="space-y-4">
+            <form onSubmit={handleSetNewPassword} className="space-y-4">
               <div>
                 <Label htmlFor="newPassword" className="text-xs font-medium text-slate-300">
                   New Password
@@ -327,16 +306,16 @@ function ForgotPasswordPage() {
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter at least 6 characters"
+                    placeholder="Enter new password (min. 6 chars)"
                     className="bg-white/10 border-white/20 text-white placeholder:text-slate-500 text-sm rounded-xl h-11 pr-10 focus:ring-indigo-500"
                     autoFocus
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -358,43 +337,37 @@ function ForgotPasswordPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl h-11 shadow-lg disabled:opacity-50"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-11 rounded-xl shadow-lg shadow-emerald-600/30 transition cursor-pointer"
               >
-                <Lock className="w-4 h-4 mr-2" />
-                {loading ? "Updating Password..." : "Reset Password & Save"}
+                {loading ? "Updating Password..." : "Update Password in Supabase Auth"}
               </Button>
             </form>
           )}
 
           {/* STEP 4: SUCCESS */}
           {step === "success" && (
-            <div className="space-y-4 text-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center mx-auto">
+            <div className="space-y-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
+
               <div>
-                <div className="text-lg font-bold text-white">Password Reset Complete!</div>
-                <div className="text-xs text-slate-400 mt-1">
-                  Your new password is active immediately. You can now sign in using your Login ID or registered Email.
-                </div>
+                <h3 className="text-lg font-bold text-white">Password Reset Successful!</h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                  Your new password is live in Supabase Auth. Your old password is now invalid, and both your Email and Login ID will log in with your new password.
+                </p>
               </div>
 
               <Button
+                type="button"
                 onClick={handleLoginNow}
                 disabled={loading}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl h-11 shadow-lg mt-2"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold h-11 rounded-xl shadow-lg shadow-amber-500/30 transition cursor-pointer"
               >
-                {loading ? "Authenticating..." : "Sign In with New Password"}
+                {loading ? "Signing In..." : "Sign In Now"}
               </Button>
             </div>
           )}
-
-          <div className="mt-6 border-t border-white/10 pt-4 text-center text-xs text-slate-400">
-            Remembered your password?{" "}
-            <Link to="/" className="font-semibold text-indigo-400 hover:text-indigo-300">
-              Sign in
-            </Link>
-          </div>
         </Card>
       </div>
     </div>
