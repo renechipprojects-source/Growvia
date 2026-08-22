@@ -262,119 +262,79 @@ function maskEmail(email: string): string {
 }
 
 export async function requestOtpForIdentifier(identifier: string): Promise<{ success: boolean; message: string; emailMasked?: string; otpDevFallback?: string }> {
+  const clean = (identifier || "").trim();
+  if (!clean) {
+    return { success: false, message: "Please enter your Login ID or registered Email." };
+  }
+
+  // 1. Primary backend API route dispatch
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const res = await fetch(`${BACKEND_URL}/api/auth/otp/request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier }),
+      body: JSON.stringify({ identifier: clean }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timeoutId));
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.success) return data;
+
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success) {
+      return data;
+    }
+    if (res.status !== 404 && data && (data.error || data.message)) {
+      return { success: false, message: data.error || data.message };
     }
   } catch {}
 
-  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
-  const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
+  // 2. Client-side Supabase Auth Recovery Fallback
+  try {
+    let resolvedEmail = clean.includes("@") ? clean.toLowerCase() : "";
+    let userLoginId = clean;
 
-  if (serviceKey && identifier) {
-    try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const admin = createClient(supabaseUrl, serviceKey);
-      const clean = identifier.trim();
+    if (!resolvedEmail) {
       const norm = clean.toLowerCase().replace(/[\s\-_]+/g, "");
-
-      let userEmail: string | null = null;
-      let userLoginId: string = clean;
-
-      const { data: profile } = await admin
+      const { data: profile } = await supabase
         .from("gv_users")
-        .select("*")
-        .or(`login_id.ilike.${clean},login_id.ilike.${norm},email.ilike.${clean},id.ilike.${clean}`)
+        .select("email, login_id")
+        .or(`login_id.ilike.${clean},login_id.ilike.${norm},id.ilike.${clean}`)
         .maybeSingle();
 
-      if (profile && profile.email) {
-        userEmail = profile.email;
+      if (profile?.email) {
+        resolvedEmail = profile.email;
         userLoginId = profile.login_id || clean;
-      } else {
-        const { data: userList } = await admin.auth.admin.listUsers();
-        const authUser = userList?.users?.find(
-          (u) =>
-            u.email?.toLowerCase() === clean.toLowerCase() ||
-            u.user_metadata?.login_id?.toString().toLowerCase() === clean.toLowerCase() ||
-            u.user_metadata?.login_id?.toString().toLowerCase() === norm
-        );
-        if (authUser && authUser.email) {
-          userEmail = authUser.email;
-          userLoginId = authUser.user_metadata?.login_id || clean;
-        }
       }
+    }
 
-      if (!userEmail) {
-        return {
-          success: true,
-          message: "If an account matching that Login ID or email exists, an OTP has been sent.",
-          emailMasked: "****@growvia.edu",
-        };
-      }
-
-      const otp = String(Math.floor(100000 + Math.random() * 900000));
-      const now = Date.now();
-      const expiresAt = now + 10 * 60 * 1000;
-      const otpId = `OTP-${userLoginId.toUpperCase()}-${now}`;
-
-      try {
-        const { data: existingOtps } = await admin
-          .from("gv_requests")
-          .select("*")
-          .eq("request_type", "otp_reset")
-          .eq("applicant_or_child_name", userLoginId);
-
-        if (existingOtps) {
-          for (const oldReq of existingOtps) {
-            try {
-              const oldMeta = JSON.parse(oldReq.reason_or_notes || "{}");
-              oldMeta.used = true;
-              oldMeta.invalidated = true;
-              await admin
-                .from("gv_requests")
-                .update({ status: "invalidated", reason_or_notes: JSON.stringify(oldMeta) })
-                .eq("id", oldReq.id);
-            } catch {}
-          }
-        }
-      } catch {}
-
-      const payload = {
-        id: otpId,
-        request_type: "otp_reset",
-        applicant_or_child_name: userLoginId,
-        status: "pending",
-        reason_or_notes: JSON.stringify({
-          otpId,
-          loginId: userLoginId,
-          email: userEmail,
-          otp,
-          expiresAt,
-          used: false,
-          createdAt: new Date(now).toISOString(),
-        }),
-      };
-
-      await admin.from("gv_requests").upsert([payload], { onConflict: "id" });
-
+    if (!resolvedEmail) {
+      // Return neutral message to avoid email enumeration
       return {
         success: true,
-        message: `An OTP code has been sent to ${maskEmail(userEmail)}.`,
-        emailMasked: maskEmail(userEmail),
+        message: "If an account matching that identifier exists, password reset instructions have been sent.",
+        emailMasked: "****@sunshine.edu",
       };
-    } catch {}
-  }
+    }
 
-  return { success: false, message: "Failed to request OTP." };
+    // Trigger Supabase Auth native reset email
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resolvedEmail, {
+      redirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:5173"}/forgot-password`,
+    });
+
+    if (resetErr) {
+      return {
+        success: false,
+        message: resetErr.message || "Failed to dispatch password recovery email via Supabase Auth.",
+      };
+    }
+
+    return {
+      success: true,
+      message: `Password recovery instructions sent to ${maskEmail(resolvedEmail)}. Please check your inbox.`,
+      emailMasked: maskEmail(resolvedEmail),
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to request OTP." };
+  }
 }
 
 export async function verifyOtpCode(identifier: string, otp: string): Promise<{ success: boolean; message: string; resetToken?: string }> {
