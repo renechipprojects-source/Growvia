@@ -28,16 +28,14 @@ export function ParentShell() {
   const parent = useParent();
   const leave = useLeave();
 
-  function handleLogout() {
+  async function handleLogout() {
     if (typeof window !== "undefined") {
       try {
         window.localStorage.removeItem("sunshine.parent.activeChildId");
       } catch {}
     }
-    import("@/lib/auth").then(({ signOut }) => {
-      signOut();
-      navigate({ to: "/" });
-    });
+    const { signOut } = await import("@/lib/auth");
+    await signOut();
   }
 
 

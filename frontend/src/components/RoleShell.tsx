@@ -204,11 +204,9 @@ function RoleShellInner({ role }: { role: Role }) {
       <div className="pt-4 shrink-0">
         <button
           type="button"
-          onClick={() => {
-            import("@/lib/auth").then(({ signOut }) => {
-              signOut();
-              window.location.replace("/");
-            });
+          onClick={async () => {
+            const { signOut } = await import("@/lib/auth");
+            await signOut();
           }}
           className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-white transition"
         >

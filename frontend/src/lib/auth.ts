@@ -122,13 +122,13 @@ export function clearAllClientCaches() {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith("sunshine.") || k.startsWith("sunshine_"))) {
+      if (k && (k.startsWith("sunshine") || k.startsWith("sb-") || k.includes("auth-token") || k.includes("supabase"))) {
         keysToRemove.push(k);
       }
     }
     for (let i = 0; i < sessionStorage.length; i++) {
       const k = sessionStorage.key(i);
-      if (k && (k.startsWith("sunshine.") || k.startsWith("sunshine_"))) {
+      if (k && (k.startsWith("sunshine") || k.startsWith("sb-") || k.includes("auth-token") || k.includes("supabase"))) {
         keysToRemove.push(k);
       }
     }
@@ -139,14 +139,17 @@ export function clearAllClientCaches() {
   } catch {}
 }
 
-export function signOut() {
+export async function signOut() {
   if (typeof window === "undefined") return;
+  try {
+    await supabase.auth.signOut();
+  } catch {}
   clearAllClientCaches();
   try {
-    supabase.auth.signOut().catch(() => {});
+    window.history.replaceState(null, "", "/");
   } catch {}
   try {
-    window.location.href = "/";
+    window.location.replace("/");
   } catch {}
 }
 

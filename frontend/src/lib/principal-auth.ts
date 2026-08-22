@@ -44,10 +44,8 @@ export function login(): PrincipalSession | null {
   return getSession();
 }
 
-export function logout() {
-  if (typeof window === "undefined") return;
-  for (const key of HUB_KEYS) {
-    window.localStorage.removeItem(key);
-    window.sessionStorage.removeItem(key);
-  }
+import { signOut } from "@/lib/auth";
+
+export async function logout() {
+  await signOut();
 }

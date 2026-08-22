@@ -174,7 +174,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={adminSignOut}
+              onClick={async () => { await adminSignOut(); }}
               tooltip="Sign out"
               className="text-slate-700 font-medium hover:bg-rose-50 hover:text-rose-700"
             >

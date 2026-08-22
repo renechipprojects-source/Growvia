@@ -105,14 +105,8 @@ export function PrincipalSidebar({
     };
   }, [pathname]);
 
-  const handleLogout = () => {
-    logout();
-    try {
-      window.history.replaceState(null, "", "/");
-    } catch {
-      /* ignore */
-    }
-    navigate({ to: "/", replace: true });
+  const handleLogout = async () => {
+    await logout();
   };
 
   // When mobile drawer is open we always show the full sidebar (no collapse on mobile).

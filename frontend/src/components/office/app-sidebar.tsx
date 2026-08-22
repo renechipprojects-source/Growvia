@@ -200,9 +200,8 @@ export function OfficeSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => {
-                signOut();
-                window.location.replace("/");
+              onClick={async () => {
+                await signOut();
               }}
               tooltip="Sign out"
               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
