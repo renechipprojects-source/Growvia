@@ -18,23 +18,18 @@ export interface SystemUser {
   name: string;
 }
 
-export function listSystemUsers(): SystemUser[] {
-  return [
-    { loginId: "ADMIN001", role: "super-admin", name: "System Administrator" },
-    { loginId: "PRINCIPAL001", role: "principal", name: "Principal" },
-    { loginId: "OFFICE001", role: "office", name: "Office Staff" },
-  ];
+export interface SystemUser {
+  loginId: string;
+  role: SystemRole;
+  name: string;
 }
 
-export function findSystemUserByLoginId(loginId: string): SystemUser | undefined {
-  const clean = (loginId || "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
-  const list = listSystemUsers();
-  return list.find(
-    (u) =>
-      u.loginId.toLowerCase() === (loginId || "").trim().toLowerCase() ||
-      u.loginId.toLowerCase().replace(/[\s\-_]+/g, "") === clean ||
-      u.role === clean
-  );
+export function listSystemUsers(): SystemUser[] {
+  return [];
+}
+
+export function findSystemUserByLoginId(_loginId: string): SystemUser | undefined {
+  return undefined;
 }
 
 const TEMP_KEY = "sunshine.tempFlags.v1";
@@ -165,11 +160,65 @@ export function isAuthed(role?: Role | Role[]): boolean {
   return roles.some((r) => norm(r) === userNorm || r === s.role);
 }
 
-export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
-  const s = getSession();
-  if (!s || !s.role) {
+export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Session> {
+  let authUser: any = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    authUser = data?.user;
+  } catch {}
+
+  const cachedSession = getSession();
+
+  if (!authUser) {
+    clearAllClientCaches();
     throw redirect({ to: "/" });
   }
+
+  let profile: any = null;
+  if (authUser) {
+    try {
+      const { data: p } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`)
+        .maybeSingle();
+      if (p) profile = p;
+    } catch {}
+
+    if (!profile && authUser.email) {
+      try {
+        const { resolveLoginIdViaServer } = await import("./supabaseAuth");
+        const serverRes = await resolveLoginIdViaServer(authUser.email);
+        if (serverRes?.profile) profile = serverRes.profile;
+      } catch {}
+    }
+  }
+
+  if (profile && (profile.status === "inactive" || profile.status === "disabled")) {
+    await supabase.auth.signOut().catch(() => {});
+    clearAllClientCaches();
+    throw redirect({ to: "/" });
+  }
+
+  const activeRole: Role = (profile?.role || authUser?.user_metadata?.role || cachedSession?.role) as Role;
+  const activeLoginId = profile?.login_id || authUser?.user_metadata?.login_id || cachedSession?.loginId || authUser?.email || "user";
+  const activeName = profile?.full_name || authUser?.user_metadata?.full_name || cachedSession?.name || "User";
+  const activeMustChange = Boolean(profile?.must_change_password ?? cachedSession?.mustChangePassword);
+
+  if (!activeRole) {
+    throw redirect({ to: "/" });
+  }
+
+  const liveSession: Session = {
+    loginId: activeLoginId,
+    email: authUser?.email || profile?.email || cachedSession?.email,
+    role: activeRole,
+    name: activeName,
+    mustChangePassword: activeMustChange,
+  };
+
+  writeSession(liveSession, true);
+
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
   const norm = (r: string) => {
     const l = (r || "").toLowerCase();
@@ -177,17 +226,20 @@ export function requireAuthGuard(allowedRoles: Role | Role[]): Session {
     if (l === "student") return "parent";
     return l;
   };
-  const userNorm = norm(s.role);
+  const userNorm = norm(liveSession.role);
   const match =
     userNorm === "super-admin" ||
-    roles.some((r) => norm(r) === userNorm || (r || "").toLowerCase() === (s.role || "").toLowerCase());
+    roles.some((r) => norm(r) === userNorm || (r || "").toLowerCase() === (liveSession.role || "").toLowerCase());
+
   if (!match) {
-    throw redirect({ to: roleHome(s.role) });
+    throw redirect({ to: roleHome(liveSession.role) });
   }
-  if (s.mustChangePassword) {
+
+  if (liveSession.mustChangePassword) {
     throw redirect({ to: "/change-password" });
   }
-  return s;
+
+  return liveSession;
 }
 
 // ─── Change password & Temporary Passwords ─────────────────────────────────

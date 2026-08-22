@@ -9,8 +9,8 @@ import { InventoryProvider } from "@/lib/inventoryContext";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/office")({
-  beforeLoad: () => {
-    requireAuthGuard(["office", "super-admin", "principal"]);
+  beforeLoad: async () => {
+    await requireAuthGuard(["office", "super-admin", "principal"]);
   },
   head: () => ({
     meta: [

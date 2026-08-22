@@ -5,8 +5,8 @@ import { LeaveProvider } from "@/lib/leaveContext";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/teacher")({
-  beforeLoad: () => {
-    requireAuthGuard("teacher");
+  beforeLoad: async () => {
+    await requireAuthGuard("teacher");
   },
   head: () => ({
     meta: [

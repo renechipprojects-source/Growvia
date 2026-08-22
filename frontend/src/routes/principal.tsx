@@ -26,8 +26,8 @@ const titleMap: Record<string, string> = {
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/principal")({
-  beforeLoad: () => {
-    requireAuthGuard("principal");
+  beforeLoad: async () => {
+    await requireAuthGuard("principal");
   },
   component: PrincipalLayout,
 });

@@ -25,8 +25,8 @@ import { AnnualPromotionLifecycleSection } from "@/components/promotion/AnnualPr
 import { syncTransportFromSupabase, getStoredVehicles, getStoredRoutes } from "@/modules/transport/transportStore";
 
 export const Route = createFileRoute("/principal/dashboard")({
-  beforeLoad: () => {
-    requireAuthGuard("principal");
+  beforeLoad: async () => {
+    await requireAuthGuard("principal");
   },
   head: () => ({
     meta: [

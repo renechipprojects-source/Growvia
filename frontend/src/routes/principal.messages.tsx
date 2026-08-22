@@ -14,8 +14,8 @@ import { toast } from "sonner";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/principal/messages")({
-  beforeLoad: () => {
-    requireAuthGuard("principal");
+  beforeLoad: async () => {
+    await requireAuthGuard("principal");
   },
   head: () => ({
     meta: [

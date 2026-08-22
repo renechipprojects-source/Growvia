@@ -35,13 +35,42 @@ function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ loginId?: string; password?: string; form?: string }>({});
 
-  // If already signed in, hop to the right dashboard.
+  // If a valid live Supabase Auth session exists, restore that user's correct role dashboard.
   useEffect(() => {
-    const s = getSession();
-    if (s) {
-      if (s.mustChangePassword) navigate({ to: "/change-password" });
-      else navigate({ to: roleHome(s.role) });
+    let isMounted = true;
+    async function checkExistingAuthSession() {
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data } = await supabase.auth.getUser();
+        if (!data?.user) {
+          import("@/lib/auth").then(({ clearAllClientCaches }) => clearAllClientCaches());
+          return;
+        }
+        // Valid Supabase Auth user exists — load live profile from gv_users
+        const { data: profile } = await supabase
+          .from("gv_users")
+          .select("id, auth_user_id, login_id, role, full_name, status, must_change_password")
+          .or(`auth_user_id.eq.${data.user.id},id.eq.${data.user.id},email.ilike.${data.user.email}`)
+          .maybeSingle();
+
+        if (isMounted && profile && profile.status !== "inactive" && profile.status !== "disabled") {
+          const { writeSession, roleHome } = await import("@/lib/auth");
+          writeSession(
+            {
+              loginId: profile.login_id,
+              role: profile.role as any,
+              name: profile.full_name,
+              mustChangePassword: profile.must_change_password,
+            },
+            true
+          );
+          const targetUrl = profile.must_change_password ? "/change-password" : roleHome(profile.role as any);
+          navigate({ to: targetUrl });
+        }
+      } catch {}
     }
+    checkExistingAuthSession();
+    return () => { isMounted = false; };
   }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {

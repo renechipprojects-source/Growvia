@@ -14,8 +14,8 @@ import { toast } from "sonner";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin/messages")({
-  beforeLoad: () => {
-    requireAuthGuard("admin");
+  beforeLoad: async () => {
+    await requireAuthGuard("super-admin");
   },
   head: () => ({
     meta: [

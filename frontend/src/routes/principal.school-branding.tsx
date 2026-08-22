@@ -12,8 +12,8 @@ import { validateIndianMobile } from "@/lib/utils";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/principal/school-branding")({
-  beforeLoad: () => {
-    requireAuthGuard("principal");
+  beforeLoad: async () => {
+    await requireAuthGuard("principal");
   },
   head: () => ({
     meta: [

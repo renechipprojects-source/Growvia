@@ -5,8 +5,8 @@ import { TopNav } from "@/components/admin/top-nav";
 import { requireAuthGuard } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin")({
-  beforeLoad: () => {
-    requireAuthGuard("super-admin");
+  beforeLoad: async () => {
+    await requireAuthGuard("super-admin");
   },
   component: AdminLayout,
 });

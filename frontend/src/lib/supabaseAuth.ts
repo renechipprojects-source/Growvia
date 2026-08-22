@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { API_URL as BACKEND_URL } from "./api";
-import { listTeacherCredentials, listParentCredentials } from "./credentials";
 
 /**
  * Server-Side Provisioning Trigger:
@@ -326,189 +325,128 @@ export async function resolveLoginIdViaServer(identifier: string) {
   return null;
 }
 
-export async function login(loginId: string, password: string) {
+export async function login(loginIdInput: string, passwordInput: string) {
   try {
-    const rawId = loginId.trim();
-    if (!rawId) {
+    const rawInput = (loginIdInput || "").trim();
+    const password = (passwordInput || "").trim();
+    if (!rawInput) {
       return { success: false, error: "Please enter your Login ID or Email." };
     }
     if (!password) {
       return { success: false, error: "Please enter your password." };
     }
 
-    const cleanId = rawId.toLowerCase().replace(/[\s\-_]+/g, "");
+    let authUser: any = null;
+    let profile: any = null;
+    let authEmail: string | null = null;
 
-    // Map common role shortcuts to canonical IDs
-    let canonicalId = rawId;
-    if (cleanId === "admin" || cleanId === "superadmin" || cleanId === "admin001") canonicalId = "ADMIN001";
-    else if (cleanId === "principal" || cleanId === "principal001") canonicalId = "PRINCIPAL001";
-    else if (cleanId === "office" || cleanId === "office001") canonicalId = "OFFICE001";
-    else if (cleanId === "teacher" || cleanId === "tch101") canonicalId = "TCH101";
-    else if (cleanId === "parent" || cleanId === "prt1001") canonicalId = "PRT1001";
-    else if (cleanId === "student" || cleanId === "stu001") canonicalId = "STU001";
+    if (rawInput.includes("@")) {
+      // ─── 1. EMAIL LOGIN FLOW ────────────────────────────────────────────────
+      authEmail = rawInput.toLowerCase();
 
-    const id = canonicalId;
-    let userData: any = null;
+      // Authenticate directly against live Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password,
+      });
 
-    // 1. Primary lookup via frontendSupabase gv_users using exact field queries
-    try {
-      const { data: d1 } = await supabase.from("gv_users").select("*").ilike("login_id", rawId).maybeSingle();
-      if (d1) userData = d1;
-      else {
-        const { data: d2 } = await supabase.from("gv_users").select("*").ilike("email", rawId).maybeSingle();
-        if (d2) userData = d2;
-        else {
-          const { data: d3 } = await supabase.from("gv_users").select("*").ilike("login_id", id).maybeSingle();
-          if (d3) userData = d3;
-        }
+      if (authError || !authData?.user) {
+        return { success: false, error: authError?.message || "Invalid Email or password." };
       }
-    } catch {}
 
-    // 2. If RLS blocked anon query or user not found directly, resolve via server endpoint
-    if (!userData) {
-      const serverRes = await resolveLoginIdViaServer(id) || await resolveLoginIdViaServer(rawId);
-      if (serverRes?.profile) {
-        userData = serverRes.profile;
-      }
-    }
+      authUser = authData.user;
 
-    // 3. Fallback: check stored local credentials
-    if (!userData && !rawId.includes("@")) {
-      const teacherCreds = listTeacherCredentials();
-      const matchTeach = teacherCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase() || c.loginId.toLowerCase() === rawId.toLowerCase());
-      if (matchTeach) {
-        userData = {
-          id: `TCH-${matchTeach.teacherId}`,
-          login_id: matchTeach.loginId,
-          email: `${matchTeach.loginId.toLowerCase()}@sunshineschool.edu`,
-          role: "teacher",
-          full_name: "Teacher User",
-          status: matchTeach.status.toLowerCase(),
-        };
+      // Resolve linked live gv_users profile
+      const { data: p1 } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authEmail}`)
+        .maybeSingle();
+
+      if (p1) {
+        profile = p1;
       } else {
-        const parentCreds = listParentCredentials();
-        const matchPar = parentCreds.find((c) => c.loginId.toLowerCase() === cleanId || c.loginId.toLowerCase() === id.toLowerCase() || c.loginId.toLowerCase() === rawId.toLowerCase());
-        if (matchPar) {
-          userData = {
-            id: `PAR-${matchPar.loginId}`,
-            login_id: matchPar.loginId,
-            email: `${matchPar.loginId.toLowerCase()}@growvia.edu`,
-            role: "parent",
-            full_name: "Parent User",
-            status: matchPar.status.toLowerCase(),
-          };
+        // Fallback: resolve profile via backend service if anon RLS policy restricts reading
+        const serverRes = await resolveLoginIdViaServer(authEmail);
+        if (serverRes?.profile) {
+          profile = serverRes.profile;
         }
       }
-    }
-
-    let profile: any = userData;
-
-    const emailCandidates: string[] = [];
-    if (rawId.includes("@")) {
-      emailCandidates.push(rawId.trim().toLowerCase());
-      if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
     } else {
-      if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
+      // ─── 2. GENERATED LOGIN ID FLOW ──────────────────────────────────────────
+      const cleanLoginId = rawInput;
 
-      const cleanUpper = rawId.trim().toUpperCase();
-      const cleanLower = rawId.trim().toLowerCase();
-      const normId = cleanLower.replace(/[\s\-_]+/g, "");
+      // Resolve live gv_users profile by login_id
+      const { data: p1 } = await supabase
+        .from("gv_users")
+        .select("*")
+        .ilike("login_id", cleanLoginId)
+        .maybeSingle();
 
-      if (cleanUpper === "ADMIN001" || normId === "admin" || normId === "admin001" || normId === "superadmin") {
-        emailCandidates.push("admin@sunshineschool.edu");
-        emailCandidates.push("admin@growvia.edu");
-      }
-      if (cleanUpper === "PRINCIPAL001" || normId === "principal" || normId === "principal001") {
-        emailCandidates.push("principal@sunshineschool.edu");
-        emailCandidates.push("principal@growvia.edu");
-      }
-      if (cleanUpper === "OFFICE001" || normId === "office" || normId === "office001") {
-        emailCandidates.push("office@sunshineschool.edu");
-        emailCandidates.push("office@growvia.edu");
-      }
-      if (cleanUpper === "TCH101" || normId === "teacher" || normId === "tch101") {
-        emailCandidates.push("teacher@sunshineschool.edu");
-        emailCandidates.push("teacher@growvia.edu");
-      }
-      if (cleanUpper === "PRT1001" || normId === "parent" || normId === "prt1001") {
-        emailCandidates.push("parent@sunshineschool.edu");
-        emailCandidates.push("parent@growvia.edu");
-      }
-
-      emailCandidates.push(`${rawId.toLowerCase()}@sunshineschool.edu`);
-      emailCandidates.push(`${rawId.toLowerCase()}@growvia.edu`);
-      emailCandidates.push(`${id.toLowerCase()}@sunshineschool.edu`);
-      emailCandidates.push(`${id.toLowerCase()}@growvia.edu`);
-      emailCandidates.push(`${cleanId}@sunshineschool.edu`);
-      emailCandidates.push(`${cleanId}@growvia.edu`);
-    }
-
-    // Remove duplicates
-    const uniqueCandidates = Array.from(new Set(emailCandidates.filter(Boolean)));
-
-    let authResult: any = null;
-    let successfulEmail: string | null = null;
-
-    for (const candEmail of uniqueCandidates) {
-      try {
-        const res = await supabase.auth.signInWithPassword({
-          email: candEmail,
-          password,
-        });
-        if (res.data?.user) {
-          authResult = res;
-          successfulEmail = candEmail;
-          break;
+      if (p1) {
+        profile = p1;
+      } else {
+        // Resolve via backend service
+        const serverRes = await resolveLoginIdViaServer(cleanLoginId);
+        if (serverRes?.profile) {
+          profile = serverRes.profile;
         }
-      } catch {}
-    }
-
-    // If initial sign-in failed, try resolving exact auth email via server endpoint
-    if (!authResult?.data?.user) {
-      const serverRes = await resolveLoginIdViaServer(rawId) || await resolveLoginIdViaServer(id);
-      if (serverRes?.email) {
-        try {
-          const res = await supabase.auth.signInWithPassword({
-            email: serverRes.email,
-            password,
-          });
-          if (res.data?.user) {
-            authResult = res;
-            successfulEmail = serverRes.email;
-            if (serverRes.profile) profile = serverRes.profile;
-          }
-        } catch {}
       }
+
+      if (!profile) {
+        return { success: false, error: "Invalid Login ID or password." };
+      }
+
+      // Check if account is inactive/disabled before attempting Auth
+      if (profile.status === "inactive" || profile.status === "disabled") {
+        return { success: false, error: "Your account is inactive. Please contact the administrator." };
+      }
+
+      // Resolve that user's authoritative live Auth email
+      const serverRes = await resolveLoginIdViaServer(profile.login_id || cleanLoginId);
+      authEmail = serverRes?.email || profile.email;
+
+      if (!authEmail) {
+        return { success: false, error: "Unable to resolve Auth account for this Login ID." };
+      }
+
+      // Authenticate against live Supabase Auth using resolved Auth email
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password,
+      });
+
+      if (authError || !authData?.user) {
+        return { success: false, error: authError?.message || "Invalid Login ID or password." };
+      }
+
+      authUser = authData.user;
     }
 
-    // Require successful password verification
-    if (!authResult?.data?.user) {
-      return {
-        success: false,
-        error: "Invalid Login ID or password.",
-      };
-    }
-
-    // Fetch profile again if not resolved prior to auth
+    // Ensure we have a profile loaded
     if (!profile) {
-      const serverRes = await resolveLoginIdViaServer(id);
-      if (serverRes?.profile) {
-        profile = serverRes.profile;
-      }
+      const { data: p2 } = await supabase
+        .from("gv_users")
+        .select("*")
+        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`)
+        .maybeSingle();
+      if (p2) profile = p2;
     }
 
     if (!profile) {
       profile = {
-        id: authResult.data.user.id,
-        login_id: id,
-        email: successfulEmail || profile?.email || `${id.toLowerCase()}@sunshineschool.edu`,
-        role: authResult.data.user.user_metadata?.role || "teacher",
-        full_name: authResult.data.user.user_metadata?.full_name || "User Account",
+        id: authUser.id,
+        auth_user_id: authUser.id,
+        login_id: authUser.user_metadata?.login_id || rawInput,
+        email: authUser.email || authEmail,
+        role: authUser.user_metadata?.role || "teacher",
+        full_name: authUser.user_metadata?.full_name || "User Account",
         status: "active",
       };
     }
 
     if (profile.status === "inactive" || profile.status === "disabled") {
+      await supabase.auth.signOut().catch(() => {});
       return {
         success: false,
         error: "Your account is inactive. Please contact the administrator.",
@@ -517,7 +455,7 @@ export async function login(loginId: string, password: string) {
 
     return {
       success: true,
-      user: authResult.data.user,
+      user: authUser,
       profile: {
         ...profile,
         role: profile.role,
