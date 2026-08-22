@@ -92,7 +92,8 @@ function RoleShellInner({ role }: { role: Role }) {
 
   useEffect(() => {
     const session = getSession();
-    if (session && session.role !== "admin" && session.role !== "superadmin") {
+    const userRole = session?.role as string | undefined;
+    if (session && userRole !== "super-admin" && userRole !== "admin" && userRole !== "superadmin") {
       const targetId = session.linkId || session.loginId || session.email;
       if (targetId) {
         import("@/lib/staffProfileService").then(({ fetchStaffProfile, calculateProfileCompletion }) => {
