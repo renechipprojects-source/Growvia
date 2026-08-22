@@ -409,6 +409,32 @@ export async function login(loginId: string, password: string) {
       if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
     } else {
       if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
+
+      const cleanUpper = rawId.trim().toUpperCase();
+      const cleanLower = rawId.trim().toLowerCase();
+      const normId = cleanLower.replace(/[\s\-_]+/g, "");
+
+      if (cleanUpper === "ADMIN001" || normId === "admin" || normId === "admin001" || normId === "superadmin") {
+        emailCandidates.push("admin@sunshineschool.edu");
+        emailCandidates.push("admin@growvia.edu");
+      }
+      if (cleanUpper === "PRINCIPAL001" || normId === "principal" || normId === "principal001") {
+        emailCandidates.push("principal@sunshineschool.edu");
+        emailCandidates.push("principal@growvia.edu");
+      }
+      if (cleanUpper === "OFFICE001" || normId === "office" || normId === "office001") {
+        emailCandidates.push("office@sunshineschool.edu");
+        emailCandidates.push("office@growvia.edu");
+      }
+      if (cleanUpper === "TCH101" || normId === "teacher" || normId === "tch101") {
+        emailCandidates.push("teacher@sunshineschool.edu");
+        emailCandidates.push("teacher@growvia.edu");
+      }
+      if (cleanUpper === "PRT1001" || normId === "parent" || normId === "prt1001") {
+        emailCandidates.push("parent@sunshineschool.edu");
+        emailCandidates.push("parent@growvia.edu");
+      }
+
       emailCandidates.push(`${rawId.toLowerCase()}@sunshineschool.edu`);
       emailCandidates.push(`${rawId.toLowerCase()}@growvia.edu`);
       emailCandidates.push(`${id.toLowerCase()}@sunshineschool.edu`);
