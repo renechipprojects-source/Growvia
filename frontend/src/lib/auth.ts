@@ -163,8 +163,13 @@ export function isAuthed(role?: Role | Role[]): boolean {
 export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Session> {
   let authUser: any = null;
   try {
-    const { data } = await supabase.auth.getUser();
-    authUser = data?.user;
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.user) {
+      authUser = sessionData.session.user;
+    } else {
+      const { data: userData } = await supabase.auth.getUser();
+      authUser = userData?.user;
+    }
   } catch {}
 
   const cachedSession = getSession();

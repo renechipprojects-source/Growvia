@@ -41,30 +41,40 @@ function Login() {
     async function checkExistingAuthSession() {
       try {
         const { supabase } = await import("@/lib/supabase");
-        const { data } = await supabase.auth.getUser();
-        if (!data?.user) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        let user = sessionData?.session?.user;
+        if (!user) {
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user;
+        }
+
+        if (!user) {
           import("@/lib/auth").then(({ clearAllClientCaches }) => clearAllClientCaches());
           return;
         }
+
         // Valid Supabase Auth user exists — load live profile from gv_users
         const { data: profile } = await supabase
           .from("gv_users")
           .select("id, auth_user_id, login_id, role, full_name, status, must_change_password")
-          .or(`auth_user_id.eq.${data.user.id},id.eq.${data.user.id},email.ilike.${data.user.email}`)
+          .or(`auth_user_id.eq.${user.id},id.eq.${user.id},email.ilike.${user.email}`)
           .maybeSingle();
 
-        if (isMounted && profile && profile.status !== "inactive" && profile.status !== "disabled") {
+        const activeRole = profile?.role || user.user_metadata?.role;
+        const status = profile?.status || "active";
+
+        if (isMounted && activeRole && status !== "inactive" && status !== "disabled") {
           const { writeSession, roleHome } = await import("@/lib/auth");
           writeSession(
             {
-              loginId: profile.login_id,
-              role: profile.role as any,
-              name: profile.full_name,
-              mustChangePassword: profile.must_change_password,
+              loginId: profile?.login_id || user.user_metadata?.login_id || user.email,
+              role: activeRole as any,
+              name: profile?.full_name || user.user_metadata?.full_name || "User",
+              mustChangePassword: profile?.must_change_password || false,
             },
             true
           );
-          const targetUrl = profile.must_change_password ? "/change-password" : roleHome(profile.role as any);
+          const targetUrl = profile?.must_change_password ? "/change-password" : roleHome(activeRole as any);
           navigate({ to: targetUrl });
         }
       } catch {}
@@ -102,9 +112,7 @@ function Login() {
         );
         toast.success(`Welcome, ${supaResult.profile.full_name}`);
         const targetUrl = supaResult.profile.must_change_password ? "/change-password" : roleHome(supaResult.profile.role as any);
-        setTimeout(() => {
-          window.location.href = targetUrl;
-        }, 50);
+        navigate({ to: targetUrl });
         return;
       }
 
