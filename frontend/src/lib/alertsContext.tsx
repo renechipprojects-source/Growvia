@@ -40,32 +40,7 @@ function load(): CircularAlert[] {
     const raw = window.localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw) as CircularAlert[];
   } catch { /* noop */ }
-  // Seed with a couple of demo alerts
-  const seed: CircularAlert[] = [
-    {
-      id: "AL-1001",
-      title: "Annual Sports Day Rehearsal",
-      description: "All teachers to gather in the assembly at 9:30 AM for rehearsal briefing.",
-      priority: "High",
-      publishDate: todayISO(),
-      expiryDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-      audience: "both",
-      createdAt: new Date().toISOString(),
-      readBy: [],
-    },
-    {
-      id: "AL-1002",
-      title: "Fee reminder circular",
-      description: "Office staff to send WhatsApp reminders for pending July fees today.",
-      priority: "Normal",
-      publishDate: todayISO(),
-      expiryDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-      audience: "office",
-      createdAt: new Date().toISOString(),
-      readBy: [],
-    },
-  ];
-  return seed;
+  return [];
 }
 
 export function AlertsProvider({ children }: { children: ReactNode }) {

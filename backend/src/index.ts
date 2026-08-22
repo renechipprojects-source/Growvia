@@ -378,7 +378,7 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
       });
     }
 
-    const { data: userList } = await admin.auth.admin.listUsers();
+    const { data: userList } = await admin.auth.admin.listUsers({ perPage: 1000 });
     const authUser = userList?.users?.find(
       (u) =>
         u.email?.toLowerCase() === clean.toLowerCase() ||
@@ -414,6 +414,120 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'User not found' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Login ID resolution failed' });
+  }
+});
+
+app.post('/api/users/update-email', async (req: Request, res: Response) => {
+  try {
+    const { identifier, new_email } = req.body || {};
+    if (!identifier || !new_email) {
+      return res.status(400).json({ error: 'identifier and new_email are required.' });
+    }
+
+    const clean = String(identifier).trim();
+    const targetEmail = String(new_email).trim().toLowerCase();
+    const admin = supabaseAdmin;
+
+    let authUserId: string | null = null;
+    let targetLoginId: string = clean;
+
+    const { data: profile } = await admin
+      .from('gv_users')
+      .select('*')
+      .or(`login_id.ilike.${clean},email.ilike.${clean},id.ilike.${clean}`)
+      .maybeSingle();
+
+    if (profile) {
+      targetLoginId = profile.login_id || clean;
+      authUserId = profile.auth_user_id || profile.id;
+    }
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    let authUser = userList?.users?.find(
+      (u) =>
+        (authUserId && u.id === authUserId) ||
+        u.email?.toLowerCase() === clean.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+    );
+
+    if (authUser) {
+      authUserId = authUser.id;
+      await admin.auth.admin.updateUserById(authUserId, {
+        email: targetEmail,
+        email_confirm: true,
+      });
+    }
+
+    await admin
+      .from('gv_users')
+      .update({ email: targetEmail })
+      .or(`login_id.ilike.${targetLoginId},id.ilike.${clean}`);
+
+    return res.json({
+      success: true,
+      login_id: targetLoginId,
+      email: targetEmail,
+      authUserId,
+    });
+  } catch (err: any) {
+    console.error('Update email error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to update email' });
+  }
+});
+
+app.post('/api/users/update-password', async (req: Request, res: Response) => {
+  try {
+    const { identifier, new_password } = req.body || {};
+    if (!identifier || !new_password) {
+      return res.status(400).json({ error: 'identifier and new_password are required.' });
+    }
+
+    const clean = String(identifier).trim();
+    const admin = supabaseAdmin;
+
+    let authUserId: string | null = null;
+    let targetLoginId: string = clean;
+
+    const { data: profile } = await admin
+      .from('gv_users')
+      .select('*')
+      .or(`login_id.ilike.${clean},email.ilike.${clean},id.ilike.${clean}`)
+      .maybeSingle();
+
+    if (profile) {
+      targetLoginId = profile.login_id || clean;
+      authUserId = profile.auth_user_id || profile.id;
+    }
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    let authUser = userList?.users?.find(
+      (u) =>
+        (authUserId && u.id === authUserId) ||
+        u.email?.toLowerCase() === clean.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+    );
+
+    if (authUser) {
+      authUserId = authUser.id;
+      await admin.auth.admin.updateUserById(authUserId, {
+        password: new_password,
+        email_confirm: true,
+      });
+    }
+
+    await admin
+      .from('gv_users')
+      .update({ must_change_password: false })
+      .or(`login_id.ilike.${targetLoginId},id.ilike.${clean}`);
+
+    return res.json({
+      success: true,
+      login_id: targetLoginId,
+      authUserId,
+    });
+  } catch (err: any) {
+    console.error('Update password error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to update password' });
   }
 });
 

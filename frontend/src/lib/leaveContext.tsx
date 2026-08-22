@@ -14,6 +14,8 @@ export interface LeaveRequest {
   description?: string;
   medicalCertificateName?: string;
   medicalCertificateDataUrl?: string;
+  assignedTeacherId?: string;
+  assignedTeacherName?: string;
   status: "Pending" | "Approved" | "Rejected";
   submittedAt: string;
 }
@@ -29,7 +31,8 @@ const Ctx = createContext<LeaveState | null>(null);
 
 let memoryLeaveCache: LeaveRequest[] = [];
 
-import { getSession } from "./auth";
+import { getSession, safeNormalizeId } from "./auth";
+import { getStoredAssignments } from "./classAssignmentContext";
 
 export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> {
   try {
@@ -42,13 +45,21 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
     if (session && (session.role === "parent" || session.role === "student")) {
       const uId = session.linkId || session.loginId;
       query = query.or(`applicant_or_child_name.eq.${uId},reason_or_notes.cs.{"studentId":"${uId}"}`);
+    } else if (session && session.role === "teacher") {
+      const teacherId = safeNormalizeId(session.linkId || session.loginId);
+      const teacherAssignments = getStoredAssignments().filter(
+        (a) => a.status === "active" && safeNormalizeId(a.teacherId) === teacherId
+      );
+      if (teacherAssignments.length === 0) {
+        return [];
+      }
     }
 
     const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error || !data) return memoryLeaveCache;
 
-    const mapped: LeaveRequest[] = data.map((d: any) => {
+    let mapped: LeaveRequest[] = data.map((d: any) => {
       let meta: any = {};
       try {
         if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
@@ -68,10 +79,26 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
         description: meta.description || d.reason_or_notes,
         medicalCertificateName: meta.medicalCertificateName,
         medicalCertificateDataUrl: meta.medicalCertificateDataUrl,
+        assignedTeacherId: meta.assignedTeacherId,
+        assignedTeacherName: meta.assignedTeacherName,
         status: (d.status as any) || meta.status || "Pending",
         submittedAt: d.created_at || new Date().toISOString(),
       };
     });
+
+    if (session && session.role === "teacher") {
+      const teacherId = safeNormalizeId(session.linkId || session.loginId);
+      const teacherAssignments = getStoredAssignments().filter(
+        (a) => a.status === "active" && safeNormalizeId(a.teacherId) === teacherId
+      );
+      mapped = mapped.filter((r) =>
+        teacherAssignments.some(
+          (a) =>
+            (a.role === "class" && a.className === r.className && a.section === r.section) ||
+            (r.assignedTeacherId && safeNormalizeId(r.assignedTeacherId) === teacherId)
+        )
+      );
+    }
 
     memoryLeaveCache = mapped;
     return mapped;
@@ -104,9 +131,14 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
 
   const submit: LeaveState["submit"] = useCallback((r) => {
     const newId = `LV-${Date.now()}`;
+    const assignedClassTeacher = getStoredAssignments().find(
+      (a) => a.role === "class" && a.status === "active" && a.className === r.className && a.section === r.section
+    );
     const created: LeaveRequest = {
       ...r,
       id: newId,
+      assignedTeacherId: assignedClassTeacher?.teacherId || "ADMIN_FALLBACK",
+      assignedTeacherName: assignedClassTeacher?.teacherName || "Unassigned",
       status: "Pending",
       submittedAt: new Date().toISOString(),
     };
@@ -121,6 +153,8 @@ export function LeaveProvider({ children }: { children: ReactNode }) {
         id: newId,
         request_type: "leave",
         applicant_or_child_name: r.studentName,
+        class_name: r.className,
+        section: r.section,
         leave_type_or_interested_class: r.reason,
         status: "Pending",
         reason_or_notes: JSON.stringify(created),

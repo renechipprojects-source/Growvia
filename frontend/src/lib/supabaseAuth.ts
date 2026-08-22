@@ -91,6 +91,180 @@ export async function triggerServerUserProvisioning(params?: {
   return { success: false };
 }
 
+export async function updateServerAuthEmail(identifier: string, newEmail: string) {
+  const backendUrls = Array.from(new Set([
+    BACKEND_URL,
+    "http://localhost:5000",
+    ""
+  ])).filter((u) => typeof u === "string");
+
+  for (const baseUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/update-email` : "/api/users/update-email";
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, new_email: newEmail }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success) return data;
+      }
+    } catch {}
+  }
+
+  // Node fallback for tests
+  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
+  const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
+
+  if (serviceKey && identifier && newEmail) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const admin = createClient(supabaseUrl, serviceKey);
+      const clean = identifier.trim();
+      const targetEmail = newEmail.trim().toLowerCase();
+
+      let authUserId: string | null = null;
+      let targetLoginId: string = clean;
+      let targetRole: string = "teacher";
+      let targetName: string = "User Account";
+
+      const { data: profile } = await admin
+        .from("gv_users")
+        .select("id, auth_user_id, login_id, role, full_name, email")
+        .or(`login_id.ilike.${clean},email.ilike.${clean},id.ilike.${clean}`)
+        .maybeSingle();
+
+      if (profile) {
+        targetLoginId = profile.login_id || clean;
+        authUserId = profile.auth_user_id || profile.id;
+        if (profile.role) targetRole = profile.role;
+        if (profile.full_name) targetName = profile.full_name;
+      }
+
+      if (authUserId) {
+        await admin.auth.admin.updateUserById(authUserId, {
+          email: targetEmail,
+          email_confirm: true,
+          user_metadata: { login_id: targetLoginId, role: targetRole, full_name: targetName },
+        });
+      } else {
+        const { data: userList } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        let authUser = userList?.users?.find(
+          (u) =>
+            u.email?.toLowerCase() === clean.toLowerCase() ||
+            u.email?.toLowerCase() === targetEmail ||
+            u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+        );
+        if (authUser) {
+          authUserId = authUser.id;
+          if (authUser.user_metadata?.role) targetRole = authUser.user_metadata.role;
+          await admin.auth.admin.updateUserById(authUser.id, {
+            email: targetEmail,
+            email_confirm: true,
+            user_metadata: { login_id: targetLoginId, role: targetRole, full_name: targetName },
+          });
+        }
+      }
+
+      await admin.from("gv_users").update({ email: targetEmail }).or(`login_id.ilike.${targetLoginId},login_id.ilike.${clean},id.ilike.${clean}`);
+      return { success: true, email: targetEmail, authUserId };
+    } catch {}
+  }
+
+  return { success: false };
+}
+
+export async function updateServerAuthPassword(identifier: string, newPassword: string) {
+  const backendUrls = Array.from(new Set([
+    BACKEND_URL,
+    "http://localhost:5000",
+    ""
+  ])).filter((u) => typeof u === "string");
+
+  for (const baseUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/update-password` : "/api/users/update-password";
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, new_password: newPassword }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success) return data;
+      }
+    } catch {}
+  }
+
+  // Node fallback for tests
+  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
+  const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
+
+  if (serviceKey && identifier && newPassword) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const admin = createClient(supabaseUrl, serviceKey);
+      const clean = identifier.trim();
+
+      let authUserId: string | null = null;
+      let targetLoginId: string = clean;
+      let targetRole: string = "teacher";
+      let targetName: string = "User Account";
+
+      const { data: profile } = await admin
+        .from("gv_users")
+        .select("id, auth_user_id, login_id, role, full_name, email")
+        .or(`login_id.ilike.${clean},email.ilike.${clean},id.ilike.${clean}`)
+        .maybeSingle();
+
+      if (profile) {
+        targetLoginId = profile.login_id || clean;
+        authUserId = profile.auth_user_id || profile.id;
+        if (profile.role) targetRole = profile.role;
+        if (profile.full_name) targetName = profile.full_name;
+      }
+
+      if (authUserId) {
+        await admin.auth.admin.updateUserById(authUserId, {
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: { login_id: targetLoginId, role: targetRole, full_name: targetName },
+        });
+      } else {
+        const { data: userList } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        let authUser = userList?.users?.find(
+          (u) =>
+            u.email?.toLowerCase() === clean.toLowerCase() ||
+            u.user_metadata?.login_id?.toString().toLowerCase() === targetLoginId.toLowerCase()
+        );
+        if (authUser) {
+          authUserId = authUser.id;
+          if (authUser.user_metadata?.role) targetRole = authUser.user_metadata.role;
+          await admin.auth.admin.updateUserById(authUser.id, {
+            password: newPassword,
+            email_confirm: true,
+            user_metadata: { login_id: targetLoginId, role: targetRole, full_name: targetName },
+          });
+        }
+      }
+
+      await admin.from("gv_users").update({ must_change_password: false }).or(`login_id.ilike.${targetLoginId},login_id.ilike.${clean},id.ilike.${clean}`);
+      return { success: true, authUserId };
+    } catch {}
+  }
+
+  return { success: false };
+}
+
 export async function resolveLoginIdViaServer(identifier: string) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
@@ -230,14 +404,18 @@ export async function login(loginId: string, password: string) {
     let profile: any = userData;
 
     const emailCandidates: string[] = [];
-    if (rawId.includes("@")) emailCandidates.push(rawId);
-    if (profile?.email) emailCandidates.push(profile.email);
-    emailCandidates.push(`${rawId.toLowerCase()}@sunshineschool.edu`);
-    emailCandidates.push(`${rawId.toLowerCase()}@growvia.edu`);
-    emailCandidates.push(`${id.toLowerCase()}@sunshineschool.edu`);
-    emailCandidates.push(`${id.toLowerCase()}@growvia.edu`);
-    emailCandidates.push(`${cleanId}@sunshineschool.edu`);
-    emailCandidates.push(`${cleanId}@growvia.edu`);
+    if (rawId.includes("@")) {
+      emailCandidates.push(rawId.trim().toLowerCase());
+      if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
+    } else {
+      if (profile?.email) emailCandidates.push(profile.email.trim().toLowerCase());
+      emailCandidates.push(`${rawId.toLowerCase()}@sunshineschool.edu`);
+      emailCandidates.push(`${rawId.toLowerCase()}@growvia.edu`);
+      emailCandidates.push(`${id.toLowerCase()}@sunshineschool.edu`);
+      emailCandidates.push(`${id.toLowerCase()}@growvia.edu`);
+      emailCandidates.push(`${cleanId}@sunshineschool.edu`);
+      emailCandidates.push(`${cleanId}@growvia.edu`);
+    }
 
     // Remove duplicates
     const uniqueCandidates = Array.from(new Set(emailCandidates.filter(Boolean)));
