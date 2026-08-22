@@ -549,20 +549,19 @@ function Field({ label, value, onCopy, copied, trailing }: { label: string; valu
 
 function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (teacher: Teacher) => void }) {
   const [name, setName] = useState("");
-  const [subject, setSubject] = useState("English & Rhymes");
+  const [role, setRole] = useState("teacher");
+  const [designation, setDesignation] = useState("Senior Faculty");
+  const [department, setDepartment] = useState("Academic");
+  const [subject, setSubject] = useState("General");
   const [className, setClassName] = useState("Nursery A");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [joiningDate, setJoiningDate] = useState(new Date().toISOString().slice(0, 10));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return toast.error("Full Name is required");
-
-    const phoneCheck = validateIndianMobile(phone);
-    if (!phoneCheck.valid) {
-      toast.error(phoneCheck.error || "Please enter a valid 10-digit mobile number.");
-      return;
-    }
+    if (!email.trim() || !email.includes("@")) return toast.error("A valid official Email address is required.");
 
     const id = `TCH-${Math.floor(100 + Math.random() * 900)}`;
     const newTeacher: Teacher = {
@@ -570,12 +569,14 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
       name: name.trim(),
       subject,
       className,
-      phone: phoneCheck.formatted,
-      email: email.trim() || `${name.trim().toLowerCase().replace(/\s+/g, ".")}@sunshineschool.edu`,
-      avatar: `https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80`,
-      experience: 3,
-      joined: "2026-01-01",
+      phone: phone.trim() ? phone.trim() : "9876543210",
+      email: email.trim().toLowerCase(),
+      avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(name.trim())}`,
+      experience: 0,
+      joined: joiningDate,
       branch: "Main Campus",
+      department,
+      role,
     };
 
     onAdd(newTeacher);
@@ -587,38 +588,62 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Add New Teacher / Staff Member</DialogTitle>
-          <DialogDescription>Register new teaching or administrative staff to automatically issue login credentials.</DialogDescription>
+          <DialogTitle className="text-xl font-bold">Add New Teacher / Staff Member</DialogTitle>
+          <DialogDescription>Enter official employment details to create account and issue login credentials.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold uppercase text-slate-700">Full Name *</label>
-            <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ananya Sen" className="mt-1 bg-white" />
+            <label className="text-xs font-semibold uppercase text-slate-700">Full Name (Official) *</label>
+            <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ananya Sharma" className="mt-1 bg-white" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold uppercase text-slate-700">Subject / Role</label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Mathematics" className="mt-1 bg-white" />
+              <label className="text-xs font-semibold uppercase text-slate-700">System Role *</label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="teacher">Teacher / Faculty</SelectItem>
+                  <SelectItem value="office">Office Staff</SelectItem>
+                  <SelectItem value="principal">Principal / Vice-Principal</SelectItem>
+                  <SelectItem value="accountant">Accountant / Finance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Designation</label>
+              <Input value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g. Senior Teacher" className="mt-1 bg-white" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Department</label>
+              <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="e.g. Academics" className="mt-1 bg-white" />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase text-slate-700">Assigned Class</label>
               <Input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. Nursery A" className="mt-1 bg-white" />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold uppercase text-slate-700">Phone Number</label>
-            <Input maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="9876543210" className="mt-1 bg-white" />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Official Email *</label>
+              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teacher@sunshine.edu" className="mt-1 bg-white" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-700">Joining Date</label>
+              <Input type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} className="mt-1 bg-white" />
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold uppercase text-slate-700">Email Address</label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teacher@sunshineschool.edu" className="mt-1 bg-white" />
-          </div>
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-gradient-to-r from-sky-500 to-blue-500 text-white">
-              <UserPlus className="h-4 w-4 mr-2" /> Save & Issue Login
+
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={onClose} rounded-full>Cancel</Button>
+            <Button type="submit" className="bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-full">
+              <UserPlus className="h-4 w-4 mr-2" /> Save & Issue Login Credentials
             </Button>
           </DialogFooter>
         </form>

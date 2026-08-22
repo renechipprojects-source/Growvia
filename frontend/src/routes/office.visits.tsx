@@ -109,52 +109,52 @@ function VisitsPage() {
   };
 
   return (
-    <div className="space-y-4 w-full max-w-none">
-      <div className="flex items-center justify-between">
-        <PageHeader
-          title="Today's School Visits"
-          description="Schedule, track, and record prospective parent campus tours and visits."
-        />
-        <Button onClick={() => setIsModalOpen(true)} className="bg-sky-600 hover:bg-sky-700 text-white font-medium shadow">
-          <Plus className="mr-1.5 h-4 w-4" /> Schedule Campus Visit
-        </Button>
-      </div>
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden min-w-0">
+      <PageHeader
+        title="Today's School Visits"
+        description="Schedule, track, and record prospective parent campus tours and visits."
+        actions={
+          <Button onClick={() => setIsModalOpen(true)} className="bg-sky-600 hover:bg-sky-700 text-white font-medium shadow shrink-0">
+            <Plus className="mr-1.5 h-4 w-4" /> Schedule Campus Visit
+          </Button>
+        }
+      />
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-blue-50 p-4 shadow-sm">
-          <div className="text-xs uppercase font-medium text-sky-600">Total Scheduled</div>
-          <div className="text-2xl font-bold text-sky-900 mt-1">{scheduledCount}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+        <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-blue-50 p-4 shadow-sm min-w-0">
+          <div className="text-xs uppercase font-medium text-sky-600 truncate">Total Scheduled</div>
+          <div className="text-2xl font-bold text-sky-900 mt-1 truncate">{scheduledCount}</div>
         </div>
-        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm">
-          <div className="text-xs uppercase font-medium text-emerald-600">Completed Visits</div>
-          <div className="text-2xl font-bold text-emerald-900 mt-1">{completedCount}</div>
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm min-w-0">
+          <div className="text-xs uppercase font-medium text-emerald-600 truncate">Completed Visits</div>
+          <div className="text-2xl font-bold text-emerald-900 mt-1 truncate">{completedCount}</div>
         </div>
-        <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 shadow-sm">
-          <div className="text-xs uppercase font-medium text-indigo-600">Total Enquiries</div>
-          <div className="text-2xl font-bold text-indigo-900 mt-1">{enquiries.length}</div>
+        <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 shadow-sm min-w-0">
+          <div className="text-xs uppercase font-medium text-indigo-600 truncate">Total Enquiries</div>
+          <div className="text-2xl font-bold text-indigo-900 mt-1 truncate">{enquiries.length}</div>
         </div>
-        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
-          <div className="text-xs uppercase font-medium text-amber-600">Completion Rate</div>
-          <div className="text-2xl font-bold text-amber-900 mt-1">
+        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm min-w-0">
+          <div className="text-xs uppercase font-medium text-amber-600 truncate">Completion Rate</div>
+          <div className="text-2xl font-bold text-amber-900 mt-1 truncate">
             {enquiries.length ? Math.round((completedCount / (scheduledCount + completedCount || 1)) * 100) : 100}%
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="card-elevated p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
-        <div className="relative flex-1 w-full">
+      <div className="card-elevated p-4 flex flex-col sm:flex-row gap-3 items-center justify-between w-full max-w-full">
+        <div className="relative flex-1 w-full min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search visit by child name, parent, or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 w-full min-w-0"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 bg-white shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Visits & Enquiries</SelectItem>
             <SelectItem value="scheduled">Scheduled Visits</SelectItem>
@@ -164,8 +164,8 @@ function VisitsPage() {
       </div>
 
       {/* Visits Cards Grid */}
-      <div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="w-full max-w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
           {filteredVisits.map((e, i) => {
             const isCompleted = e.status === "Visit Completed";
             const timeSlot = ["10:30 AM", "11:15 AM", "12:00 PM", "03:30 PM", "04:15 PM"][i % 5];
@@ -173,53 +173,53 @@ function VisitsPage() {
             return (
               <div
                 key={e.id}
-                className={`rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between space-y-4 ${
+                className={`rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between space-y-4 min-w-0 w-full overflow-hidden ${
                   isCompleted ? "bg-emerald-50/40 border-emerald-200" : "bg-white border-slate-200 hover:shadow-md"
                 }`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="text-base font-bold text-slate-900">{e.childName}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">Parent: <span className="font-semibold text-slate-700">{e.parentName}</span></div>
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-base font-bold text-slate-900 truncate">{e.childName}</div>
+                      <div className="text-xs text-slate-500 mt-0.5 truncate">Parent: <span className="font-semibold text-slate-700">{e.parentName}</span></div>
                     </div>
-                    <Badge className={isCompleted ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-sky-100 text-sky-800 border-sky-200"}>
+                    <Badge className={`shrink-0 ${isCompleted ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-sky-100 text-sky-800 border-sky-200"}`}>
                       {e.status}
                     </Badge>
                   </div>
 
-                  <div className="mt-3 space-y-1.5 text-xs text-slate-600 border-t pt-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Class Interest:</span>
-                      <span className="font-semibold text-indigo-700">{e.interestedClass}</span>
+                  <div className="mt-3 space-y-1.5 text-xs text-slate-600 border-t pt-2.5 min-w-0">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-slate-400 shrink-0">Class Interest:</span>
+                      <span className="font-semibold text-indigo-700 truncate">{e.interestedClass}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Time Slot:</span>
-                      <span className="font-mono text-slate-800 font-medium flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-sky-600" /> {timeSlot}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-slate-400 shrink-0">Time Slot:</span>
+                      <span className="font-mono text-slate-800 font-medium flex items-center gap-1 shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-sky-600 shrink-0" /> {timeSlot}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Contact:</span>
-                      <a href={`tel:${e.phone}`} className="font-mono text-sky-600 hover:underline flex items-center gap-1 font-medium">
-                        <Phone className="w-3 h-3" /> {e.phone}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-slate-400 shrink-0">Contact:</span>
+                      <a href={`tel:${e.phone}`} className="font-mono text-sky-600 hover:underline flex items-center gap-1 font-medium truncate">
+                        <Phone className="w-3 h-3 shrink-0" /> {e.phone}
                       </a>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t flex items-center justify-between gap-2">
+                <div className="pt-3 border-t flex items-center justify-between gap-2 min-w-0">
                   {!isCompleted ? (
                     <Button
                       size="sm"
                       onClick={() => handleMarkCompleted(e.id, e.childName)}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 shadow-xs"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Visit Completed
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 shrink-0" /> Mark Visit Completed
                     </Button>
                   ) : (
                     <div className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 mx-auto">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Visit Completed & Verified
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Visit Completed & Verified
                     </div>
                   )}
                 </div>

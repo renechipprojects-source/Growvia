@@ -96,7 +96,7 @@ function OfficeClassesPage() {
     setIsEditOpen(true);
   };
 
-  const handleSaveClass = () => {
+  const handleSaveClass = async () => {
     if (!formData.name.trim()) {
       toast.error("Class name is required");
       return;
@@ -108,6 +108,18 @@ function OfficeClassesPage() {
     if (Number(formData.capacity) <= 0) {
       toast.error("Capacity must be greater than 0");
       return;
+    }
+
+    if (!editingItem) {
+      const isDuplicate = classesList.some(
+        (c) =>
+          c.name.trim().toLowerCase() === formData.name.trim().toLowerCase() &&
+          c.section.trim().toUpperCase() === formData.section.trim().toUpperCase()
+      );
+      if (isDuplicate) {
+        toast.error(`Class ${formData.name.trim()} - Section ${formData.section.trim().toUpperCase()} already exists.`);
+        return;
+      }
     }
 
     if (formData.classTeacher && formData.classTeacher !== "Unassigned") {
@@ -128,7 +140,7 @@ function OfficeClassesPage() {
     const teacherMatch = teachersList.find((t) => t.name === formData.classTeacher || t.id === formData.classTeacher);
 
     if (editingItem) {
-      updateMasterClass(editingItem.id, {
+      await updateMasterClass(editingItem.id, {
         name: formData.name.trim(),
         section: formData.section.trim(),
         room: formData.room.trim() || "Room 101",
@@ -138,7 +150,7 @@ function OfficeClassesPage() {
       });
       toast.success(`Updated ${formData.name} - Section ${formData.section}`);
     } else {
-      addMasterClass({
+      await addMasterClass({
         name: formData.name.trim(),
         section: formData.section.trim(),
         room: formData.room.trim() || "Room 101",
@@ -149,7 +161,8 @@ function OfficeClassesPage() {
       toast.success(`Added new class ${formData.name} - Section ${formData.section}`);
     }
 
-    fetchMasterClassesFromSupabase().then((res) => setClassesList(res || []));
+    const updated = await fetchMasterClassesFromSupabase();
+    setClassesList(updated || []);
     setIsEditOpen(false);
     loadData();
   };

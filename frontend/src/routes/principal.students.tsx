@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Eye, SortAsc } from "lucide-react";
+import { Search, Eye, SortAsc, Edit } from "lucide-react";
 import { PageHeader } from "@/components/principal/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { fetchStudents, allocateRollNumbersAlphabetically } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
+import { EditStudentModal } from "@/components/students/EditStudentModal";
 import { getStoredMasterClasses, subscribeMasterClasses, type MasterClassItem } from "@/lib/masterClassesStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -59,6 +60,7 @@ function StudentsPage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
@@ -221,9 +223,14 @@ function StudentsPage() {
                       <div className="text-xs text-muted-foreground">{s.parent.phone}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setSelected(s); }}>
-                        <Eye className="w-4 h-4 mr-1.5" /> View
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" onClick={() => setSelected(s)}>
+                          <Eye className="w-3.5 h-3.5 mr-1" /> View
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200 hover:bg-indigo-50" onClick={() => setEditingStudent(s)}>
+                          <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -243,6 +250,14 @@ function StudentsPage() {
         open={!!selected}
         onClose={() => setSelected(null)}
         student={selected}
+        onEditStudent={(st) => setEditingStudent(st)}
+      />
+
+      <EditStudentModal
+        open={!!editingStudent}
+        onClose={() => setEditingStudent(null)}
+        student={editingStudent}
+        onUpdated={loadData}
       />
     </div>
   );

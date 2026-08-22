@@ -731,6 +731,33 @@ export async function createStudent(student: Omit<Student, "id"> & {
         id: data[0].id || data[0].login_id || newId,
         admissionNo: data[0].admission_no || newStuObj.admissionNo,
       };
+
+      const customFeeAmt = Number((student as any).feeAmount ?? 15000);
+      const customFeePlan = (student as any).feePlan || "Standard";
+      saveFeeRecord({
+        id: `FS-${serverStu.id}`,
+        studentId: serverStu.id,
+        studentName: serverStu.name,
+        admissionNo: serverStu.admissionNo,
+        className: serverStu.className || "Nursery",
+        section: serverStu.section || "A",
+        rollNo: serverStu.rollNo || 0,
+        originalFee: customFeeAmt,
+        discountAmount: 0,
+        finalFee: customFeeAmt,
+        paid: 0,
+        remainingAmount: customFeeAmt,
+        advanceAmount: 0,
+        amount: customFeeAmt,
+        balance: customFeeAmt,
+        status: "Pending",
+        totalInstallments: 3,
+        paidInstallments: 0,
+        academicYear: "2026-2027",
+        feeType: customFeePlan,
+        payments: [],
+      } as any).catch(() => {});
+
       setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
       notifyAutoRefresh("students");
       notifyAutoRefresh("admissions");
@@ -786,10 +813,12 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
     if (updates.section) payload.section = updates.section;
     if (updates.parent) payload.parent_name = updates.parent;
     if (updates.phone) payload.mobile = updates.phone;
+    if (updates.email) payload.email = updates.email;
+    if (updates.gender) payload.gender = updates.gender;
+    if (updates.house) payload.house = updates.house;
+    if (updates.address) payload.address = updates.address;
     if (updates.feeStatus) payload.fee_status = updates.feeStatus;
-    if (updates.avatar) {
-      payload.photo_url = updates.avatar;
-    }
+    if (updates.avatar) payload.photo_url = updates.avatar;
 
     let { data } = await supabase.from("gv_users").update(payload).eq("login_id", id).select();
     if (!data || data.length === 0) {
@@ -1159,8 +1188,8 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
   // Authoritative Paid Total: paymentsSum is sole source when transaction records exist
   const paid = payments.length > 0 ? paymentsSum : Math.max(0, Number(ledger.paid || 0));
 
-  const rawOrig = Number(ledger.originalFee ?? ledger.amount ?? 12000);
-  const originalFee = rawOrig > 0 ? rawOrig : 12000;
+  const rawOrig = Number(ledger.originalFee ?? ledger.amount ?? 0);
+  const originalFee = Math.max(0, rawOrig);
   const discountAmount = Math.max(0, Number(ledger.discountAmount ?? 0));
   const finalFee = Math.max(0, originalFee - discountAmount);
 
@@ -1192,9 +1221,9 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     balance: remainingAmount,
     status,
     totalInstallments: ledger.totalInstallments || 3,
-    paidInstallments: payments.length > 0 ? payments.length : (paid >= finalFee ? 3 : paid > 0 ? 1 : 0),
+    paidInstallments: payments.length > 0 ? payments.length : (paid >= finalFee && finalFee > 0 ? 3 : paid > 0 ? 1 : 0),
     term: (ledger as any).term || "Full Year",
-    academicYear: ledger.academicYear || "2024-2025",
+    academicYear: ledger.academicYear || "2026-2027",
     receiptNumber: (ledger as any).receiptNumber,
     paymentDate: (ledger as any).paymentDate,
     payments,
@@ -1234,6 +1263,8 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
           rollNo: existing.rollNo || s.rollNo,
         });
       }
+
+      const defaultStuFee = Number((s as any).feeAmount || 15000);
       return recalculateFeeLedger({
         id: `FP-${s.id}`,
         studentId: s.id,
@@ -1242,9 +1273,9 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
         className: s.className || "Nursery",
         section: s.section || "A",
         rollNo: s.rollNo || 1,
-        originalFee: 12000,
+        originalFee: defaultStuFee,
         discountAmount: 0,
-        paid: s.feeStatus === "Paid" ? 12000 : 0,
+        paid: s.feeStatus === "Paid" ? defaultStuFee : 0,
         status: s.feeStatus === "Paid" ? "Paid" : "Pending",
       });
     });
@@ -1322,7 +1353,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           studentId: d.student_id || canonicalId,
           studentName: d.student_name || "Student",
           className: d.class_name || "Nursery",
-          originalFee: Number(d.amount_due || 12000),
+          originalFee: Number(d.amount_due || 0),
           discountAmount: 0,
           payments: [],
         });

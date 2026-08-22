@@ -47,6 +47,9 @@ const schema = z.object({
   admissionNo: z.string().optional(),
   admissionDate: z.string().optional(),
   feePlan: z.string().optional(),
+  feeAmount: z.string().refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), {
+    message: "Fee amount must be a valid non-negative number",
+  }).optional(),
   transport: z.string().optional(),
   address: z.string().min(3),
   notes: z.string().optional(),
@@ -147,6 +150,7 @@ function Admissions() {
     admissionDate: new Date().toISOString().slice(0, 10),
     section: "A",
     feePlan: "Standard",
+    feeAmount: "15000",
     transport: "No",
   }), [enquiry]);
 
@@ -189,6 +193,8 @@ function Admissions() {
       return;
     }
 
+    const customFeeAmount = Number(v.feeAmount || 15000);
+
     const { data: createdStu, error } = await createStudent({
       admissionNo: v.admissionNo || autoAdmissionNo(),
       rollNo: 0,
@@ -210,10 +216,12 @@ function Admissions() {
       house: "Red",
       admissionDate: v.admissionDate || new Date().toISOString().split("T")[0],
       feeStatus: "Pending",
+      feePlan: v.feePlan || "Standard",
+      feeAmount: customFeeAmount,
       avatar: photoBase64 || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(v.childName)}`,
       attendance: 100,
       branch: "Main Branch",
-    });
+    } as any);
 
     if (error || !createdStu) {
       toast.error(error || "Failed to create student in database. Admission aborted.");
@@ -386,12 +394,24 @@ function Admissions() {
                 <span><strong>Roll Number Allocation:</strong> Roll numbers are not assigned during admission. They will be generated in <strong>alphabetical order</strong> by the Class Teacher after section allocation.</span>
               </div>
 
-              <Field label="Fee Plan">
+              <Field label="Fee Plan Category">
                 <Select value={watch("feePlan") || "Standard"} onValueChange={(v) => setValue("feePlan", v)}>
                   <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>
                   <SelectContent>{["Standard", "Sibling Discount", "Scholarship", "Custom"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
+
+              <Field label="Authoritative Total Fee Amount (₹) *" error={errors.feeAmount?.message}>
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  {...register("feeAmount")}
+                  placeholder="e.g. 15000"
+                  className="bg-white/70 font-mono font-semibold text-slate-900"
+                />
+              </Field>
+
               <Field label="Transport">
                 <Select value={watch("transport") || "No"} onValueChange={(v) => setValue("transport", v)}>
                   <SelectTrigger className="bg-white/70"><SelectValue /></SelectTrigger>

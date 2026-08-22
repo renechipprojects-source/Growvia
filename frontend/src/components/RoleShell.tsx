@@ -88,6 +88,25 @@ function RoleShellInner({ role }: { role: Role }) {
     };
   }, [role, pathname]);
 
+  const [staffCompletionPct, setStaffCompletionPct] = useState<number | null>(null);
+
+  useEffect(() => {
+    const session = getSession();
+    if (session && session.role !== "admin" && session.role !== "superadmin") {
+      const targetId = session.linkId || session.loginId || session.email;
+      if (targetId) {
+        import("@/lib/staffProfileService").then(({ fetchStaffProfile, calculateProfileCompletion }) => {
+          fetchStaffProfile(targetId).then((prof) => {
+            if (prof) {
+              const pct = calculateProfileCompletion(prof);
+              setStaffCompletionPct(pct);
+            }
+          });
+        });
+      }
+    }
+  }, [pathname, profileModalOpen]);
+
   const sidebarContent = (compact: boolean) => (
     <div className="h-full rounded-3xl bg-white/70 backdrop-blur-xl shadow-xl shadow-black/5 border border-white/60 p-4 flex flex-col">
       <div className="flex items-center gap-3 px-2 py-3 shrink-0">
@@ -284,9 +303,15 @@ function RoleShellInner({ role }: { role: Role }) {
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
                 title="View & Complete Staff Profile"
               >
-                <Badge className={cn("hidden sm:inline-flex cursor-pointer", theme.chip)}>
-                  <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
-                </Badge>
+                {staffCompletionPct !== null && staffCompletionPct < 80 ? (
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-300 animate-pulse cursor-pointer flex items-center">
+                    <Sparkles className="h-3 w-3 mr-1 text-amber-600" /> Complete Profile ({staffCompletionPct}%)
+                  </Badge>
+                ) : (
+                  <Badge className={cn("hidden sm:inline-flex cursor-pointer", theme.chip)}>
+                    <Sparkles className="h-3 w-3 mr-1" /> {theme.name}
+                  </Badge>
+                )}
                 {(() => {
                   const session = getSession();
                   const sessAny = session as any;

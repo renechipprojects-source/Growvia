@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, UserCheck, CreditCard, FileText, CheckCircle2, History, Clock, ArrowRight } from "lucide-react";
+import { GraduationCap, UserCheck, CreditCard, FileText, CheckCircle2, History, Clock, ArrowRight, Edit } from "lucide-react";
 import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { useAcademicYear } from "@/lib/academicYearContext";
 import { getPromotionHistory, getActivityTimeline } from "@/lib/promotionStore";
@@ -14,9 +14,10 @@ interface StudentProfileModalProps {
   open: boolean;
   onClose: () => void;
   student: any | null;
+  onEditStudent?: (student: any) => void;
 }
 
-export function StudentProfileModal({ open, onClose, student }: StudentProfileModalProps) {
+export function StudentProfileModal({ open, onClose, student, onEditStudent }: StudentProfileModalProps) {
   const { activeYear } = useAcademicYear();
   const { getClassTeacher, getSubjectTeachers } = useClassAssignments();
   const [activeTab, setActiveTab] = useState<"profile" | "promotion" | "timeline">("profile");
@@ -49,9 +50,24 @@ export function StudentProfileModal({ open, onClose, student }: StudentProfileMo
                 </div>
               </div>
             </div>
-            <Badge className={cn("text-xs px-3 py-1 font-semibold rounded-full shrink-0 border", student.status === "Graduated" ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-emerald-100 text-emerald-800 border-emerald-200")}>
-              {student.status || "Enrolled"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {onEditStudent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onClose();
+                    onEditStudent(student);
+                  }}
+                  className="rounded-xl border-slate-200 text-xs font-semibold hover:bg-slate-50 text-indigo-700"
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1" /> Edit Details & Certificates
+                </Button>
+              )}
+              <Badge className={cn("text-xs px-3 py-1 font-semibold rounded-full shrink-0 border", student.status === "Graduated" ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-emerald-100 text-emerald-800 border-emerald-200")}>
+                {student.status || "Enrolled"}
+              </Badge>
+            </div>
           </div>
 
           {/* Modal Tabs */}

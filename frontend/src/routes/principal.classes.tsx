@@ -91,19 +91,39 @@ function ClassesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) {
       toast.error("Class name is required.");
       return;
     }
+    if (!form.section.trim()) {
+      toast.error("Section is required.");
+      return;
+    }
+
+    if (!editingClass) {
+      const isDuplicate = masterClasses.some(
+        (c) =>
+          c.name.trim().toLowerCase() === form.name.trim().toLowerCase() &&
+          c.section.trim().toUpperCase() === form.section.trim().toUpperCase()
+      );
+      if (isDuplicate) {
+        toast.error(`Class ${form.name.trim()} - Section ${form.section.trim().toUpperCase()} already exists.`);
+        return;
+      }
+    }
+
     if (editingClass) {
-      updateMasterClass(editingClass.id, form);
+      await updateMasterClass(editingClass.id, form);
       toast.success(`Updated ${form.name} Section ${form.section}`);
     } else {
-      addMasterClass(form);
+      await addMasterClass(form);
       toast.success(`Added new class ${form.name} Section ${form.section}`);
     }
+    const updated = await fetchMasterClassesFromSupabase();
+    setMasterClasses(updated || []);
     setIsModalOpen(false);
+    loadData();
   };
 
   const handleDelete = async (id: string, fullName: string, e: React.MouseEvent) => {

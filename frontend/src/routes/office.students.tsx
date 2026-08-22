@@ -17,13 +17,13 @@ import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
-
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 function OfficeStudents() {
   const navigate = useNavigate();
   const [data, setData] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [selectedParent, setSelectedParent] = useState<Student | null>(null);
   const [openPromotionModal, setOpenPromotionModal] = useState(false);
 
@@ -145,10 +145,13 @@ function OfficeStudents() {
         return (
           <div className="flex items-center gap-1.5">
             <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
-              <Eye className="mr-1.5 h-3.5 w-3.5" /> View Profile
+              <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+            </Button>
+            <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200 hover:bg-indigo-50" onClick={() => setEditingStudent(s)}>
+              <Edit className="mr-1 h-3.5 w-3.5" /> Edit
             </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs text-indigo-600 hover:text-indigo-800" onClick={() => handleOpenPhotoEdit(s)}>
-              <Camera className="mr-1 h-3.5 w-3.5" /> Edit Photo
+              <Camera className="mr-1 h-3.5 w-3.5" /> Photo
             </Button>
           </div>
         );
@@ -235,6 +238,14 @@ function OfficeStudents() {
         open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
         student={selectedStudent}
+        onEditStudent={(s) => setEditingStudent(s)}
+      />
+
+      <EditStudentModal
+        open={!!editingStudent}
+        onClose={() => setEditingStudent(null)}
+        student={editingStudent}
+        onUpdated={loadStudents}
       />
 
       {/* Parent View Details Modal */}

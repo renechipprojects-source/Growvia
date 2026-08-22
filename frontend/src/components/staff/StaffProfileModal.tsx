@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { User, Phone, Mail, MapPin, Briefcase, ShieldCheck, AlertCircle, CheckCircle2, Lock, Save, Loader2 } from "lucide-react";
-import { fetchStaffProfile, saveStaffProfile, type StaffProfile } from "@/lib/staffProfileService";
+import { User, Phone, Mail, MapPin, Briefcase, ShieldCheck, AlertCircle, CheckCircle2, Lock, Save, Loader2, Award } from "lucide-react";
+import { fetchStaffProfile, saveStaffProfile, calculateProfileCompletion, type StaffProfile } from "@/lib/staffProfileService";
 import { validatePhoneNumber, normalizePhoneNumber } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 
@@ -73,14 +73,25 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
     }
   };
 
-  const isCompleted = Boolean(profile?.profile_completed);
-  // Authoritative One-Time Lock: Once completed, normal staff users can view, but only authorized admins or initial setup can edit
-  const isEditingLocked = isCompleted && !readOnly && currentSession?.role !== "super-admin" && currentSession?.role !== "admin";
-  const effectiveReadOnly = readOnly || isEditingLocked;
+  const isAdmin = Boolean(
+    currentSession?.role === "admin" ||
+    currentSession?.role === "superadmin" ||
+    currentSession?.role === "principal" ||
+    currentSession?.role === "office"
+  );
+
+  // Permissions:
+  // Admin-controlled employment fields: disabled for standard staff
+  const isAdminFieldDisabled = readOnly || !isAdmin;
+  // Personal fields (mobile, DOB, address, emergency contact, photo, qualification): editable by staff
+  const isPersonalFieldDisabled = readOnly;
+
+  const completionPct = calculateProfileCompletion(form);
+  const isCompleted = completionPct >= 80 || Boolean(profile?.profile_completed);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (effectiveReadOnly) return;
+    if (readOnly) return;
 
     // Validate phone numbers before submission
     const pCheck = validatePhoneNumber(form.mobile || "", true);
@@ -117,7 +128,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
 
     setSaving(false);
     if (res.success && res.data) {
-      toast.success("Staff profile completed & saved authoritatively to Supabase!");
+      toast.success("Staff profile saved authoritatively to Supabase!");
       setProfile(res.data);
       setForm(res.data);
       if (onProfileUpdated) onProfileUpdated(res.data);
@@ -135,21 +146,21 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
-                {effectiveReadOnly ? "Authoritative Staff Details" : isCompleted ? "Update Staff Profile" : "Complete Staff Profile"}
+                {readOnly ? "Authoritative Staff Details" : isCompleted ? "Update Staff Profile" : "Complete Staff Profile"}
               </DialogTitle>
               <DialogDescription>
-                Authoritative single-source-of-truth profile stored in Supabase.
+                Authoritative staff profile stored in Supabase. Completion: <span className="font-bold text-slate-800">{completionPct}%</span>
               </DialogDescription>
             </div>
             {isCompleted ? (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 flex items-center gap-1 shrink-0">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                Profile Authoritative & Completed
+                Profile Complete ({completionPct}%)
               </Badge>
             ) : (
               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 flex items-center gap-1 shrink-0">
-                <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                Action Required: Complete Profile
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
+                Action Required: Complete Profile ({completionPct}%)
               </Badge>
             )}
           </div>
@@ -162,10 +173,10 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {isEditingLocked && (
+            {!isCompleted && !readOnly && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 flex items-center gap-2">
-                <Lock className="h-4 w-4 shrink-0 text-amber-600" />
-                This profile is completed and locked as authoritative information. Changes require administrative privileges.
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                Please complete your personal, contact, and emergency details below to ensure full profile verification.
               </div>
             )}
 
@@ -181,20 +192,21 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
               <TabsContent value="identity" className="space-y-4 mt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs font-semibold">Full Name *</Label>
+                    <Label className="text-xs font-semibold">Full Name (Official) *</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isAdminFieldDisabled}
                       value={form.full_name || ""}
                       onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                       placeholder="e.g. Dr. Ananya Sharma"
                       required
                     />
+                    {!isAdmin && <p className="text-[11px] text-muted-foreground">Official employment name controlled by school administration.</p>}
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Profile Photo URL</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.photo_url || ""}
                       onChange={(e) => setForm({ ...form, photo_url: e.target.value })}
                       placeholder="https://..."
@@ -204,7 +216,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Date of Birth</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       type="date"
                       value={form.date_of_birth || ""}
                       onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
@@ -214,7 +226,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Gender</Label>
                     <Select
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.gender || "Male"}
                       onValueChange={(v) => setForm({ ...form, gender: v })}
                     >
@@ -230,7 +242,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Blood Group</Label>
                     <Select
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.blood_group || "O+"}
                       onValueChange={(v) => setForm({ ...form, blood_group: v })}
                     >
@@ -253,7 +265,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                       <Mail className="h-3.5 w-3.5 text-primary" /> Email Address (Primary Login ID) *
                     </Label>
                     <Input
-                      disabled={effectiveReadOnly || Boolean(profile?.email)}
+                      disabled={isAdminFieldDisabled || Boolean(profile?.email)}
                       type="email"
                       value={form.email || ""}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -268,7 +280,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                       <Phone className="h-3.5 w-3.5 text-primary" /> Primary Phone (10 Digits) *
                     </Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       maxLength={10}
                       value={form.mobile || ""}
                       onChange={(e) => {
@@ -288,7 +300,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                       <Phone className="h-3.5 w-3.5 text-muted-foreground" /> Alternate Phone (10 Digits)
                     </Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       maxLength={10}
                       value={form.alternate_phone || ""}
                       onChange={(e) => {
@@ -307,7 +319,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                       <MapPin className="h-3.5 w-3.5 text-primary" /> Street Address
                     </Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.address || ""}
                       onChange={(e) => setForm({ ...form, address: e.target.value })}
                       placeholder="House/Flat No., Street, Colony"
@@ -317,7 +329,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">City</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.city || ""}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
                       placeholder="Hyderabad"
@@ -328,13 +340,13 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                     <Label className="text-xs font-semibold">State / PIN Code</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <Input
-                        disabled={effectiveReadOnly}
+                        disabled={isPersonalFieldDisabled}
                         value={form.state || ""}
                         onChange={(e) => setForm({ ...form, state: e.target.value })}
                         placeholder="Telangana"
                       />
                       <Input
-                        disabled={effectiveReadOnly}
+                        disabled={isPersonalFieldDisabled}
                         value={form.pincode || ""}
                         onChange={(e) => setForm({ ...form, pincode: e.target.value })}
                         placeholder="500001"
@@ -350,7 +362,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs font-semibold">Emergency Contact Person Name</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.emergency_contact_name || ""}
                       onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })}
                       placeholder="e.g. Suresh Sharma"
@@ -360,7 +372,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Relationship</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.emergency_contact_relation || ""}
                       onChange={(e) => setForm({ ...form, emergency_contact_relation: e.target.value })}
                       placeholder="Spouse / Parent / Sibling"
@@ -370,7 +382,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Emergency Contact Phone (10 Digits)</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       maxLength={10}
                       value={form.emergency_phone || ""}
                       onChange={(e) => {
@@ -410,7 +422,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Designation</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isAdminFieldDisabled}
                       value={form.designation || ""}
                       onChange={(e) => setForm({ ...form, designation: e.target.value })}
                       placeholder="Senior Primary Teacher"
@@ -420,7 +432,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Department</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isAdminFieldDisabled}
                       value={form.department || ""}
                       onChange={(e) => setForm({ ...form, department: e.target.value })}
                       placeholder="Academics / Early Childhood"
@@ -430,7 +442,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Highest Qualification</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.qualification || ""}
                       onChange={(e) => setForm({ ...form, qualification: e.target.value })}
                       placeholder="M.Sc. Education, B.Ed."
@@ -440,7 +452,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Specialization</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       value={form.specialization || ""}
                       onChange={(e) => setForm({ ...form, specialization: e.target.value })}
                       placeholder="Mathematics / English Phonetics"
@@ -450,7 +462,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Years of Experience</Label>
                     <Input
-                      disabled={effectiveReadOnly}
+                      disabled={isPersonalFieldDisabled}
                       type="number"
                       min={0}
                       max={50}
@@ -462,7 +474,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Employment Type</Label>
                     <Select
-                      disabled={effectiveReadOnly}
+                      disabled={isAdminFieldDisabled}
                       value={form.employment_type || "Full-Time"}
                       onValueChange={(v) => setForm({ ...form, employment_type: v })}
                     >
@@ -480,9 +492,9 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
 
             <DialogFooter className="flex items-center justify-between pt-4 border-t gap-3">
               <Button variant="outline" type="button" onClick={onClose} rounded-full>
-                {effectiveReadOnly ? "Close" : "Cancel"}
+                {readOnly ? "Close" : "Cancel"}
               </Button>
-              {!effectiveReadOnly && (
+              {!readOnly && (
                 <Button type="submit" disabled={saving} className="bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-full">
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Authoritative Profile

@@ -165,7 +165,7 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
   return getStoredMasterClasses();
 }
 
-export function saveStoredMasterClasses(list: MasterClassItem[]) {
+export async function saveStoredMasterClasses(list: MasterClassItem[]): Promise<void> {
   const deleted = getStoredDeletedIds();
   const cleanList = list.filter((c) => !deleted.has(c.id));
   memoryCache = cleanList;
@@ -190,11 +190,15 @@ export function saveStoredMasterClasses(list: MasterClassItem[]) {
   }));
 
   if (payloads.length > 0) {
-    Promise.resolve(supabase.from("gv_requests").upsert(payloads, { onConflict: "id" })).catch(() => {});
+    try {
+      await supabase.from("gv_requests").upsert(payloads, { onConflict: "id" });
+    } catch (err) {
+      console.warn("Failed to persist master classes to Supabase:", err);
+    }
   }
 }
 
-export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & { id?: string }): MasterClassItem {
+export async function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & { id?: string }): Promise<MasterClassItem> {
   const current = getStoredMasterClasses();
   const name = item.name.trim();
   const section = (item.section || "A").trim();
@@ -222,17 +226,17 @@ export function addMasterClass(item: Omit<MasterClassItem, "id" | "fullName"> & 
     capacity: Number(item.capacity || 30),
   };
   const updated = [...current.filter((c) => c.id !== id), newItem];
-  saveStoredMasterClasses(updated);
+  await saveStoredMasterClasses(updated);
 
   // Sync relational Class Assignment
   if (newItem.classTeacher && newItem.classTeacher !== "Unassigned") {
-    syncClassAssignmentForMasterClass(newItem);
+    await syncClassAssignmentForMasterClass(newItem);
   }
 
   return newItem;
 }
 
-export function updateMasterClass(id: string, updates: Partial<MasterClassItem>): MasterClassItem | null {
+export async function updateMasterClass(id: string, updates: Partial<MasterClassItem>): Promise<MasterClassItem | null> {
   const current = getStoredMasterClasses();
   let updatedItem: MasterClassItem | null = null;
   const next = current.map((c) => {
@@ -251,10 +255,10 @@ export function updateMasterClass(id: string, updates: Partial<MasterClassItem>)
     }
     return c;
   });
-  saveStoredMasterClasses(next);
+  await saveStoredMasterClasses(next);
 
   if (updatedItem && updates.classTeacher !== undefined) {
-    syncClassAssignmentForMasterClass(updatedItem);
+    await syncClassAssignmentForMasterClass(updatedItem);
   }
 
   return updatedItem;

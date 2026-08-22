@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { validatePhoneNumber, normalizePhoneNumber } from "@/lib/utils";
+import { notifyAutoRefresh } from "@/lib/supabaseService";
 
 export interface StaffProfile {
   id: string;
@@ -24,7 +25,7 @@ export interface StaffProfile {
   emergency_contact_relation?: string;
   emergency_phone?: string;
 
-  // Employment & professional info
+  // Employment & professional info (Admin controlled)
   employee_id?: string;
   department?: string;
   designation?: string;
@@ -44,13 +45,32 @@ export interface StaffProfile {
   updated_at?: string;
 }
 
+export function calculateProfileCompletion(p: Partial<StaffProfile> | null): number {
+  if (!p) return 0;
+  const fields = [
+    Boolean(p.full_name?.trim()),
+    Boolean(p.email?.trim() && p.email.includes("@")),
+    Boolean(p.mobile && p.mobile.length >= 10),
+    Boolean(p.date_of_birth?.trim()),
+    Boolean(p.gender?.trim()),
+    Boolean(p.blood_group?.trim()),
+    Boolean(p.address?.trim()),
+    Boolean(p.emergency_contact_name?.trim()),
+    Boolean(p.emergency_phone && p.emergency_phone.length >= 10),
+    Boolean(p.qualification?.trim()),
+  ];
+  const filled = fields.filter(Boolean).length;
+  return Math.round((filled / fields.length) * 100);
+}
+
 export async function fetchStaffProfile(identifier: string): Promise<StaffProfile | null> {
   if (!identifier) return null;
   try {
+    const cleanId = identifier.trim();
     const { data, error } = await supabase
       .from("gv_users")
       .select("*")
-      .or(`id.eq.${identifier},login_id.ilike.${identifier},email.ilike.${identifier},employee_id.ilike.${identifier}`)
+      .or(`id.eq.${cleanId},login_id.ilike.${cleanId},email.ilike.${cleanId},employee_id.ilike.${cleanId}`)
       .limit(1);
 
     if (error || !data || data.length === 0) return null;
@@ -63,14 +83,14 @@ export async function fetchStaffProfile(identifier: string): Promise<StaffProfil
       }
     } catch {}
 
-    return {
+    const profile: StaffProfile = {
       id: row.id,
-      login_id: row.login_id,
-      email: row.email,
-      full_name: row.full_name,
-      role: row.role,
+      login_id: row.login_id || row.id,
+      email: row.email || "",
+      full_name: row.full_name || row.name || "Staff Member",
+      role: row.role || "teacher",
       status: row.status || "active",
-      mobile: normalizePhoneNumber(row.mobile),
+      mobile: normalizePhoneNumber(row.mobile || extraMeta.mobile || ""),
       photo_url: row.photo_url || extraMeta.photo_url || "",
       date_of_birth: row.date_of_birth || extraMeta.date_of_birth || "",
       gender: row.gender || extraMeta.gender || "Male",
@@ -86,12 +106,12 @@ export async function fetchStaffProfile(identifier: string): Promise<StaffProfil
       emergency_phone: normalizePhoneNumber(extraMeta.emergency_phone || ""),
 
       employee_id: row.employee_id || extraMeta.employee_id || row.login_id,
-      department: extraMeta.department || "Academic",
+      department: row.department || extraMeta.department || "Academic",
       designation: row.designation || extraMeta.designation || (row.role === "teacher" ? "Faculty" : "Staff"),
-      subject: row.subject || extraMeta.subject || "",
+      subject: row.subject || extraMeta.subject || "General",
       joining_date: row.joining_date || extraMeta.joining_date || new Date().toISOString().slice(0, 10),
       employment_type: extraMeta.employment_type || "Full-Time",
-      qualification: extraMeta.qualification || "Bachelor's Degree",
+      qualification: extraMeta.qualification || "",
       specialization: extraMeta.specialization || "",
       experience: Number(row.experience || extraMeta.experience || 0),
       branch: row.branch || "Main Branch",
@@ -102,6 +122,8 @@ export async function fetchStaffProfile(identifier: string): Promise<StaffProfil
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
+
+    return profile;
   } catch {
     return null;
   }
@@ -171,6 +193,7 @@ export async function saveStaffProfile(profile: Partial<StaffProfile> & { id: st
 
   const payload: any = {
     id: profile.id,
+    login_id: profile.login_id || profile.employee_id || profile.id,
     full_name: profile.full_name.trim(),
     email: profile.email.trim().toLowerCase(),
     mobile: profile.mobile,
@@ -180,7 +203,7 @@ export async function saveStaffProfile(profile: Partial<StaffProfile> & { id: st
     address: JSON.stringify(addressMeta),
     employee_id: profile.employee_id || profile.id,
     designation: profile.designation || "Faculty",
-    subject: profile.subject || "",
+    subject: profile.subject || "General",
     experience: Number(profile.experience || 0),
     status: "active",
     updated_at: nowIso,
@@ -195,6 +218,9 @@ export async function saveStaffProfile(profile: Partial<StaffProfile> & { id: st
     if (error) {
       return { success: false, error: error.message };
     }
+
+    notifyAutoRefresh("staff");
+    notifyAutoRefresh("teachers");
 
     const updated = await fetchStaffProfile(profile.id);
     return { success: true, data: updated || undefined };
