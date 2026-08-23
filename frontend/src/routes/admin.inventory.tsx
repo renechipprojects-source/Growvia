@@ -135,10 +135,6 @@ function AdminInventoryPage() {
     <div className="space-y-4 w-full max-w-none p-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <PageHeader title="Live Inventory Audit" description="Real-time institutional stock levels and asset valuation." />
-        <Button onClick={handleOpenAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Inventory Item
-        </Button>
       </div>
 
       {/* Metrics Row */}

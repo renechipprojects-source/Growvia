@@ -551,29 +551,47 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
         return !staffRoles.includes(r);
       });
 
-      const mapped: Student[] = rows.map((d: any) => ({
-        id: d.id || d.login_id,
-        rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
-        admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
-        name: d.full_name || d.name || "Student",
-        age: d.age ? Number(d.age) : 4,
-        dob: d.date_of_birth || d.dob || undefined as any,
-        className: d.class_name || d.className || "Nursery",
-        section: d.section || "A",
-        parent: d.parent_name || d.parent || "Parent",
-        parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
-        phone: d.mobile || d.phone || undefined as any,
-        gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
-        house: d.house || undefined as any,
-        address: d.address || undefined,
-        email: d.email || undefined,
-        bloodGroup: d.blood_group || d.bloodGroup || undefined,
-        admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
-        feeStatus: (d.fee_status as any) || d.feeStatus || "Pending",
-        avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
-        attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
-        branch: d.branch || "Main Branch",
-      }));
+      // Build live fee status map from fetchFees
+      const feeStatusMap = new Map<string, string>();
+      try {
+        const { data: fees } = await fetchFees();
+        (fees || []).forEach((f) => {
+          if (f.studentId) feeStatusMap.set(f.studentId.toLowerCase(), f.status);
+          if (f.admissionNo) feeStatusMap.set(f.admissionNo.toLowerCase(), f.status);
+          if (f.studentName) feeStatusMap.set(f.studentName.toLowerCase(), f.status);
+        });
+      } catch {}
+
+      const mapped: Student[] = rows.map((d: any) => {
+        const sId = (d.id || d.login_id || "").toLowerCase();
+        const sAdm = toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id).toLowerCase();
+        const sName = (d.full_name || d.name || "").toLowerCase();
+        const liveStatus = feeStatusMap.get(sId) || feeStatusMap.get(sAdm) || feeStatusMap.get(sName) || d.fee_status || d.feeStatus || "Pending";
+
+        return {
+          id: d.id || d.login_id,
+          rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
+          admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
+          name: d.full_name || d.name || "Student",
+          age: d.age ? Number(d.age) : 4,
+          dob: d.date_of_birth || d.dob || undefined as any,
+          className: d.class_name || d.className || "Nursery",
+          section: d.section || "A",
+          parent: d.parent_name || d.parent || "Parent",
+          parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
+          phone: d.mobile || d.phone || undefined as any,
+          gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
+          house: d.house || undefined as any,
+          address: d.address || undefined,
+          email: d.email || undefined,
+          bloodGroup: d.blood_group || d.bloodGroup || undefined,
+          admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
+          feeStatus: liveStatus as any,
+          avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
+          attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
+          branch: d.branch || "Main Branch",
+        };
+      });
 
       const normalized = normalizeStudents(mapped);
       if (normalized.length > 0) {
@@ -1468,6 +1486,7 @@ export async function fetchReceipts(): Promise<{ data: any[]; isFromSupabase: bo
 export async function saveFeeRecord(fee: FeeLedgerItem) {
   const recalculated = recalculateFeeLedger(fee);
   notifyAutoRefresh("fees");
+  notifyAutoRefresh("students");
   try {
     await supabase.from("gv_fees_payments").upsert([{
       id: recalculated.id,
@@ -1481,6 +1500,12 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
       balance: recalculated.remainingAmount,
       status: recalculated.status,
     }]);
+
+    if (recalculated.studentId) {
+      await supabase.from("gv_users").update({
+        fee_status: recalculated.status,
+      }).or(`id.eq.${recalculated.studentId},login_id.eq.${recalculated.studentId},admission_no.eq.${recalculated.admissionNo}`);
+    }
   } catch (err) {
     console.warn("Supabase fee save notice:", err);
   }
