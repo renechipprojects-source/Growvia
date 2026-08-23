@@ -78,6 +78,8 @@ export interface Session {
   role: Role;
   name: string;
   linkId?: string;
+  className?: string;
+  section?: string;
   mustChangePassword?: boolean;
 }
 
