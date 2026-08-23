@@ -33,29 +33,7 @@ export interface UserRecord {
   updated_at?: string;
 }
 
-export interface Student {
-  id: string;
-  rollNo: number;
-  admissionNo: string;
-  name: string;
-  age: number;
-  dob: string;
-  className: string;
-  section: string;
-  parent: string;
-  parentName?: string;
-  parentId: string;
-  phone: string;
-  gender: "Boy" | "Girl";
-  house: "Red" | "Blue" | "Green" | "Yellow";
-  admissionDate: string;
-  feeStatus: "Paid" | "Pending" | "Overdue" | "Partial";
-  avatar?: string;
-  attendance: number;
-  attendancePct?: number;
-  branch?: string;
-  bloodGroup?: string;
-}
+export type { Student };
 
 export interface Teacher {
   id: string;
@@ -94,32 +72,6 @@ export async function fetchStudentsFromUsers(classNameFilter?: string, sectionFi
       .from("gv_users")
       .select("*")
       .or("role.eq.student,role.eq.Student,role.ilike.*student*");
-
-    const session = getSession();
-    if (session && session.role === "teacher") {
-      const sLinkId = safeNormalizeId(session.linkId);
-      const sLoginId = safeNormalizeId(session.loginId);
-      const activeAssignments = readAssignments().filter(
-        (a) =>
-          a.status === "active" &&
-          ((sLinkId && safeNormalizeId(a.teacherId) === sLinkId) ||
-            (sLoginId && safeNormalizeId(a.teacherId) === sLoginId))
-      );
-
-      if (activeAssignments.length > 0) {
-        const assignedClasses = Array.from(new Set(activeAssignments.map((a) => a.className)));
-        if (assignedClasses.length === 1) {
-          query = query.eq("class_name", assignedClasses[0]);
-        } else if (assignedClasses.length > 1) {
-          const orClause = assignedClasses.map((c) => `class_name.eq.${c}`).join(",");
-          query = query.or(orClause);
-        }
-      } else if ((session as any).className) {
-        const parts = (session as any).className.trim().split(" ");
-        const clsName = parts[0] || (session as any).className;
-        query = query.eq("class_name", clsName);
-      }
-    }
 
     if (classNameFilter && classNameFilter !== "all") {
       query = query.eq("class_name", classNameFilter);

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Baby, Cake, ShieldCheck, Users, UserCheck, UserX, BookOpen, Sparkles, MessageSquarePlus, Search, Award, TrendingDown } from "lucide-react";
-import { getClassAssignments, normalizeClassAndSection } from "@/lib/teacherContext";
+import { getClassAssignments, normalizeClassAndSection, getLiveTeacherRoster } from "@/lib/teacherContext";
 import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
@@ -75,13 +75,7 @@ function MyClass() {
 
   const list = useMemo(() => {
     if (!active || !cls) return [];
-    const targetClass = cls.trim().toLowerCase();
-    const targetSec = (sec || "A").trim().toUpperCase();
-    return allStudents.filter(
-      (s) =>
-        (s.className || "").trim().toLowerCase() === targetClass &&
-        (s.section || "A").trim().toUpperCase() === targetSec
-    );
+    return getLiveTeacherRoster(cls, sec, allStudents);
   }, [active, allStudents, cls, sec]);
 
   const recMap = useMemo(() => {

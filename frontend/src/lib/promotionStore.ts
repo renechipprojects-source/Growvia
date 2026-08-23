@@ -239,6 +239,7 @@ export interface PerformPromotionInput {
   transferredStudentIds?: string[];
   fromClass: string;
   toClass: string;
+  toSection?: string;
   fromAcademicYear: string;
   toAcademicYear: string;
   promotedBy?: string;

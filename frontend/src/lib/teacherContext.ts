@@ -17,7 +17,7 @@ export function normalizeClassAndSection(rawClass?: string, rawSec?: string): { 
   let sec = (rawSec || "").trim().toUpperCase();
 
   if (cls) {
-    const match = cls.match(/^(.*?)[-–_\s]+([A-D])$/i);
+    const match = cls.match(/^(.*?)[-–_\s]+([A-Z])$/i);
     if (match) {
       cls = match[1].trim();
       if (!sec || sec === "A") {
@@ -26,9 +26,12 @@ export function normalizeClassAndSection(rawClass?: string, rawSec?: string): { 
     }
   }
 
+  const cleanClass = cls ? cls.toUpperCase() : "NURSERY";
+  const cleanSec = sec || "A";
+
   return {
-    className: cls || "Nursery",
-    section: sec || "A",
+    className: cleanClass,
+    section: cleanSec,
   };
 }
 
@@ -91,13 +94,20 @@ export function getAssignment(id: string, customAssignments?: ClassAssignment[])
   return found ? toTeacherAssignment(found) : undefined;
 }
 
+export function getLiveTeacherRoster(teacherClass?: string, teacherSec?: string, students: Student[] = []): Student[] {
+  if (!teacherClass || !students.length) return [];
+  const teacherNorm = normalizeClassAndSection(teacherClass, teacherSec);
+
+  return students.filter((s) => {
+    const studentNorm = normalizeClassAndSection(s.className, s.section);
+    return (
+      studentNorm.className === teacherNorm.className &&
+      studentNorm.section === teacherNorm.section
+    );
+  });
+}
+
 export function getStudentsForAssignment(a: TeacherAssignment, allStudents: Student[] = []): Student[] {
   if (!a || !allStudents.length) return [];
-  const targetClass = (a.className || "").trim().toLowerCase();
-  const targetSec = (a.section || "A").trim().toUpperCase();
-  return allStudents.filter(
-    (s) =>
-      (s.className || "").trim().toLowerCase() === targetClass &&
-      (s.section || "A").trim().toUpperCase() === targetSec
-  );
+  return getLiveTeacherRoster(a.className, a.section, allStudents);
 }

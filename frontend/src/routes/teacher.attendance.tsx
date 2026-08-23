@@ -9,7 +9,7 @@ import { Check, X, Clock, Plane, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationService } from "@/lib/notifications";
-import { getClassAssignments, getSubjectAssignments, type TeacherAssignment } from "@/lib/teacherContext";
+import { getClassAssignments, getSubjectAssignments, getLiveTeacherRoster, type TeacherAssignment } from "@/lib/teacherContext";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { Badge } from "@/components/ui/badge";
 import { useLiveAttendance, saveAttendance } from "@/lib/attendanceStore";
@@ -84,8 +84,7 @@ function Att() {
 
   const list = useMemo(() => {
     if (!active || !cls) return [];
-    const source = allStudents;
-    return source.filter((s) => s.className?.toLowerCase() === cls.toLowerCase() && (!sec || (s.section || "A").toUpperCase() === sec.toUpperCase()));
+    return getLiveTeacherRoster(cls, sec, allStudents);
   }, [active, allStudents, cls, sec]);
 
   const seed = useMemo(() => {

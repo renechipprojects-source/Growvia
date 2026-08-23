@@ -24,8 +24,8 @@ export function getNextAdmissionNo(existingStudents: Student[] = [], year: numbe
   return generateCanonicalAdmissionNo(year, maxSeq + 1);
 }
 
-import { normalizeClassAndSection } from "./teacherContext";
-export { normalizeClassAndSection };
+import { normalizeClassAndSection, getLiveTeacherRoster } from "./teacherContext";
+export { normalizeClassAndSection, getLiveTeacherRoster };
 
 function normalizeStudents(students: Student[]): Student[] {
   const parentIdMap = new Map<string, string>();

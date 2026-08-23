@@ -52,6 +52,64 @@ const Ctx = createContext<ParentState | null>(null);
 
 const STORAGE_KEY = "sunshine.parent.activeChildId.v2";
 
+export function getLiveParentChildren(session: any, allStudents: Student[] = []): Student[] {
+  if (!session || !allStudents.length) return [];
+  const role = (session.role || "").toLowerCase();
+
+  if (role !== "parent" && role !== "student") {
+    return allStudents;
+  }
+
+  const loginId = (session.loginId || "").toLowerCase().trim();
+  const linkId = (session.linkId || "").toLowerCase().trim();
+  const sessionName = (session.name || "").toLowerCase().trim();
+  const cleanLoginDigits = loginId.replace(/\D/g, "");
+  const cleanLinkDigits = linkId.replace(/\D/g, "");
+
+  const matching = allStudents.filter((s) => {
+    const sId = (s.id || "").toLowerCase().trim();
+    const sParentId = (s.parentId || "").toLowerCase().trim();
+    const sAdmissionNo = (s.admissionNo || "").toLowerCase().trim();
+    const sParentName = (s.parent || "").toLowerCase().trim();
+    const sPhone = (s.phone || "").replace(/\D/g, "");
+
+    // 1. Check parent_id (REAL database relationship field from gv_users)
+    if (sParentId) {
+      if (sParentId === loginId || sParentId === linkId) return true;
+      const sParentIdClean = sParentId.replace(/^par-?/i, "");
+      const loginIdClean = loginId.replace(/^par-?/i, "");
+      const linkIdClean = linkId.replace(/^par-?/i, "");
+      if (sParentIdClean && (sParentIdClean === loginIdClean || sParentIdClean === linkIdClean)) return true;
+    }
+
+    // 2. Student ID or Admission No match
+    if (sId && (sId === loginId || sId === linkId)) return true;
+    if (sAdmissionNo && (sAdmissionNo === loginId || sAdmissionNo === linkId)) return true;
+
+    // 3. Parent Name match (gv_users.parent_name)
+    if (sessionName && sParentName && (sParentName === sessionName || sessionName.includes(sParentName) || sParentName.includes(sessionName))) return true;
+
+    // 4. Mobile / Phone match
+    if (sPhone && sPhone.length >= 10) {
+      const clean10 = sPhone.slice(-10);
+      if ((cleanLoginDigits && cleanLoginDigits.includes(clean10)) || (cleanLinkDigits && cleanLinkDigits.includes(clean10))) return true;
+    }
+
+    return false;
+  });
+
+  if (matching.length > 0) return matching;
+
+  if (role === "student") {
+    const singleStu = allStudents.filter(
+      (s) => (s.id || "").toLowerCase() === loginId || (s.admissionNo || "").toLowerCase() === loginId
+    );
+    if (singleStu.length > 0) return singleStu;
+  }
+
+  return [];
+}
+
 export function ParentProvider({ children }: { children: ReactNode }) {
   const session = getSession();
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -70,40 +128,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const kids = useMemo(() => {
-    if (!session || allStudents.length === 0) return allStudents;
-    const role = (session.role || "").toLowerCase();
-
-    if (role === "parent" || role === "student") {
-      const loginId = (session.loginId || "").toLowerCase().trim();
-      const linkId = (session.linkId || "").toLowerCase().trim();
-      const sessionName = (session.name || "").toLowerCase().trim();
-
-      const matching = allStudents.filter((s) => {
-        const sId = (s.id || "").toLowerCase().trim();
-        const sParentId = (s.parentId || "").toLowerCase().trim();
-        const sAdmissionNo = (s.admissionNo || "").toLowerCase().trim();
-        const sParentName = (s.parent || "").toLowerCase().trim();
-
-        if (sId && (sId === loginId || sId === linkId)) return true;
-        if (sParentId && (sParentId === loginId || sParentId === linkId)) return true;
-        if (sAdmissionNo && (sAdmissionNo === loginId || sAdmissionNo === linkId)) return true;
-        if (sessionName && sParentName && sParentName === sessionName) return true;
-        if (session.loginId && s.phone && session.loginId.includes(s.phone.replace(/\D/g, ""))) return true;
-
-        return false;
-      });
-
-      if (matching.length > 0) return matching;
-
-      if (role === "student") {
-        const singleStu = allStudents.filter(
-          (s) => (s.id || "").toLowerCase() === loginId || (s.admissionNo || "").toLowerCase() === loginId
-        );
-        if (singleStu.length > 0) return singleStu;
-      }
-      return [];
-    }
-    return allStudents;
+    return getLiveParentChildren(session, allStudents);
   }, [allStudents, session]);
 
   const [activeId, setActiveId] = useState<string>(() => {
