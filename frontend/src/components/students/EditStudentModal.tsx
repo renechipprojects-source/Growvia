@@ -183,9 +183,9 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
         email: form.email.trim().toLowerCase(),
         address: form.address.trim(),
         dob: form.dob,
-        gender: form.gender,
-        house: form.house,
-        feeStatus: form.feeStatus,
+        gender: form.gender as any,
+        house: form.house as any,
+        feeStatus: form.feeStatus as any,
       });
 
       if (res.error) {
