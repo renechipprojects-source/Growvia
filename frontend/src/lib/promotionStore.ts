@@ -422,16 +422,26 @@ export function executeStudentPromotion(input: PerformPromotionInput): Promotion
     const activePromotedIds = studentIds.filter((sId) => toClass !== "Alumni / Graduated" && toClass !== "Graduated");
     const graduatedIds = studentIds.filter((sId) => toClass === "Alumni / Graduated" || toClass === "Graduated");
 
+    const promoSection = (input.toSection || "A").trim().toUpperCase();
     if (activePromotedIds.length > 0) {
-      Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).in("id", activePromotedIds)).catch(() => {});
+      const updatePayload = { class_name: toClass, section: promoSection, status: "active" };
+      supabase.from("gv_users").update(updatePayload).in("id", activePromotedIds).then(() => {});
       activePromotedIds.forEach((sId) => {
-        Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).eq("login_id", sId)).catch(() => {});
-        Promise.resolve(supabase.from("gv_users").update({ class_name: toClass, status: "Promoted" }).eq("admission_no", sId)).catch(() => {});
+        supabase.from("gv_users").update(updatePayload).eq("login_id", sId).then(() => {});
+        supabase.from("gv_users").update(updatePayload).eq("admission_no", sId).then(() => {});
       });
     }
     if (graduatedIds.length > 0) {
-      Promise.resolve(supabase.from("gv_users").update({ role: "alumni", status: "Graduated" }).in("id", graduatedIds)).catch(() => {});
+      supabase.from("gv_users").update({ role: "alumni", status: "Graduated" }).in("id", graduatedIds).then(() => {});
     }
+
+    import("@/lib/supabaseService").then(({ notifyAutoRefresh, fetchStudents }) => {
+      fetchStudents().then(() => {
+        notifyAutoRefresh("students");
+        notifyAutoRefresh("classes");
+        notifyAutoRefresh("promotion");
+      });
+    });
   } catch {}
 
   return {
