@@ -556,14 +556,18 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
         return !staffRoles.includes(r);
       });
 
-      // Build live fee status map from fetchFees
+      // Build live fee status map directly from gv_fees_payments table (prevents recursive fetchFees loop)
       const feeStatusMap = new Map<string, string>();
       try {
-        const { data: fees } = await fetchFees();
-        (fees || []).forEach((f) => {
-          if (f.studentId) feeStatusMap.set(f.studentId.toLowerCase(), f.status);
-          if (f.admissionNo) feeStatusMap.set(f.admissionNo.toLowerCase(), f.status);
-          if (f.studentName) feeStatusMap.set(f.studentName.toLowerCase(), f.status);
+        const { data: feeRows } = await supabase
+          .from("gv_fees_payments")
+          .select("student_id, student_name, status")
+          .eq("record_type", "fee_schedule");
+        (feeRows || []).forEach((f: any) => {
+          if (f.status) {
+            if (f.student_id) feeStatusMap.set(String(f.student_id).toLowerCase(), f.status);
+            if (f.student_name) feeStatusMap.set(String(f.student_name).toLowerCase(), f.status);
+          }
         });
       } catch {}
 
