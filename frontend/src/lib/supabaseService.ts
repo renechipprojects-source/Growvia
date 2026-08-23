@@ -1,9 +1,11 @@
 import { supabase } from "./supabase";
+import type { Student, Teacher, Enquiry, Fee, Expense } from "./mockData";
 import { generateParentCredential, toCanonicalAdmissionNo, generateCanonicalAdmissionNo, sanitizeTeacherName } from "./credentials";
 export { toCanonicalAdmissionNo, generateCanonicalAdmissionNo, sanitizeTeacherName };
 import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
 import { API_URL } from "./api";
+import { getUserScopedStorageKey } from "./auth";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -175,7 +177,10 @@ export interface FeeLedgerItem {
   className: string;
   section?: string;
   feeType?: string;
+  term?: string;
   academicYear?: string;
+  receiptNumber?: string;
+  paymentDate?: string;
   originalFee: number;
   discountAmount: number;
   finalFee: number;
@@ -455,9 +460,9 @@ export async function createDiaryEntry(entry: { date: string; mood: string; note
     message_type: "diary",
     title: `Daily Diary - ${entry.date}`,
     body: JSON.stringify(meta),
-    sender_id: entry.senderId || entry.sender_id || "TCH100",
-    sender_name: entry.senderName || entry.author || "Class Teacher",
-    sender_role: entry.senderRole || "teacher",
+    sender_id: (entry as any).senderId || (entry as any).sender_id || "TCH100",
+    sender_name: (entry as any).senderName || entry.author || "Class Teacher",
+    sender_role: (entry as any).senderRole || "teacher",
     recipient_role: "all",
     published_at: new Date().toISOString(),
   };
@@ -1315,7 +1320,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       .select("*");
 
     const session = getSession();
-    if (session && (session.role === "parent" || session.role === "student")) {
+    if (session && ((session.role as string) === "parent" || (session.role as string) === "student")) {
       const targetId = studentIdFilter || session.linkId || session.loginId;
       if (targetId) {
         query = query.eq("student_id", targetId);
@@ -1577,7 +1582,7 @@ export async function fetchTransportRoutes(studentIdFilter?: string): Promise<Tr
       .select("*");
 
     const session = getSession();
-    if (session && (session.role === "parent" || session.role === "student")) {
+    if (session && ((session.role as string) === "parent" || (session.role as string) === "student")) {
       const targetId = studentIdFilter || session.linkId || session.loginId;
       if (targetId) {
         query = query.eq("record_type", "transport_allocation").or(`id.eq.${targetId},id.eq.ALLOC-${targetId},notes.cs.{"studentId":"${targetId}"}`);
@@ -1759,9 +1764,9 @@ export async function createEvent(event: Omit<SchoolEvent, "id">): Promise<{ dat
       message_type: "event",
       title: event.title,
       body: JSON.stringify(meta),
-      sender_id: event.senderId || event.sender_id || "PRINCIPAL001",
-      sender_name: event.senderName || event.sender_name || "Principal Office",
-      sender_role: event.senderRole || "principal",
+      sender_id: (event as any).senderId || (event as any).sender_id || "PRINCIPAL001",
+      sender_name: (event as any).senderName || (event as any).sender_name || "Principal Office",
+      sender_role: (event as any).senderRole || "principal",
       recipient_role: aud.join(","),
       published_at: new Date().toISOString(),
     };
