@@ -51,9 +51,14 @@ function MyClass() {
   const sec = (active?.section || "") as Section;
 
   const list = useMemo(() => {
-    if (!active) return [];
-    const source = allStudents;
-    return source.filter((s) => s.className.toLowerCase() === cls.toLowerCase() && (!sec || s.section.toUpperCase() === sec.toUpperCase()));
+    if (!active || !cls) return [];
+    const targetClass = cls.trim().toLowerCase();
+    const targetSec = (sec || "A").trim().toUpperCase();
+    return allStudents.filter(
+      (s) =>
+        (s.className || "").trim().toLowerCase() === targetClass &&
+        (s.section || "A").trim().toUpperCase() === targetSec
+    );
   }, [active, allStudents, cls, sec]);
 
   const recMap = useMemo(() => {

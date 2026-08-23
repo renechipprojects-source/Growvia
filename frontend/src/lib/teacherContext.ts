@@ -29,18 +29,17 @@ function myActive(): ClassAssignment[] {
   );
 
   const sessAny = session as any;
-  if (assignments.length === 0 && sessAny?.className) {
-    const parts = sessAny.className.trim().split(" ");
-    const name = parts[0] || sessAny.className;
-    const sec = parts[1] || sessAny.section || "A";
+  if (assignments.length === 0 && (sessAny?.className || sessAny?.class_name)) {
+    const rawClass = (sessAny.className || sessAny.class_name || "").trim();
+    const rawSection = (sessAny.section || "A").trim().toUpperCase();
     return [
       {
         id: `ASG-${activeId || "TCH"}`,
         teacherId: activeId,
         teacherName: activeName || "Teacher",
         role: "class",
-        className: name,
-        section: sec,
+        className: rawClass,
+        section: rawSection,
         academicYear: "2026-2027",
         status: "active",
       },
@@ -65,7 +64,11 @@ export function getAssignment(id: string): TeacherAssignment | undefined {
 
 export function getStudentsForAssignment(a: TeacherAssignment, allStudents: Student[] = []): Student[] {
   if (!a || !allStudents.length) return [];
+  const targetClass = (a.className || "").trim().toLowerCase();
+  const targetSec = (a.section || "A").trim().toUpperCase();
   return allStudents.filter(
-    (s) => s.className.toLowerCase() === a.className.toLowerCase() && (!a.section || s.section.toUpperCase() === a.section.toUpperCase())
+    (s) =>
+      (s.className || "").trim().toLowerCase() === targetClass &&
+      (s.section || "A").trim().toUpperCase() === targetSec
   );
 }
