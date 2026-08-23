@@ -514,6 +514,65 @@ import { getSession, safeNormalizeId } from "./auth";
 import { readAssignments } from "./classAssignmentContext";
 
 export async function fetchStudents(classNameFilter?: string, sectionFilter?: string): Promise<{ data: Student[]; isFromSupabase: boolean }> {
+  // 1. Primary: Query production Backend API endpoint (bypasses Supabase client RLS restrictions)
+  try {
+    const res = await fetch(`${API_URL}/api/users?role=student`);
+    if (res.ok) {
+      const json = await res.json();
+      const rows = json.data || json || [];
+      if (Array.isArray(rows) && rows.length > 0) {
+        const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
+        const filteredRows = rows.filter((d: any) => {
+          const r = (d.role || "").toLowerCase();
+          return !staffRoles.includes(r);
+        });
+
+        const mapped: Student[] = filteredRows.map((d: any) => {
+          const normClsSec = normalizeClassAndSection(d.class_name || d.className, d.section);
+          return {
+            id: d.id || d.login_id,
+            rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
+            admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
+            name: d.full_name || d.name || "Student",
+            age: d.age ? Number(d.age) : 4,
+            dob: d.date_of_birth || d.dob || undefined as any,
+            className: normClsSec.className as any,
+            section: normClsSec.section as any,
+            parent: d.parent_name || d.parent || "Parent",
+            parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
+            phone: d.mobile || d.phone || undefined as any,
+            gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
+            house: d.house || undefined as any,
+            address: d.address || undefined,
+            email: d.email || undefined,
+            bloodGroup: d.blood_group || d.bloodGroup || undefined,
+            admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
+            feeStatus: (d.fee_status || d.feeStatus || "Pending") as any,
+            avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
+            attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
+            branch: d.branch || "Main Branch",
+          };
+        });
+
+        let result = mapped;
+        if (classNameFilter && classNameFilter !== "all") {
+          const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
+          result = result.filter((s) => s.className.toLowerCase() === normFilter.className.toLowerCase());
+        }
+        if (sectionFilter && sectionFilter !== "all") {
+          result = result.filter((s) => s.section.toLowerCase() === sectionFilter.toLowerCase());
+        }
+
+        const normalized = normalizeStudents(result);
+        if (normalized.length > 0) {
+          setCachedStudentsList(normalized);
+          return { data: normalized, isFromSupabase: true };
+        }
+      }
+    }
+  } catch { }
+
+  // 2. Secondary Fallback: Direct Supabase client query
   try {
     let query = supabase
       .from("gv_users")
@@ -537,7 +596,6 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
         return !staffRoles.includes(r);
       });
 
-      // Build live fee status map directly from gv_fees_payments table (prevents recursive fetchFees loop)
       const feeStatusMap = new Map<string, string>();
       try {
         const { data: feeRows } = await supabase
@@ -590,52 +648,13 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
         return { data: normalized, isFromSupabase: true };
       }
     }
+  } catch { }
 
-    try {
-      const res = await fetch(`${API_URL}/api/users?role=student`);
-      if (res.ok) {
-        const json = await res.json();
-        const rows = json.data || json || [];
-        if (Array.isArray(rows) && rows.length > 0) {
-          const mapped: Student[] = rows.map((d: any) => ({
-            id: d.id || d.login_id,
-            rollNo: d.roll_no || 1,
-            admissionNo: toCanonicalAdmissionNo(d.admission_no, d.id),
-            name: d.full_name || "Student",
-            age: d.age || 4,
-            dob: d.date_of_birth || "2022-01-01",
-            className: d.class_name || "Nursery",
-            section: d.section || "A",
-            parent: d.parent_name || "Parent",
-            parentId: d.parent_id || `PAR-${d.id}`,
-            phone: d.mobile || "9876543210",
-            gender: d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy",
-            house: d.house || "Red",
-            admissionDate: d.created_at?.slice(0, 10) || new Date().toISOString().split("T")[0],
-            feeStatus: (d.fee_status as any) || "Pending",
-            avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || "Student")}`,
-            attendance: Number(d.attendance_pct || 95.0),
-            branch: d.branch || "Main Branch",
-          }));
-          const normalized = normalizeStudents(mapped);
-          setCachedStudentsList(normalized);
-          return { data: normalized, isFromSupabase: true };
-        }
-      }
-    } catch { }
-
-    const cached = getCachedStudentsList();
-    if (cached && cached.length > 0) {
-      return { data: cached, isFromSupabase: false };
-    }
-    return { data: [], isFromSupabase: false };
-  } catch {
-    const cached = getCachedStudentsList();
-    if (cached && cached.length > 0) {
-      return { data: cached, isFromSupabase: false };
-    }
-    return { data: [], isFromSupabase: false };
+  const cached = getCachedStudentsList();
+  if (cached && cached.length > 0) {
+    return { data: cached, isFromSupabase: false };
   }
+  return { data: [], isFromSupabase: false };
 }
 
 
