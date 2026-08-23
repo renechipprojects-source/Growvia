@@ -9,6 +9,11 @@ export interface Homework {
   className: string;
   subject: string;
   due: string;
+  assignedDate?: string;
+  status?: string;
+  submitted?: number;
+  reviewed?: number;
+  total?: number;
 }
 
 let memoryHomeworkCache: Homework[] = [];
@@ -48,6 +53,11 @@ export async function fetchHomeworkFromSupabase(): Promise<Homework[]> {
         className: meta.className || "Nursery",
         subject: meta.subject || "General",
         due: meta.due || (d.published_at ? d.published_at.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+        assignedDate: meta.assignedDate || (d.created_at ? d.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+        status: meta.status || "Assigned",
+        submitted: typeof meta.submitted === "number" ? meta.submitted : 0,
+        reviewed: typeof meta.reviewed === "number" ? meta.reviewed : 0,
+        total: typeof meta.total === "number" ? meta.total : 0,
       };
     });
 

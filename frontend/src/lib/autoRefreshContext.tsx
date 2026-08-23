@@ -24,7 +24,8 @@ export type ERPModule =
   | "homework"
   | "marks"
   | "leaveRequests"
-  | "requests";
+  | "requests"
+  | "activities";
 
 interface AutoRefreshContextType {
   registerRefresher: (module: ERPModule, fn: () => Promise<void> | void) => () => void;

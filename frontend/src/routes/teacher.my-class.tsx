@@ -237,9 +237,9 @@ function MyClass() {
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <StatBubble label="Assigned" value={classHW.length} icon={BookOpen} gradient="from-sky-500 to-blue-500" />
-            <StatBubble label="Submitted" value={classHW.reduce((n, h) => n + h.submitted, 0)} icon={BookOpen} gradient="from-emerald-500 to-green-500" />
+            <StatBubble label="Submitted" value={classHW.reduce((n, h) => n + (h.submitted ?? 0), 0)} icon={BookOpen} gradient="from-emerald-500 to-green-500" />
             <StatBubble label="Pending" value={classHW.filter((h) => h.status === "Pending").length} icon={BookOpen} gradient="from-amber-500 to-orange-500" />
-            <StatBubble label="Reviewed" value={classHW.reduce((n, h) => n + h.reviewed, 0)} icon={BookOpen} gradient="from-indigo-500 to-purple-500" />
+            <StatBubble label="Reviewed" value={classHW.reduce((n, h) => n + (h.reviewed ?? 0), 0)} icon={BookOpen} gradient="from-indigo-500 to-purple-500" />
           </div>
           <SectionCard title="Class homework">
             <ul className="space-y-2 max-h-[60vh] sm:max-h-[500px] overflow-y-auto pr-1">
@@ -253,9 +253,9 @@ function MyClass() {
                     <Badge className={h.status === "Pending" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}>{h.status}</Badge>
                   </div>
                   <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                    <span><b className="text-emerald-600">{h.submitted}</b> submitted</span>
-                    <span><b className="text-amber-600">{h.total - h.submitted}</b> pending</span>
-                    <span><b className="text-indigo-600">{h.reviewed}</b> reviewed</span>
+                    <span><b className="text-emerald-600">{h.submitted ?? 0}</b> submitted</span>
+                    <span><b className="text-amber-600">{(h.total ?? 0) - (h.submitted ?? 0)}</b> pending</span>
+                    <span><b className="text-indigo-600">{h.reviewed ?? 0}</b> reviewed</span>
                   </div>
                 </li>
               ))}

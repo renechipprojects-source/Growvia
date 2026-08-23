@@ -8,6 +8,7 @@ export interface Activity {
   className: string;
   cover: string;
   date: string;
+  category?: string;
 }
 
 let memoryActivitiesCache: Activity[] = [];
@@ -48,6 +49,7 @@ export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
         className: meta.className || d.recipient_role || d.target_audience || "Nursery",
         cover: meta.cover || "/placeholder.svg",
         date: d.published_at?.slice(0, 10) || d.published_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        category: meta.category || d.category || "General",
       };
     });
 
