@@ -28,8 +28,8 @@ export async function triggerServerUserProvisioning(params?: {
   // 1. Try Backend Provisioning Endpoint
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "http://localhost:5001",
     "https://growvia-backend-4wp7.onrender.com",
-    "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
 
@@ -296,8 +296,8 @@ export async function updateServerAuthPassword(identifier: string, newPassword: 
 export async function resolveLoginIdViaServer(identifier: string) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "http://localhost:5001",
     "https://growvia-backend-4wp7.onrender.com",
-    "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
 
@@ -437,10 +437,32 @@ export async function login(loginIdInput: string, passwordInput: string) {
       }
 
       // Step C: Authenticate using resolved exact Auth email + entered password
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password,
       });
+
+      if (authError || !authData?.user) {
+        // Auto-provision or update password via server endpoint if not yet synced in Supabase Auth
+        const provRes = await triggerServerUserProvisioning({
+          login_id: cleanLoginId,
+          email: authEmail,
+          password,
+          role: profile?.role,
+          name: profile?.full_name,
+        });
+
+        if (provRes?.success) {
+          const retryAuth = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password,
+          });
+          if (retryAuth.data?.user) {
+            authData = retryAuth.data;
+            authError = null;
+          }
+        }
+      }
 
       if (authError || !authData?.user) {
         return { success: false, error: authError?.message || "Invalid Login ID or password." };
