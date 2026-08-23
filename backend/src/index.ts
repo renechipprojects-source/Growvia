@@ -372,6 +372,74 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
           else {
             const { data: d4 } = await admin.from('gv_users').select('*').ilike('id', clean).maybeSingle();
             if (d4) profile = d4;
+            else {
+              const { data: d5 } = await admin.from('gv_users').select('*').ilike('parent_id', clean).maybeSingle();
+              if (d5) {
+                const parentName = d5.parent_name || '';
+                const { data: pRec } = await admin
+                  .from('gv_users')
+                  .select('*')
+                  .or(`login_id.ilike.${clean},parent_id.ilike.${clean}${parentName ? `,full_name.ilike.${parentName}` : ''}`)
+                  .ilike('role', '%parent%')
+                  .maybeSingle();
+
+                if (pRec) {
+                  profile = pRec;
+                } else {
+                  profile = {
+                    id: d5.parent_id || clean,
+                    login_id: d5.parent_id || clean,
+                    full_name: d5.parent_name || 'Parent',
+                    email: `${(d5.parent_id || clean).toLowerCase()}@growvia.edu`,
+                    role: 'parent',
+                    status: 'active',
+                  };
+                }
+              } else {
+                // 6. Dynamic database lookup in gv_requests for generated credentials
+                const { data: reqRows } = await admin
+                  .from('gv_requests')
+                  .select('*')
+                  .eq('request_type', 'generated_credential')
+                  .or(`applicant_or_child_name.ilike.${clean},reason_or_notes.ilike.%${clean}%`);
+
+                if (reqRows && reqRows.length > 0) {
+                  for (const row of reqRows) {
+                    try {
+                      if (row.reason_or_notes && row.reason_or_notes.startsWith('{')) {
+                        const parsed = JSON.parse(row.reason_or_notes);
+                        if (parsed.loginId && (parsed.loginId.toLowerCase() === clean.toLowerCase() || parsed.loginId.toLowerCase() === norm)) {
+                          if (parsed.kind === 'parent' && parsed.studentId) {
+                            const { data: sRow } = await admin.from('gv_users').select('*').eq('id', parsed.studentId).maybeSingle();
+                            const pName = sRow?.parent_name || row.applicant_or_child_name || 'Parent';
+                            const { data: pUser } = await admin.from('gv_users').select('*').or(`login_id.ilike.${parsed.loginId},full_name.ilike.${pName}`).ilike('role', '%parent%').maybeSingle();
+                            if (pUser) {
+                              profile = pUser;
+                            } else {
+                              profile = {
+                                id: `PAR-${parsed.studentId}`,
+                                login_id: parsed.loginId,
+                                full_name: pName,
+                                email: `${parsed.loginId.toLowerCase()}@growvia.edu`,
+                                role: 'parent',
+                                status: 'active',
+                              };
+                            }
+                            break;
+                          } else if (parsed.kind === 'teacher' && parsed.teacherId) {
+                            const { data: tUser } = await admin.from('gv_users').select('*').or(`id.eq.${parsed.teacherId},login_id.ilike.${parsed.loginId}`).maybeSingle();
+                            if (tUser) {
+                              profile = tUser;
+                              break;
+                            }
+                          }
+                        }
+                      }
+                    } catch {}
+                  }
+                }
+              }
+            }
           }
         }
       }
