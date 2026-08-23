@@ -48,7 +48,8 @@ function Login() {
           user = userData?.user ?? undefined;
         }
 
-        if (!user) {
+        const { getSession } = await import("@/lib/auth");
+        if (!user || !getSession()) {
           import("@/lib/auth").then(({ clearAllClientCaches }) => clearAllClientCaches());
           return;
         }

@@ -119,30 +119,36 @@ export function getUserScopedStorageKey(baseKey: string): string {
 export function clearAllClientCaches() {
   if (typeof window === "undefined") return;
   try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && (k.startsWith("sunshine") || k.startsWith("sb-") || k.includes("auth-token") || k.includes("supabase"))) {
-        keysToRemove.push(k);
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  } catch {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k) keysToRemove.push(k);
       }
-    }
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const k = sessionStorage.key(i);
-      if (k && (k.startsWith("sunshine") || k.startsWith("sb-") || k.includes("auth-token") || k.includes("supabase"))) {
-        keysToRemove.push(k);
+      keysToRemove.forEach((k) => {
+        try { localStorage.removeItem(k); } catch {}
+      });
+      const ssKeys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k) ssKeys.push(k);
       }
-    }
-    keysToRemove.forEach((k) => {
-      try { localStorage.removeItem(k); } catch {}
-      try { sessionStorage.removeItem(k); } catch {}
-    });
-  } catch {}
+      ssKeys.forEach((k) => {
+        try { sessionStorage.removeItem(k); } catch {}
+      });
+    } catch {}
+  }
 }
 
 export async function signOut() {
   if (typeof window === "undefined") return;
   try {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "global" }).catch(async () => {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    });
   } catch {}
   clearAllClientCaches();
   try {
