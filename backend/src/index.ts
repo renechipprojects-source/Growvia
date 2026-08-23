@@ -131,12 +131,12 @@ app.get('/api/users', async (req: Request, res: Response) => {
   try {
     const role = req.query.role as string;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('gv_users')
       .select('*');
 
     if (role) {
-      query = query.eq('role', role);
+      query = query.ilike('role', `%${role}%`);
     }
 
     const { data, error } = await query;
