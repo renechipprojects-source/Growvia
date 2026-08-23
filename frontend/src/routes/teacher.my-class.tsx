@@ -25,6 +25,7 @@ const TABS = ["Overview", "Attendance", "Homework", "Academics", "Students", "Ac
 type Tab = (typeof TABS)[number];
 
 function MyClass() {
+  const { assignments: contextAssignments } = useClassAssignments();
   const session = getSession();
   const active = useMemo(() => {
     const classAss = getClassAssignments();
@@ -41,7 +42,7 @@ function MyClass() {
       };
     }
     return undefined;
-  }, [session]);
+  }, [session, contextAssignments]);
 
   const [tab, setTab] = useState<Tab>("Overview");
   const [localRemark, setLocalRemark] = useState<Record<string, string>>({});

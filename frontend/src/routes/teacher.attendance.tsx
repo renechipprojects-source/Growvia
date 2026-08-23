@@ -19,6 +19,8 @@ import { fetchStudents, type Student } from "@/lib/supabaseService";
 
 import { StaffSelfAttendanceCard } from "@/components/staff/StaffSelfAttendanceCard";
 
+import { useClassAssignments } from "@/lib/classAssignmentContext";
+
 const searchSchema = z.object({ a: z.string().optional() });
 
 export const Route = createFileRoute("/teacher/attendance")({
@@ -43,6 +45,7 @@ function assignmentLabel(a: TeacherAssignment) {
 
 function Att() {
   const { triggerModuleRefresh } = useAutoRefresh();
+  const { assignments: contextAssignments } = useClassAssignments();
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
   const assignments: TeacherAssignment[] = useMemo(() => {
@@ -51,7 +54,7 @@ function Att() {
     const subjAss = getSubjectAssignments();
     if (subjAss.length > 0) return subjAss;
     return [];
-  }, []);
+  }, [contextAssignments]);
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [localSearch, setLocalSearch] = useState("");
