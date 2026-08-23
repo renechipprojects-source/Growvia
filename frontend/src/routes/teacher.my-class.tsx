@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Baby, Cake, ShieldCheck, Users, UserCheck, UserX, BookOpen, Sparkles, MessageSquarePlus, Search, Award, TrendingDown } from "lucide-react";
 import { getClassAssignments } from "@/lib/teacherContext";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useSearchQuery, matchesSearch } from "@/lib/searchContext";
 import { toast } from "sonner";
 import { fetchStudents, type Student } from "@/lib/supabaseService";
@@ -25,8 +25,24 @@ const TABS = ["Overview", "Attendance", "Homework", "Academics", "Students", "Ac
 type Tab = (typeof TABS)[number];
 
 function MyClass() {
-  const assignments = getClassAssignments();
-  const active = assignments[0];
+  const session = getSession();
+  const active = useMemo(() => {
+    const classAss = getClassAssignments();
+    if (classAss.length > 0) return classAss[0];
+    const sessAny = session as any;
+    if (sessAny?.className || sessAny?.class_name) {
+      const rawClass = (sessAny.className || sessAny.class_name || "").trim();
+      const rawSec = (sessAny.section || "A").trim().toUpperCase();
+      return {
+        id: `ASG-${sessAny.loginId || "TCH"}`,
+        type: "class" as const,
+        className: rawClass,
+        section: rawSec,
+      };
+    }
+    return undefined;
+  }, [session]);
+
   const [tab, setTab] = useState<Tab>("Overview");
   const [localRemark, setLocalRemark] = useState<Record<string, string>>({});
   const headerQuery = useSearchQuery();
@@ -44,6 +60,10 @@ function MyClass() {
   useAutoRefresh("attendance", loadData);
   useAutoRefresh("homework", loadData);
   useAutoRefresh("activities", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const q = headerQuery || localSearch;
 
@@ -98,8 +118,13 @@ function MyClass() {
 
   if (!active) {
     return (
-      <div>
+      <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1 space-y-4">
         <PageHeader title="My Class" subtitle="You are not assigned as a class teacher." />
+        <SectionCard title="Class Assignment Required">
+          <p className="text-sm text-muted-foreground">
+            No class assignment was found for your account. Please contact the Office administrator to assign your class in Office → Class Assignment.
+          </p>
+        </SectionCard>
       </div>
     );
   }

@@ -107,6 +107,9 @@ function Login() {
             loginId: supaResult.profile.login_id,
             role: supaResult.profile.role as any,
             name: supaResult.profile.full_name,
+            linkId: supaResult.profile.id,
+            className: supaResult.profile.class_name,
+            section: supaResult.profile.section,
             mustChangePassword: supaResult.profile.must_change_password,
           },
           remember
