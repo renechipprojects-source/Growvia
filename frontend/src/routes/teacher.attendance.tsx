@@ -45,7 +45,13 @@ function Att() {
   const { triggerModuleRefresh } = useAutoRefresh();
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const assignments: TeacherAssignment[] = getClassAssignments();
+  const assignments: TeacherAssignment[] = useMemo(() => {
+    const classAss = getClassAssignments();
+    if (classAss.length > 0) return classAss;
+    const subjAss = getSubjectAssignments();
+    if (subjAss.length > 0) return subjAss;
+    return [];
+  }, []);
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [localSearch, setLocalSearch] = useState("");
@@ -68,15 +74,15 @@ function Att() {
   const q = headerQuery || localSearch;
 
   const active =
-    (activeId && assignments.find((x) => x.id === activeId)) || assignments[0];
+    (activeId && assignments.find((x) => x.id === activeId)) || assignments[0] || null;
 
   const cls = (active?.className || "") as ClassName;
   const sec = (active?.section || "") as Section;
 
   const list = useMemo(() => {
-    if (!active) return [];
+    if (!active || !cls) return [];
     const source = allStudents;
-    return source.filter((s) => s.className === cls && (!sec || s.section === sec));
+    return source.filter((s) => s.className?.toLowerCase() === cls.toLowerCase() && (!sec || (s.section || "A").toUpperCase() === sec.toUpperCase()));
   }, [active, allStudents, cls, sec]);
 
   const seed = useMemo(() => {
@@ -114,7 +120,7 @@ function Att() {
       <div className="shrink-0">
         <PageHeader
           title="Attendance"
-          subtitle={`${date} · ${active.type === "subject" ? `${active.subject} · ` : ""}${cls}-${sec} · ${counts.P}/${counts.total} present (${pct}%)`}
+          subtitle={`${date} · ${active?.type === "subject" ? `${active.subject} · ` : ""}${cls ? `${cls}-${sec}` : "No Class Assigned"} · ${counts.P}/${counts.total} present (${pct}%)`}
           action={
             <div className="flex items-center gap-2">
               <Input
@@ -125,6 +131,10 @@ function Att() {
               />
               <Button
                 onClick={async () => {
+                  if (!cls) {
+                    toast.error("No class assigned to save attendance.");
+                    return;
+                  }
                   await saveAttendance(cls, sec, date, state, list, "Class Teacher");
                   triggerModuleRefresh("attendance");
                   NotificationService.attendanceMarked(`${cls}-${sec}`);
@@ -142,7 +152,7 @@ function Att() {
       {/* Assignment picker — only shows classes assigned to this teacher */}
       <div className="shrink-0 mb-3 flex flex-wrap items-center gap-2">
         {assignments.map((asg) => {
-          const isActive = asg.id === active.id;
+          const isActive = !!(active && asg.id === active.id);
           return (
             <button
               key={asg.id}
@@ -166,12 +176,12 @@ function Att() {
       <div className="shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
         <div className="rounded-3xl bg-white/70 border border-white/60 p-4 shadow-sm">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Class</div>
-          <div className="mt-1 font-semibold">{cls}-{sec}</div>
+          <div className="mt-1 font-semibold">{cls ? `${cls}-${sec}` : "N/A"}</div>
         </div>
         <div className="rounded-3xl bg-white/70 border border-white/60 p-4 shadow-sm">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Role</div>
           <div className="mt-1 font-semibold capitalize">
-            {active.type === "class" ? "Class Teacher" : active.subject}
+            {active ? (active.type === "class" ? "Class Teacher" : active.subject || "Subject Teacher") : "Unassigned"}
           </div>
         </div>
         <div className="rounded-3xl bg-white/70 border border-white/60 p-4 shadow-sm">

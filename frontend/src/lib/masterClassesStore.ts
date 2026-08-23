@@ -21,16 +21,6 @@ const EVENT_NAME = "sunshine_classes_updated";
 
 let memoryCache: MasterClassItem[] | null = null;
 let deletedIdsCache: Set<string> = new Set();
-
-const DEFAULT_INITIAL_CLASSES: MasterClassItem[] = [
-  { id: "CLS-Playgroup-A", name: "Playgroup", section: "A", fullName: "Playgroup - Section A", classTeacher: "Unassigned", room: "Room 101", capacity: 25 },
-  { id: "CLS-Nursery-A", name: "Nursery", section: "A", fullName: "Nursery - Section A", classTeacher: "Ananya Sen", room: "Room 102", capacity: 30 },
-  { id: "CLS-LKG-A", name: "LKG", section: "A", fullName: "LKG - Section A", classTeacher: "Vikram Malhotra", room: "Room 103", capacity: 30 },
-  { id: "CLS-UKG-A", name: "UKG", section: "A", fullName: "UKG - Section A", classTeacher: "Pooja Sharma", room: "Room 104", capacity: 30 },
-  { id: "CLS-Grade1-A", name: "Grade 1", section: "A", fullName: "Grade 1 - Section A", classTeacher: "Rahul Verma", room: "Room 105", capacity: 35 },
-  { id: "CLS-Grade2-A", name: "Grade 2", section: "A", fullName: "Grade 2 - Section A", classTeacher: "Sneha Patel", room: "Room 106", capacity: 35 },
-];
-
 export function getStoredDeletedIds(): Set<string> {
   if (typeof window !== "undefined") {
     try {
@@ -62,7 +52,7 @@ export function getStoredMasterClasses(): MasterClassItem[] {
       }
     } catch {}
   }
-  memoryCache = DEFAULT_INITIAL_CLASSES.filter((c) => !deleted.has(c.id));
+  memoryCache = [];
   return memoryCache;
 }
 
@@ -81,8 +71,7 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
       } catch {}
     }
 
-    const localDeleted = getStoredDeletedIds();
-    const mergedDeleted = new Set([...Array.from(remoteDeleted), ...Array.from(localDeleted)]);
+    const mergedDeleted = remoteDeleted;
     deletedIdsCache = mergedDeleted;
 
     if (typeof window !== "undefined") {
@@ -91,9 +80,11 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
       } catch {}
     }
 
+    let resultList: MasterClassItem[] = [];
+
     if (classData && classData.length > 0) {
       const activeRows = classData.filter((d: any) => d.id !== "SYSTEM_DELETED_CLASSES" && !mergedDeleted.has(d.id));
-      const mapped: MasterClassItem[] = activeRows.map((d: any) => {
+      resultList = activeRows.map((d: any) => {
         let meta: any = {};
         try {
           if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
@@ -128,36 +119,50 @@ export async function fetchMasterClassesFromSupabase(): Promise<MasterClassItem[
           capacity: Number(meta.capacity || 30),
         };
       });
-
-      memoryCache = mapped;
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
-          localStorage.setItem(INITIALIZED_KEY, "true");
-        } catch {}
-      }
-      return mapped;
     }
 
-    const isInitialized = typeof window !== "undefined" && localStorage.getItem(INITIALIZED_KEY) === "true";
-    if (isInitialized || delMarker) {
-      memoryCache = [];
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        } catch {}
+    // Auto-discover any class & section present in student records
+    try {
+      const { data: studentRows } = await supabase
+        .from("gv_users")
+        .select("class_name, section")
+        .or("role.eq.student,role.eq.Student,role.ilike.*student*");
+
+      if (studentRows && studentRows.length > 0) {
+        studentRows.forEach((s: any) => {
+          const cName = (s.class_name || "").trim();
+          const cSec = (s.section || "A").trim().toUpperCase();
+          if (cName) {
+            const exists = resultList.some(
+              (item) => item.name.toLowerCase() === cName.toLowerCase() && item.section.toUpperCase() === cSec
+            );
+            if (!exists) {
+              const newClassItem: MasterClassItem = {
+                id: `CLS-${cName.replace(/\s+/g, "")}-${cSec}`,
+                name: cName,
+                section: cSec,
+                fullName: `${cName} - Section ${cSec}`,
+                classTeacher: "Unassigned",
+                room: "Room 101",
+                capacity: 30,
+              };
+              if (!mergedDeleted.has(newClassItem.id)) {
+                resultList.push(newClassItem);
+              }
+            }
+          }
+        });
       }
-      return [];
-    } else {
-      const activeDefaults = DEFAULT_INITIAL_CLASSES.filter((c) => !mergedDeleted.has(c.id));
-      saveStoredMasterClasses(activeDefaults);
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(INITIALIZED_KEY, "true");
-        } catch {}
-      }
-      return activeDefaults;
+    } catch {}
+
+    memoryCache = resultList;
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(resultList));
+        localStorage.setItem(INITIALIZED_KEY, "true");
+      } catch {}
     }
+    return resultList;
   } catch (err) {
     console.warn("Error fetching master classes from Supabase:", err);
   }

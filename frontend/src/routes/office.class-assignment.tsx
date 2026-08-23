@@ -113,20 +113,28 @@ function ClassAssignmentPage() {
 
   // Derived available classes & sections combining defaults + master classes
   const availableClasses = useMemo(() => {
-    const set = new Set<string>(DEFAULT_CLASSES);
+    const set = new Set<string>();
     masterClasses.forEach((mc) => {
       if (mc.name) set.add(mc.name);
     });
+    students.forEach((s) => {
+      if (s.className) set.add(s.className);
+    });
+    if (set.size === 0) set.add("Nursery");
     return Array.from(set);
-  }, [masterClasses]);
+  }, [masterClasses, students]);
 
   const availableSections = useMemo(() => {
-    const set = new Set<string>(DEFAULT_SECTIONS);
+    const set = new Set<string>();
     masterClasses.forEach((mc) => {
       if (mc.section) set.add(mc.section.toUpperCase());
     });
+    students.forEach((s) => {
+      if (s.section) set.add(s.section.toUpperCase());
+    });
+    if (set.size === 0) set.add("A");
     return Array.from(set);
-  }, [masterClasses]);
+  }, [masterClasses, students]);
 
   // Teacher Assignment Handlers
   const openNew = (role: AssignmentRole = "class") => {

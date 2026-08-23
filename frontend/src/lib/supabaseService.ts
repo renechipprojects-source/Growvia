@@ -58,7 +58,7 @@ export function notifyAutoRefresh(moduleName: string) {
       window.dispatchEvent(new CustomEvent("sunshine-module-refresh", { detail: { module: moduleName } }));
       window.dispatchEvent(new CustomEvent(`sunshine-auto-refresh-${moduleName}`));
       window.dispatchEvent(new CustomEvent("sunshine-auto-refresh"));
-    } catch {}
+    } catch { }
   }
 }
 
@@ -216,7 +216,7 @@ export function getCachedCircularsList(): Circular[] {
           return memoryCircularsCache;
         }
       }
-    } catch {}
+    } catch { }
   }
   return memoryCircularsCache;
 }
@@ -227,7 +227,7 @@ export function setCachedCircularsList(circulars: Circular[]) {
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem("sunshine.circulars.cache.v1", JSON.stringify(circulars));
-    } catch {}
+    } catch { }
   }
 }
 
@@ -396,7 +396,7 @@ export async function deleteCircular(id: string) {
         localStorage.setItem("sunshine.alerts.v1", JSON.stringify(updatedAlerts));
       }
     }
-  } catch {}
+  } catch { }
 
   notifyAutoRefresh("circulars");
 
@@ -433,7 +433,7 @@ export async function fetchDiaryEntries(): Promise<DiaryEntry[]> {
         if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
           meta = JSON.parse(d.body);
         }
-      } catch {}
+      } catch { }
       return {
         id: d.id,
         date: meta.date || d.published_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -488,7 +488,7 @@ export function getCachedStudentsList(): Student[] {
           return memoryStudentsCache;
         }
       }
-    } catch {}
+    } catch { }
   }
   return normalizeStudents(memoryStudentsCache);
 }
@@ -499,7 +499,7 @@ export function setCachedStudentsList(students: Student[]) {
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(getUserScopedStorageKey("sunshine.students.cache.v1"), JSON.stringify(memoryStudentsCache));
-    } catch {}
+    } catch { }
   }
 }
 
@@ -569,7 +569,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
             if (f.student_name) feeStatusMap.set(String(f.student_name).toLowerCase(), f.status);
           }
         });
-      } catch {}
+      } catch { }
 
       const mapped: Student[] = rows.map((d: any) => {
         const sId = (d.id || d.login_id || "").toLowerCase();
@@ -640,7 +640,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
           return { data: normalized, isFromSupabase: true };
         }
       }
-    } catch {}
+    } catch { }
 
     const cached = getCachedStudentsList();
     if (cached && cached.length > 0) {
@@ -694,7 +694,7 @@ export async function createStudent(student: Omit<Student, "id"> & {
           phone: match.mobile,
         } as any;
       }
-    } catch {}
+    } catch { }
   }
 
   const ts = Date.now().toString();
@@ -784,13 +784,14 @@ export async function createStudent(student: Omit<Student, "id"> & {
         academicYear: "2026-2027",
         feeType: customFeePlan,
         payments: [],
-      } as any).catch(() => {});
+      } as any).catch(() => { });
 
       setCachedStudentsList([serverStu, ...getCachedStudentsList().filter((s) => s.id !== serverStu.id && s.id !== newStuObj.id)]);
       notifyAutoRefresh("students");
       notifyAutoRefresh("admissions");
       notifyAutoRefresh("reports");
       notifyAutoRefresh("fees");
+      notifyAutoRefresh("classes");
       return { data: serverStu, error: null };
     }
 
@@ -813,9 +814,10 @@ export async function createStudent(student: Omit<Student, "id"> & {
         notifyAutoRefresh("admissions");
         notifyAutoRefresh("reports");
         notifyAutoRefresh("fees");
+        notifyAutoRefresh("classes");
         return { data: serverStu, error: null };
       }
-    } catch {}
+    } catch { }
 
     return { data: null, error: error?.message || "Failed to create student in database." };
   } catch (err: any) {
@@ -927,7 +929,7 @@ export function getCachedTeachersList(): Teacher[] {
           return memoryTeachersCache;
         }
       }
-    } catch {}
+    } catch { }
   }
   return memoryTeachersCache;
 }
@@ -938,7 +940,7 @@ export function setCachedTeachersList(teachers: Teacher[]) {
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(getUserScopedStorageKey("sunshine.teachers.cache.v1"), JSON.stringify(teachers));
-    } catch {}
+    } catch { }
   }
 }
 
@@ -958,7 +960,7 @@ export async function fetchTeachers(): Promise<{ data: Teacher[]; isFromSupabase
           if (d.address && d.address.startsWith("{")) {
             extraMeta = JSON.parse(d.address);
           }
-        } catch {}
+        } catch { }
 
         return {
           id: d.id || d.login_id,
@@ -1036,7 +1038,7 @@ export async function createTeacher(teacher: Omit<Teacher, "id"> & { id?: string
       import("./credentials").then(({ generateTeacherCredential }) => {
         generateTeacherCredential(newId, { teacher: newTeachObj });
       });
-    } catch {}
+    } catch { }
     return { data: data ? data[0] : newTeachObj, error: error?.message || null };
   } catch (err: any) {
     return { data: newTeachObj, error: null };
@@ -1109,7 +1111,7 @@ export function saveStoredEnquiries(list: Enquiry[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(list));
-  } catch {}
+  } catch { }
 }
 
 export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabase: boolean }> {
@@ -1228,8 +1230,8 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     paid >= finalFee && finalFee > 0
       ? "Paid"
       : paid > 0
-      ? "Partial"
-      : "Pending";
+        ? "Partial"
+        : "Pending";
 
   return {
     id: ledger.id || `FP-${Date.now()}`,
@@ -1354,7 +1356,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           }
         });
       }
-    } catch {}
+    } catch { }
 
     const studentLedgerMap = new Map<string, {
       studentId: string;
@@ -1556,7 +1558,7 @@ export async function saveReceipt(payment: any): Promise<{ data: any; error: str
           const json = await res.json();
           return { data: json.data ? json.data[0] : payload, error: null };
         }
-      } catch {}
+      } catch { }
       return { data: null, error: error.message };
     }
     return { data: data ? data[0] : payload, error: null };
@@ -1607,7 +1609,7 @@ export async function fetchTransportRoutes(studentIdFilter?: string): Promise<Tr
         if (d.notes && (d.notes.startsWith("{") || d.notes.startsWith("["))) {
           meta = JSON.parse(d.notes);
         }
-      } catch {}
+      } catch { }
 
       return {
         id: d.id,
@@ -1715,15 +1717,15 @@ export async function fetchEvents(): Promise<{ data: SchoolEvent[]; isFromSupaba
         if (d.body && (d.body.startsWith("{") || d.body.startsWith("["))) {
           meta = JSON.parse(d.body);
         }
-      } catch {}
+      } catch { }
 
       const aud = Array.isArray(meta.audience)
         ? meta.audience
         : Array.isArray(meta.audiences)
-        ? meta.audiences
-        : d.recipient_role
-        ? d.recipient_role.split(",")
-        : ["All"];
+          ? meta.audiences
+          : d.recipient_role
+            ? d.recipient_role.split(",")
+            : ["All"];
 
       return {
         id: d.id,
@@ -1861,7 +1863,7 @@ export async function fetchClassMarks(className?: string, section?: string): Pro
         if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
           meta = JSON.parse(d.reason_or_notes);
         }
-      } catch {}
+      } catch { }
 
       const parts = (d.leave_type_or_interested_class || "").split(" ");
       const cName = meta.className || parts[0] || "Nursery";

@@ -58,6 +58,52 @@ export function readAssignments(): ClassAssignment[] {
   return memoryAssignmentsCache;
 }
 
+export function deduplicateClassAssignments(items: ClassAssignment[]): ClassAssignment[] {
+  const result: ClassAssignment[] = [];
+  const seenClassKeys = new Set<string>();
+  const duplicateIdsToRemove: string[] = [];
+
+  const classRoleItems = items.filter((i) => i.role === "class");
+  const subjectRoleItems = items.filter((i) => i.role !== "class");
+
+  const sortedClassItems = [...classRoleItems].sort((a, b) => {
+    if (a.status === "active" && b.status !== "active") return -1;
+    if (a.status !== "active" && b.status === "active") return 1;
+    const aValid = a.teacherName && a.teacherName !== "Unassigned" && a.teacherName !== "Select Teacher";
+    const bValid = b.teacherName && b.teacherName !== "Unassigned" && b.teacherName !== "Select Teacher";
+    if (aValid && !bValid) return -1;
+    if (!aValid && bValid) return 1;
+    return b.id.localeCompare(a.id);
+  });
+
+  sortedClassItems.forEach((item) => {
+    const key = `${item.className.trim().toLowerCase()}_${item.section.trim().toUpperCase()}`;
+    if (!seenClassKeys.has(key)) {
+      seenClassKeys.add(key);
+      result.push(item);
+    } else {
+      duplicateIdsToRemove.push(item.id);
+    }
+  });
+
+  const seenSubjectKeys = new Set<string>();
+  subjectRoleItems.forEach((item) => {
+    const key = `${(item.teacherId || item.teacherName).trim().toLowerCase()}_${item.className.trim().toLowerCase()}_${item.section.trim().toUpperCase()}_${(item.subject || "").trim().toLowerCase()}`;
+    if (!seenSubjectKeys.has(key)) {
+      seenSubjectKeys.add(key);
+      result.push(item);
+    } else {
+      duplicateIdsToRemove.push(item.id);
+    }
+  });
+
+  if (duplicateIdsToRemove.length > 0) {
+    Promise.resolve(supabase.from("gv_requests").delete().in("id", duplicateIdsToRemove)).catch(() => {});
+  }
+
+  return result;
+}
+
 export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]> {
   const localItems = getStoredAssignments();
   try {
@@ -94,14 +140,16 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
         if (!combined.some((c) => c.id === loc.id)) combined.push(loc);
       });
 
-      memoryAssignmentsCache = combined;
-      saveStoredAssignments(combined);
-      return combined;
+      const deduplicated = deduplicateClassAssignments(combined);
+      memoryAssignmentsCache = deduplicated;
+      saveStoredAssignments(deduplicated);
+      return deduplicated;
     }
   } catch {}
 
-  memoryAssignmentsCache = localItems;
-  return localItems;
+  const deduplicatedLocal = deduplicateClassAssignments(localItems);
+  memoryAssignmentsCache = deduplicatedLocal;
+  return deduplicatedLocal;
 }
 
 interface State {
@@ -174,10 +222,11 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveToSupabase = (newItems: ClassAssignment[]) => {
-    memoryAssignmentsCache = newItems;
-    saveStoredAssignments(newItems);
+    const cleanList = deduplicateClassAssignments(newItems);
+    memoryAssignmentsCache = cleanList;
+    saveStoredAssignments(cleanList);
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("sunshine-class-assignment-update", { detail: newItems }));
+      window.dispatchEvent(new CustomEvent("sunshine-class-assignment-update", { detail: cleanList }));
     }
 
     const payloads = newItems.map((a) => {
