@@ -29,17 +29,18 @@ function MyClass() {
   const { assignments: contextAssignments } = useClassAssignments();
   const session = getSession();
   const active = useMemo(() => {
-    const classAss = getClassAssignments();
+    const classAss = getClassAssignments(contextAssignments);
     if (classAss.length > 0) return classAss[0];
     const sessAny = session as any;
     if (sessAny?.className || sessAny?.class_name) {
       const rawClass = (sessAny.className || sessAny.class_name || "").trim();
       const rawSec = (sessAny.section || "A").trim().toUpperCase();
+      const norm = normalizeClassAndSection(rawClass, rawSec);
       return {
         id: `ASG-${sessAny.loginId || "TCH"}`,
         type: "class" as const,
-        className: rawClass,
-        section: rawSec,
+        className: norm.className,
+        section: norm.section,
       };
     }
     return undefined;

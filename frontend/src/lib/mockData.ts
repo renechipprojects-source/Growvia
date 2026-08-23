@@ -189,11 +189,12 @@ function generateStudent(
     Math.floor(seedRand() * 5)
   ];
   const attendance = 72 + Math.floor(seedRand() * 26); // 72-97%
+  const studentName = `${first} ${surname}`;
   return {
     id,
     rollNo,
     admissionNo,
-    name,
+    name: studentName,
     age,
     dob,
     className,
@@ -205,7 +206,7 @@ function generateStudent(
     house: HOUSES[rollNo % 4],
     admissionDate: `2025-0${(rollNo % 9) + 1}-1${rollNo % 9}`,
     feeStatus,
-    avatar: `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(name + id)}`,
+    avatar: `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(studentName + id)}`,
     attendance,
     branch: BRANCHES[rollNo % 3],
   };

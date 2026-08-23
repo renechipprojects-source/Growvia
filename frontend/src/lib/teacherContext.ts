@@ -1,6 +1,6 @@
 import type { Student } from "./mockData";
 import { readAssignments, type ClassAssignment } from "./classAssignmentContext";
-import { getSession } from "./auth";
+import { getSession, safeNormalizeId } from "./auth";
 
 export type AssignmentType = "class" | "subject";
 
@@ -12,53 +12,82 @@ export interface TeacherAssignment {
   subject?: string;
 }
 
-function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
-  return { id: a.id, type: a.role, className: a.className, section: a.section, subject: a.subject };
+export function normalizeClassAndSection(rawClass?: string, rawSec?: string): { className: string; section: string } {
+  let cls = (rawClass || "").trim();
+  let sec = (rawSec || "").trim().toUpperCase();
+
+  if (cls) {
+    const match = cls.match(/^(.*?)[-–_\s]+([A-D])$/i);
+    if (match) {
+      cls = match[1].trim();
+      if (!sec || sec === "A") {
+        sec = match[2].toUpperCase();
+      }
+    }
+  }
+
+  return {
+    className: cls || "Nursery",
+    section: sec || "A",
+  };
 }
 
-function myActive(): ClassAssignment[] {
-  const session = getSession();
-  const activeId = session?.linkId || session?.loginId || "";
-  const activeName = session?.name || "";
+function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
+  const norm = normalizeClassAndSection(a.className, a.section);
+  return { id: a.id, type: a.role, className: norm.className, section: norm.section, subject: a.subject };
+}
 
-  const assignments = readAssignments().filter(
+function myActive(customAssignments?: ClassAssignment[]): ClassAssignment[] {
+  const session = getSession();
+  const activeId = safeNormalizeId(session?.linkId || session?.loginId);
+  const activeName = (session?.name || "").trim().toLowerCase();
+
+  const sourceList = customAssignments && customAssignments.length > 0 ? customAssignments : readAssignments();
+
+  const assignments = sourceList.filter(
     (a) =>
       a.status === "active" &&
-      ((activeId && a.teacherId === activeId) ||
-        (activeName && a.teacherName.toLowerCase() === activeName.toLowerCase()))
+      ((activeId && safeNormalizeId(a.teacherId) === activeId) ||
+        (activeId && safeNormalizeId(a.id) === activeId) ||
+        (activeName && a.teacherName.trim().toLowerCase() === activeName))
   );
 
   const sessAny = session as any;
   if (assignments.length === 0 && (sessAny?.className || sessAny?.class_name)) {
     const rawClass = (sessAny.className || sessAny.class_name || "").trim();
     const rawSection = (sessAny.section || "A").trim().toUpperCase();
+    const norm = normalizeClassAndSection(rawClass, rawSection);
     return [
       {
         id: `ASG-${activeId || "TCH"}`,
         teacherId: activeId,
-        teacherName: activeName || "Teacher",
+        teacherName: session?.name || "Teacher",
         role: "class",
-        className: rawClass,
-        section: rawSection,
+        className: norm.className,
+        section: norm.section,
         academicYear: "2026-2027",
         status: "active",
       },
     ];
   }
 
-  return assignments;
+  return assignments.map((a) => {
+    const norm = normalizeClassAndSection(a.className, a.section);
+    return { ...a, className: norm.className, section: norm.section };
+  });
 }
 
-export function getClassAssignments(): TeacherAssignment[] {
-  return myActive().filter((a) => a.role === "class").map(toTeacherAssignment);
+export function getClassAssignments(customAssignments?: ClassAssignment[]): TeacherAssignment[] {
+  return myActive(customAssignments).filter((a) => a.role === "class").map(toTeacherAssignment);
 }
 
-export function getSubjectAssignments(): TeacherAssignment[] {
-  return myActive().filter((a) => a.role === "subject").map(toTeacherAssignment);
+export function getSubjectAssignments(customAssignments?: ClassAssignment[]): TeacherAssignment[] {
+  return myActive(customAssignments).filter((a) => a.role === "subject").map(toTeacherAssignment);
 }
 
-export function getAssignment(id: string): TeacherAssignment | undefined {
-  const found = readAssignments().find((a) => a.id === id);
+export function getAssignment(id: string, customAssignments?: ClassAssignment[]): TeacherAssignment | undefined {
+  const list = customAssignments && customAssignments.length > 0 ? customAssignments : readAssignments();
+  const found = list.find((a) => a.id === id);
   return found ? toTeacherAssignment(found) : undefined;
 }
 

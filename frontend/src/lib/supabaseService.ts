@@ -24,6 +24,9 @@ export function getNextAdmissionNo(existingStudents: Student[] = [], year: numbe
   return generateCanonicalAdmissionNo(year, maxSeq + 1);
 }
 
+import { normalizeClassAndSection } from "./teacherContext";
+export { normalizeClassAndSection };
+
 function normalizeStudents(students: Student[]): Student[] {
   const parentIdMap = new Map<string, string>();
   return students.map((s) => {
@@ -44,8 +47,12 @@ function normalizeStudents(students: Student[]): Student[] {
       canonicalParentId = s.parentId || `PAR-${s.id}`;
     }
 
+    const normClsSec = normalizeClassAndSection(s.className, s.section);
+
     return {
       ...s,
+      className: normClsSec.className as any,
+      section: normClsSec.section as any,
       parentId: canonicalParentId,
       admissionNo: toCanonicalAdmissionNo(s.admissionNo, s.id),
     };
@@ -513,35 +520,9 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
       .select("*")
       .or("role.eq.student,role.eq.Student,role.ilike.*student*");
 
-    const session = getSession();
-    if (session && session.role === "teacher") {
-      const sLinkId = safeNormalizeId(session.linkId);
-      const sLoginId = safeNormalizeId(session.loginId);
-      const activeAssignments = readAssignments().filter(
-        (a) =>
-          a.status === "active" &&
-          ((sLinkId && safeNormalizeId(a.teacherId) === sLinkId) ||
-            (sLoginId && safeNormalizeId(a.teacherId) === sLoginId) ||
-            (session.name && a.teacherName.toLowerCase() === session.name.toLowerCase()))
-      );
-
-      if (activeAssignments.length > 0) {
-        const assignedClasses = Array.from(new Set(activeAssignments.map((a) => a.className)));
-        if (assignedClasses.length === 1) {
-          query = query.eq("class_name", assignedClasses[0]);
-        } else if (assignedClasses.length > 1) {
-          const orClause = assignedClasses.map((c) => `class_name.eq.${c}`).join(",");
-          query = query.or(orClause);
-        }
-      } else if ((session as any).className) {
-        const parts = (session as any).className.trim().split(" ");
-        const clsName = parts[0] || (session as any).className;
-        query = query.eq("class_name", clsName);
-      }
-    }
-
     if (classNameFilter && classNameFilter !== "all") {
-      query = query.eq("class_name", classNameFilter);
+      const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
+      query = query.or(`class_name.eq.${classNameFilter},class_name.eq.${normFilter.className},class_name.ilike.%${normFilter.className}%`);
     }
     if (sectionFilter && sectionFilter !== "all") {
       query = query.eq("section", sectionFilter);
@@ -576,6 +557,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
         const sAdm = toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id).toLowerCase();
         const sName = (d.full_name || d.name || "").toLowerCase();
         const liveStatus = feeStatusMap.get(sId) || feeStatusMap.get(sAdm) || feeStatusMap.get(sName) || d.fee_status || d.feeStatus || "Pending";
+        const normClsSec = normalizeClassAndSection(d.class_name || d.className, d.section);
 
         return {
           id: d.id || d.login_id,
@@ -584,8 +566,8 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
           name: d.full_name || d.name || "Student",
           age: d.age ? Number(d.age) : 4,
           dob: d.date_of_birth || d.dob || undefined as any,
-          className: d.class_name || d.className || "Nursery",
-          section: d.section || "A",
+          className: normClsSec.className as any,
+          section: normClsSec.section as any,
           parent: d.parent_name || d.parent || "Parent",
           parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
           phone: d.mobile || d.phone || undefined as any,

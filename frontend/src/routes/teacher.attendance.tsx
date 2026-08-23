@@ -49,9 +49,9 @@ function Att() {
   const { a: activeId } = Route.useSearch();
   const navigate = Route.useNavigate();
   const assignments: TeacherAssignment[] = useMemo(() => {
-    const classAss = getClassAssignments();
+    const classAss = getClassAssignments(contextAssignments);
     if (classAss.length > 0) return classAss;
-    const subjAss = getSubjectAssignments();
+    const subjAss = getSubjectAssignments(contextAssignments);
     if (subjAss.length > 0) return subjAss;
     return [];
   }, [contextAssignments]);
