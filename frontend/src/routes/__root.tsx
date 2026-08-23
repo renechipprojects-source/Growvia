@@ -125,6 +125,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+import { StudentDocsProvider } from "@/lib/studentDocsContext";
+import { AlertsProvider } from "@/lib/alertsContext";
+import { InventoryProvider } from "@/lib/inventoryContext";
+import { EnquiryProvider } from "@/lib/enquiryContext";
+import { LeaveProvider } from "@/lib/leaveContext";
+import { ParentProvider } from "@/lib/parentContext";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useDeveloperSettings();
@@ -134,8 +141,20 @@ function RootComponent() {
       <AutoRefreshProvider>
         <AcademicYearProvider>
           <ClassAssignmentProvider>
-            <Outlet />
-            <SonnerToaster position="top-right" richColors />
+            <StudentDocsProvider>
+              <AlertsProvider>
+                <InventoryProvider>
+                  <EnquiryProvider>
+                    <LeaveProvider>
+                      <ParentProvider>
+                        <Outlet />
+                        <SonnerToaster position="top-right" richColors />
+                      </ParentProvider>
+                    </LeaveProvider>
+                  </EnquiryProvider>
+                </InventoryProvider>
+              </AlertsProvider>
+            </StudentDocsProvider>
           </ClassAssignmentProvider>
         </AcademicYearProvider>
       </AutoRefreshProvider>
