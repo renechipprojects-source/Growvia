@@ -22,10 +22,11 @@ const SUPABASE_URL =
 
 const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzQ2NTMsImV4cCI6MjEwMTA1MDY1M30.KxjH42Wg0IVLfXLLJSbBLvcZ098hvJRUHkDu10NJfB4';
 
 const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTQ3NDY1MywiZXhwIjoyMTAxMDUwNjUzfQ.xsa3qLPf8jTe45x5x_-8TyTusbjnMiihtQse4IgjutQ';
 
 export const supabase = createClient(
   SUPABASE_URL,
@@ -326,7 +327,12 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
       profilePayload.auth_user_id = authUserId;
     }
 
-    await admin.from('gv_users').upsert([profilePayload], { onConflict: 'login_id' });
+    const { data: existingGv } = await admin.from('gv_users').select('id').ilike('login_id', cleanLoginId).maybeSingle();
+    if (existingGv) {
+      await admin.from('gv_users').update(profilePayload).ilike('login_id', cleanLoginId);
+    } else {
+      await admin.from('gv_users').insert([profilePayload]);
+    }
     Promise.resolve(admin.from('users').upsert([profilePayload], { onConflict: 'login_id' })).catch(() => {});
 
     return res.status(200).json({

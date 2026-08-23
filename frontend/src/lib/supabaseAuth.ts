@@ -14,8 +14,21 @@ export async function triggerServerUserProvisioning(params?: {
   name?: string;
   mobile?: string;
 }) {
+  if (!params?.login_id || !params?.password) {
+    return { success: false, error: "login_id and password are required for provisioning." };
+  }
+
+  const cleanLoginId = params.login_id.trim();
+  const targetEmail = (params.email && params.email.includes("@"))
+    ? params.email.trim().toLowerCase()
+    : `${cleanLoginId.toLowerCase()}@growvia.edu`;
+  const targetRole = (params.role || "teacher").toLowerCase();
+  const targetName = (params.name || "User Account").trim();
+
+  // 1. Try Backend Provisioning Endpoint
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "https://growvia-backend-4wp7.onrender.com",
     "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
@@ -23,36 +36,44 @@ export async function triggerServerUserProvisioning(params?: {
   for (const baseUrl of backendUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
       const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/provision` : "/api/users/provision";
       const res = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params || {}),
+        body: JSON.stringify({
+          login_id: cleanLoginId,
+          email: targetEmail,
+          password: params.password,
+          role: targetRole,
+          name: targetName,
+          mobile: params.mobile || "9876543210",
+        }),
         signal: controller.signal,
       }).finally(() => clearTimeout(timeoutId));
 
       if (res.ok) {
         const data = await res.json();
-        return { success: true, data };
+        // Validate backend response body properly, checking actual success and returned authUserId
+        if (data?.success === true && (data?.authUserId || (Array.isArray(data?.results) && data.results.some((r: any) => r.authUserId)))) {
+          return { success: true, data };
+        }
       }
     } catch {}
   }
 
-  // Fallback for node test environments or offline backend: execute directly using service role if available
-  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
+  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTQ3NDY1MywiZXhwIjoyMTAxMDUwNjUzfQ.xsa3qLPf8jTe45x5x_-8TyTusbjnMiihtQse4IgjutQ";
   const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
 
-  if (serviceKey && params?.login_id && params?.password) {
+  if (serviceKey) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(supabaseUrl, serviceKey);
-      const targetEmail = params.email || `${params.login_id.toLowerCase()}@growvia.edu`;
-      const targetRole = params.role || "teacher";
-      const targetName = params.name || "User Account";
 
       const { data: authList } = await admin.auth.admin.listUsers();
-      let authUser = authList?.users?.find((u) => u.email?.toLowerCase() === targetEmail.toLowerCase());
+      let authUser = authList?.users?.find(
+        (u) => u.email?.toLowerCase() === targetEmail.toLowerCase() || u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase()
+      );
       let authUserId = authUser?.id;
 
       if (!authUserId) {
@@ -60,14 +81,14 @@ export async function triggerServerUserProvisioning(params?: {
           email: targetEmail,
           password: params.password,
           email_confirm: true,
-          user_metadata: { login_id: params.login_id, role: targetRole, full_name: targetName },
+          user_metadata: { login_id: cleanLoginId, role: targetRole, full_name: targetName },
         });
         authUserId = created?.user?.id;
       } else {
         await admin.auth.admin.updateUserById(authUserId, {
           email_confirm: true,
           password: params.password,
-          user_metadata: { login_id: params.login_id, role: targetRole, full_name: targetName },
+          user_metadata: { login_id: cleanLoginId, role: targetRole, full_name: targetName },
         });
       }
 
@@ -75,24 +96,31 @@ export async function triggerServerUserProvisioning(params?: {
         const profilePayload = {
           id: authUserId,
           auth_user_id: authUserId,
-          login_id: params.login_id,
+          login_id: cleanLoginId,
           email: targetEmail,
           role: targetRole,
           full_name: targetName,
           status: "active",
         };
-        await admin.from("gv_users").upsert([profilePayload], { onConflict: "login_id" });
-        return { success: true, data: { authUserId } };
+        const { data: existingGv } = await admin.from("gv_users").select("id").ilike("login_id", cleanLoginId).maybeSingle();
+        if (existingGv) {
+          await admin.from("gv_users").update(profilePayload).ilike("login_id", cleanLoginId);
+        } else {
+          await admin.from("gv_users").insert([profilePayload]);
+        }
+        return { success: true, data: { authUserId, email: targetEmail, login_id: cleanLoginId } };
       }
     } catch {}
   }
 
-  return { success: false };
+  // Strictly return success: false if backend provisioning failed
+  return { success: false, error: "Backend provisioning server was unreachable or returned failure." };
 }
 
 export async function updateServerAuthEmail(identifier: string, newEmail: string) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "https://growvia-backend-4wp7.onrender.com",
     "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
@@ -181,6 +209,7 @@ export async function updateServerAuthEmail(identifier: string, newEmail: string
 export async function updateServerAuthPassword(identifier: string, newPassword: string) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "https://growvia-backend-4wp7.onrender.com",
     "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
@@ -267,6 +296,7 @@ export async function updateServerAuthPassword(identifier: string, newPassword: 
 export async function resolveLoginIdViaServer(identifier: string) {
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "https://growvia-backend-4wp7.onrender.com",
     "http://localhost:5000",
     ""
   ])).filter((u) => typeof u === "string");
@@ -292,8 +322,7 @@ export async function resolveLoginIdViaServer(identifier: string) {
     } catch {}
   }
 
-  // Fallback for node test environments: resolve using service role if key available
-  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
+  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aG5rZnRsa2lnb2xpeW9nd3ZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTQ3NDY1MywiZXhwIjoyMTAxMDUwNjUzfQ.xsa3qLPf8jTe45x5x_-8TyTusbjnMiihtQse4IgjutQ";
   const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
 
   if (serviceKey && identifier) {
@@ -376,7 +405,7 @@ export async function login(loginIdInput: string, passwordInput: string) {
       // ─── 2. GENERATED LOGIN ID FLOW ──────────────────────────────────────────
       const cleanLoginId = rawInput;
 
-      // 1. Try pre-resolving gv_users profile or email via RLS / backend server
+      // Step A: Exact lookup of entered ID in live gv_users.login_id
       const { data: p1 } = await supabase
         .from("gv_users")
         .select("*")
@@ -388,7 +417,8 @@ export async function login(loginIdInput: string, passwordInput: string) {
         authEmail = p1.email;
       }
 
-      if (!authEmail) {
+      // Step B: If client RLS restricts query, resolve exact ID via server service role
+      if (!authEmail || !profile) {
         const serverRes = await resolveLoginIdViaServer(cleanLoginId);
         if (serverRes?.email) {
           authEmail = serverRes.email;
@@ -396,28 +426,17 @@ export async function login(loginIdInput: string, passwordInput: string) {
         }
       }
 
-      // 2. Canonical mapping fallback for institutional Login IDs if unauthenticated RLS blocks lookup
-      if (!authEmail) {
-        const canonicalMap: Record<string, string> = {
-          "ADMIN001": "admin@sunshineschool.edu",
-          "PRINCIPAL001": "principal@sunshineschool.edu",
-          "OFFICE001": "office@sunshineschool.edu",
-          "TCH101": "teacher@sunshineschool.edu",
-          "PRT1001": "parent@sunshineschool.edu",
-        };
-        authEmail = canonicalMap[cleanLoginId.toUpperCase()] || null;
-      }
-
+      // If no matching profile or email was resolved from gv_users for the entered ID, fail immediately
       if (!authEmail) {
         return { success: false, error: "Invalid Login ID or password." };
       }
 
-      // Check if pre-fetched profile is inactive/disabled before attempting Auth
+      // Check if profile is inactive/disabled
       if (profile && (profile.status === "inactive" || profile.status === "disabled")) {
         return { success: false, error: "Your account is inactive. Please contact the administrator." };
       }
 
-      // 3. Authenticate against live Supabase Auth using resolved Auth email
+      // Step C: Authenticate using resolved exact Auth email + entered password
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password,
@@ -430,7 +449,7 @@ export async function login(loginIdInput: string, passwordInput: string) {
       authUser = authData.user;
     }
 
-    // Ensure we have a profile loaded
+    // Ensure we have profile loaded for authenticated user
     if (!profile) {
       const { data: p2 } = await supabase
         .from("gv_users")
