@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
-import { fetchFees, updateStudent, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchFees, fetchStudentSkills, updateStudent, type FeeLedgerItem } from "@/lib/supabaseService";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/parent/")({ component: Dash });
@@ -20,6 +20,8 @@ function Dash() {
   const parentFirstName = household.primaryContact.split(" ")[0];
 
   const [feeRecord, setFeeRecord] = useState<FeeLedgerItem | null>(null);
+  const [skills, setSkills] = useState<{ key: string; v: number }[]>([]);
+  const [hasSkillsRecords, setHasSkillsRecords] = useState<boolean>(false);
 
   useEffect(() => {
     fetchFees().then(({ data }) => {
@@ -27,6 +29,21 @@ function Dash() {
       if (match) setFeeRecord(match);
       else setFeeRecord(null);
     });
+
+    if (child && child.id && child.id !== "NO-STUDENT") {
+      fetchStudentSkills(child.id, child.className, child.section).then((res) => {
+        setHasSkillsRecords(res.hasRecords);
+        setSkills([
+          { key: "dash.skill.language", v: res.language },
+          { key: "dash.skill.motor", v: res.motor },
+          { key: "dash.skill.social", v: res.social },
+          { key: "dash.skill.creativity", v: res.creativity },
+        ]);
+      });
+    } else {
+      setHasSkillsRecords(false);
+      setSkills([]);
+    }
   }, [child]);
 
   const handleParentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,19 +225,23 @@ function Dash() {
 
       <div className="mt-6">
         <SectionCard title={t("dash.skills")}>
-          <div className="grid sm:grid-cols-2 gap-x-8">
-            {[
-              { key: "dash.skill.language", v: 82 },
-              { key: "dash.skill.motor", v: 76 },
-              { key: "dash.skill.social", v: 90 },
-              { key: "dash.skill.creativity", v: 84 },
-            ].map((s) => (
-              <div key={s.key} className="mb-3 text-sm">
-                <div className="flex justify-between"><span>{t(s.key)}</span><span className="text-muted-foreground">{s.v}%</span></div>
-                <Progress value={s.v} className="h-2 mt-1" />
-              </div>
-            ))}
-          </div>
+          {hasSkillsRecords ? (
+            <div className="grid sm:grid-cols-2 gap-x-8">
+              {skills.map((s) => (
+                <div key={s.key} className="mb-3 text-sm">
+                  <div className="flex justify-between">
+                    <span>{t(s.key)}</span>
+                    <span className="text-muted-foreground">{s.v}%</span>
+                  </div>
+                  <Progress value={s.v} className="h-2 mt-1" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-sm text-muted-foreground rounded-2xl bg-white/50 border border-white/60">
+              No skill assessment or progress records recorded yet.
+            </div>
+          )}
         </SectionCard>
       </div>
 

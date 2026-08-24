@@ -6,6 +6,7 @@ import { pushAdminNotification } from "./admin-notifications";
 import { NotificationService } from "./notifications";
 import { API_URL } from "./api";
 import { getUserScopedStorageKey } from "./auth";
+import { dedupeAndCacheFetch, invalidateCache } from "./cacheService";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -514,21 +515,114 @@ import { getSession, safeNormalizeId } from "./auth";
 import { readAssignments } from "./classAssignmentContext";
 
 export async function fetchStudents(classNameFilter?: string, sectionFilter?: string): Promise<{ data: Student[]; isFromSupabase: boolean }> {
-  // 1. Primary: Query production Backend API endpoint (bypasses Supabase client RLS restrictions)
-  try {
-    const res = await fetch(`${API_URL}/api/users?role=student`);
-    if (res.ok) {
-      const json = await res.json();
-      const rows = json.data || json || [];
-      if (Array.isArray(rows) && rows.length > 0) {
+  const normClass = classNameFilter && classNameFilter !== "all" ? classNameFilter : "all";
+  const normSec = sectionFilter && sectionFilter !== "all" ? sectionFilter : "all";
+  const cacheKey = `fetchStudents_${normClass}_${normSec}`;
+
+  return dedupeAndCacheFetch(cacheKey, async () => {
+    // 1. Primary: Query production Backend API endpoint (bypasses Supabase client RLS restrictions)
+    try {
+      const res = await fetch(`${API_URL}/api/users?role=student`);
+      if (res.ok) {
+        const json = await res.json();
+        const rows = json.data || json || [];
+        if (Array.isArray(rows) && rows.length > 0) {
+          const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
+          const filteredRows = rows.filter((d: any) => {
+            const r = (d.role || "").toLowerCase();
+            return !staffRoles.includes(r);
+          });
+
+          const mapped: Student[] = filteredRows.map((d: any) => {
+            const normClsSec = normalizeClassAndSection(d.class_name || d.className, d.section);
+            return {
+              id: d.id || d.login_id,
+              rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
+              admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
+              name: d.full_name || d.name || "Student",
+              age: d.age ? Number(d.age) : 4,
+              dob: d.date_of_birth || d.dob || undefined as any,
+              className: normClsSec.className as any,
+              section: normClsSec.section as any,
+              parent: d.parent_name || d.parent || "Parent",
+              parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
+              phone: d.mobile || d.phone || undefined as any,
+              gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
+              house: d.house || undefined as any,
+              address: d.address || undefined,
+              email: d.email || undefined,
+              bloodGroup: d.blood_group || d.bloodGroup || undefined,
+              admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
+              feeStatus: (d.fee_status || d.feeStatus || "Pending") as any,
+              avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
+              attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
+              branch: d.branch || "Main Branch",
+            };
+          });
+
+          let result = mapped;
+          if (classNameFilter && classNameFilter !== "all") {
+            const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
+            result = result.filter((s) => s.className.toLowerCase() === normFilter.className.toLowerCase());
+          }
+          if (sectionFilter && sectionFilter !== "all") {
+            result = result.filter((s) => s.section.toLowerCase() === sectionFilter.toLowerCase());
+          }
+
+          const normalized = normalizeStudents(result);
+          if (normalized.length > 0) {
+            setCachedStudentsList(normalized);
+            return { data: normalized, isFromSupabase: true };
+          }
+        }
+      }
+    } catch { }
+
+    // 2. Secondary Fallback: Direct Supabase client query
+    try {
+      let query = supabase
+        .from("gv_users")
+        .select("*")
+        .or("role.eq.student,role.eq.Student,role.ilike.*student*");
+
+      if (classNameFilter && classNameFilter !== "all") {
+        const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
+        query = query.or(`class_name.eq.${classNameFilter},class_name.eq.${normFilter.className},class_name.ilike.%${normFilter.className}%`);
+      }
+      if (sectionFilter && sectionFilter !== "all") {
+        query = query.eq("section", sectionFilter);
+      }
+
+      const { data, error } = await query.order("full_name", { ascending: true });
+
+      if (!error && data && data.length > 0) {
         const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
-        const filteredRows = rows.filter((d: any) => {
+        const rows = data.filter((d: any) => {
           const r = (d.role || "").toLowerCase();
           return !staffRoles.includes(r);
         });
 
-        const mapped: Student[] = filteredRows.map((d: any) => {
+        const feeStatusMap = new Map<string, string>();
+        try {
+          const { data: feeRows } = await supabase
+            .from("gv_fees_payments")
+            .select("student_id, student_name, status")
+            .eq("record_type", "fee_schedule");
+          (feeRows || []).forEach((f: any) => {
+            if (f.status) {
+              if (f.student_id) feeStatusMap.set(String(f.student_id).toLowerCase(), f.status);
+              if (f.student_name) feeStatusMap.set(String(f.student_name).toLowerCase(), f.status);
+            }
+          });
+        } catch { }
+
+        const mapped: Student[] = rows.map((d: any) => {
+          const sId = (d.id || d.login_id || "").toLowerCase();
+          const sAdm = toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id).toLowerCase();
+          const sName = (d.full_name || d.name || "").toLowerCase();
+          const liveStatus = feeStatusMap.get(sId) || feeStatusMap.get(sAdm) || feeStatusMap.get(sName) || d.fee_status || d.feeStatus || "Pending";
           const normClsSec = normalizeClassAndSection(d.class_name || d.className, d.section);
+
           return {
             id: d.id || d.login_id,
             rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
@@ -547,114 +641,27 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
             email: d.email || undefined,
             bloodGroup: d.blood_group || d.bloodGroup || undefined,
             admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
-            feeStatus: (d.fee_status || d.feeStatus || "Pending") as any,
+            feeStatus: liveStatus as any,
             avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
             attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
             branch: d.branch || "Main Branch",
           };
         });
 
-        let result = mapped;
-        if (classNameFilter && classNameFilter !== "all") {
-          const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
-          result = result.filter((s) => s.className.toLowerCase() === normFilter.className.toLowerCase());
-        }
-        if (sectionFilter && sectionFilter !== "all") {
-          result = result.filter((s) => s.section.toLowerCase() === sectionFilter.toLowerCase());
-        }
-
-        const normalized = normalizeStudents(result);
+        const normalized = normalizeStudents(mapped);
         if (normalized.length > 0) {
           setCachedStudentsList(normalized);
           return { data: normalized, isFromSupabase: true };
         }
       }
+    } catch { }
+
+    const cached = getCachedStudentsList();
+    if (cached && cached.length > 0) {
+      return { data: cached, isFromSupabase: false };
     }
-  } catch { }
-
-  // 2. Secondary Fallback: Direct Supabase client query
-  try {
-    let query = supabase
-      .from("gv_users")
-      .select("*")
-      .or("role.eq.student,role.eq.Student,role.ilike.*student*");
-
-    if (classNameFilter && classNameFilter !== "all") {
-      const normFilter = normalizeClassAndSection(classNameFilter, sectionFilter);
-      query = query.or(`class_name.eq.${classNameFilter},class_name.eq.${normFilter.className},class_name.ilike.%${normFilter.className}%`);
-    }
-    if (sectionFilter && sectionFilter !== "all") {
-      query = query.eq("section", sectionFilter);
-    }
-
-    const { data, error } = await query.order("full_name", { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      const staffRoles = ["teacher", "office", "principal", "admin", "super-admin", "developer", "accountant"];
-      const rows = data.filter((d: any) => {
-        const r = (d.role || "").toLowerCase();
-        return !staffRoles.includes(r);
-      });
-
-      const feeStatusMap = new Map<string, string>();
-      try {
-        const { data: feeRows } = await supabase
-          .from("gv_fees_payments")
-          .select("student_id, student_name, status")
-          .eq("record_type", "fee_schedule");
-        (feeRows || []).forEach((f: any) => {
-          if (f.status) {
-            if (f.student_id) feeStatusMap.set(String(f.student_id).toLowerCase(), f.status);
-            if (f.student_name) feeStatusMap.set(String(f.student_name).toLowerCase(), f.status);
-          }
-        });
-      } catch { }
-
-      const mapped: Student[] = rows.map((d: any) => {
-        const sId = (d.id || d.login_id || "").toLowerCase();
-        const sAdm = toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id).toLowerCase();
-        const sName = (d.full_name || d.name || "").toLowerCase();
-        const liveStatus = feeStatusMap.get(sId) || feeStatusMap.get(sAdm) || feeStatusMap.get(sName) || d.fee_status || d.feeStatus || "Pending";
-        const normClsSec = normalizeClassAndSection(d.class_name || d.className, d.section);
-
-        return {
-          id: d.id || d.login_id,
-          rollNo: d.roll_no ? Number(d.roll_no) : (d.rollNo ? Number(d.rollNo) : undefined as any),
-          admissionNo: toCanonicalAdmissionNo(d.admission_no || d.admissionNo, d.id),
-          name: d.full_name || d.name || "Student",
-          age: d.age ? Number(d.age) : 4,
-          dob: d.date_of_birth || d.dob || undefined as any,
-          className: normClsSec.className as any,
-          section: normClsSec.section as any,
-          parent: d.parent_name || d.parent || "Parent",
-          parentId: d.parent_id || d.parentId || `PAR-${d.id}`,
-          phone: d.mobile || d.phone || undefined as any,
-          gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
-          house: d.house || undefined as any,
-          address: d.address || undefined,
-          email: d.email || undefined,
-          bloodGroup: d.blood_group || d.bloodGroup || undefined,
-          admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
-          feeStatus: liveStatus as any,
-          avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
-          attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
-          branch: d.branch || "Main Branch",
-        };
-      });
-
-      const normalized = normalizeStudents(mapped);
-      if (normalized.length > 0) {
-        setCachedStudentsList(normalized);
-        return { data: normalized, isFromSupabase: true };
-      }
-    }
-  } catch { }
-
-  const cached = getCachedStudentsList();
-  if (cached && cached.length > 0) {
-    return { data: cached, isFromSupabase: false };
-  }
-  return { data: [], isFromSupabase: false };
+    return { data: [], isFromSupabase: false };
+  }, { ttlMs: 15000 });
 }
 
 
@@ -861,6 +868,7 @@ export async function updateStudent(id: string, updates: Partial<Student>) {
       data = fallbackAdm.data;
     }
     const updatedObj = updatedList.find((s) => s.id === id || s.admissionNo === id);
+    invalidateCache("fetchStudents");
     notifyAutoRefresh("students");
     notifyAutoRefresh("admissions");
     notifyAutoRefresh("reports");
@@ -876,6 +884,7 @@ export async function deleteStudent(id: string) {
   const currentList = getCachedStudentsList();
   const updatedList = currentList.filter((s) => s.id !== id && s.admissionNo !== id);
   setCachedStudentsList(updatedList);
+  invalidateCache("fetchStudents");
   notifyAutoRefresh("students");
 
   try {
@@ -1933,6 +1942,115 @@ export async function saveClassMarks(marks: Omit<MarkRecord, "id">[]): Promise<{
     return { count: payloads.length, error: null };
   } catch (err: any) {
     return { count: 0, error: err?.message || "Failed to save marks." };
+  }
+}
+
+export interface StudentSkillProgress {
+  language: number;
+  motor: number;
+  social: number;
+  creativity: number;
+  hasRecords: boolean;
+}
+
+export async function fetchStudentSkills(
+  studentId: string,
+  className?: string,
+  section?: string
+): Promise<StudentSkillProgress> {
+  try {
+    if (!studentId || studentId === "NO-STUDENT") {
+      return { language: 0, motor: 0, social: 0, creativity: 0, hasRecords: false };
+    }
+
+    const cleanId = studentId.trim().toLowerCase();
+
+    // 1. Check gv_requests for explicit "skills" request_type
+    const { data: skillRows } = await supabase
+      .from("gv_requests")
+      .select("*")
+      .eq("request_type", "skills");
+
+    if (skillRows && skillRows.length > 0) {
+      const match = skillRows.find((r: any) => {
+        const pName = (r.parent_name || "").toLowerCase();
+        const cName = (r.applicant_or_child_name || "").toLowerCase();
+        let notes: any = {};
+        try {
+          if (r.reason_or_notes && r.reason_or_notes.startsWith("{")) {
+            notes = JSON.parse(r.reason_or_notes);
+          }
+        } catch { }
+        const sId = (notes.studentId || "").toLowerCase();
+        return pName === cleanId || sId === cleanId || cName.includes(cleanId);
+      });
+
+      if (match && match.reason_or_notes) {
+        try {
+          const parsed = JSON.parse(match.reason_or_notes);
+          if (parsed && typeof parsed === "object") {
+            return {
+              language: Math.min(100, Math.max(0, Number(parsed.language || 0))),
+              motor: Math.min(100, Math.max(0, Number(parsed.motor || 0))),
+              social: Math.min(100, Math.max(0, Number(parsed.social || 0))),
+              creativity: Math.min(100, Math.max(0, Number(parsed.creativity || 0))),
+              hasRecords: true,
+            };
+          }
+        } catch { }
+      }
+    }
+
+    // 2. Check gv_requests for "marks" request_type for this student and compute domain averages
+    const allMarks = await fetchClassMarks(className, section);
+    const studentMarks = allMarks.filter(
+      (m) => (m.studentId || "").toLowerCase() === cleanId || (m.studentName || "").toLowerCase().includes(cleanId)
+    );
+
+    if (studentMarks.length > 0) {
+      let langSum = 0, langCount = 0;
+      let motorSum = 0, motorCount = 0;
+      let socialSum = 0, socialCount = 0;
+      let creativeSum = 0, creativeCount = 0;
+
+      studentMarks.forEach((m) => {
+        const pct = m.outOf > 0 ? (m.score / m.outOf) * 100 : 0;
+        const subj = (m.subject || "").toLowerCase();
+
+        if (/english|hindi|tamil|language|reading|writing|rhymes|story/i.test(subj)) {
+          langSum += pct;
+          langCount++;
+        } else if (/physical|pt|activity|motor|games|play|outdoor/i.test(subj)) {
+          motorSum += pct;
+          motorCount++;
+        } else if (/social|evs|environment|behavior|habits|moral/i.test(subj)) {
+          socialSum += pct;
+          socialCount++;
+        } else if (/art|craft|drawing|music|creativity|color/i.test(subj)) {
+          creativeSum += pct;
+          creativeCount++;
+        } else {
+          langSum += pct;
+          langCount++;
+          socialSum += pct;
+          socialCount++;
+        }
+      });
+
+      if (langCount > 0 || motorCount > 0 || socialCount > 0 || creativeCount > 0) {
+        return {
+          language: langCount > 0 ? Math.round(langSum / langCount) : 0,
+          motor: motorCount > 0 ? Math.round(motorSum / motorCount) : (langCount > 0 ? Math.round(langSum / langCount) : 0),
+          social: socialCount > 0 ? Math.round(socialSum / socialCount) : (langCount > 0 ? Math.round(langSum / langCount) : 0),
+          creativity: creativeCount > 0 ? Math.round(creativeSum / creativeCount) : (langCount > 0 ? Math.round(langSum / langCount) : 0),
+          hasRecords: true,
+        };
+      }
+    }
+
+    return { language: 0, motor: 0, social: 0, creativity: 0, hasRecords: false };
+  } catch {
+    return { language: 0, motor: 0, social: 0, creativity: 0, hasRecords: false };
   }
 }
 

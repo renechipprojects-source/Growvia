@@ -8,11 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { User, GraduationCap, FileText, Save, Loader2, Paperclip, CheckCircle2, AlertCircle } from "lucide-react";
+import { User, GraduationCap, FileText, Save, Loader2, Paperclip, CheckCircle2, AlertCircle, Bus, XCircle } from "lucide-react";
 import { updateStudent, fetchFees, saveFeeRecord, recalculateFeeLedger, type Student } from "@/lib/supabaseService";
 import { useStudentDocs, DEFAULT_DOCS, type DocEntry } from "@/lib/studentDocsContext";
 import { validateIndianMobile } from "@/lib/utils";
 import { fetchMasterClassesFromSupabase } from "@/lib/masterClassesStore";
+import { getStoredAllocations, saveStoredAllocations } from "@/modules/transport/transportStore";
 
 interface EditStudentModalProps {
   open: boolean;
@@ -44,6 +45,9 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
     feeStatus: "Pending" | "Partial" | "Paid";
     feePlan: string;
     feeAmount: number;
+    transportOpted: "Yes" | "No";
+    transportMode: "One Way" | "Two Way";
+    direction: "Pickup" | "Drop" | "Both";
   }>({
     name: "",
     className: "Nursery",
@@ -59,6 +63,9 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
     feeStatus: "Pending",
     feePlan: "Standard",
     feeAmount: 15000,
+    transportOpted: "No",
+    transportMode: "Two Way",
+    direction: "Both",
   });
 
   // Documents State
@@ -79,6 +86,16 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
   useEffect(() => {
     if (!open || !student) return;
 
+    // Load existing transport settings for this student
+    const existingAllocations = getStoredAllocations();
+    const existingAlloc = existingAllocations.find(
+      (a: any) => a.studentId === student.id || a.id === student.id || (a.studentName || a.student || "").toLowerCase() === (student.name || "").toLowerCase()
+    );
+
+    const initialOpted = existingAlloc ? (existingAlloc.transportOpted || "Yes") : ((student as any).transportOpted || "No");
+    const initialMode = existingAlloc ? (existingAlloc.transportMode || (existingAlloc.direction === "Pickup" || existingAlloc.direction === "Drop" ? "One Way" : "Two Way")) : ((student as any).transportMode || "Two Way");
+    const initialDir = existingAlloc ? (existingAlloc.direction || "Both") : ((student as any).direction || "Both");
+
     setForm({
       name: student.name || "",
       className: student.className || "Nursery",
@@ -94,6 +111,9 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
       feeStatus: (student.feeStatus as any) || "Pending",
       feePlan: (student as any).feePlan || "Standard",
       feeAmount: Number((student as any).feeAmount || 15000),
+      transportOpted: initialOpted,
+      transportMode: initialMode,
+      direction: initialDir,
     });
 
     // Fetch existing fee schedule to populate exact authoritative fee amount
@@ -217,6 +237,39 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
       // 3. Authoritatively update Certificate Submissions in Supabase (gv_requests)
       const admNo = student.admissionNo || student.id;
       upsertDocs(admNo, form.name.trim(), docs);
+
+      // 4. Update & Persist Transport Allocation Settings
+      const existingAllocations = getStoredAllocations();
+      const currentAlloc = existingAllocations.find(
+        (a: any) => a.studentId === student.id || a.id === student.id || (a.studentName || a.student || "").toLowerCase() === form.name.trim().toLowerCase()
+      );
+
+      const updatedDir = form.transportOpted === "No" ? "Both" : form.transportMode === "Two Way" ? "Both" : form.direction;
+
+      const updatedAlloc = {
+        id: currentAlloc?.id || `ALC-${student.id}`,
+        studentId: student.id,
+        studentName: form.name.trim(),
+        className: form.className,
+        section: form.section,
+        rollNo: Number(form.rollNo),
+        parentName: form.parent.trim(),
+        phone: phoneCheck.formatted,
+        transportOpted: form.transportOpted,
+        transportMode: form.transportOpted === "No" ? "Two Way" : form.transportMode,
+        direction: updatedDir,
+        routeName: currentAlloc?.routeName || currentAlloc?.route || "Route 1 - Main Express",
+        pickupStop: currentAlloc?.pickupStop || currentAlloc?.pickupPoint || "Main Stop",
+        dropStop: currentAlloc?.dropStop || currentAlloc?.dropPoint || "School Gate",
+        monthlyFee: Number(currentAlloc?.monthlyFee || 1500),
+        status: form.transportOpted === "Yes" ? "Active" : "Inactive",
+      };
+
+      const nextAllocations = existingAllocations.filter((a: any) => a.studentId !== student.id && a.id !== student.id);
+      if (form.transportOpted === "Yes") {
+        nextAllocations.push(updatedAlloc as any);
+      }
+      saveStoredAllocations(nextAllocations as any);
 
       setSaving(false);
       toast.success(`Authoritative updates saved for ${form.name}!`);
@@ -423,6 +476,82 @@ export function EditStudentModal({ open, onClose, student, onUpdated }: EditStud
                       placeholder="House/Flat No., Street, City, State"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* SCHOOL TRANSPORT SETTINGS */}
+              <div className="rounded-2xl border border-pink-200/80 bg-pink-50/40 p-4 space-y-3">
+                <div className="font-bold text-pink-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Bus className="h-4 w-4 text-pink-600" /> School Transport Settings
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Transport Required: Yes / No */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs font-semibold text-slate-800">Transport Required *</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={form.transportOpted === "Yes" ? "default" : "outline"}
+                        onClick={() => setForm({ ...form, transportOpted: "Yes" })}
+                        className={form.transportOpted === "Yes" ? "bg-pink-600 hover:bg-pink-700 text-white font-semibold" : "bg-white"}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                        Yes (Opted for Transport)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={form.transportOpted === "No" ? "default" : "outline"}
+                        onClick={() => setForm({ ...form, transportOpted: "No" })}
+                        className={form.transportOpted === "No" ? "bg-slate-700 hover:bg-slate-800 text-white font-semibold" : "bg-white"}
+                      >
+                        <XCircle className="h-4 w-4 mr-1.5" />
+                        No (Not Opted)
+                      </Button>
+                    </div>
+                  </div>
+
+                  {form.transportOpted === "Yes" && (
+                    <>
+                      {/* Transport Type: One Way / Two Way */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-800">Transport Type *</Label>
+                        <Select
+                          value={form.transportMode}
+                          onValueChange={(val: "One Way" | "Two Way") => {
+                            setForm({
+                              ...form,
+                              transportMode: val,
+                              direction: val === "Two Way" ? "Both" : (form.direction === "Both" ? "Pickup" : form.direction),
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="One Way">One Way (Single Direction)</SelectItem>
+                            <SelectItem value="Two Way">Two Way (Pickup & Drop)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Direction: Pickup / Drop (Required if One Way) */}
+                      {form.transportMode === "One Way" && (
+                        <div className="space-y-1.5 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                          <Label className="text-xs font-semibold text-amber-900">Required Direction (One Way) *</Label>
+                          <Select
+                            value={form.direction}
+                            onValueChange={(val: "Pickup" | "Drop") => setForm({ ...form, direction: val })}
+                          >
+                            <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pickup">Pickup (Home → School)</SelectItem>
+                              <SelectItem value="Drop">Drop (School → Home)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </TabsContent>

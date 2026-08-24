@@ -264,16 +264,24 @@ app.post('/api/users/provision', async (req: Request, res: Response) => {
     let authUserId: string | null = null;
     const admin = supabaseAdmin;
 
-    const { data: userList } = await admin.auth.admin.listUsers();
-    let authUser = userList?.users?.find(
-      (u) =>
-        u.email?.toLowerCase() === targetEmail.toLowerCase() ||
-        u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase()
-    );
+    let authUser: any = null;
+    let page = 1;
+    while (!authUser && page <= 5) {
+      const { data: userList } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+      const users = userList?.users || [];
+      if (users.length === 0) break;
+      authUser = users.find(
+        (u) =>
+          u.email?.toLowerCase() === targetEmail.toLowerCase() ||
+          u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase()
+      );
+      if (users.length < 100) break;
+      page++;
+    }
 
     if (authUser) {
       authUserId = authUser.id;
-      await admin.auth.admin.updateUserById(authUserId, {
+      await admin.auth.admin.updateUserById(authUser.id, {
         email: targetEmail,
         password: password,
         email_confirm: true,

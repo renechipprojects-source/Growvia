@@ -294,17 +294,17 @@ export async function updateServerAuthPassword(identifier: string, newPassword: 
 }
 
 export async function resolveLoginIdViaServer(identifier: string) {
+  const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
-    "http://localhost:5001",
-    "https://growvia-backend-4wp7.onrender.com",
+    isLocal ? "http://localhost:5001" : "https://growvia-backend-4wp7.onrender.com",
     ""
-  ])).filter((u) => typeof u === "string");
+  ])).filter(Boolean);
 
   for (const baseUrl of backendUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
       const targetUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/users/resolve-login-id` : "/api/users/resolve-login-id";
       const res = await fetch(targetUrl, {
         method: "POST",

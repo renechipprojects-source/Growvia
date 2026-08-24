@@ -32,7 +32,25 @@ export async function syncTransportFromSupabase() {
         } else if (d.record_type === "transport_route") {
           remoteRoutes.push({ id: d.id, name: d.title, vehicle: d.supplier_or_paid_to || meta.vehicle || "", driver: meta.driver || "", students: d.quantity || meta.students || 0, stops: meta.stops || [], status: meta.status || "Active" });
         } else if (d.record_type === "transport_allocation") {
-          remoteAllocations.push({ id: d.id, studentId: meta.studentId || d.id, studentName: d.title, className: meta.className || "", section: meta.section || "", routeName: meta.routeName || "", pickupStop: d.supplier_or_paid_to || meta.pickupStop || "", monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 0, status: meta.status || "Active" });
+          const opt = meta.transportOpted || meta.transport_required || "Yes";
+          const mode = meta.transportMode || meta.transport_mode || (meta.direction === "Pickup" || meta.direction === "Drop" ? "One Way" : "Two Way");
+          const dir = meta.direction || meta.transport_direction || (mode === "One Way" ? "Pickup" : "Both");
+          remoteAllocations.push({
+            ...meta,
+            id: d.id,
+            studentId: meta.studentId || d.id,
+            studentName: d.title || meta.studentName || "",
+            className: meta.className || "",
+            section: meta.section || "",
+            routeName: meta.routeName || meta.route || "",
+            pickupStop: d.supplier_or_paid_to || meta.pickupStop || meta.pickupPoint || "",
+            dropStop: meta.dropStop || meta.dropPoint || "",
+            monthlyFee: d.amount_or_unit_cost || meta.monthlyFee || 0,
+            transportOpted: opt,
+            transportMode: mode,
+            direction: dir,
+            status: meta.status || "Active",
+          });
         }
       } catch {}
     });
@@ -190,16 +208,25 @@ export function saveStoredAllocations(list: StudentAllocation[]) {
   notifyAutoRefresh("transport");
 
   list.forEach((a) => {
-    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([{
+    const payload = {
       id: a.id,
       record_type: "transport_allocation",
       title: a.studentName || a.student || "",
       category: "Transport Student Allocation",
       amount_or_unit_cost: a.monthlyFee,
       supplier_or_paid_to: a.pickupStop || a.pickupPoint || "",
-      notes: JSON.stringify(a),
+      notes: JSON.stringify({
+        ...a,
+        transportOpted: a.transportOpted,
+        transportMode: a.transportMode,
+        direction: a.direction,
+        transport_required: a.transportOpted,
+        transport_mode: a.transportMode,
+        transport_direction: a.direction,
+      }),
       created_by: "Office Staff",
-    }], { onConflict: "id" })).catch(() => {});
+    };
+    Promise.resolve(supabase.from("gv_inventory_expenses").upsert([payload], { onConflict: "id" })).catch(() => {});
   });
 }
 

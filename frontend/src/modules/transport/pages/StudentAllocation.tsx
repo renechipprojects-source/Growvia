@@ -1,202 +1,587 @@
-import { useState } from "react";
-import { GraduationCap, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { GraduationCap, Search, Bus, CheckCircle2, XCircle, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PageHeader } from "../components/PageHeader";
 import { StatCard } from "../components/StatCard";
-import { DataTable, type Column, type FilterDef } from "../components/DataTable";
-import { allocations as initialAllocations } from "../data/mockData";
 import { currency } from "../utils/format";
-import type { Allocation } from "../types";
-
-const columns: Column<Allocation>[] = [
-  { key: "student", header: "Student", cell: (a) => <span className="font-medium">{a.student}</span> },
-  { key: "class", header: "Class", cell: (a) => a.className },
-  { key: "section", header: "Section", cell: (a) => a.section },
-  { key: "route", header: "Route", cell: (a) => a.route },
-  { key: "pickup", header: "Pickup Point", cell: (a) => a.pickupPoint },
-  { key: "drop", header: "Drop Point", cell: (a) => a.dropPoint },
-  { key: "vehicle", header: "Vehicle", cell: (a) => <span className="font-mono text-xs">{a.vehicle}</span> },
-  { key: "driver", header: "Driver", cell: (a) => a.driver },
-  { key: "fee", header: "Monthly Fee", cell: (a) => currency(a.monthlyFee) },
-];
-
-import { getStoredAllocations, saveStoredAllocations, syncTransportFromSupabase, deleteAllocation } from "../transportStore";
+import { fetchStudents, type Student } from "@/lib/supabaseService";
+import { getStoredAllocations, saveStoredAllocations, syncTransportFromSupabase, getStoredRoutes } from "../transportStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
-import { useEffect, useCallback } from "react";
+
+export interface StudentTransportAllocationItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  className: string;
+  section: string;
+  rollNo?: number;
+  parentName?: string;
+  phone?: string;
+  transportOpted: "Yes" | "No";
+  transportMode: "One Way" | "Two Way";
+  direction: "Pickup" | "Drop" | "Both";
+  routeName: string;
+  pickupStop: string;
+  dropStop: string;
+  monthlyFee: number;
+  status: "Active" | "Inactive";
+}
 
 export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
-  const [allocationList, setAllocationList] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [allocations, setAllocations] = useState<StudentTransportAllocationItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [availableRoutes, setAvailableRoutes] = useState<string[]>(["Route 1 - Main Express", "Route 2 - Central", "Route 3 - North"]);
 
-  const loadData = useCallback(() => {
-    syncTransportFromSupabase().then(() => {
-      const raw = getStoredAllocations();
-      setAllocationList(
-        raw.map((a: any) => ({
-          ...a,
-          student: a.student || a.studentName || "Student",
-          pickupPoint: a.pickupPoint || a.pickupStop || "School Gate",
-          dropPoint: a.dropPoint || a.dropStop || "Indiranagar",
-          vehicle: a.vehicle || a.vehicleNo || "",
-          driver: a.driver || a.driverName || "",
-        }))
-      );
+  // Search & Filter State
+  const [search, setSearch] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>("all");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
+  const [viewTab, setViewTab] = useState<"all" | "pickup" | "drop" | "unallocated">("all");
+
+  // Edit / Allocation Modal State
+  const [editingItem, setEditingItem] = useState<StudentTransportAllocationItem | null>(null);
+  const [openModal, setOpenModal] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Modal Form State
+  const [formOpted, setFormOpted] = useState<"Yes" | "No">("Yes");
+  const [formMode, setFormMode] = useState<"One Way" | "Two Way">("Two Way");
+  const [formDirection, setFormDirection] = useState<"Pickup" | "Drop" | "Both">("Both");
+  const [formRoute, setFormRoute] = useState<string>("Route 1 - Main Express");
+  const [formPickupStop, setFormPickupStop] = useState<string>("Home Stop");
+  const [formDropStop, setFormDropStop] = useState<string>("School Gate");
+  const [formFee, setFormFee] = useState<number>(1500);
+
+  const loadAllData = useCallback(() => {
+    setLoading(true);
+    Promise.all([fetchStudents(), syncTransportFromSupabase()]).then(([studentsRes]) => {
+      const studentList = studentsRes.data || [];
+      setStudents(studentList);
+
+      const rawAlloc = getStoredAllocations();
+      const routes = getStoredRoutes();
+      if (routes.length > 0) {
+        setAvailableRoutes(routes.map((r) => r.name));
+      }
+
+      // Map allocations
+      const mappedList: StudentTransportAllocationItem[] = studentList.map((s) => {
+        const match = rawAlloc.find(
+          (a: any) => a.studentId === s.id || a.id === s.id || (a.studentName || a.student || "").toLowerCase() === s.name.toLowerCase()
+        );
+
+        if (match) {
+          const opted = match.transportOpted || match.transport_required || "Yes";
+          const mode = match.transportMode || match.transport_mode || (match.direction === "Pickup" || match.direction === "Drop" || match.transport_direction === "Pickup" || match.transport_direction === "Drop" ? "One Way" : "Two Way");
+          const dir = match.direction || match.transport_direction || (mode === "One Way" ? "Pickup" : "Both");
+          return {
+            id: match.id || `ALC-${s.id}`,
+            studentId: s.id,
+            studentName: s.name,
+            className: s.className,
+            section: s.section,
+            rollNo: s.rollNo,
+            parentName: typeof s.parent === "object" ? (s.parent as any)?.name : s.parent,
+            phone: s.phone,
+            transportOpted: opted,
+            transportMode: mode,
+            direction: dir,
+            routeName: match.routeName || match.route || "Route 1 - Main Express",
+            pickupStop: match.pickupStop || match.pickupPoint || "Main Stop",
+            dropStop: match.dropStop || match.dropPoint || "School Gate",
+            monthlyFee: Number(match.monthlyFee || 1500),
+            status: match.status || "Active",
+          };
+        } else {
+          return {
+            id: `ALC-${s.id}`,
+            studentId: s.id,
+            studentName: s.name,
+            className: s.className,
+            section: s.section,
+            rollNo: s.rollNo,
+            parentName: typeof s.parent === "object" ? (s.parent as any)?.name : s.parent,
+            phone: s.phone,
+            transportOpted: "No",
+            transportMode: "Two Way",
+            direction: "Both",
+            routeName: "Route 1 - Main Express",
+            pickupStop: "Main Stop",
+            dropStop: "School Gate",
+            monthlyFee: 1500,
+            status: "Inactive",
+          };
+        }
+      });
+
+      setAllocations(mappedList);
+      setLoading(false);
     });
   }, []);
 
-  useAutoRefresh("transport", loadData);
+  useAutoRefresh("transport", loadAllData);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadAllData();
+  }, [loadAllData]);
 
-  const [form, setForm] = useState({
-    student: "",
-    className: "Nursery",
-    section: "A",
-    route: "Route 1",
-    pickupPoint: "Stop A",
-    dropPoint: "School Gate 1",
-    monthlyFee: 1500,
-  });
-
-  const handleOpenAdd = () => {
-    setForm({
-      student: `Aarav Sharma #${allocationList.length + 1}`,
-      className: "Nursery",
-      section: "A",
-      route: "Route 1",
-      pickupPoint: "Indiranagar Stop B",
-      dropPoint: "School Main Gate",
-      monthlyFee: 1500,
-    });
-    setOpen(true);
+  // Handle Edit Click
+  const handleOpenEdit = (item: StudentTransportAllocationItem) => {
+    setEditingItem(item);
+    setFormOpted(item.transportOpted);
+    setFormMode(item.transportMode || "Two Way");
+    setFormDirection(item.direction || (item.transportMode === "One Way" ? "Pickup" : "Both"));
+    setFormRoute(item.routeName || availableRoutes[0] || "Route 1 - Main Express");
+    setFormPickupStop(item.pickupStop || "Home Stop");
+    setFormDropStop(item.dropStop || "School Gate");
+    setFormFee(item.monthlyFee || 1500);
+    setOpenModal(true);
   };
 
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSave = () => {
-    if (isSaving) return;
-    if (!form.student) {
-      toast.error("Student name is required.");
-      return;
-    }
-
+  // Save Allocation
+  const handleSaveAllocation = () => {
+    if (!editingItem || isSaving) return;
     setIsSaving(true);
+
     try {
-      const newAlloc: Allocation = {
-        id: `ALC-${Date.now().toString().slice(-4)}`,
-        student: form.student,
-        className: form.className,
-        section: form.section,
-        route: form.route,
-        pickupPoint: form.pickupPoint,
-        dropPoint: form.dropPoint,
-        vehicle: "KA-04-B-1001",
-        driver: "Assigned Driver",
-        monthlyFee: Number(form.monthlyFee),
+      const updatedDir = formOpted === "No" ? "Both" : formMode === "Two Way" ? "Both" : formDirection;
+
+      const updatedItem: StudentTransportAllocationItem = {
+        ...editingItem,
+        transportOpted: formOpted,
+        transportMode: formOpted === "No" ? "Two Way" : formMode,
+        direction: updatedDir,
+        routeName: formRoute,
+        pickupStop: formPickupStop,
+        dropStop: formDropStop,
+        monthlyFee: Number(formFee),
+        status: formOpted === "Yes" ? "Active" : "Inactive",
       };
-      const next = [newAlloc, ...allocationList];
-      setAllocationList(next);
-      saveStoredAllocations(next);
-      toast.success(`Transport allocated for ${form.student}!`);
-      setOpen(false);
-      setForm({
-        student: "",
-        className: "Nursery",
-        section: "A",
-        route: "Route 1",
-        pickupPoint: "Main Gate",
-        dropPoint: "School Main Gate",
-        monthlyFee: 1500,
-      });
+
+      const nextAllocations = allocations.map((a) => (a.studentId === editingItem.studentId ? updatedItem : a));
+      setAllocations(nextAllocations);
+
+      // Persist opted transport allocations to Supabase / LocalStore
+      const activeAllocations = nextAllocations.filter((a) => a.transportOpted === "Yes");
+      saveStoredAllocations(activeAllocations as any);
+
+      toast.success(`Updated transport settings for ${editingItem.studentName}`);
+      setOpenModal(false);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = (id: string, name: string) => {
-    const next = allocationList.filter((a) => a.id !== id);
-    setAllocationList(next);
-    saveStoredAllocations(next);
-    toast.success(`Transport allocation for ${name} removed`);
-  };
+  // Filtered List Logic
+  const filteredList = useMemo(() => {
+    return allocations.filter((item) => {
+      // 1. Text Search Filter
+      if (search.trim()) {
+        const q = search.toLowerCase().trim();
+        const matchName = item.studentName.toLowerCase().includes(q);
+        const matchId = item.studentId.toLowerCase().includes(q);
+        const matchParent = (item.parentName || "").toLowerCase().includes(q);
+        const matchRoute = item.routeName.toLowerCase().includes(q);
+        if (!matchName && !matchId && !matchParent && !matchRoute) return false;
+      }
 
-  const filters: FilterDef<Allocation>[] = [
-    { key: "route", label: "Route", options: Array.from(new Set(allocationList.map((a) => a.route))), predicate: (r, v) => r.route === v },
-    { key: "class", label: "Class", options: Array.from(new Set(allocationList.map((a) => a.className))), predicate: (r, v) => r.className === v },
-  ];
+      // 2. Class Filter
+      if (selectedClass !== "all" && item.className.toLowerCase() !== selectedClass.toLowerCase()) {
+        return false;
+      }
+
+      // 3. Section Filter
+      if (selectedSection !== "all" && item.section.toLowerCase() !== selectedSection.toLowerCase()) {
+        return false;
+      }
+
+      // 4. Transport Opted (Yes/No) and Direction Logic:
+      if (viewTab === "unallocated") {
+        return item.transportOpted === "No";
+      }
+
+      // For "all", "pickup", "drop", student MUST have Transport = Yes
+      if (item.transportOpted !== "Yes") return false;
+
+      if (viewTab === "pickup") {
+        // Must include Pickup (One Way Pickup OR Two Way/Both)
+        return item.direction === "Pickup" || item.direction === "Both" || item.transportMode === "Two Way";
+      }
+
+      if (viewTab === "drop") {
+        // Must include Drop (One Way Drop OR Two Way/Both)
+        return item.direction === "Drop" || item.direction === "Both" || item.transportMode === "Two Way";
+      }
+
+      return true;
+    });
+  }, [allocations, search, selectedClass, selectedSection, viewTab]);
+
+  // Class List Options
+  const classOptions = useMemo(() => {
+    return Array.from(new Set(allocations.map((a) => a.className))).sort();
+  }, [allocations]);
+
+  // Active Allocations Count
+  const totalOptedCount = allocations.filter((a) => a.transportOpted === "Yes").length;
+  const pickupCount = allocations.filter((a) => a.transportOpted === "Yes" && (a.direction === "Pickup" || a.direction === "Both" || a.transportMode === "Two Way")).length;
+  const dropCount = allocations.filter((a) => a.transportOpted === "Yes" && (a.direction === "Drop" || a.direction === "Both" || a.transportMode === "Two Way")).length;
+  const totalRevenue = allocations.filter((a) => a.transportOpted === "Yes").reduce((sum, a) => sum + (a.monthlyFee || 0), 0);
 
   return (
     <div className="w-full max-w-none space-y-6">
       <PageHeader
-        title="Student Bus Assignments"
-        description="Assign students to bus routes, pickup stops, and transport fees."
-        actions={!readOnly ? <Button onClick={handleOpenAdd}><Plus className="mr-2 h-4 w-4" />Assign Student to Bus</Button> : undefined}
+        title="Student Transport Allocation"
+        subtitle="Manage student bus assignments, pickup/drop directions, and monthly transport fees."
       />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard label="Allocated Students" value={allocationList.length} icon={<GraduationCap className="h-5 w-5" />} />
-        <StatCard label="Routes in Use" value={new Set(allocationList.map((a) => a.route)).size} tone="info" icon={<GraduationCap className="h-5 w-5" />} />
-        <StatCard label="Est. Monthly Revenue" value={currency(allocationList.reduce((s, a) => s + a.monthlyFee, 0))} tone="success" icon={<GraduationCap className="h-5 w-5" />} />
-      </div>
-      <div className="mt-6">
-        <DataTable<Allocation>
-          data={allocationList}
-          columns={columns}
-          rowKey={(a) => a.id}
-          searchPlaceholder="Search student, route..."
-          searchFields={["student", "route", "vehicle"]}
-          filters={filters}
-          actions={!readOnly ? (a) => (
-            <Button variant="ghost" size="icon" onClick={() => handleDelete(a.id, a.studentName || a.student || "Student")} aria-label="Delete">
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          ) : undefined}
-        />
+
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Opted Transport (Yes)" value={totalOptedCount} icon={<GraduationCap className="h-5 w-5" />} />
+        <StatCard label="Pickup List (Home → School)" value={pickupCount} tone="info" icon={<Bus className="h-5 w-5" />} />
+        <StatCard label="Drop List (School → Home)" value={dropCount} tone="warning" icon={<Bus className="h-5 w-5" />} />
+        <StatCard label="Monthly Transport Revenue" value={currency(totalRevenue)} tone="success" icon={<GraduationCap className="h-5 w-5" />} />
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Allocate Student to Transport</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Student Full Name</Label>
-              <Input value={form.student} onChange={(e) => setForm((f) => ({ ...f, student: e.target.value }))} placeholder="e.g. Aarav Sharma" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Class</Label>
-                <Input value={form.className} onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Section</Label>
-                <Input value={form.section} onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Route Name</Label>
-                <Input value={form.route} onChange={(e) => setForm((f) => ({ ...f, route: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Monthly Fee (₹)</Label>
-                <Input type="number" value={form.monthlyFee} onChange={(e) => setForm((f) => ({ ...f, monthlyFee: Number(e.target.value) }))} />
-              </div>
-            </div>
-            <div>
-              <Label>Pickup Point</Label>
-              <Input value={form.pickupPoint} onChange={(e) => setForm((f) => ({ ...f, pickupPoint: e.target.value }))} />
-            </div>
+      {/* Filter and View Controls */}
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Direction View Tabs */}
+          <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setViewTab("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewTab === "all" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All Active ({totalOptedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab("pickup")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewTab === "pickup" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Pickup ({pickupCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab("drop")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewTab === "drop" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Drop ({dropCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab("unallocated")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewTab === "unallocated" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              No Transport ({allocations.length - totalOptedCount})
+            </button>
           </div>
+
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search student name, ID, parent..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 text-xs rounded-xl"
+            />
+          </div>
+        </div>
+
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">Class:</span>
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="h-8 w-32 text-xs rounded-lg">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {classOptions.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">Section:</span>
+            <Select value={selectedSection} onValueChange={setSelectedSection}>
+              <SelectTrigger className="h-8 w-24 text-xs rounded-lg">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="A">Section A</SelectItem>
+                <SelectItem value="B">Section B</SelectItem>
+                <SelectItem value="C">Section C</SelectItem>
+                <SelectItem value="D">Section D</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Student Allocations Table */}
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+            <span className="text-sm">Loading student transport roster...</span>
+          </div>
+        ) : filteredList.length === 0 ? (
+          <div className="p-12 text-center text-slate-500">
+            <Bus className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+            <p className="font-semibold text-slate-700">No students match the selected transport filter.</p>
+            <p className="text-xs text-slate-400 mt-1">Try switching tabs or adjusting search filters.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50/80 uppercase text-[11px] font-semibold text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3">Student Name</th>
+                  <th className="px-4 py-3">Class & Sec</th>
+                  <th className="px-4 py-3">Transport Opted</th>
+                  <th className="px-4 py-3">Mode</th>
+                  <th className="px-4 py-3">Direction</th>
+                  <th className="px-4 py-3">Route</th>
+                  <th className="px-4 py-3">Pickup / Drop Stop</th>
+                  <th className="px-4 py-3">Monthly Fee</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredList.map((item) => (
+                  <tr key={item.studentId} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-900">{item.studentName}</div>
+                      <div className="text-[11px] text-slate-400">{item.studentId} {item.parentName ? `· ${item.parentName}` : ""}</div>
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      {item.className} - {item.section}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.transportOpted === "Yes" ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Yes</Badge>
+                      ) : (
+                        <Badge className="bg-slate-100 text-slate-600 border-slate-200">No</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.transportOpted === "Yes" ? (
+                        <Badge variant="outline" className={item.transportMode === "One Way" ? "border-amber-300 text-amber-800 bg-amber-50" : "border-blue-300 text-blue-800 bg-blue-50"}>
+                          {item.transportMode}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.transportOpted === "Yes" ? (
+                        item.transportMode === "One Way" ? (
+                          <span className="font-semibold text-amber-700 flex items-center gap-1">
+                            {item.direction === "Pickup" ? "Pickup (Home → School)" : "Drop (School → Home)"}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-blue-700 flex items-center gap-1">
+                            Two Way (Pickup & Drop)
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.transportOpted === "Yes" ? item.routeName : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.transportOpted === "Yes" ? (
+                        <div className="text-[11px]">
+                          <div><span className="text-slate-400">Pickup:</span> {item.pickupStop}</div>
+                          <div><span className="text-slate-400">Drop:</span> {item.dropStop}</div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-semibold">
+                      {item.transportOpted === "Yes" ? currency(item.monthlyFee) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {!readOnly && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenEdit(item)}
+                          className="h-7 text-xs px-2.5 rounded-lg"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Edit Transport
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Edit Student Transport Modal */}
+      <Dialog open={openModal} onOpenChange={setOpenModal}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle>Edit Transport Allocation</DialogTitle>
+            <DialogDescription>
+              Update transport settings for {editingItem?.studentName} ({editingItem?.className}-{editingItem?.section})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Transport Opted (Yes / No) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Opt for School Transport?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={formOpted === "Yes" ? "default" : "outline"}
+                  onClick={() => setFormOpted("Yes")}
+                  className={formOpted === "Yes" ? "bg-pink-600 text-white" : ""}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Yes (Opted)
+                </Button>
+                <Button
+                  type="button"
+                  variant={formOpted === "No" ? "default" : "outline"}
+                  onClick={() => setFormOpted("No")}
+                  className={formOpted === "No" ? "bg-slate-700 text-white" : ""}
+                >
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                  No (Not Opted)
+                </Button>
+              </div>
+            </div>
+
+            {formOpted === "Yes" && (
+              <>
+                {/* Transport Mode (One Way / Two Way) */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <Label className="text-xs font-semibold">Transport Mode</Label>
+                  <Select
+                    value={formMode}
+                    onValueChange={(val: "One Way" | "Two Way") => {
+                      setFormMode(val);
+                      if (val === "Two Way") setFormDirection("Both");
+                      else if (formDirection === "Both") setFormDirection("Pickup");
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-xs rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One Way">One Way (Single Direction)</SelectItem>
+                      <SelectItem value="Two Way">Two Way (Pickup & Drop)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Direction Selection (Required for One Way) */}
+                {formMode === "One Way" && (
+                  <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200/60">
+                    <Label className="text-xs font-semibold text-amber-900">Required Direction (One Way)</Label>
+                    <Select
+                      value={formDirection}
+                      onValueChange={(val: "Pickup" | "Drop") => setFormDirection(val)}
+                    >
+                      <SelectTrigger className="h-9 text-xs rounded-xl bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pickup">Pickup Only (Home → School)</SelectItem>
+                        <SelectItem value="Drop">Drop Only (School → Home)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Route Selection */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Bus Route</Label>
+                  <Select value={formRoute} onValueChange={setFormRoute}>
+                    <SelectTrigger className="h-9 text-xs rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableRoutes.map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Pickup & Drop Stops */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Pickup Stop</Label>
+                    <Input
+                      value={formPickupStop}
+                      onChange={(e) => setFormPickupStop(e.target.value)}
+                      placeholder="e.g. Indiranagar Stop 3"
+                      className="h-9 text-xs rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Drop Stop</Label>
+                    <Input
+                      value={formDropStop}
+                      onChange={(e) => setFormDropStop(e.target.value)}
+                      placeholder="e.g. Main Gate"
+                      className="h-9 text-xs rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                {/* Monthly Transport Fee */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Monthly Transport Fee (₹)</Label>
+                  <Input
+                    type="number"
+                    value={formFee}
+                    onChange={(e) => setFormFee(Number(e.target.value))}
+                    className="h-9 text-xs rounded-xl"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Allocate Transport</Button>
+            <Button variant="outline" onClick={() => setOpenModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveAllocation} disabled={isSaving} className="bg-pink-600 hover:bg-pink-700 text-white">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save Transport Allocation
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
