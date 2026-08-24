@@ -73,6 +73,9 @@ export interface Enquiry {
   createdAt: string;
   followUp?: string;
   notes?: string;
+  stage?: string;
+  targetClass?: string;
+  createdDate?: string;
 }
 
 export interface Fee {

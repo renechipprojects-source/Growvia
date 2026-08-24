@@ -41,7 +41,7 @@ const DROP_REASONS = [
 ];
 
 export function EnquiryKanban({ readOnly = false }: { readOnly?: boolean }) {
-  const { enquiries, updateStatus, isConverted, dropEnquiry } = useEnquiries();
+  const { enquiries, enrolledEnquiries, updateStatus, isConverted, dropEnquiry } = useEnquiries();
   const navigate = useNavigate();
   const [dragging, setDragging] = useState<string | null>(null);
 
@@ -52,8 +52,22 @@ export function EnquiryKanban({ readOnly = false }: { readOnly?: boolean }) {
 
   const moveForward = (id: string, targetStatus: string) => {
     if (readOnly) return;
+    if (isConverted(id)) {
+      toast.info("Enrolled/Converted enquiries cannot be moved back to active stages.");
+      return;
+    }
     const item = enquiries.find((e) => e.id === id);
     if (!item) return;
+
+    if (item.status === "Enrolled" || (item.status as string) === "Converted") {
+      toast.info("Enrolled/Converted enquiries cannot be moved back to active stages.");
+      return;
+    }
+
+    if (targetStatus === "Enrolled") {
+      toast.info("Use 'Convert to Admission' button to complete admission & enrollment.");
+      return;
+    }
 
     // Enforce forward-only pipeline progression
     const currentIdx = COLUMNS.findIndex((c) => c.key === item.status);
@@ -80,7 +94,11 @@ export function EnquiryKanban({ readOnly = false }: { readOnly?: boolean }) {
     <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden pb-2">
       <div className="flex gap-4 min-w-max h-full">
         {COLUMNS.map((col) => {
-          const rows = enquiries.filter((e) => e.status === col.key);
+          const rows = col.key === "Enrolled"
+            ? enrolledEnquiries
+            : enquiries.filter(
+                (e) => e.status === col.key && !isConverted(e.id) && e.status !== "Enrolled" && (e.status as string) !== "Converted",
+              );
           return (
             <div
               key={col.key}

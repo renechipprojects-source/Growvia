@@ -209,12 +209,15 @@ export async function getPrincipalDashboardStats(): Promise<PrincipalDashboardSt
 export async function getOfficeDashboardStats(): Promise<OfficeDashboardStats> {
   try {
     const [enquiriesRes, studentsRes, feesRes] = await Promise.all([
-      supabase.from("gv_requests").select("id, applicant_or_child_name, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }),
+      supabase.from("gv_requests").select("id, applicant_or_child_name, status, created_at").eq("request_type", "enquiry").order("created_at", { ascending: false }),
       supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role").or("role.eq.student,role.eq.Student,role.ilike.*student*").order("created_at", { ascending: false }),
       supabase.from("gv_fees_payments").select("id, student_name, amount_paid, amount_due, balance, record_type, created_at").order("created_at", { ascending: false }),
     ]);
 
-    const enquiries = enquiriesRes.data || [];
+    const enquiries = (enquiriesRes.data || []).filter((e: any) => {
+      const st = (e.status || "").toString().toLowerCase();
+      return !st.includes("enroll") && !st.includes("convert");
+    });
     let students = studentsRes.data || [];
     if (students.length === 0) {
       const { data: allUsers } = await supabase.from("gv_users").select("id, full_name, class_name, admission_no, created_at, role");

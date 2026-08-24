@@ -24,7 +24,7 @@ export const Route = createFileRoute("/office/visits")({
 });
 
 function VisitsPage() {
-  const { enquiries, addEnquiry, updateStatus } = useEnquiries();
+  const { enquiries, addEnquiry, updateStatus, isConverted } = useEnquiries();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -45,15 +45,21 @@ function VisitsPage() {
   useAutoRefresh("visits", () => triggerModuleRefresh("enquiries"));
   useAutoRefresh("enquiries", () => triggerModuleRefresh("visits"));
 
-  // All visits: includes scheduled, completed, and enquiries
+  // Active visits: excludes enrolled/converted students
+  const activeVisitsEnquiries = useMemo(() => {
+    return enquiries.filter(
+      (e) => !isConverted(e.id) && e.status !== "Enrolled" && (e.status as string) !== "Converted",
+    );
+  }, [enquiries, isConverted]);
+
   const visitsList = useMemo(() => {
-    return enquiries.filter((e) => {
+    return activeVisitsEnquiries.filter((e) => {
       if (statusFilter === "all") return true;
       if (statusFilter === "scheduled") return e.status === "Visit Scheduled" || e.status === "New";
       if (statusFilter === "completed") return e.status === "Visit Completed";
       return true;
     });
-  }, [enquiries, statusFilter]);
+  }, [activeVisitsEnquiries, statusFilter]);
 
   const filteredVisits = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -68,10 +74,14 @@ function VisitsPage() {
     });
   }, [visitsList, search]);
 
-  const scheduledCount = enquiries.filter((e) => e.status === "Visit Scheduled" || e.status === "New").length;
-  const completedCount = enquiries.filter((e) => e.status === "Visit Completed").length;
+  const scheduledCount = activeVisitsEnquiries.filter((e) => e.status === "Visit Scheduled" || e.status === "New").length;
+  const completedCount = activeVisitsEnquiries.filter((e) => e.status === "Visit Completed").length;
 
   const handleMarkCompleted = (id: string, childName: string) => {
+    if (isConverted(id)) {
+      toast.info(`Student ${childName} is already converted/enrolled.`);
+      return;
+    }
     updateStatus(id, "Visit Completed");
     triggerModuleRefresh("enquiries");
     toast.success(`Marked visit completed for ${childName}`);

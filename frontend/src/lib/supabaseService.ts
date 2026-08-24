@@ -1135,37 +1135,73 @@ export async function fetchEnquiries(): Promise<{ data: Enquiry[]; isFromSupabas
     if (error) return { data: [], isFromSupabase: false };
 
     const rows = data || [];
-    const normalizeStatus = (s: string): Enquiry["status"] => {
-      if (!s) return "New";
-      const st = s.toLowerCase();
+    let enrolledStudentsSet = new Set<string>();
+    try {
+      const { data: stList } = await fetchStudents();
+      if (stList && stList.length > 0) {
+        stList.forEach((s) => {
+          if (s.name) enrolledStudentsSet.add(s.name.trim().toLowerCase());
+          if (s.phone) enrolledStudentsSet.add((s.phone || "").replace(/\D/g, "").slice(-10));
+        });
+      }
+    } catch { }
+
+    const normalizeStatus = (s: string, childName?: string, phone?: string): Enquiry["status"] => {
+      if (!s) {
+        const cName = (childName || "").trim().toLowerCase();
+        const pNum = (phone || "").replace(/\D/g, "").slice(-10);
+        if ((cName && enrolledStudentsSet.has(cName)) || (pNum && enrolledStudentsSet.has(pNum))) {
+          return "Enrolled";
+        }
+        return "New";
+      }
+      const st = s.trim().toLowerCase();
+      if (st.includes("enroll") || st.includes("convert")) return "Enrolled";
       if (st.includes("completed")) return "Visit Completed";
       if (st.includes("doc")) return "Documents Pending";
       if (st.includes("approv")) return "Admission Approved";
-      if (st.includes("enroll")) return "Enrolled";
       if (st.includes("drop") || st.includes("cancel")) return "Dropped";
+      if (st.includes("schedul")) return "Visit Scheduled";
+      if (st.includes("contact")) return "Contacted";
+
+      const cName = (childName || "").trim().toLowerCase();
+      const pNum = (phone || "").replace(/\D/g, "").slice(-10);
+      if ((cName && enrolledStudentsSet.has(cName)) || (pNum && enrolledStudentsSet.has(pNum))) {
+        return "Enrolled";
+      }
       return "New";
     };
 
-    const mapped: Enquiry[] = rows.map((d: any) => ({
-      id: d.id,
-      childName: d.applicant_or_child_name || "Child",
-      parentName: d.parent_name || "Parent",
-      phone: d.phone || "",
-      altPhone: "",
-      email: d.email || "",
-      address: d.address || "",
-      gender: d.gender === "Girl" ? "Girl" : "Boy",
-      dob: d.dob || "2022-01-01",
-      previousSchool: "",
-      age: 3,
-      interestedClass: d.leave_type_or_interested_class || "Nursery",
-      source: d.source || "Walk-in",
-      status: normalizeStatus(d.status),
-      followUp: d.follow_up_date || d.created_at?.slice(0, 10),
-      notes: d.reason_or_notes || "",
-      createdAt: d.created_at || new Date().toISOString(),
-    }));
+    const mapped: Enquiry[] = rows.map((d: any) => {
+      const childName = d.applicant_or_child_name || "Child";
+      const phone = d.phone || "";
+      const status = normalizeStatus(d.status, childName, phone);
+      const createdDate = d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+      return {
+        id: d.id,
+        childName,
+        parentName: d.parent_name || "Parent",
+        phone,
+        altPhone: "",
+        email: d.email || "",
+        address: d.address || "",
+        gender: d.gender === "Girl" ? "Girl" : "Boy",
+        dob: d.dob || "2022-01-01",
+        previousSchool: "",
+        age: 3,
+        interestedClass: d.leave_type_or_interested_class || "Nursery",
+        source: d.source || "Walk-in",
+        status,
+        stage: status,
+        targetClass: d.leave_type_or_interested_class || "Nursery",
+        createdDate,
+        followUp: d.follow_up_date || createdDate,
+        notes: d.reason_or_notes || "",
+        createdAt: d.created_at || new Date().toISOString(),
+      };
+    });
 
+    saveStoredEnquiries(mapped);
     return { data: mapped, isFromSupabase: true };
   } catch {
     return { data: [], isFromSupabase: false };
