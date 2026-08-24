@@ -1575,9 +1575,9 @@ app.put('/api/system-settings', async (req: Request, res: Response) => {
 
 const CORE_ERP_ACCOUNTS = [
   {
-    loginId: 'ADM001',
-    email: 'admin@growvia.com',
-    password: 'Admin@123',
+    loginId: 'ADMIN001',
+    email: 'admin@sunshineschool.edu',
+    password: 'Password@123',
     role: 'admin',
     name: 'System Administrator',
   },
@@ -1617,64 +1617,6 @@ const CORE_ERP_ACCOUNTS = [
     name: 'Lead Developer',
   },
 ];
-
-app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
-  try {
-    if (!SUPABASE_SERVICE_ROLE_KEY) {
-      return res.status(500).json({ error: 'Server key not configured' });
-    }
-
-    const { identifier } = req.body || {};
-    if (!identifier) {
-      return res.status(400).json({ error: 'Identifier is required' });
-    }
-
-    const clean = String(identifier).trim();
-    const norm = clean.toLowerCase().replace(/[\s\-_]+/g, '');
-
-    const { data: user, error } = await supabaseAdmin
-      .from('gv_users')
-      .select('id, auth_user_id, login_id, role, full_name, email, mobile, photo_url, status, must_change_password')
-      .or(`login_id.ilike.${clean},login_id.ilike.${norm},email.ilike.${clean}`)
-      .maybeSingle();
-
-    if (user && user.email) {
-      return res.status(200).json({
-        success: true,
-        login_id: user.login_id,
-        email: user.email,
-        role: user.role,
-        full_name: user.full_name,
-        profile: user,
-      });
-    }
-
-    const { data: fallbackList } = await supabaseAdmin
-      .from('gv_users')
-      .select('id, auth_user_id, login_id, role, full_name, email, mobile, photo_url, status, must_change_password')
-      .or(`login_id.ilike.%${norm}%,email.ilike.%${norm}%`)
-      .limit(1);
-
-    if (fallbackList && fallbackList.length > 0 && fallbackList[0].email) {
-      const fb = fallbackList[0];
-      return res.status(200).json({
-        success: true,
-        login_id: fb.login_id,
-        email: fb.email,
-        role: fb.role,
-        full_name: fb.full_name,
-        profile: fb,
-      });
-    }
-
-    return res.status(404).json({
-      success: false,
-      error: 'Login ID not found in database records.',
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
 
 app.post('/api/users/provision', async (req: Request, res: Response) => {
   try {
