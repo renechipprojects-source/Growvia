@@ -51,10 +51,17 @@ export type Allocation = {
   pickupPoint?: string;
   pickupStop?: string;
   dropPoint?: string;
+  dropStop?: string;
   vehicle?: string;
   driver?: string;
   monthlyFee: number;
   status?: string;
+  transportOpted?: "Yes" | "No" | string;
+  transportMode?: "One Way" | "Two Way" | string;
+  direction?: "Pickup" | "Drop" | "Both" | string;
+  transport_required?: string;
+  transport_mode?: string;
+  transport_direction?: string;
 };
 
 export type StudentAllocation = Allocation;
