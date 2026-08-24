@@ -293,11 +293,30 @@ export async function updateServerAuthPassword(identifier: string, newPassword: 
   return { success: false };
 }
 
+const SYSTEM_ACCOUNT_MAP: Record<string, { email: string; role: string; full_name: string }> = {
+  ADMIN001: { email: "admin@sunshineschool.edu", role: "admin", full_name: "System Admin" },
+  ADM001: { email: "admin@sunshineschool.edu", role: "admin", full_name: "System Admin" },
+  PRINCIPAL001: { email: "principal@sunshineschool.edu", role: "principal", full_name: "School Principal" },
+  PRN001: { email: "principal@sunshineschool.edu", role: "principal", full_name: "School Principal" },
+  OFFICE001: { email: "office@sunshineschool.edu", role: "office", full_name: "Office Manager" },
+  OFF001: { email: "office@sunshineschool.edu", role: "office", full_name: "Office Manager" },
+  TCH001: { email: "teacher@growvia.com", role: "teacher", full_name: "Lead Teacher" },
+  PAR001: { email: "parent@growvia.com", role: "parent", full_name: "Parent Account" },
+  DEV001: { email: "developer@growvia.com", role: "developer", full_name: "Lead Developer" },
+};
+
 export async function resolveLoginIdViaServer(identifier: string) {
+  const clean = (identifier || "").trim();
+  if (!clean) return null;
+
+  const normKey = clean.toUpperCase();
+
   const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const backendUrls = Array.from(new Set([
+    isLocal ? "http://localhost:5001" : BACKEND_URL,
     BACKEND_URL,
-    isLocal ? "http://localhost:5001" : "https://growvia-backend-4wp7.onrender.com",
+    "http://localhost:5001",
+    "https://growvia-backend-4wp7.onrender.com",
     ""
   ])).filter(Boolean);
 
@@ -309,7 +328,7 @@ export async function resolveLoginIdViaServer(identifier: string) {
       const res = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier }),
+        body: JSON.stringify({ identifier: clean }),
         signal: controller.signal,
       }).finally(() => clearTimeout(timeoutId));
 
@@ -325,11 +344,10 @@ export async function resolveLoginIdViaServer(identifier: string) {
   const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
   const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
 
-  if (serviceKey && identifier) {
+  if (serviceKey && clean) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(supabaseUrl, serviceKey);
-      const clean = identifier.trim();
       const norm = clean.toLowerCase().replace(/[\s\-_]+/g, "");
 
       const { data: user } = await admin
@@ -349,6 +367,25 @@ export async function resolveLoginIdViaServer(identifier: string) {
         };
       }
     } catch {}
+  }
+
+  // Canonical System Accounts Fallback Resolution Map
+  if (SYSTEM_ACCOUNT_MAP[normKey]) {
+    const sys = SYSTEM_ACCOUNT_MAP[normKey];
+    return {
+      success: true,
+      login_id: normKey,
+      email: sys.email,
+      role: sys.role,
+      full_name: sys.full_name,
+      profile: {
+        login_id: normKey,
+        email: sys.email,
+        role: sys.role,
+        full_name: sys.full_name,
+        status: "active",
+      },
+    };
   }
 
   return null;
