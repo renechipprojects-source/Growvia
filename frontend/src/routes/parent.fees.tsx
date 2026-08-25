@@ -7,10 +7,7 @@ import { useParent } from "@/lib/parentContext";
 import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
 import { useEffect, useState } from "react";
-import { fetchFees, type FeeLedgerItem } from "@/lib/supabaseService";
-import { Printer, CheckCircle, Clock, FileText, Tag } from "lucide-react";
-
-import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { fetchFees, getParentFeeView, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export const Route = createFileRoute("/parent/fees")({ component: ParentFees });
 
@@ -34,20 +31,13 @@ function ParentFees() {
     loadData();
   }, [activeChild]);
 
-  const origFee = feeRecord?.originalFee ?? feeRecord?.amount ?? 8500;
-  const discAmt = feeRecord?.discountAmount ?? 0;
-  const finalFee = feeRecord?.finalFee ?? (origFee - discAmt);
-  const totalPaid = (feeRecord?.payments && feeRecord.payments.length > 0)
-    ? feeRecord.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-    : (feeRecord?.paid ?? 0);
-  const remainingAmount = Math.max(0, finalFee - totalPaid);
-  const instCount = feeRecord?.payments?.length || (totalPaid > 0 ? 1 : 0);
-
-  let status = "Unpaid";
-  if (remainingAmount === 0 && finalFee > 0) status = "Paid";
-  else if (totalPaid > 0) status = "Partially Paid";
-
-  const historyItems = feeRecord?.payments || [];
+  const parentView = getParentFeeView(feeRecord);
+  const finalFee = parentView.totalFee;
+  const totalPaid = parentView.paid;
+  const remainingAmount = parentView.remainingAmount;
+  const status = parentView.status;
+  const instCount = parentView.payments.length || (totalPaid > 0 ? 1 : 0);
+  const historyItems = parentView.payments;
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto w-full max-w-none pr-1 space-y-4">

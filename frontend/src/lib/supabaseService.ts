@@ -189,6 +189,7 @@ export interface FeeLedgerItem {
   academicYear?: string;
   receiptNumber?: string;
   paymentDate?: string;
+  admissionFee?: number;
   originalFee: number;
   discountAmount: number;
   finalFee: number;
@@ -550,7 +551,8 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
               gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
               house: d.house || undefined as any,
               address: d.address || undefined,
-              email: d.email || undefined,
+              email: d.email || d.parent_email || d.parentEmail || undefined,
+              occupation: d.occupation || d.parent_occupation || d.father_occupation || d.fatherOccupation || undefined,
               bloodGroup: d.blood_group || d.bloodGroup || undefined,
               admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
               feeStatus: (d.fee_status || d.feeStatus || "Pending") as any,
@@ -638,7 +640,8 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
             gender: d.gender ? (d.gender === "Girl" || d.gender === "Female" ? "Girl" : "Boy") : (undefined as any),
             house: d.house || undefined as any,
             address: d.address || undefined,
-            email: d.email || undefined,
+            email: d.email || d.parent_email || d.parentEmail || undefined,
+            occupation: d.occupation || d.parent_occupation || d.father_occupation || d.fatherOccupation || undefined,
             bloodGroup: d.blood_group || d.bloodGroup || undefined,
             admissionDate: d.created_at?.slice(0, 10) || d.admissionDate || undefined as any,
             feeStatus: liveStatus as any,
@@ -738,6 +741,9 @@ export async function createStudent(student: Omit<Student, "id"> & {
     avatar: student.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(student.name)}`,
     attendance: student.attendance || 100,
     branch: student.branch || "Main Branch",
+    email: student.email || undefined,
+    address: student.address || undefined,
+    occupation: student.occupation || undefined,
   };
 
   const payload = {
@@ -757,6 +763,8 @@ export async function createStudent(student: Omit<Student, "id"> & {
     fee_status: student.feeStatus || "Pending",
     status: "active",
     photo_url: student.avatar,
+    occupation: student.occupation,
+    address: student.address,
   };
 
   try {
@@ -1256,24 +1264,130 @@ export async function createEnquiry(enquiry: Omit<Enquiry, "id" | "createdAt">) 
   }
 }
 
+export interface FeeComponents {
+  tuitionFee: number;
+  developmentFee: number;
+  examinationFee: number;
+}
+
+export function calculateFeeComponents(finalFee: number): FeeComponents {
+  const safeFee = Math.max(0, Math.round(finalFee));
+  const tuitionFee = Math.round(safeFee * 0.6);
+  const developmentFee = Math.round(safeFee * 0.2);
+  const examinationFee = safeFee - tuitionFee - developmentFee;
+  return {
+    tuitionFee,
+    developmentFee,
+    examinationFee,
+  };
+}
+
+export interface FeeLedgerItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNo?: string;
+  rollNo?: number;
+  className: string;
+  section?: string;
+  feeType?: string;
+  term?: string;
+  academicYear?: string;
+  receiptNumber?: string;
+  paymentDate?: string;
+  admissionFee?: number;
+  originalFee: number;
+  discountAmount: number;
+  finalFee: number;
+  feeComponents?: FeeComponents;
+  amount: number;
+  paid: number;
+  remainingAmount: number;
+  advanceAmount?: number;
+  balance?: number;
+  totalInstallments: number;
+  paidInstallments: number;
+  installmentsUsed?: number;
+  status: "Paid" | "Partial" | "Pending";
+  dueDate?: string;
+  month?: string;
+  lastPaymentDate?: string;
+  payments: PaymentTransaction[];
+  updatedAt?: string;
+}
+
 // ─── 5. FEES & PAYMENTS ───────────────────────────────────────────────────
+
+const FEE_OVERRIDES_CACHE_KEY = "sunshine.fee_overrides.v1";
+
+export interface FeeOverrideRecord {
+  originalFee: number;
+  discountAmount: number;
+  finalFee: number;
+  feeComponents?: FeeComponents;
+  feeType?: string;
+  updatedAt: string;
+}
+
+export function getStoredFeeOverrides(): Record<string, FeeOverrideRecord> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(FEE_OVERRIDES_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredFeeOverride(
+  studentId: string,
+  admissionNo: string,
+  studentName: string,
+  override: { originalFee: number; discountAmount: number; finalFee: number; feeComponents?: FeeComponents; feeType?: string }
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const overrides = getStoredFeeOverrides();
+    const rec: FeeOverrideRecord = {
+      ...override,
+      feeComponents: override.feeComponents || calculateFeeComponents(override.finalFee),
+      updatedAt: new Date().toISOString(),
+    };
+    if (studentId) overrides[studentId.toLowerCase()] = rec;
+    if (admissionNo) {
+      overrides[admissionNo.toLowerCase()] = rec;
+      const canonical = toCanonicalAdmissionNo(admissionNo, studentId).toLowerCase();
+      overrides[canonical] = rec;
+    }
+    if (studentName) overrides[studentName.toLowerCase()] = rec;
+    localStorage.setItem(FEE_OVERRIDES_CACHE_KEY, JSON.stringify(overrides));
+  } catch { }
+}
 
 export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerItem {
   const payments = Array.isArray(ledger.payments) ? ledger.payments : [];
   const paymentsSum = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-  // Authoritative Paid Total: paymentsSum is sole source when transaction records exist
-  const paid = payments.length > 0 ? paymentsSum : Math.max(0, Number(ledger.paid || 0));
 
   const rawOrig = Number(ledger.originalFee ?? ledger.amount ?? 0);
   const originalFee = Math.max(0, rawOrig);
   const discountAmount = Math.max(0, Number(ledger.discountAmount ?? 0));
   const finalFee = Math.max(0, originalFee - discountAmount);
+  const admissionFee = Number(ledger.admissionFee ?? (ledger as any).initialFee ?? finalFee);
+  const feeComponents = calculateFeeComponents(finalFee);
+
+  // Authoritative Raw Paid Total from actual payment transactions / records
+  const rawPaid = payments.length > 0 ? paymentsSum : Math.max(0, Number(ledger.paid || 0));
+
+  // Consistent fee-change rules:
+  // 1. Never increase paid amount automatically (e.g. if paid ₹8k, changing total must not change paid to ₹10k)
+  // 2. If total was fully paid ₹15k and later reduced to ₹10k, cap displayed paid amount at ₹10k and recalculate balance/status
+  const paid = finalFee > 0 ? Math.min(rawPaid, finalFee) : rawPaid;
 
   // Authoritative calculations
-  const remainingAmount = Math.max(0, finalFee - paid);
-  const advanceAmount = Math.max(0, paid - finalFee);
+  const remainingAmount = Math.max(0, finalFee - rawPaid);
+  const advanceAmount = Math.max(0, rawPaid - finalFee);
   const status: "Paid" | "Partial" | "Pending" =
-    paid >= finalFee && finalFee > 0
+    remainingAmount === 0 && finalFee > 0
       ? "Paid"
       : paid > 0
         ? "Partial"
@@ -1288,9 +1402,11 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     section: ledger.section || "A",
     rollNo: ledger.rollNo || 1,
     feeType: ledger.feeType || (ledger as any).feeType || "Standard",
+    admissionFee,
     originalFee,
     discountAmount,
     finalFee,
+    feeComponents,
     paid,
     remainingAmount,
     advanceAmount,
@@ -1303,6 +1419,71 @@ export function recalculateFeeLedger(ledger: Partial<FeeLedgerItem>): FeeLedgerI
     academicYear: ledger.academicYear || "2026-2027",
     receiptNumber: (ledger as any).receiptNumber,
     paymentDate: (ledger as any).paymentDate,
+    payments,
+  };
+}
+
+export interface ParentFeeView {
+  totalFee: number;
+  paid: number;
+  remainingAmount: number;
+  status: "Paid" | "Partially Paid" | "Unpaid";
+  payments: PaymentTransaction[];
+}
+
+export function getParentFeeView(feeRecord: FeeLedgerItem | null): ParentFeeView {
+  if (!feeRecord) {
+    return {
+      totalFee: 0,
+      paid: 0,
+      remainingAmount: 0,
+      status: "Unpaid",
+      payments: [],
+    };
+  }
+
+  const payments = Array.isArray(feeRecord.payments) ? feeRecord.payments : [];
+  const paymentsSum = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+
+  const origFee = Number(feeRecord.originalFee ?? feeRecord.amount ?? 0);
+  const discAmt = Number(feeRecord.discountAmount ?? 0);
+  const currentFinalFee = Math.max(0, origFee - discAmt);
+  const admissionFee = Number(feeRecord.admissionFee ?? (feeRecord as any).initialFee ?? currentFinalFee);
+
+  const totalPaid = payments.length > 0 ? paymentsSum : Math.max(0, Number(feeRecord.paid || 0));
+
+  // Parent Fee Visibility Rules:
+  // - Parents normally see the fee entered by Office staff during admission (admissionFee).
+  // - If fee changes BEFORE any payment (totalPaid === 0), updated fee (currentFinalFee) may be shown.
+  // - If fee is changed AFTER payment has started or after full collection (totalPaid > 0),
+  //   do NOT automatically show that later administrative change to the parent.
+  //   Freeze/cap displayed totalFee for parent at admissionFee (or currentFinalFee if fully paid).
+
+  let parentTotalFee = currentFinalFee;
+
+  if (totalPaid > 0) {
+    if (totalPaid >= currentFinalFee && currentFinalFee > 0) {
+      parentTotalFee = currentFinalFee;
+    } else {
+      parentTotalFee = Math.max(totalPaid, admissionFee);
+    }
+  }
+
+  const parentPaid = Math.min(totalPaid, parentTotalFee);
+  const parentRemaining = Math.max(0, parentTotalFee - parentPaid);
+
+  let parentStatus: "Paid" | "Partially Paid" | "Unpaid" = "Unpaid";
+  if (parentRemaining === 0 && parentTotalFee > 0) {
+    parentStatus = "Paid";
+  } else if (parentPaid > 0) {
+    parentStatus = "Partially Paid";
+  }
+
+  return {
+    totalFee: parentTotalFee,
+    paid: parentPaid,
+    remainingAmount: parentRemaining,
+    status: parentStatus,
     payments,
   };
 }
@@ -1321,6 +1502,8 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
       if (f.studentName) feeMap.set(f.studentName.toLowerCase(), f);
     });
 
+    const overrides = getStoredFeeOverrides();
+
     const combined: FeeLedgerItem[] = (stData || []).map((s) => {
       const canonicalAdm = toCanonicalAdmissionNo(s.admissionNo, s.id);
       const k1 = (s.id || "").toLowerCase();
@@ -1329,7 +1512,12 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
       const k4 = (s.name || "").toLowerCase();
 
       const existing = feeMap.get(k1) || feeMap.get(k2) || feeMap.get(k3) || feeMap.get(k4);
+      const ov = overrides[k1] || overrides[k2] || overrides[k3] || overrides[k4];
+
       if (existing) {
+        const origFee = ov ? ov.originalFee : existing.originalFee;
+        const discAmt = ov ? ov.discountAmount : existing.discountAmount;
+
         return recalculateFeeLedger({
           ...existing,
           studentId: s.id,
@@ -1338,10 +1526,18 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
           className: s.className || existing.className,
           section: s.section || existing.section || "A",
           rollNo: existing.rollNo || s.rollNo,
+          originalFee: origFee,
+          discountAmount: discAmt,
+          paid: existing.paid,
+          payments: existing.payments,
+          feeType: ov?.feeType || existing.feeType,
         });
       }
 
       const defaultStuFee = Number((s as any).feeAmount || 15000);
+      const origFee = ov ? ov.originalFee : defaultStuFee;
+      const discAmt = ov ? ov.discountAmount : 0;
+
       return recalculateFeeLedger({
         id: `FP-${s.id}`,
         studentId: s.id,
@@ -1350,10 +1546,10 @@ export async function fetchMergedFeeLedgers(): Promise<{ data: FeeLedgerItem[]; 
         className: s.className || "Nursery",
         section: s.section || "A",
         rollNo: s.rollNo || 1,
-        feeType: (s as any).feePlan || "Standard",
-        originalFee: defaultStuFee,
-        discountAmount: 0,
-        paid: s.feeStatus === "Paid" ? defaultStuFee : 0,
+        feeType: ov?.feeType || (s as any).feePlan || "Standard",
+        originalFee: origFee,
+        discountAmount: discAmt,
+        paid: s.feeStatus === "Paid" ? origFee - discAmt : 0,
         status: s.feeStatus === "Paid" ? "Paid" : "Pending",
       });
     });
@@ -1411,6 +1607,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       feeType: string;
       originalFee: number;
       discountAmount: number;
+      schedulePaid: number;
       payments: PaymentTransaction[];
     }>();
 
@@ -1433,8 +1630,9 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           studentName: d.student_name || "Student",
           className: d.class_name || "Nursery",
           feeType: d.fee_type || "Standard",
-          originalFee: Number(d.amount_due || 0),
-          discountAmount: 0,
+          originalFee: Number(d.original_fee || d.amount_due || 0),
+          discountAmount: Number(d.discount_amount || 0),
+          schedulePaid: Number(d.amount_paid || 0),
           payments: [],
         });
       }
@@ -1442,9 +1640,15 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       if (d.student_name && ledger.studentName === "Student") ledger.studentName = d.student_name;
       if (d.class_name && ledger.className === "Nursery") ledger.className = d.class_name;
 
-      if (d.record_type === "fee_schedule" && d.amount_due) {
-        ledger.originalFee = Number(d.amount_due);
-        if (d.fee_type) ledger.feeType = d.fee_type;
+      if (d.record_type === "fee_schedule") {
+        if (d.amount_due || d.original_fee) {
+          ledger.originalFee = Number(d.original_fee || d.amount_due);
+          ledger.discountAmount = Number(d.discount_amount || 0);
+          if (d.fee_type) ledger.feeType = d.fee_type;
+        }
+        if (d.amount_paid !== undefined && d.amount_paid !== null && Number(d.amount_paid) > 0) {
+          ledger.schedulePaid = Number(d.amount_paid);
+        }
       }
       if (d.record_type === "payment_receipt" && (d.receipt_number || d.amount_paid)) {
         const receiptNo = d.receipt_number || `REC-${d.id}`;
@@ -1464,18 +1668,29 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       }
     });
 
+    const overrides = getStoredFeeOverrides();
+
     const mapped: FeeLedgerItem[] = Array.from(studentLedgerMap.values()).map((item) => {
       item.payments.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-      const totalPaid = item.payments.reduce((sum, p) => sum + p.amount, 0);
+      const paymentsSum = item.payments.reduce((sum, p) => sum + p.amount, 0);
+      const actualPaid = item.payments.length > 0 ? paymentsSum : item.schedulePaid;
+
+      const k1 = (item.studentId || "").toLowerCase();
+      const k2 = (item.studentName || "").toLowerCase();
+      const ov = overrides[k1] || overrides[k2];
+
+      const origFee = ov ? ov.originalFee : item.originalFee;
+      const discAmt = ov ? ov.discountAmount : item.discountAmount;
+
       return recalculateFeeLedger({
         id: `FP-${item.studentId}`,
         studentId: item.studentId,
         studentName: item.studentName,
         className: item.className,
-        feeType: item.feeType,
-        originalFee: item.originalFee,
-        discountAmount: item.discountAmount,
-        paid: totalPaid,
+        feeType: ov?.feeType || item.feeType,
+        originalFee: origFee,
+        discountAmount: discAmt,
+        paid: actualPaid,
         payments: item.payments,
       });
     });
@@ -1540,19 +1755,66 @@ export async function fetchReceipts(): Promise<{ data: any[]; isFromSupabase: bo
   }
 }
 
-export async function saveFeeRecord(fee: FeeLedgerItem) {
-  const recalculated = recalculateFeeLedger(fee);
-  notifyAutoRefresh("fees");
-  notifyAutoRefresh("students");
+export async function saveFeeRecord(fee: FeeLedgerItem): Promise<{ success: boolean; data?: FeeLedgerItem; error?: string }> {
+  const origFee = Number(fee.originalFee ?? fee.amount ?? 0);
+  const discAmt = Number(fee.discountAmount ?? 0);
+
+  if (isNaN(origFee) || origFee < 0) {
+    return { success: false, error: "Total Fee must be a valid non-negative number." };
+  }
+  if (isNaN(discAmt) || discAmt < 0) {
+    return { success: false, error: "Discount Amount must be a valid non-negative number." };
+  }
+  if (discAmt > origFee) {
+    return { success: false, error: "Discount cannot exceed original total fee." };
+  }
+
+  const recalculated = recalculateFeeLedger({
+    ...fee,
+    originalFee: origFee,
+    discountAmount: discAmt,
+  });
+
+  // 1. Persistent local storage cache override (guarantees survival across reloads/reconnects)
+  saveStoredFeeOverride(
+    recalculated.studentId,
+    recalculated.admissionNo,
+    recalculated.studentName,
+    {
+      originalFee: recalculated.originalFee,
+      discountAmount: recalculated.discountAmount,
+      finalFee: recalculated.finalFee,
+      feeType: recalculated.feeType,
+    }
+  );
+
+  // 2. Real Database Upsert in gv_fees_payments
   try {
+    const canonicalAdm = toCanonicalAdmissionNo(recalculated.admissionNo, recalculated.studentId);
+    
+    // Find existing fee_schedule record ID for this student if any
+    let scheduleId = recalculated.id || `FS-${recalculated.studentId}`;
+    const { data: existingRows } = await supabase
+      .from("gv_fees_payments")
+      .select("id")
+      .eq("record_type", "fee_schedule")
+      .or(`student_id.eq.${recalculated.studentId},student_id.eq.${canonicalAdm}`)
+      .limit(1);
+
+    if (existingRows && existingRows.length > 0 && existingRows[0].id) {
+      scheduleId = existingRows[0].id;
+    }
+
     await supabase.from("gv_fees_payments").upsert([{
-      id: recalculated.id,
+      id: scheduleId,
       record_type: "fee_schedule",
       student_id: recalculated.studentId,
       student_name: recalculated.studentName,
       class_name: recalculated.className,
       fee_type: recalculated.feeType || "Standard",
-      amount_due: recalculated.originalFee,
+      amount_due: recalculated.finalFee,
+      original_fee: recalculated.originalFee,
+      discount_amount: recalculated.discountAmount,
       amount_paid: recalculated.paid,
       balance: recalculated.remainingAmount,
       status: recalculated.status,
@@ -1564,8 +1826,14 @@ export async function saveFeeRecord(fee: FeeLedgerItem) {
       }).or(`id.eq.${recalculated.studentId},login_id.eq.${recalculated.studentId},admission_no.eq.${recalculated.admissionNo}`);
     }
   } catch (err) {
-    console.warn("Supabase fee save notice:", err);
+    console.warn("Supabase fee schedule save notice:", err);
   }
+
+  notifyAutoRefresh("fees");
+  notifyAutoRefresh("students");
+  notifyAutoRefresh("admissions");
+
+  return { success: true, data: recalculated };
 }
 
 export async function saveReceipt(payment: any): Promise<{ data: any; error: string | null }> {
@@ -1713,23 +1981,105 @@ export async function fetchExpenses(): Promise<{ data: Expense[]; isFromSupabase
       .from("gv_inventory_expenses")
       .select("*")
       .eq("record_type", "expense")
-      .order("created_at", { ascending: false });
+      .order("transaction_date", { ascending: false });
 
-    if (error) return { data: [], isFromSupabase: false };
-    const rows = data || [];
+    if (error || !data) return { data: [], isFromSupabase: false };
 
-    const mapped: Expense[] = rows.map((d: any) => ({
-      id: d.id,
-      category: d.category || "General",
-      description: d.title || "Office Expense",
-      amount: Number(d.amount_or_unit_cost || 0),
-      date: d.transaction_date || d.created_at?.slice(0, 10),
-      paidTo: d.supplier_or_paid_to || "Vendor",
-    }));
+    const mapped: Expense[] = data.map((d: any) => {
+      let meta: any = {};
+      try {
+        if (d.notes && typeof d.notes === "string" && (d.notes.startsWith("{") || d.notes.startsWith("["))) {
+          meta = JSON.parse(d.notes);
+        }
+      } catch {}
+
+      return {
+        id: d.id,
+        category: d.category || meta.category || "General",
+        description: d.title || meta.description || "Office Expense",
+        amount: Number(d.amount_or_unit_cost || meta.amount || 0),
+        date: d.transaction_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        paidTo: d.supplier_or_paid_to || meta.paidTo || "Vendor",
+        paymentMethod: meta.paymentMethod || "Bank Transfer",
+        notes: meta.notes || d.title || "",
+        salaryBreakdown: meta.salaryBreakdown || (d.category === "Salary" ? meta.salaryItems : undefined),
+      };
+    });
 
     return { data: mapped, isFromSupabase: true };
   } catch {
     return { data: [], isFromSupabase: false };
+  }
+}
+
+export async function saveExpenseRecord(exp: Partial<Expense>): Promise<{ error: string | null; data?: Expense }> {
+  try {
+    const id = exp.id || `EXP-${Date.now().toString().slice(-6)}`;
+    const category = exp.category || "General";
+    const description = exp.description || "Office Expense";
+    const amount = Math.max(0, Number(exp.amount || 0));
+    const date = exp.date || new Date().toISOString().slice(0, 10);
+    const paidTo = exp.paidTo || "Vendor";
+    const paymentMethod = exp.paymentMethod || "Bank Transfer";
+    const notes = exp.notes || description;
+
+    const payload = {
+      id,
+      record_type: "expense",
+      title: description,
+      category,
+      amount_or_unit_cost: amount,
+      transaction_date: date,
+      supplier_or_paid_to: paidTo,
+      notes: JSON.stringify({
+        description,
+        paidTo,
+        paymentMethod,
+        notes,
+        salaryRecipient: category === "Salary" ? paidTo : undefined,
+        salaryAmount: category === "Salary" ? amount : undefined,
+        salaryBreakdown: exp.salaryBreakdown,
+      }),
+    };
+
+    const { error } = await supabase
+      .from("gv_inventory_expenses")
+      .upsert([payload], { onConflict: "id" });
+
+    if (error) return { error: error.message };
+
+    const savedExp: Expense = {
+      id,
+      category,
+      description,
+      amount,
+      date,
+      paidTo,
+      paymentMethod,
+      notes,
+      salaryBreakdown: exp.salaryBreakdown,
+    };
+
+    triggerAutoRefresh("expenses");
+    return { error: null, data: savedExp };
+  } catch (err: any) {
+    return { error: err?.message || "Failed to save expense." };
+  }
+}
+
+export async function deleteExpenseRecord(id: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from("gv_inventory_expenses")
+      .delete()
+      .eq("id", id);
+
+    if (error) return { error: error.message };
+
+    triggerAutoRefresh("expenses");
+    return { error: null };
+  } catch (err: any) {
+    return { error: err?.message || "Failed to delete expense." };
   }
 }
 

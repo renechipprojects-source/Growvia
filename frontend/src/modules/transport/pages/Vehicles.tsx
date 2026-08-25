@@ -67,12 +67,12 @@ export function VehiclesPage({ readOnly }: { readOnly?: boolean }) {
   const handleOpenAdd = () => {
     setEditing(null);
     setForm({
-      number: `KA-04-B-${Math.floor(1000 + Math.random() * 8999)}`,
-      name: `Yellow Bus #${vehicleList.length + 1}`,
+      number: "",
+      name: "",
       type: "Bus",
       capacity: 30,
-      driver: "Driver Name",
-      route: "Route 1",
+      driver: "",
+      route: "",
       status: "Active",
     });
     setOpen(true);

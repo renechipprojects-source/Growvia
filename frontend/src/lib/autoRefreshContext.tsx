@@ -168,11 +168,16 @@ export function AutoRefreshProvider({ children }: { children: React.ReactNode })
   );
 }
 
+const fallbackContext: AutoRefreshContextType = {
+  registerRefresher: () => () => {},
+  triggerModuleRefresh: () => {},
+  triggerAllRefreshes: () => {},
+  setFormEditing: () => {},
+  isFormEditing: false,
+};
+
 export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<void> | void) {
   const ctx = useContext(AutoRefreshContext);
-  if (!ctx) {
-    throw new Error("useAutoRefresh must be used within an AutoRefreshProvider");
-  }
 
   const refreshFnRef = useRef(refreshFn);
   useEffect(() => {
@@ -180,7 +185,7 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
   });
 
   useEffect(() => {
-    if (module) {
+    if (module && ctx) {
       const callback = () => {
         if (refreshFnRef.current) {
           return refreshFnRef.current();
@@ -190,7 +195,7 @@ export function useAutoRefresh(module?: ERPModule, refreshFn?: () => Promise<voi
     }
   }, [module, ctx]);
 
-  return ctx;
+  return ctx || fallbackContext;
 }
 
 export function notifyAutoRefresh(module: ERPModule) {

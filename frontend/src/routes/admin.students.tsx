@@ -1,33 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Eye, UserRound, SortAsc, HeartPulse, Edit } from "lucide-react";
+import { Eye, UserRound } from "lucide-react";
 import { PageHeader, StatCard, StatusBadge } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { fetchStudents, fetchFees, allocateRollNumbersAlphabetically, toCanonicalAdmissionNo } from "@/lib/supabaseService";
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
-import { EditStudentModal } from "@/components/students/EditStudentModal";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export interface AdminStudent {
   id: string;
   admissionNo: string;
+  rollNo?: number;
   name: string;
   gender: "Male" | "Female";
-  dob: string;
+  dob?: string;
   age: number;
   className: string;
   section: string;
   parent: string;
+  fatherName?: string;
+  motherName?: string;
+  guardianName?: string;
+  occupation?: string;
   phone: string;
-  address: string;
+  email?: string;
+  address?: string;
   status: string;
   feesStatus: string;
-  joinedOn: string;
-  bloodGroup: string;
-  allergies: string[];
+  joinedOn?: string;
+  bloodGroup?: string;
+  house?: string;
+  allergies?: string[];
+  attendance?: number;
+  documents?: any[];
   avatar: string;
 }
 
@@ -41,7 +49,6 @@ function StudentsPage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [editingStudent, setEditingStudent] = useState<any | null>(null);
 
   const loadData = () => {
     Promise.all([fetchStudents(), fetchFees()]).then(([{ data: studentList }, { data: feeList }]) => {
@@ -69,21 +76,30 @@ function StudentsPage() {
         return {
           id: s.id,
           admissionNo: canonicalAdm,
-          name: s.name,
+          rollNo: s.rollNo ?? s.roll_no,
+          name: s.name || s.full_name || "Student",
           gender: ((s.gender as string) === "Girl" || (s.gender as string) === "Female") ? "Female" : "Male",
-          dob: s.dob || undefined,
-          age: s.age || 3,
-          className: s.className as any,
-          section: s.section as any,
-          parent: typeof s.parent === "string" ? s.parent : s.parent?.name || "Parent",
-          phone: s.phone || "",
-          address: s.address || undefined,
+          dob: s.dob || s.dateOfBirth || s.date_of_birth,
+          age: s.age || 4,
+          className: s.className || s.class_name || "Nursery",
+          section: s.section || "A",
+          parent: typeof s.parent === "object" ? s.parent?.name : s.parent || s.parent_name || s.fatherName || s.father_name || "Parent",
+          fatherName: s.fatherName || s.father_name,
+          motherName: s.motherName || s.mother_name,
+          guardianName: s.guardianName || s.guardian_name,
+          occupation: s.occupation,
+          phone: s.phone || s.mobile || (typeof s.parent === "object" ? s.parent?.phone : "") || "",
+          email: s.email || (typeof s.parent === "object" ? s.parent?.email : ""),
+          address: s.address,
           status: s.status || "Active",
           feesStatus: calcStatus,
-          joinedOn: s.admissionDate || undefined,
-          bloodGroup: s.bloodGroup || undefined,
+          joinedOn: s.admissionDate || s.created_at?.slice(0, 10) || s.joinedOn,
+          bloodGroup: s.bloodGroup || s.blood_group,
+          house: s.house,
           allergies: s.allergies || [],
-          avatar: s.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(s.name)}`,
+          attendance: (s.attendance !== undefined && s.attendance !== null) ? Number(s.attendance) : (s.attendance_pct !== undefined ? Number(s.attendance_pct) : undefined),
+          documents: s.documents || [],
+          avatar: s.avatar || s.photo_url || s.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(s.name || "Student")}`,
         };
       });
       setItemList(mapped);
@@ -94,13 +110,17 @@ function StudentsPage() {
     loadData();
   }, []);
 
-  const handleAutoAssignRollNumbers = async () => {
-    const selectedClass = filterValues["Class"] !== "all" ? filterValues["Class"] : undefined;
-    const selectedSec = filterValues["Section"] !== "all" ? filterValues["Section"] : undefined;
-    const res = await allocateRollNumbersAlphabetically(selectedClass, selectedSec);
-    toast.success(`Alphabetical Roll Numbers assigned successfully across section(s)!`);
-    loadData();
-  };
+  useAutoRefresh("students", loadData);
+  useAutoRefresh("admissions", loadData);
+
+  useEffect(() => {
+    if (selectedStudent) {
+      const updated = itemList.find((s) => s.id === selectedStudent.id || s.admissionNo === selectedStudent.admissionNo);
+      if (updated) {
+        setSelectedStudent(updated);
+      }
+    }
+  }, [itemList]);
 
   const active = itemList.filter((s) => s.status === "Active").length;
   const inactive = itemList.length - active;
@@ -234,9 +254,6 @@ function StudentsPage() {
                   <Button size="sm" variant="outline" onClick={() => setSelectedStudent(s)}>
                     <Eye className="mr-1.5 h-3.5 w-3.5" /> View
                   </Button>
-                  <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-200 hover:bg-indigo-50" onClick={() => setEditingStudent(s)}>
-                    <Edit className="mr-1 h-3.5 w-3.5" /> Edit
-                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -248,15 +265,8 @@ function StudentsPage() {
         open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
         student={selectedStudent}
-        onEditStudent={(st) => setEditingStudent(st)}
-      />
-
-      <EditStudentModal
-        open={!!editingStudent}
-        onClose={() => setEditingStudent(null)}
-        student={editingStudent}
-        onUpdated={loadData}
       />
     </div>
   );
 }
+

@@ -1,29 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader, SectionCard } from "@/components/ui-blocks";
-import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Send, MailOpen, Reply, Inbox } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { requireAuthGuard } from "@/lib/auth";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/principal/messages")({
-  beforeLoad: async () => {
-    await requireAuthGuard("principal");
+  beforeLoad: () => {
+    throw redirect({ to: "/principal", replace: true });
   },
-  head: () => ({
-    meta: [
-      { title: "Messages | Principal Portal | Sunshine Play School" },
-      { name: "description", content: "School communications and message center." },
-    ],
-  }),
-  component: PrincipalMessages,
+  component: () => null,
 });
 
 function PrincipalMessages() {

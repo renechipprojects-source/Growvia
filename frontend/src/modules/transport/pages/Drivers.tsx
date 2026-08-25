@@ -59,11 +59,11 @@ export function DriversPage({ readOnly }: { readOnly?: boolean }) {
 
   const handleOpenAdd = () => {
     setForm({
-      name: `Ramesh Kumar #${driverList.length + 1}`,
-      mobile: "+91 98765 43210",
-      license: `DL-${Math.floor(100000 + Math.random() * 899999)}`,
-      vehicle: "KA-04-B-1001",
-      route: "Route 1",
+      name: "",
+      mobile: "",
+      license: "",
+      vehicle: "",
+      route: "",
     });
     setOpen(true);
   };

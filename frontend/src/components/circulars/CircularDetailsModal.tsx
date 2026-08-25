@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, User, Bell, CheckCircle2, ShieldCheck, Eye, EyeOff, ThumbsUp } from "lucide-react";
 import { AttachmentViewer } from "./AttachmentViewer";
-import { markCircularAsRead, acknowledgeCircular, isCircularAcknowledged, getDeliveryStats, syncReadStoreFromSupabase } from "@/lib/circularReadStore";
+import { markCircularAsRead, acknowledgeCircular, isCircularAcknowledged, fetchDeliveryStats, syncReadStoreFromSupabase } from "@/lib/circularReadStore";
 import { toast } from "sonner";
 
 interface CircularDetailsModalProps {
@@ -16,31 +16,44 @@ interface CircularDetailsModalProps {
 
 export function CircularDetailsModal({ open, onClose, circular, role }: CircularDetailsModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const [stats, setStats] = useState({
+    totalSent: 0,
+    readCount: 0,
+    ackCount: 0,
+    unreadCount: 0,
+    pendingAckCount: 0,
+    readPercentage: 0,
+  });
+
+  const recipientsList = Array.isArray(circular?.recipients) && circular.recipients.length > 0
+    ? circular.recipients
+    : typeof circular?.target_audience === "string" && circular.target_audience.length > 0
+    ? circular.target_audience.split(",")
+    : ["Parents", "Teachers"];
 
   useEffect(() => {
     if (open && circular?.id && role) {
       syncReadStoreFromSupabase().then(() => {
         markCircularAsRead(circular.id, role);
         setAcknowledged(isCircularAcknowledged(circular.id, role));
+        fetchDeliveryStats(circular.id, recipientsList).then((s) => {
+          setStats(s);
+        });
       });
     }
   }, [open, circular?.id, role]);
 
   if (!circular) return null;
 
-  const recipientsList = Array.isArray(circular.recipients) && circular.recipients.length > 0
-    ? circular.recipients
-    : typeof circular.target_audience === "string" && circular.target_audience.length > 0
-    ? circular.target_audience.split(",")
-    : ["Parents", "Teachers"];
-
-  const stats = getDeliveryStats(circular.id, recipientsList);
   const isPrincipalOrAdmin = role === "principal" || role === "super-admin" || role === "admin";
 
   const handleAcknowledge = () => {
     acknowledgeCircular(circular.id, role);
     setAcknowledged(true);
     toast.success("Thank you! You have acknowledged reading this circular.");
+    fetchDeliveryStats(circular.id, recipientsList).then((s) => {
+      setStats(s);
+    });
   };
 
   const priorityColor =
@@ -142,25 +155,20 @@ export function CircularDetailsModal({ open, onClose, circular, role }: Circular
           )}
         </div>
 
-        <DialogFooter className="border-t border-slate-100 pt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
-            <CheckCircle2 className="w-4 h-4" /> Marked as Read
-          </div>
-          <div className="flex items-center gap-2">
-            {!isPrincipalOrAdmin && (
-              <Button
-                onClick={handleAcknowledge}
-                disabled={acknowledged}
-                className={acknowledged ? "bg-emerald-100 text-emerald-800 rounded-xl" : "bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-md"}
-              >
-                <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
-                {acknowledged ? "Acknowledged" : "I have read this circular"}
-              </Button>
-            )}
-            <Button onClick={onClose} variant="outline" className="rounded-xl border-slate-200">
-              Close
+        <DialogFooter className="border-t border-slate-100 pt-3 flex items-center justify-end gap-2">
+          {!isPrincipalOrAdmin && (
+            <Button
+              onClick={handleAcknowledge}
+              disabled={acknowledged}
+              className={acknowledged ? "bg-emerald-100 text-emerald-800 rounded-xl" : "bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-md"}
+            >
+              <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
+              {acknowledged ? "Acknowledged" : "I have read this circular"}
             </Button>
-          </div>
+          )}
+          <Button onClick={onClose} variant="outline" className="rounded-xl border-slate-200">
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
-import { fetchFees, fetchStudentSkills, updateStudent, type FeeLedgerItem } from "@/lib/supabaseService";
+import { fetchFees, fetchStudentSkills, updateStudent, getParentFeeView, type FeeLedgerItem } from "@/lib/supabaseService";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
 
 export const Route = createFileRoute("/parent/")({ component: Dash });
@@ -87,7 +87,7 @@ function Dash() {
     reader.readAsDataURL(file);
   };
 
-  const dueAmount = feeRecord ? Math.max(0, (feeRecord.finalFee || feeRecord.amount || 0) - (feeRecord.paid || 0)) : 0;
+  const dueAmount = getParentFeeView(feeRecord).remainingAmount;
   const childHW: any[] = [];
   const className = t(`className.${child.className}`, child.className);
 

@@ -8,6 +8,7 @@ import {
   markStaffTimeIn,
   markStaffTimeOut,
   getLocalDateString,
+  computeStaffStatus,
 } from "@/lib/attendanceStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { toast } from "sonner";
@@ -50,18 +51,20 @@ export function StaffSelfAttendanceCard() {
   const hasCheckedIn = Boolean(record && record.checkIn && record.checkIn !== "—");
   const hasCheckedOut = Boolean(record && record.checkOut && record.checkOut !== "—");
 
-  let statusLabel = "Not Marked";
+  const evaluated = computeStaffStatus(record || undefined, todayStr);
+  let statusLabel = evaluated.status;
   let statusBadgeColor = "bg-slate-100 text-slate-700 border-slate-300";
 
-  if (hasCheckedOut) {
-    statusLabel = "Checked Out";
+  if (evaluated.status === "Checked Out") {
     statusBadgeColor = "bg-indigo-100 text-indigo-700 border-indigo-300";
-  } else if (hasCheckedIn) {
-    statusLabel = record?.status || "Present";
-    statusBadgeColor =
-      record?.status === "Late"
-        ? "bg-amber-100 text-amber-700 border-amber-300"
-        : "bg-emerald-100 text-emerald-700 border-emerald-300";
+  } else if (evaluated.status === "Present") {
+    statusBadgeColor = "bg-emerald-100 text-emerald-700 border-emerald-300";
+  } else if (evaluated.status === "Late") {
+    statusBadgeColor = "bg-amber-100 text-amber-700 border-amber-300";
+  } else if (evaluated.status === "Absent") {
+    statusBadgeColor = "bg-rose-100 text-rose-700 border-rose-300";
+  } else if (evaluated.status === "Leave") {
+    statusBadgeColor = "bg-purple-100 text-purple-700 border-purple-300";
   }
 
   const handleTimeIn = async () => {

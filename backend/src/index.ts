@@ -244,112 +244,193 @@ app.delete('/api/users/:id', async (req: Request, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CENTRALIZED ATOMIC ACCOUNT PROVISIONING & SYNCHRONIZATION ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function provisionOrSyncUserAccount(params: {
+  login_id: string;
+  email?: string;
+  password?: string;
+  role?: string;
+  name?: string;
+  full_name?: string;
+  mobile?: string;
+  status?: string;
+  must_change_password?: boolean;
+  update_password?: boolean;
+}) {
+  const admin = supabaseAdmin;
+  const cleanLoginId = String(params.login_id || '').trim();
+  if (!cleanLoginId) {
+    throw new Error('login_id is required for account provisioning/sync.');
+  }
+
+  const norm = cleanLoginId.toLowerCase().replace(/[\s\-_]+/g, '');
+
+  // 1. Resolve existing profile from canonical gv_users database table
+  const { data: existingProfile } = await admin
+    .from('gv_users')
+    .select('*')
+    .or(`login_id.ilike.${cleanLoginId},login_id.ilike.${norm},id.ilike.${cleanLoginId}`)
+    .maybeSingle();
+
+  const targetRole = String(
+    existingProfile?.role || params.role || 'teacher'
+  ).toLowerCase();
+  const targetName = String(
+    existingProfile?.full_name || params.full_name || params.name || 'User Account'
+  ).trim();
+  const targetStatus = String(
+    existingProfile?.status || params.status || 'active'
+  ).toLowerCase();
+  const targetEmail = (params.email && String(params.email).includes('@'))
+    ? String(params.email).trim().toLowerCase()
+    : (existingProfile?.email && String(existingProfile.email).includes('@'))
+      ? String(existingProfile.email).trim().toLowerCase()
+      : `${cleanLoginId.toLowerCase()}@growvia.edu`;
+
+  // 2. Search existing Supabase Auth user by auth_user_id, email, or metadata login_id
+  let authUser: any = null;
+  let page = 1;
+  while (!authUser && page <= 5) {
+    const { data: userList } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+    const users = userList?.users || [];
+    if (users.length === 0) break;
+    authUser = users.find(
+      (u) =>
+        (existingProfile?.auth_user_id && u.id === existingProfile.auth_user_id) ||
+        u.email?.toLowerCase() === targetEmail.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase() ||
+        u.user_metadata?.login_id?.toString().toLowerCase() === norm
+    );
+    if (users.length < 100) break;
+    page++;
+  }
+
+  let authUserId: string | null = authUser?.id || existingProfile?.auth_user_id || null;
+
+  // 3. Atomically find/create/update Supabase Auth user (without changing password during self-healing)
+  if (authUser) {
+    authUserId = authUser.id;
+    const authUpdatePayload: any = {
+      email: targetEmail,
+      email_confirm: true,
+      user_metadata: {
+        ...authUser.user_metadata,
+        login_id: cleanLoginId,
+        role: targetRole,
+        full_name: targetName,
+      },
+    };
+    // ONLY update password if update_password is true AND password is provided (explicit reset/creation)
+    if (params.update_password === true && params.password) {
+      authUpdatePayload.password = params.password;
+    }
+    if (authUserId) {
+      await admin.auth.admin.updateUserById(authUserId, authUpdatePayload);
+    }
+  } else {
+    // Create new Supabase Auth user
+    const initialPassword = params.password || 'Password@123';
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: targetEmail,
+      password: initialPassword,
+      email_confirm: true,
+      user_metadata: {
+        login_id: cleanLoginId,
+        role: targetRole,
+        full_name: targetName,
+      },
+    });
+
+    if (createErr && createErr.message.includes('already registered')) {
+      const { data: retryList } = await admin.auth.admin.listUsers();
+      const found = retryList?.users?.find((u) => u.email?.toLowerCase() === targetEmail.toLowerCase());
+      if (found) {
+        authUserId = found.id;
+        const retryPayload: any = {
+          email: targetEmail,
+          email_confirm: true,
+          user_metadata: { login_id: cleanLoginId, role: targetRole, full_name: targetName },
+        };
+        if (params.update_password === true && params.password) {
+          retryPayload.password = params.password;
+        }
+        await admin.auth.admin.updateUserById(authUserId, retryPayload);
+      }
+    } else if (created?.user?.id) {
+      authUserId = created.user.id;
+    }
+  }
+
+  // 4. Atomically upsert canonical gv_users profile with exact auth_user_id linkage
+  const profilePayload: any = {
+    login_id: cleanLoginId,
+    role: targetRole,
+    full_name: targetName,
+    email: targetEmail,
+    mobile: params.mobile || existingProfile?.mobile || '9876543210',
+    status: targetStatus,
+    must_change_password: typeof params.must_change_password === 'boolean'
+      ? params.must_change_password
+      : (existingProfile?.must_change_password ?? false),
+  };
+
+  if (authUserId) {
+    profilePayload.id = authUserId;
+    profilePayload.auth_user_id = authUserId;
+  }
+
+  if (existingProfile) {
+    await admin.from('gv_users').update(profilePayload).eq('id', existingProfile.id);
+  } else if (authUserId) {
+    const { data: byId } = await admin.from('gv_users').select('id').eq('id', authUserId).maybeSingle();
+    if (byId) {
+      await admin.from('gv_users').update(profilePayload).eq('id', authUserId);
+    } else {
+      await admin.from('gv_users').insert([profilePayload]);
+    }
+  } else {
+    await admin.from('gv_users').insert([profilePayload]);
+  }
+
+  const { data: updatedProfile } = await admin.from('gv_users').select('*').ilike('login_id', cleanLoginId).maybeSingle();
+
+  return {
+    success: true,
+    authUserId: authUserId || updatedProfile?.id,
+    login_id: cleanLoginId,
+    email: targetEmail,
+    role: targetRole,
+    profile: updatedProfile || profilePayload,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AUTH PROVISIONING & LOGIN RESOLUTION ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.post('/api/users/provision', async (req: Request, res: Response) => {
   try {
-    const { login_id, email, password, role, name, mobile } = req.body || {};
-    if (!login_id || !password) {
-      return res.status(400).json({ error: 'login_id and password are required.' });
+    const { login_id, email, password, role, name, full_name, mobile, status, must_change_password } = req.body || {};
+    if (!login_id) {
+      return res.status(400).json({ error: 'login_id is required for provisioning.' });
     }
 
-    const cleanLoginId = String(login_id).trim();
-    const targetRole = String(role || 'teacher').toLowerCase();
-    const targetName = String(name || 'User Account').trim();
-    const targetEmail = (email && String(email).includes('@'))
-      ? String(email).trim().toLowerCase()
-      : `${cleanLoginId.toLowerCase()}@growvia.edu`;
-
-    let authUserId: string | null = null;
-    const admin = supabaseAdmin;
-
-    let authUser: any = null;
-    let page = 1;
-    while (!authUser && page <= 5) {
-      const { data: userList } = await admin.auth.admin.listUsers({ page, perPage: 100 });
-      const users = userList?.users || [];
-      if (users.length === 0) break;
-      authUser = users.find(
-        (u) =>
-          u.email?.toLowerCase() === targetEmail.toLowerCase() ||
-          u.user_metadata?.login_id?.toString().toLowerCase() === cleanLoginId.toLowerCase()
-      );
-      if (users.length < 100) break;
-      page++;
-    }
-
-    if (authUser) {
-      authUserId = authUser.id;
-      await admin.auth.admin.updateUserById(authUser.id, {
-        email: targetEmail,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          ...authUser.user_metadata,
-          login_id: cleanLoginId,
-          role: targetRole,
-          full_name: targetName,
-        },
-      });
-    } else {
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email: targetEmail,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          login_id: cleanLoginId,
-          role: targetRole,
-          full_name: targetName,
-        },
-      });
-
-      if (createErr && createErr.message.includes('already registered')) {
-        const { data: retryList } = await admin.auth.admin.listUsers();
-        const found = retryList?.users?.find((u) => u.email?.toLowerCase() === targetEmail.toLowerCase());
-        if (found) {
-          authUserId = found.id;
-          await admin.auth.admin.updateUserById(authUserId, {
-            password: password,
-            email_confirm: true,
-            user_metadata: { login_id: cleanLoginId, role: targetRole, full_name: targetName },
-          });
-        }
-      } else if (created?.user?.id) {
-        authUserId = created.user.id;
-      }
-    }
-
-    const profilePayload: any = {
-      login_id: cleanLoginId,
-      role: targetRole,
-      full_name: targetName,
-      email: targetEmail,
-      mobile: mobile || '9876543210',
-      status: 'active',
-      must_change_password: false,
-    };
-
-    if (authUserId) {
-      profilePayload.id = authUserId;
-      profilePayload.auth_user_id = authUserId;
-    }
-
-    const { data: existingGv } = await admin.from('gv_users').select('id').ilike('login_id', cleanLoginId).maybeSingle();
-    if (existingGv) {
-      await admin.from('gv_users').update(profilePayload).ilike('login_id', cleanLoginId);
-    } else {
-      await admin.from('gv_users').insert([profilePayload]);
-    }
-    Promise.resolve(admin.from('users').upsert([profilePayload], { onConflict: 'login_id' })).catch(() => {});
-
-    return res.status(200).json({
-      success: true,
-      authUserId,
-      login_id: cleanLoginId,
-      email: targetEmail,
-      role: targetRole,
+    const syncResult = await provisionOrSyncUserAccount({
+      login_id,
+      email,
+      password,
+      role,
+      name,
+      full_name,
+      mobile,
+      status,
+      must_change_password,
+      update_password: Boolean(password),
     });
+
+    return res.status(200).json(syncResult);
   } catch (err: any) {
     console.error('Provisioning error:', err);
     return res.status(500).json({ error: err.message || 'Provisioning failed' });
@@ -368,92 +449,108 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
     const admin = supabaseAdmin;
 
     let profile: any = null;
-    try {
-      const { data: d1 } = await admin.from('gv_users').select('*').ilike('login_id', clean).maybeSingle();
-      if (d1) profile = d1;
+
+    // 1. Direct query on gv_users by login_id, email, or id
+    const { data: d1 } = await admin.from('gv_users').select('*').ilike('login_id', clean).maybeSingle();
+    if (d1) profile = d1;
+    else {
+      const { data: d2 } = await admin.from('gv_users').select('*').ilike('email', clean).maybeSingle();
+      if (d2) profile = d2;
       else {
-        const { data: d2 } = await admin.from('gv_users').select('*').ilike('email', clean).maybeSingle();
-        if (d2) profile = d2;
+        const { data: d3 } = await admin.from('gv_users').select('*').ilike('login_id', norm).maybeSingle();
+        if (d3) profile = d3;
         else {
-          const { data: d3 } = await admin.from('gv_users').select('*').ilike('login_id', norm).maybeSingle();
-          if (d3) profile = d3;
+          const { data: d4 } = await admin.from('gv_users').select('*').ilike('id', clean).maybeSingle();
+          if (d4) profile = d4;
           else {
-            const { data: d4 } = await admin.from('gv_users').select('*').ilike('id', clean).maybeSingle();
-            if (d4) profile = d4;
-            else {
-              const { data: d5 } = await admin.from('gv_users').select('*').ilike('parent_id', clean).maybeSingle();
-              if (d5) {
-                const parentName = d5.parent_name || '';
-                const { data: pRec } = await admin
-                  .from('gv_users')
-                  .select('*')
-                  .or(`login_id.ilike.${clean},parent_id.ilike.${clean}${parentName ? `,full_name.ilike.${parentName}` : ''}`)
-                  .ilike('role', '%parent%')
-                  .maybeSingle();
+            const { data: d5 } = await admin.from('gv_users').select('*').ilike('parent_id', clean).maybeSingle();
+            if (d5) {
+              const parentName = d5.parent_name || '';
+              const { data: pRec } = await admin
+                .from('gv_users')
+                .select('*')
+                .or(`login_id.ilike.${clean},parent_id.ilike.${clean}${parentName ? `,full_name.ilike.${parentName}` : ''}`)
+                .ilike('role', '%parent%')
+                .maybeSingle();
 
-                if (pRec) {
-                  profile = pRec;
-                } else {
-                  profile = {
-                    id: d5.parent_id || clean,
-                    login_id: d5.parent_id || clean,
-                    full_name: d5.parent_name || 'Parent',
-                    email: `${(d5.parent_id || clean).toLowerCase()}@growvia.edu`,
-                    role: 'parent',
-                    status: 'active',
-                  };
-                }
+              if (pRec) {
+                profile = pRec;
               } else {
-                // 6. Dynamic database lookup in gv_requests for generated credentials
-                const { data: reqRows } = await admin
-                  .from('gv_requests')
-                  .select('*')
-                  .eq('request_type', 'generated_credential')
-                  .or(`applicant_or_child_name.ilike.${clean},reason_or_notes.ilike.%${clean}%`);
+                profile = {
+                  id: d5.parent_id || clean,
+                  login_id: d5.parent_id || clean,
+                  full_name: d5.parent_name || 'Parent',
+                  email: `${(d5.parent_id || clean).toLowerCase()}@growvia.edu`,
+                  role: 'parent',
+                  status: 'active',
+                };
+              }
+            } else {
+              // Lookup in gv_requests for Office generated credentials
+              const { data: reqRows } = await admin
+                .from('gv_requests')
+                .select('*')
+                .eq('request_type', 'generated_credential')
+                .or(`applicant_or_child_name.ilike.${clean},reason_or_notes.ilike.%${clean}%`);
 
-                if (reqRows && reqRows.length > 0) {
-                  for (const row of reqRows) {
-                    try {
-                      if (row.reason_or_notes && row.reason_or_notes.startsWith('{')) {
-                        const parsed = JSON.parse(row.reason_or_notes);
-                        if (parsed.loginId && (parsed.loginId.toLowerCase() === clean.toLowerCase() || parsed.loginId.toLowerCase() === norm)) {
-                          if (parsed.kind === 'parent' && parsed.studentId) {
-                            const { data: sRow } = await admin.from('gv_users').select('*').eq('id', parsed.studentId).maybeSingle();
-                            const pName = sRow?.parent_name || row.applicant_or_child_name || 'Parent';
-                            const { data: pUser } = await admin.from('gv_users').select('*').or(`login_id.ilike.${parsed.loginId},full_name.ilike.${pName}`).ilike('role', '%parent%').maybeSingle();
-                            if (pUser) {
-                              profile = pUser;
-                            } else {
-                              profile = {
-                                id: `PAR-${parsed.studentId}`,
-                                login_id: parsed.loginId,
-                                full_name: pName,
-                                email: `${parsed.loginId.toLowerCase()}@growvia.edu`,
-                                role: 'parent',
-                                status: 'active',
-                              };
-                            }
+              if (reqRows && reqRows.length > 0) {
+                for (const row of reqRows) {
+                  try {
+                    if (row.reason_or_notes && row.reason_or_notes.startsWith('{')) {
+                      const parsed = JSON.parse(row.reason_or_notes);
+                      if (parsed.loginId && (parsed.loginId.toLowerCase() === clean.toLowerCase() || parsed.loginId.toLowerCase() === norm)) {
+                        if (parsed.kind === 'parent' && parsed.studentId) {
+                          const { data: sRow } = await admin.from('gv_users').select('*').eq('id', parsed.studentId).maybeSingle();
+                          const pName = sRow?.parent_name || row.applicant_or_child_name || 'Parent';
+                          const { data: pUser } = await admin.from('gv_users').select('*').or(`login_id.ilike.${parsed.loginId},full_name.ilike.${pName}`).ilike('role', '%parent%').maybeSingle();
+                          if (pUser) {
+                            profile = pUser;
+                          } else {
+                            profile = {
+                              id: `PAR-${parsed.studentId}`,
+                              login_id: parsed.loginId,
+                              full_name: pName,
+                              email: `${parsed.loginId.toLowerCase()}@growvia.edu`,
+                              role: 'parent',
+                              status: 'active',
+                            };
+                          }
+                          break;
+                        } else if (parsed.kind === 'teacher' && parsed.teacherId) {
+                          const { data: tUser } = await admin.from('gv_users').select('*').or(`id.eq.${parsed.teacherId},login_id.ilike.${parsed.loginId}`).maybeSingle();
+                          if (tUser) {
+                            profile = tUser;
                             break;
-                          } else if (parsed.kind === 'teacher' && parsed.teacherId) {
-                            const { data: tUser } = await admin.from('gv_users').select('*').or(`id.eq.${parsed.teacherId},login_id.ilike.${parsed.loginId}`).maybeSingle();
-                            if (tUser) {
-                              profile = tUser;
-                              break;
-                            }
                           }
                         }
                       }
-                    } catch {}
-                  }
+                    }
+                  } catch {}
                 }
               }
             }
           }
         }
       }
-    } catch {}
+    }
 
+    // 2. Safe Self-Healing: If profile exists but auth_user_id is missing or unlinked, repair linkage without mutating password
     if (profile) {
+      if (!profile.auth_user_id || profile.id !== profile.auth_user_id) {
+        try {
+          const syncRes = await provisionOrSyncUserAccount({
+            login_id: profile.login_id || clean,
+            email: profile.email,
+            role: profile.role,
+            full_name: profile.full_name,
+            update_password: false, // DO NOT mutate password on login!
+          });
+          if (syncRes?.profile) {
+            profile = syncRes.profile;
+          }
+        } catch {}
+      }
+
       let authEmail = profile.email;
       if (profile.auth_user_id) {
         try {
@@ -464,21 +561,20 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
         } catch {}
       }
 
-      if (authEmail) {
-        return res.json({
-          success: true,
-          login_id: profile.login_id,
-          email: authEmail,
-          role: profile.role,
-          full_name: profile.full_name,
-          profile: {
-            ...profile,
-            email: authEmail,
-          },
-        });
-      }
+      return res.status(200).json({
+        success: true,
+        login_id: profile.login_id,
+        email: authEmail || profile.email,
+        role: profile.role,
+        full_name: profile.full_name,
+        profile: {
+          ...profile,
+          email: authEmail || profile.email,
+        },
+      });
     }
 
+    // 3. Fallback Auth user lookup by email or metadata login_id
     let page = 1;
     let authUser: any = null;
     while (!authUser && page <= 5) {
@@ -496,27 +592,22 @@ app.post('/api/users/resolve-login-id', async (req: Request, res: Response) => {
     }
 
     if (authUser && authUser.email) {
-      const derivedRole = authUser.user_metadata?.role || 'teacher';
-      const derivedName = authUser.user_metadata?.full_name || 'User Account';
-      const derivedLoginId = authUser.user_metadata?.login_id || clean;
-
-      const fallbackProfile = {
-        id: authUser.id,
-        auth_user_id: authUser.id,
-        login_id: derivedLoginId,
-        role: derivedRole,
-        full_name: derivedName,
+      // Repair gv_users linkage dynamically for orphan Auth user
+      const syncRes = await provisionOrSyncUserAccount({
+        login_id: authUser.user_metadata?.login_id || clean,
         email: authUser.email,
-        status: 'active',
-      };
+        role: authUser.user_metadata?.role || 'teacher',
+        full_name: authUser.user_metadata?.full_name || 'User Account',
+        update_password: false,
+      });
 
-      return res.json({
+      return res.status(200).json({
         success: true,
-        login_id: derivedLoginId,
-        email: authUser.email,
-        role: derivedRole,
-        full_name: derivedName,
-        profile: fallbackProfile,
+        login_id: syncRes.profile.login_id,
+        email: syncRes.email,
+        role: syncRes.role,
+        full_name: syncRes.profile.full_name,
+        profile: syncRes.profile,
       });
     }
 

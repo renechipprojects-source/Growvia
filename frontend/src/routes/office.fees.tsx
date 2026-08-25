@@ -21,6 +21,8 @@ import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { useAcademicYear } from "@/lib/academicYearContext";
 import { getStoredAllocations, getStoredRoutes } from "@/modules/transport/transportStore";
 
+import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
+
 export const Route = createFileRoute("/office/fees")({ component: FeeCollection });
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque"] as const;
@@ -203,26 +205,30 @@ function FeeCollection() {
     setOpenEditFeeModal(true);
   };
 
-  const handleSaveFeeStructure = () => {
+  const handleSaveFeeStructure = async () => {
     if (!activeLedger) return;
     const origFee = Number(editOriginalFee || 0);
     const discAmt = Number(editDiscountAmount || 0);
 
-    if (origFee < 0 || discAmt < 0) {
+    if (isNaN(origFee) || origFee < 0 || isNaN(discAmt) || discAmt < 0) {
       return toast.error("Fee amounts cannot be negative.");
     }
     if (discAmt > origFee) {
       return toast.error("Discount cannot exceed original total fee.");
     }
 
-    const updated = recalculateFeeLedger({
+    const res = await saveFeeRecord({
       ...activeLedger,
       originalFee: origFee,
       discountAmount: discAmt,
     });
 
+    if (!res.success) {
+      return toast.error(res.error || "Failed to persist fee update.");
+    }
+
+    const updated = res.data!;
     setFeeList((prev) => prev.map((f) => (f.id === activeLedger.id ? updated : f)));
-    saveFeeRecord(updated);
     setActiveLedger(updated);
     setOpenEditFeeModal(false);
 
@@ -475,11 +481,8 @@ function FeeCollection() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => openEditFeeFor(f)}>
-                            <Edit3 className="h-3.5 w-3.5 mr-1 text-amber-600" /> Edit
-                          </Button>
                           <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => openDetailsFor(f)}>
-                            <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> View
+                            <Eye className="h-3.5 w-3.5 mr-1 text-slate-600" /> View Details
                           </Button>
                           {remaining > 0 ? (
                             <Button
@@ -529,150 +532,12 @@ function FeeCollection() {
       </div>
 
       {/* VIEW DETAILS MODAL */}
-      <Dialog open={openDetailModal} onOpenChange={setOpenDetailModal}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Student Fee Ledger & Payment History</DialogTitle>
-          </DialogHeader>
-
-          {activeLedger && (() => {
-            const finalFee = activeLedger.finalFee || (activeLedger.originalFee || 8500) - (activeLedger.discountAmount || 0);
-            const paymentsList = activeLedger.payments || [];
-            const paid = paymentsList.reduce((acc, p) => acc + Number(p.amount || 0), activeLedger.paid && paymentsList.length === 0 ? activeLedger.paid : 0);
-            const remaining = Math.max(0, finalFee - paid);
-            const instCount = paymentsList.length || (paid > 0 ? 1 : 0);
-
-            let displayStatus = "Unpaid";
-            let statusStyle = "bg-rose-100 text-rose-700";
-            if (remaining === 0 && finalFee > 0) {
-              displayStatus = "Paid";
-              statusStyle = "bg-emerald-100 text-emerald-700";
-            } else if (paid > 0) {
-              displayStatus = "Partially Paid";
-              statusStyle = "bg-amber-100 text-amber-700";
-            }
-
-            // Sorted newest payment first
-            const sortedPayments = [...paymentsList].reverse();
-
-            return (
-              <div className="space-y-4 text-sm mt-2">
-                {/* Cover Info Header */}
-                <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-4 border border-orange-200/60 flex items-center justify-between">
-                  <div>
-                    <div className="text-base font-bold text-slate-900">{activeLedger.studentName}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Admission No: <span className="font-mono font-semibold text-slate-800">{toCanonicalAdmissionNo(activeLedger.admissionNo, activeLedger.id)}</span> · Class: <span className="font-medium text-slate-800">{activeLedger.className}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">Academic Year: {activeLedger.academicYear || activeYear}</div>
-                  </div>
-                  <div className="text-right">
-                    <Badge className={cn("px-3 py-1 text-xs font-bold", statusStyle)}>
-                      {displayStatus}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Calculated Summary Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <MetricTile label="Total Fee" value={`₹${finalFee.toLocaleString()}`} color="text-slate-900 font-bold" />
-                  <MetricTile label="Total Paid" value={`₹${paid.toLocaleString()}`} color="text-emerald-700 font-bold" />
-                  <MetricTile label="Remaining Balance" value={`₹${remaining.toLocaleString()}`} color="text-rose-600 font-bold" />
-                  <MetricTile label="Installments Used" value={`${instCount}`} color="text-indigo-700 font-bold" />
-                </div>
-
-                {/* Complete Payment History Table */}
-                <SectionCard title="Complete Payment History">
-                  {sortedPayments.length > 0 ? (
-                    <div className="overflow-x-auto rounded-xl border border-slate-200">
-                      <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-100 text-slate-700 font-semibold uppercase text-[11px]">
-                          <tr>
-                            <th className="px-3 py-2">Inst. No</th>
-                            <th className="px-3 py-2">Date</th>
-                            <th className="px-3 py-2">Amount</th>
-                            <th className="px-3 py-2">Payment Method</th>
-                            <th className="px-3 py-2">Receipt No.</th>
-                            <th className="px-3 py-2">Collected By</th>
-                            <th className="px-3 py-2">Notes</th>
-                            <th className="px-3 py-2 text-right">Receipt</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {sortedPayments.map((p, idx) => {
-                            const instNo = p.installmentNo || (sortedPayments.length - idx);
-                            return (
-                              <tr key={p.id || idx} className="hover:bg-slate-50 transition">
-                                <td className="px-3 py-2 font-bold text-slate-900">#{instNo}</td>
-                                <td className="px-3 py-2 text-slate-700">{p.date}</td>
-                                <td className="px-3 py-2 font-bold text-emerald-700">₹{Number(p.amount || 0).toLocaleString()}</td>
-                                <td className="px-3 py-2">
-                                  <Badge variant="outline" className="text-[10px] font-medium bg-white">
-                                    {p.method}
-                                  </Badge>
-                                </td>
-                                <td className="px-3 py-2 font-mono text-slate-800">{p.receiptNo}</td>
-                                <td className="px-3 py-2 text-slate-700">{p.collectedBy || "Office Staff"}</td>
-                                <td className="px-3 py-2 text-slate-500 italic max-w-[120px] truncate">{p.remarks || "—"}</td>
-                                <td className="px-3 py-2 text-right">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 text-[11px] px-2 text-sky-600 hover:text-sky-700"
-                                    onClick={() => {
-                                      setReceipt({
-                                        receiptNo: p.receiptNo,
-                                        studentName: activeLedger.studentName,
-                                        admissionNo: activeLedger.admissionNo || activeLedger.studentId,
-                                        className: activeLedger.className,
-                                        feeType: p.feeType || "Tuition Fee",
-                                        amountDue: 0,
-                                        amountPaid: p.amount,
-                                        balance: remaining,
-                                        method: p.method,
-                                        reference: p.reference || "",
-                                        date: p.date,
-                                        remarks: p.remarks || "",
-                                        status: displayStatus,
-                                        collectedBy: p.collectedBy || "Office Staff",
-                                      });
-                                    }}
-                                  >
-                                    <Printer className="h-3 w-3 mr-1" /> Print
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="py-8 text-center text-muted-foreground text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      No payment transactions recorded yet for this student.
-                    </div>
-                  )}
-                </SectionCard>
-              </div>
-            );
-          })()}
-
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setOpenDetailModal(false)}>Close</Button>
-            {activeLedger && (
-              <Button
-                onClick={() => {
-                  setOpenDetailModal(false);
-                  openRecordPaymentFor(activeLedger);
-                }}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 text-white"
-              >
-                <Plus className="h-4 w-4 mr-1.5" /> Collect Fee
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PaymentDetailsModal
+        open={openDetailModal}
+        onClose={() => setOpenDetailModal(false)}
+        ledger={activeLedger}
+        onCollectPayment={(l) => openRecordPaymentFor(l)}
+      />
 
       {/* EDIT FEE STRUCTURE MODAL */}
       <Dialog open={openEditFeeModal} onOpenChange={setOpenEditFeeModal}>

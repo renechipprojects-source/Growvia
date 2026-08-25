@@ -42,6 +42,50 @@ function OfficeStudents() {
   }, [loadStudents]);
 
   useAutoRefresh("students", loadStudents);
+  useAutoRefresh("admissions", loadStudents);
+
+  const parentData = useMemo(() => {
+    const map = new Map<string, any>();
+    data.forEach((s) => {
+      const parentName = typeof s.parent === "object" ? (s.parent as any)?.name : s.parent || "Parent";
+      const cleanPhone = (s.phone || (typeof s.parent === "object" ? (s.parent as any)?.phone : "") || "").replace(/\D/g, "");
+      const key = s.parentId || (cleanPhone.length >= 10 ? cleanPhone.slice(-10) : parentName.toLowerCase());
+
+      const realEmail = s.email || (typeof s.parent === "object" ? (s.parent as any)?.email : "") || "";
+      const realOccupation = s.occupation || (s as any).parentOccupation || (typeof s.parent === "object" ? (s.parent as any)?.occupation : "") || "";
+      const realAddress = s.address || (typeof s.parent === "object" ? (s.parent as any)?.address : "") || "";
+      const realPhone = s.phone || (typeof s.parent === "object" ? (s.parent as any)?.phone : "") || "";
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: s.parentId || `PAR-${s.id}`,
+          parent: parentName,
+          phone: realPhone || "Not specified",
+          email: realEmail || "Not specified",
+          occupation: realOccupation || "Not specified",
+          address: realAddress || "Not specified",
+          children: [`${s.name} (${s.className}${s.section ? `-${s.section}` : ""})`],
+          student: s,
+        });
+      } else {
+        const existing = map.get(key)!;
+        const childDesc = `${s.name} (${s.className}${s.section ? `-${s.section}` : ""})`;
+        if (!existing.children.includes(childDesc)) {
+          existing.children.push(childDesc);
+        }
+        if ((!existing.occupation || existing.occupation === "Not specified") && realOccupation) {
+          existing.occupation = realOccupation;
+        }
+        if ((!existing.email || existing.email === "Not specified") && realEmail) {
+          existing.email = realEmail;
+        }
+        if ((!existing.address || existing.address === "Not specified") && realAddress) {
+          existing.address = realAddress;
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [data]);
 
   const handleOpenPhotoEdit = (s: Student) => {
     setEditingPhotoStudent(s);
@@ -160,33 +204,33 @@ function OfficeStudents() {
     },
   ];
 
-  const parentCols: ColumnDef<Student>[] = [
+  const parentCols: ColumnDef<any>[] = [
     {
       header: "Parent Name",
       accessorKey: "parent",
-      cell: (c) => <span className="font-medium text-slate-900">{c.getValue<string>() || "Parent"}</span>,
+      cell: (c) => <span className="font-medium text-slate-900">{c.getValue<string>()}</span>,
     },
     {
-      header: "Child",
-      accessorKey: "name",
+      header: "Children",
+      accessorKey: "children",
       cell: (c) => {
-        const s = c.row.original;
-        return <span>{s.name} ({s.className})</span>;
+        const children = c.getValue<string[]>();
+        return <span>{children?.join(", ")}</span>;
       },
     },
     {
       header: "Occupation",
       accessorKey: "occupation",
-      cell: (c) => <span className="text-sm font-medium text-slate-700">{(c.row.original as any).occupation || "Business / Service"}</span>,
+      cell: (c) => <span className="text-sm font-medium text-slate-700">{c.getValue<string>()}</span>,
     },
     { accessorKey: "phone", header: "Mobile" },
     {
       header: "Actions",
       id: "parentActions",
       cell: (c) => {
-        const s = c.row.original;
+        const p = c.row.original;
         return (
-          <Button size="sm" variant="outline" onClick={() => setSelectedParent(s)}>
+          <Button size="sm" variant="outline" onClick={() => setSelectedParent(p)}>
             <Eye className="mr-1.5 h-3.5 w-3.5" /> View Details
           </Button>
         );
@@ -231,7 +275,7 @@ function OfficeStudents() {
         </TabsContent>
 
         <TabsContent value="parents" className="mt-3">
-          <DataTable data={data} columns={parentCols} searchKey="parent" />
+          <DataTable data={parentData} columns={parentCols} searchKey="parent" />
         </TabsContent>
       </Tabs>
 
@@ -260,17 +304,21 @@ function OfficeStudents() {
           {selectedParent && (
             <div className="space-y-4 pt-2 text-sm text-slate-700">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div><span className="font-semibold text-slate-900">Parent / Guardian:</span> {selectedParent.parent}</div>
-                <div><span className="font-semibold text-slate-900">Occupation:</span> {(selectedParent as any).occupation || (selectedParent as any).father_name ? "Business / Professional" : "Service"}</div>
-                <div><span className="font-semibold text-slate-900">Mobile Phone:</span> {selectedParent.phone || "N/A"}</div>
-                <div><span className="font-semibold text-slate-900">Email Address:</span> {selectedParent.email || `${selectedParent.id.toLowerCase()}@growvia.edu`}</div>
-                <div><span className="font-semibold text-slate-900">Residential Address:</span> {(selectedParent as any).address || "123 Sunshine Street, Playtown"}</div>
+                <div><span className="font-semibold text-slate-900">Parent / Guardian:</span> {(selectedParent as any).parent}</div>
+                <div><span className="font-semibold text-slate-900">Occupation:</span> {(selectedParent as any).occupation}</div>
+                <div><span className="font-semibold text-slate-900">Mobile Phone:</span> {(selectedParent as any).phone}</div>
+                <div><span className="font-semibold text-slate-900">Email Address:</span> {(selectedParent as any).email}</div>
+                <div><span className="font-semibold text-slate-900">Residential Address:</span> {(selectedParent as any).address}</div>
               </div>
               <div className="p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-1 text-xs">
-                <div className="font-bold text-indigo-900">Enrolled Child Details</div>
-                <div><span className="font-semibold">Child Name:</span> {selectedParent.name}</div>
-                <div><span className="font-semibold">Class & Section:</span> {selectedParent.className}</div>
-                <div><span className="font-semibold">Admission No:</span> {selectedParent.admissionNo || selectedParent.id}</div>
+                <div className="font-bold text-indigo-900">Enrolled Children Details</div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {((selectedParent as any).children || [(selectedParent as any).name]).map((ch: string, idx: number) => (
+                    <span key={idx} className="bg-white border border-indigo-200 px-2.5 py-1 rounded-lg font-medium text-slate-800">
+                      {ch}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}

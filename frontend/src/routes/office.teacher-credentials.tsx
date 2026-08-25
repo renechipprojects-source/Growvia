@@ -599,34 +599,14 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
             <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ananya Sharma" className="mt-1 bg-white" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-700">System Role *</label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="teacher">Teacher / Faculty</SelectItem>
-                  <SelectItem value="office">Office Staff</SelectItem>
-                  <SelectItem value="principal">Principal / Vice-Principal</SelectItem>
-                  <SelectItem value="accountant">Accountant / Finance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-700">Designation</label>
-              <Input value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g. Senior Teacher" className="mt-1 bg-white" />
-            </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-700">Designation</label>
+            <Input value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g. Senior Teacher" className="mt-1 bg-white" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-700">Department</label>
-              <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="e.g. Academics" className="mt-1 bg-white" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-700">Assigned Class</label>
-              <Input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. Nursery A" className="mt-1 bg-white" />
-            </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-700">Assigned Class</label>
+            <Input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. Nursery A" className="mt-1 bg-white" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

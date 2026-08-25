@@ -293,23 +293,9 @@ export async function updateServerAuthPassword(identifier: string, newPassword: 
   return { success: false };
 }
 
-const SYSTEM_ACCOUNT_MAP: Record<string, { email: string; role: string; full_name: string }> = {
-  ADMIN001: { email: "admin@sunshineschool.edu", role: "admin", full_name: "System Admin" },
-  ADM001: { email: "admin@sunshineschool.edu", role: "admin", full_name: "System Admin" },
-  PRINCIPAL001: { email: "principal@sunshineschool.edu", role: "principal", full_name: "School Principal" },
-  PRN001: { email: "principal@sunshineschool.edu", role: "principal", full_name: "School Principal" },
-  OFFICE001: { email: "office@sunshineschool.edu", role: "office", full_name: "Office Manager" },
-  OFF001: { email: "office@sunshineschool.edu", role: "office", full_name: "Office Manager" },
-  TCH001: { email: "teacher@growvia.com", role: "teacher", full_name: "Lead Teacher" },
-  PAR001: { email: "parent@growvia.com", role: "parent", full_name: "Parent Account" },
-  DEV001: { email: "developer@growvia.com", role: "developer", full_name: "Lead Developer" },
-};
-
 export async function resolveLoginIdViaServer(identifier: string) {
   const clean = (identifier || "").trim();
   if (!clean) return null;
-
-  const normKey = clean.toUpperCase();
 
   const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const backendUrls = Array.from(new Set([
@@ -339,53 +325,6 @@ export async function resolveLoginIdViaServer(identifier: string) {
         }
       }
     } catch {}
-  }
-
-  const serviceKey = (typeof process !== "undefined" && process?.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
-  const supabaseUrl = (typeof process !== "undefined" && (process?.env?.VITE_SUPABASE_URL || process?.env?.SUPABASE_URL)) || "https://nyhnkftlkigoliyogwvp.supabase.co";
-
-  if (serviceKey && clean) {
-    try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const admin = createClient(supabaseUrl, serviceKey);
-      const norm = clean.toLowerCase().replace(/[\s\-_]+/g, "");
-
-      const { data: user } = await admin
-        .from("gv_users")
-        .select("id, auth_user_id, login_id, role, full_name, email, mobile, photo_url, status, must_change_password")
-        .or(`login_id.ilike.${clean},login_id.ilike.${norm},email.ilike.${clean}`)
-        .maybeSingle();
-
-      if (user && user.email) {
-        return {
-          success: true,
-          login_id: user.login_id,
-          email: user.email,
-          role: user.role,
-          full_name: user.full_name,
-          profile: user,
-        };
-      }
-    } catch {}
-  }
-
-  // Canonical System Accounts Fallback Resolution Map
-  if (SYSTEM_ACCOUNT_MAP[normKey]) {
-    const sys = SYSTEM_ACCOUNT_MAP[normKey];
-    return {
-      success: true,
-      login_id: normKey,
-      email: sys.email,
-      role: sys.role,
-      full_name: sys.full_name,
-      profile: {
-        login_id: normKey,
-        email: sys.email,
-        role: sys.role,
-        full_name: sys.full_name,
-        status: "active",
-      },
-    };
   }
 
   return null;
@@ -474,32 +413,10 @@ export async function login(loginIdInput: string, passwordInput: string) {
       }
 
       // Step C: Authenticate using resolved exact Auth email + entered password
-      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password,
       });
-
-      if (authError || !authData?.user) {
-        // Auto-provision or update password via server endpoint if not yet synced in Supabase Auth
-        const provRes = await triggerServerUserProvisioning({
-          login_id: cleanLoginId,
-          email: authEmail,
-          password,
-          role: profile?.role,
-          name: profile?.full_name,
-        });
-
-        if (provRes?.success) {
-          const retryAuth = await supabase.auth.signInWithPassword({
-            email: authEmail,
-            password,
-          });
-          if (retryAuth.data?.user) {
-            authData = retryAuth.data;
-            authError = null;
-          }
-        }
-      }
 
       if (authError || !authData?.user) {
         return { success: false, error: authError?.message || "Invalid Login ID or password." };

@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { User, Phone, Mail, MapPin, Briefcase, ShieldCheck, AlertCircle, CheckCircle2, Lock, Save, Loader2, Award } from "lucide-react";
+import { User, Phone, Mail, MapPin, Briefcase, CheckCircle2, Save, Loader2, Award } from "lucide-react";
 import { fetchStaffProfile, saveStaffProfile, calculateProfileCompletion, type StaffProfile } from "@/lib/staffProfileService";
-import { validatePhoneNumber, normalizePhoneNumber } from "@/lib/utils";
+import { validatePhoneNumber } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 
 interface StaffProfileModalProps {
@@ -50,7 +51,6 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
           gender: "Male",
           blood_group: "O+",
           employment_type: "Full-Time",
-          department: "Academic",
         };
         setProfile(fallback as any);
         setForm(fallback);
@@ -80,20 +80,14 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
     currentSession?.role === "office"
   );
 
-  // Permissions:
-  // Admin-controlled employment fields: disabled for standard staff
   const isAdminFieldDisabled = readOnly || !isAdmin;
-  // Personal fields (mobile, DOB, address, emergency contact, photo, qualification): editable by staff
   const isPersonalFieldDisabled = readOnly;
-
   const completionPct = calculateProfileCompletion(form);
-  const isCompleted = completionPct >= 80 || Boolean(profile?.profile_completed);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
 
-    // Validate phone numbers before submission
     const pCheck = validatePhoneNumber(form.mobile || "", true);
     if (!pCheck.valid) {
       setPhoneErrors((prev) => ({ ...prev, mobile: pCheck.error }));
@@ -128,7 +122,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
 
     setSaving(false);
     if (res.success && res.data) {
-      toast.success("Staff profile saved authoritatively to Supabase!");
+      toast.success("Staff profile saved successfully!");
       setProfile(res.data);
       setForm(res.data);
       if (onProfileUpdated) onProfileUpdated(res.data);
@@ -146,40 +140,94 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
-                {readOnly ? "Authoritative Staff Details" : isCompleted ? "Update Staff Profile" : "Complete Staff Profile"}
+                {readOnly ? "Staff Member Details" : "Update Staff Profile"}
               </DialogTitle>
               <DialogDescription>
-                Authoritative staff profile stored in Supabase. Completion: <span className="font-bold text-slate-800">{completionPct}%</span>
+                Authoritative staff profile details stored in school database.
               </DialogDescription>
             </div>
-            {isCompleted ? (
-              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 flex items-center gap-1 shrink-0">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                Profile Complete ({completionPct}%)
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 flex items-center gap-1 shrink-0">
-                <AlertCircle className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-                Action Required: Complete Profile ({completionPct}%)
-              </Badge>
-            )}
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 shrink-0 font-semibold px-3 py-1">
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Active Staff
+            </Badge>
           </div>
         </DialogHeader>
 
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            Loading staff profile from Supabase...
+            Loading staff profile...
+          </div>
+        ) : readOnly ? (
+          /* READ-ONLY SINGLE PAGE VIEW FOR ADMIN / INSPECTION */
+          <div className="space-y-4 text-xs mt-2">
+            {/* Header Card */}
+            <div className="flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <Avatar className="h-16 w-16 border-2 border-indigo-100 shadow-md shrink-0">
+                <AvatarImage src={form.photo_url} />
+                <AvatarFallback className="font-bold text-indigo-700 bg-indigo-50 text-lg">
+                  {form.full_name ? form.full_name[0] : "S"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">{form.full_name || "Staff Member"}</h3>
+                <div className="text-xs font-semibold text-indigo-700 mt-0.5">
+                  {form.designation || "Faculty / Staff"}
+                </div>
+                <div className="text-xs text-slate-500 font-mono mt-1">
+                  Employee ID: <span className="font-bold text-slate-700">{form.employee_id || form.id || form.login_id || "N/A"}</span> · {form.employment_type || "Full-Time"}
+                </div>
+              </div>
+            </div>
+
+            {/* 1. Personal & Professional Overview */}
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
+              <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-indigo-600" /> Personal & Professional Overview
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
+                <div><span className="text-slate-400 block font-medium">Date of Birth</span><span className="font-semibold text-slate-800">{form.date_of_birth || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Gender</span><span className="font-semibold text-slate-800">{form.gender || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Blood Group</span><span className="font-semibold text-slate-800">{form.blood_group || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Highest Qualification</span><span className="font-semibold text-slate-800">{form.qualification || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Specialization</span><span className="font-semibold text-slate-800">{form.specialization || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Experience</span><span className="font-semibold text-slate-800">{form.experience !== undefined ? `${form.experience} Years` : "Not specified"}</span></div>
+              </div>
+            </div>
+
+            {/* 2. Contact Details */}
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
+              <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                <Mail className="h-4 w-4 text-sky-600" /> Contact Details
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+                <div><span className="text-slate-400 block font-medium">Email Address</span><span className="font-semibold text-slate-800">{form.email || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Primary Phone</span><span className="font-semibold text-slate-800">{form.mobile || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Alternate Phone</span><span className="font-semibold text-slate-800">{form.alternate_phone || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Residential Address</span><span className="font-semibold text-slate-800">{[form.address, form.city, form.state, form.pincode].filter(Boolean).join(", ") || "Not specified"}</span></div>
+              </div>
+            </div>
+
+            {/* 3. Emergency Contact */}
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
+              <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                <Phone className="h-4 w-4 text-emerald-600" /> Emergency Contact Person
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs pt-1">
+                <div><span className="text-slate-400 block font-medium">Contact Person</span><span className="font-semibold text-slate-800">{form.emergency_contact_name || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Relationship</span><span className="font-semibold text-slate-800">{form.emergency_contact_relation || "Not specified"}</span></div>
+                <div><span className="text-slate-400 block font-medium">Emergency Phone</span><span className="font-semibold text-slate-800">{form.emergency_phone || "Not specified"}</span></div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-100 flex justify-end">
+              <Button onClick={onClose} variant="outline" className="rounded-xl border-slate-200">
+                Close Details
+              </Button>
+            </DialogFooter>
           </div>
         ) : (
+          /* INTERACTIVE ENTRY FORM FOR STAFF PORTAL CORRECTIONS */
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!isCompleted && !readOnly && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                Please complete your personal, contact, and emergency details below to ensure full profile verification.
-              </div>
-            )}
-
             <Tabs defaultValue="identity" className="w-full">
               <TabsList className="grid grid-cols-4 bg-slate-100 p-1 rounded-2xl">
                 <TabsTrigger value="identity" className="rounded-xl text-xs sm:text-sm">Identity</TabsTrigger>
@@ -401,7 +449,7 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
               {/* 4. EMPLOYMENT TAB */}
               <TabsContent value="employment" className="space-y-4 mt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs font-semibold">Employee ID</Label>
                     <Input
                       disabled
@@ -410,32 +458,13 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">System Role</Label>
-                    <Input
-                      disabled
-                      value={(form.role || "teacher").toUpperCase()}
-                      className="bg-slate-100 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs font-semibold">Designation</Label>
                     <Input
                       disabled={isAdminFieldDisabled}
                       value={form.designation || ""}
                       onChange={(e) => setForm({ ...form, designation: e.target.value })}
                       placeholder="Senior Primary Teacher"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Department</Label>
-                    <Input
-                      disabled={isAdminFieldDisabled}
-                      value={form.department || ""}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                      placeholder="Academics / Early Childhood"
                     />
                   </div>
 
@@ -491,15 +520,13 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
             </Tabs>
 
             <DialogFooter className="flex items-center justify-between pt-4 border-t gap-3">
-              <Button variant="outline" type="button" onClick={onClose} rounded-full>
-                {readOnly ? "Close" : "Cancel"}
+              <Button variant="outline" type="button" onClick={onClose} className="rounded-full">
+                Cancel
               </Button>
-              {!readOnly && (
-                <Button type="submit" disabled={saving} className="bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-full">
-                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Authoritative Profile
-                </Button>
-              )}
+              <Button type="submit" disabled={saving} className="bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-full">
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Authoritative Profile
+              </Button>
             </DialogFooter>
           </form>
         )}
@@ -507,3 +534,4 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
     </Dialog>
   );
 }
+

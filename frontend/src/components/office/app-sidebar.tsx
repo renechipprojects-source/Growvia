@@ -113,7 +113,6 @@ const operations: Item[] = [
   { title: "Circulars", url: "/office/circulars", icon: Megaphone },
   { title: "Inventory", url: "/office/inventory", icon: Boxes },
   { title: "Transport", url: "/office/transport", icon: Bus },
-  { title: "Messages", url: "/office/messages", icon: MessageSquare },
 ];
 
 export function OfficeSidebar() {

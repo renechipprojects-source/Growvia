@@ -357,6 +357,84 @@ export function getLocalDateString(d: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export const STAFF_CHECKIN_CUTOFF_HOUR = 9;
+export const STAFF_CHECKIN_CUTOFF_MINUTE = 0;
+
+export type StaffAttendanceStatus = "Present" | "Late" | "Absent" | "Leave" | "Checked Out" | "Not Marked";
+
+export interface StaffStatusResult {
+  status: StaffAttendanceStatus;
+  checkIn: string;
+  checkOut: string;
+  workingHours: string;
+}
+
+export function computeStaffStatus(
+  rec: { status?: string; checkIn?: string; checkOut?: string; workingHours?: string; checkInTimestamp?: string } | undefined,
+  selectedDate: string,
+  now: Date = new Date()
+): StaffStatusResult {
+  const todayStr = getLocalDateString(now);
+  const isToday = selectedDate === todayStr;
+  const isPast = selectedDate < todayStr;
+
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const isPastCutoff =
+    currentHour > STAFF_CHECKIN_CUTOFF_HOUR ||
+    (currentHour === STAFF_CHECKIN_CUTOFF_HOUR && currentMinute > STAFF_CHECKIN_CUTOFF_MINUTE);
+
+  let checkIn = rec?.checkIn && rec.checkIn !== "—" ? rec.checkIn : "—";
+  let checkOut = rec?.checkOut && rec.checkOut !== "—" ? rec.checkOut : "—";
+  let workingHours = rec?.workingHours || "—";
+
+  // 1. If staff member HAS marked attendance / check-in:
+  if (rec && rec.checkIn && rec.checkIn !== "—") {
+    if (rec.checkOut && rec.checkOut !== "—") {
+      return { status: "Checked Out", checkIn, checkOut, workingHours };
+    }
+    const rawStatus = (rec.status || "").toLowerCase();
+    if (rawStatus === "absent") return { status: "Absent", checkIn, checkOut, workingHours };
+    if (rawStatus === "leave" || rawStatus === "on leave") return { status: "Leave", checkIn, checkOut, workingHours };
+    if (rawStatus === "late") return { status: "Late", checkIn, checkOut, workingHours };
+
+    // Check if checkIn time itself was past cutoff (09:00 AM)
+    if (rec.checkInTimestamp) {
+      const inDate = new Date(rec.checkInTimestamp);
+      const inHrs = inDate.getHours();
+      const inMins = inDate.getMinutes();
+      if (inHrs > STAFF_CHECKIN_CUTOFF_HOUR || (inHrs === STAFF_CHECKIN_CUTOFF_HOUR && inMins > STAFF_CHECKIN_CUTOFF_MINUTE)) {
+        return { status: "Late", checkIn, checkOut, workingHours };
+      }
+    }
+    return { status: "Present", checkIn, checkOut, workingHours };
+  }
+
+  // 2. If staff member has explicit Absent or Leave record:
+  if (rec && rec.status) {
+    const rawStatus = rec.status.toLowerCase();
+    if (rawStatus === "absent") return { status: "Absent", checkIn: "—", checkOut: "—", workingHours: "—" };
+    if (rawStatus === "leave" || rawStatus === "on leave") return { status: "Leave", checkIn: "—", checkOut: "—", workingHours: "—" };
+    if (rawStatus === "late") return { status: "Late", checkIn: "—", checkOut: "—", workingHours: "—" };
+    if (rawStatus === "present") return { status: "Present", checkIn: "—", checkOut: "—", workingHours: "—" };
+  }
+
+  // 3. No check-in entry found:
+  if (isToday) {
+    if (isPastCutoff) {
+      // After cutoff time (9:00 AM), every staff member who has not yet marked attendance is Late until marked
+      return { status: "Late", checkIn: "—", checkOut: "—", workingHours: "—" };
+    }
+    return { status: "Not Marked", checkIn: "—", checkOut: "—", workingHours: "—" };
+  }
+
+  if (isPast) {
+    return { status: "Absent", checkIn: "—", checkOut: "—", workingHours: "—" };
+  }
+
+  return { status: "Not Marked", checkIn: "—", checkOut: "—", workingHours: "—" };
+}
+
 export async function fetchStaffAttendanceFromSupabase(targetDate?: string): Promise<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }>> {
   const dateToFetch = targetDate || getLocalDateString();
   try {

@@ -32,9 +32,10 @@ function StudentAttendancePage() {
   const [studentsList, setStudentsList] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
 
-  const { attendance: liveAttendanceRecords } = useLiveAttendance();
+  const { attendance: liveAttendanceRecords } = useLiveAttendance(undefined, selectedDate);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
@@ -43,27 +44,36 @@ function StudentAttendancePage() {
   };
 
   useAutoRefresh("attendance", loadData);
+  useAutoRefresh("students", loadData);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const activeStudents = useMemo(() => {
-    return studentsList;
+  const classOptions = useMemo(() => {
+    const list = Array.from(new Set(studentsList.map((s: any) => s.className || s.class_name || "Playgroup"))).filter(Boolean);
+    return list.length > 0 ? list : ["Playgroup", "Nursery", "LKG", "UKG"];
   }, [studentsList]);
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
     const cls = filterValues["Class"];
-    return activeStudents.filter((s: any) => {
+    const statusF = filterValues["Status"];
+
+    return studentsList.filter((s: any) => {
       const className = s.className || s.class_name || "Playgroup";
       const matchesSearch = !q || s.name.toLowerCase().includes(q) || (s.admissionNo && s.admissionNo.toLowerCase().includes(q));
       const matchesClass = !cls || cls === "all" || className === cls;
-      return matchesSearch && matchesClass;
-    });
-  }, [activeStudents, search, filterValues]);
 
-  // Calculate dynamic dashboard stats based on filtered student list
+      const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
+      const st = live ? live.status : "unmarked";
+      const matchesStatus = !statusF || statusF === "all" || (statusF === "unmarked" ? !live : st === statusF);
+
+      return matchesSearch && matchesClass && matchesStatus;
+    });
+  }, [studentsList, search, filterValues, liveAttendanceRecords]);
+
+  // Calculate dynamic summary stats from filtered students & selected date records
   const metrics = useMemo(() => {
     let totalP = 0;
     let totalA = 0;
@@ -99,7 +109,7 @@ function StudentAttendancePage() {
 
   const handleExportCSV = () => {
     if (filteredStudents.length === 0) return;
-    const headers = ["Student ID", "Admission No", "Student Name", "Class", "Section", "Status", "Attendance %"];
+    const headers = ["Student ID", "Admission No", "Student Name", "Class", "Section", `Status (${selectedDate})`, "Overall %"];
     const rows = filteredStudents.map((s: any) => {
       const details = getStudentAttendanceDetails(s.id, s);
       const live = liveAttendanceRecords.find((r) => r.studentId === s.id);
@@ -110,7 +120,7 @@ function StudentAttendancePage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `student_attendance_report_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `student_attendance_${selectedDate}_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -121,7 +131,7 @@ function StudentAttendancePage() {
       <div>
         <PageHeader
           title="Student Attendance Module"
-          description="View class-wise attendance records, weekly/monthly breakdown, and detailed student reports."
+          description="View class-wise attendance records, daily status summary, and detailed student reports."
         />
       </div>
 
@@ -136,20 +146,38 @@ function StudentAttendancePage() {
           <StatCard label="Attendance %" value={`${metrics.pct}%`} tone="info" icon={<CalendarCheck className="h-5 w-5" />} />
         </div>
 
-        <FilterBar
-          searchPlaceholder="Search student by name or admission no..."
-          filters={[{ label: "Class", options: ["Playgroup", "Nursery", "LKG", "UKG"] }]}
-          search={search}
-          onSearchChange={setSearch}
-          filterValues={filterValues}
-          onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
-          onExport={handleExportCSV}
-        />
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 shrink-0">
+            <Calendar className="h-4 w-4 text-indigo-600" />
+            <span>Attendance Date:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div className="flex-1">
+            <FilterBar
+              searchPlaceholder="Search student by name or admission no..."
+              filters={[
+                { label: "Class", options: classOptions },
+                { label: "Status", options: ["P", "A", "L", "Lv", "unmarked"] },
+              ]}
+              search={search}
+              onSearchChange={setSearch}
+              filterValues={filterValues}
+              onFilterChange={(l, v) => setFilterValues((f) => ({ ...f, [l]: v }))}
+              onExport={handleExportCSV}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <DataTable
-          columns={["Student Name", "Adm No.", "Class & Sec", "Today Status", "Overall %", "Action"]}
+          columns={["Student Name", "Adm No.", "Class & Sec", `Status (${selectedDate})`, "Overall %", "Action"]}
           total={filteredStudents.length}
         >
           {filteredStudents.map((s: any) => {
@@ -290,80 +318,67 @@ export function AttendanceDetailsModal({
             </div>
           </div>
 
-          {/* Key Metrics Breakdown */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+          {/* Key Metrics Breakdown (4 Tiles) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <MetricTile label="Present Days" value={details.presentDays} color="text-emerald-600" />
             <MetricTile label="Absent Days" value={details.absentDays} color="text-rose-600" />
             <MetricTile label="Late Days" value={details.lateDays} color="text-amber-600" />
             <MetricTile label="Leave Days" value={details.leaveDays} color="text-purple-600" />
-            <MetricTile label="Attendance %" value={`${details.percentage}%`} color="text-sky-600" />
-          </div>
-
-          {/* Weekly Report */}
-          <div className="rounded-2xl border p-4 bg-white space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-700">Weekly Attendance Summary</h4>
-              <Badge className="bg-sky-100 text-sky-700 text-[10px]">{details.weeklyReport.percentage}% Weekly Attendance</Badge>
-            </div>
-            <div className="grid grid-cols-5 gap-2 text-center pt-2">
-              {details.weeklyReport.days.map((d, i) => (
-                <div key={d.id || i} className="rounded-xl border p-2 bg-slate-50/50">
-                  <div className="text-[10px] text-muted-foreground font-medium">{d.day || `Day ${i + 1}`}</div>
-                  <div className="text-xs font-semibold text-slate-800 mt-0.5">{d.date}</div>
-                  <div className="mt-1.5">
-                    <StatusBadge mark={d.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t mt-2">
-              <span>Present: <b>{details.weeklyReport.totalPresent}</b></span>
-              <span>Absent: <b>{details.weeklyReport.totalAbsent}</b></span>
-              <span>Late: <b>{details.weeklyReport.totalLate}</b></span>
-              <span>Leave: <b>{details.weeklyReport.totalLeave}</b></span>
-            </div>
           </div>
 
           {/* Monthly Summary */}
-          <div className="rounded-2xl border p-4 bg-white flex items-center justify-between">
+          <div className="rounded-2xl border p-4 bg-white flex items-center justify-between shadow-xs">
             <div>
               <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-700">Monthly Attendance Report</h4>
               <div className="text-xs text-muted-foreground mt-1">
-                Working Days: <b>{details.monthlyReport.workingDays}</b> · Present: <b className="text-emerald-700">{details.monthlyReport.presentDays}</b> · Absent: <b className="text-rose-700">{details.monthlyReport.absentDays}</b> · Late: <b className="text-amber-700">{details.monthlyReport.lateDays}</b>
+                Working Days: <b>{details.monthlyReport.workingDays}</b> · Present: <b className="text-emerald-700">{details.monthlyReport.presentDays}</b> · Absent: <b className="text-rose-700">{details.monthlyReport.absentDays}</b> · Late: <b className="text-amber-700">{details.monthlyReport.lateDays}</b> · Leave: <b className="text-purple-700">{details.monthlyReport.leaveDays}</b>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <div className="text-xl font-bold text-emerald-700">{details.monthlyReport.percentage}%</div>
-              <div className="text-[10px] text-muted-foreground">Monthly Avg</div>
+              <div className="text-[10px] text-muted-foreground font-medium">Monthly Avg</div>
             </div>
           </div>
 
-          {/* Attendance History Table */}
-          <div className="space-y-2">
-            <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-700">Chronological Attendance History</h4>
-            <div className="max-h-48 overflow-y-auto rounded-xl border">
+          {/* Chronological Attendance History (Dedicated Scrollable Area) */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-xs uppercase tracking-wider text-slate-700">Chronological Attendance History ({details.history.length})</h4>
+              <Badge variant="outline" className="text-[10px] font-semibold text-slate-500 bg-white">
+                Scrollable History
+              </Badge>
+            </div>
+            <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200/80 bg-white shadow-xs pr-1">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 sticky top-0 border-b">
+                <thead className="bg-slate-50 sticky top-0 border-b z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium">Date</th>
-                    <th className="px-3 py-2 text-left font-medium">Day</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">Marked By</th>
-                    <th className="px-3 py-2 text-right font-medium">Time Recorded</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Day</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Status</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Marked By</th>
+                    <th className="px-3 py-2 text-right font-medium text-slate-600">Time Recorded</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  {details.history.map((r, idx) => (
-                    <tr key={r.id || idx} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-medium">{r.date}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.day || "Weekday"}</td>
-                      <td className="px-3 py-2"><StatusBadge mark={r.status} /></td>
-                      <td className="px-3 py-2">{r.markedBy || "Class Teacher"}</td>
-                      <td className="px-3 py-2 text-right font-mono text-[11px] text-muted-foreground">
-                        {r.updatedAt ? new Date(r.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "08:45 AM"}
+                <tbody className="divide-y divide-slate-100">
+                  {details.history.length > 0 ? (
+                    details.history.map((r, idx) => (
+                      <tr key={r.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-3 py-2 font-semibold text-slate-800">{r.date}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{r.day || "Weekday"}</td>
+                        <td className="px-3 py-2"><StatusBadge mark={r.status} /></td>
+                        <td className="px-3 py-2 text-slate-700">{r.markedBy || "Class Teacher"}</td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] text-muted-foreground">
+                          {r.updatedAt ? new Date(r.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "08:45 AM"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-4 text-center text-xs text-muted-foreground italic">
+                        No attendance history records found.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

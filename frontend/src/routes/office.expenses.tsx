@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui-blocks";
-import { fetchExpenses, type Expense } from "@/lib/supabaseService";
-import { supabase } from "@/lib/supabase";
+import { fetchExpenses, saveExpenseRecord, deleteExpenseRecord, type Expense } from "@/lib/supabaseService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import { Wallet, Search, Plus, FileText, User, Calendar, CreditCard, DollarSign } from "lucide-react";
+import { Wallet, Search, Plus, FileText, User, Calendar, CreditCard, DollarSign, Trash2, Edit3, Layers, Calculator } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
@@ -23,6 +22,7 @@ function Expenses() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const loadData = useCallback(() => {
     fetchExpenses().then(({ data }) => {
@@ -53,6 +53,35 @@ function Expenses() {
     },
   });
 
+  const handleOpenAdd = () => {
+    setEditingExpense(null);
+    reset({
+      category: "Supplies",
+      description: "",
+      amount: "",
+      paidTo: "",
+      date: new Date().toISOString().split("T")[0],
+      paymentMethod: "Bank Transfer",
+      notes: "",
+    });
+    setIsAddOpen(true);
+  };
+
+  const handleOpenEdit = (exp: Expense, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingExpense(exp);
+    reset({
+      category: exp.category || "Supplies",
+      description: exp.description || "",
+      amount: String(exp.amount || 0),
+      paidTo: exp.paidTo || "",
+      date: exp.date || new Date().toISOString().split("T")[0],
+      paymentMethod: exp.paymentMethod || "Bank Transfer",
+      notes: exp.notes || "",
+    });
+    setIsAddOpen(true);
+  };
+
   const onSubmit = async (v: {
     category: string;
     description: string;
@@ -63,9 +92,8 @@ function Expenses() {
     notes: string;
   }) => {
     const amt = Number(v.amount) || 0;
-    const newId = `EXP-${Date.now().toString().slice(-6)}`;
-    const newExp: Expense = {
-      id: newId,
+    const expPayload: Partial<Expense> = {
+      id: editingExpense?.id,
       category: v.category,
       description: v.description,
       amount: amt,
@@ -75,37 +103,45 @@ function Expenses() {
       notes: v.notes || v.description,
     };
 
-    setItems((prev) => [newExp, ...prev]);
-
-    const { error } = await supabase.from("gv_inventory_expenses").insert([
-      {
-        id: newId,
-        record_type: "expense",
-        title: v.description || v.category,
-        category: v.category,
-        amount_or_unit_cost: amt,
-        transaction_date: newExp.date,
-        supplier_or_paid_to: v.paidTo,
-        notes: JSON.stringify({
-          description: v.description,
-          paidTo: v.paidTo,
-          paymentMethod: v.paymentMethod,
-          notes: v.notes,
-          salaryRecipient: v.category === "Salary" ? v.paidTo : undefined,
-          salaryAmount: v.category === "Salary" ? amt : undefined,
-        }),
-      },
-    ]);
+    const { error, data } = await saveExpenseRecord(expPayload);
 
     if (error) {
-      toast.error(`Failed to save to database: ${error.message}`);
+      toast.error(`Failed to save expense: ${error}`);
       return;
     }
 
-    toast.success(`Expense of ₹${amt.toLocaleString()} recorded successfully.`);
+    toast.success(editingExpense ? `Expense updated successfully.` : `Expense of ₹${amt.toLocaleString()} recorded successfully.`);
     setIsAddOpen(false);
+    setEditingExpense(null);
     reset();
+    loadData();
   };
+
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this expense record?")) return;
+
+    const { error } = await deleteExpenseRecord(id);
+    if (error) {
+      toast.error(`Failed to delete expense: ${error}`);
+      return;
+    }
+
+    toast.success("Expense record deleted successfully.");
+    if (selectedExpense?.id === id) {
+      setIsDetailsOpen(false);
+      setSelectedExpense(null);
+    }
+    loadData();
+  };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((item) => {
+      if (item.category && item.category.trim()) set.add(item.category.trim());
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -113,13 +149,15 @@ function Expenses() {
         !q ||
         item.description.toLowerCase().includes(q.toLowerCase()) ||
         item.paidTo.toLowerCase().includes(q.toLowerCase()) ||
-        item.category.toLowerCase().includes(q.toLowerCase());
+        item.category.toLowerCase().includes(q.toLowerCase()) ||
+        (item.paymentMethod && item.paymentMethod.toLowerCase().includes(q.toLowerCase()));
       const matchesCat = categoryFilter === "all" || item.category === categoryFilter;
       return matchesQ && matchesCat;
     });
   }, [items, q, categoryFilter]);
 
   const totalSpent = useMemo(() => items.reduce((sum, item) => sum + (item.amount || 0), 0), [items]);
+  const avgExpense = useMemo(() => (items.length > 0 ? totalSpent / items.length : 0), [items, totalSpent]);
 
   const handleRowClick = (exp: Expense) => {
     setSelectedExpense(exp);
@@ -131,7 +169,7 @@ function Expenses() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <PageHeader title="School Expenses & Disbursement" />
         <Button
-          onClick={() => setIsAddOpen(true)}
+          onClick={handleOpenAdd}
           className="bg-slate-900 text-white rounded-xl shadow-xs hover:bg-slate-800"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -139,14 +177,14 @@ function Expenses() {
         </Button>
       </div>
 
-      {/* Summary Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 shrink-0">
+      {/* Summary Metrics Cards - Fully Dynamic */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
         <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
             <Wallet className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs text-slate-500 font-medium">Total Expenses</div>
+            <div className="text-xs text-slate-500 font-medium">Total Expenditure</div>
             <div className="text-xl font-bold text-slate-900">₹{totalSpent.toLocaleString()}</div>
           </div>
         </div>
@@ -156,8 +194,28 @@ function Expenses() {
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs text-slate-500 font-medium">Total Entries</div>
+            <div className="text-xs text-slate-500 font-medium">Total Records</div>
             <div className="text-xl font-bold text-slate-900">{items.length}</div>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+            <Calculator className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-500 font-medium">Average Outlay / Item</div>
+            <div className="text-xl font-bold text-slate-900">₹{Math.round(avgExpense).toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <Layers className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-500 font-medium">Categories</div>
+            <div className="text-xl font-bold text-slate-900">{categories.length}</div>
           </div>
         </div>
       </div>
@@ -176,18 +234,16 @@ function Expenses() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px] h-9 text-xs bg-white border-slate-200 rounded-xl">
+            <SelectTrigger className="w-[180px] h-9 text-xs bg-white border-slate-200 rounded-xl">
               <SelectValue placeholder="Category: All" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Supplies">Supplies</SelectItem>
-              <SelectItem value="Utilities">Utilities</SelectItem>
-              <SelectItem value="Salary">Salary</SelectItem>
-              <SelectItem value="Maintenance">Maintenance</SelectItem>
-              <SelectItem value="Events">Events</SelectItem>
-              <SelectItem value="Food">Food</SelectItem>
-              <SelectItem value="Other">Other</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -211,7 +267,7 @@ function Expenses() {
             <tbody className="divide-y divide-slate-100">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     No expense records match your filters.
                   </td>
                 </tr>
@@ -224,19 +280,25 @@ function Expenses() {
                   >
                     <td className="py-3.5 px-4 font-mono text-xs text-slate-600">{item.date}</td>
                     <td className="py-3.5 px-4 font-medium text-slate-900">{item.description}</td>
-                    <td className="py-3.5 px-4 text-slate-600">{item.paidTo}</td>
                     <td className="py-3.5 px-4">
                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                         {item.category}
                       </Badge>
                     </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-rose-600">
+                    <td className="py-3.5 px-4 text-slate-600 font-medium">{item.paidTo}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-rose-600 font-mono">
                       -₹{item.amount.toLocaleString()}
                     </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-indigo-600">
-                        View Details
-                      </Button>
+                    <td className="py-3.5 px-4 text-slate-600 text-xs">{item.paymentMethod || "Bank Transfer"}</td>
+                    <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs font-medium text-amber-700 hover:bg-amber-50" onClick={(e) => handleOpenEdit(item, e)}>
+                          <Edit3 className="h-3.5 w-3.5 mr-1" /> Edit
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs font-medium text-rose-600 hover:bg-rose-50" onClick={(e) => handleDelete(item.id, e)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -4,27 +4,10 @@ import { PageHeader } from "@/components/admin/page-primitives";
 import { FilterBar, DataTable, TableRow, TableCell } from "@/components/admin/data-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Eye, User, Phone, Mail, Briefcase, MapPin, Baby } from "lucide-react";
+import { Eye, Phone, Mail, Briefcase, MapPin, Baby } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchStudents } from "@/lib/supabaseService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
-
-const OCCUPATIONS = [
-  "Software Engineer",
-  "Business Executive",
-  "Doctor / Physician",
-  "Chartered Accountant",
-  "Architect",
-  "Government Service Officer",
-  "Entrepreneur",
-  "Civil Engineer",
-];
-
-function getOccupation(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  return OCCUPATIONS[Math.abs(hash) % OCCUPATIONS.length];
-}
 
 export interface Parent {
   id: string;
@@ -32,6 +15,7 @@ export interface Parent {
   email: string;
   phone: string;
   occupation: string;
+  address: string;
   children: string[];
   emergencyContact: string;
   avatar: string;
@@ -52,42 +36,74 @@ function ParentsPage() {
     fetchStudents().then(({ data }) => {
       const source = data || [];
       const parentMap = new Map<string, Parent>();
-      source.forEach((s) => {
-        const parentName = typeof s.parent === "string" ? s.parent : (s.parent as any)?.name || "Parent";
-        const pKey = s.parentId || s.phone || parentName;
+
+      source.forEach((s: any) => {
+        const parentName = typeof s.parent === "object" ? s.parent?.name : s.parent || s.parent_name || s.fatherName || "Parent";
+        const cleanPhone = (s.phone || (typeof s.parent === "object" ? s.parent?.phone : "") || "").replace(/\D/g, "");
+        const pKey = s.parentId || (cleanPhone.length >= 10 ? cleanPhone.slice(-10) : parentName.toLowerCase());
+
+        const realEmail = s.email || (typeof s.parent === "object" ? s.parent?.email : "") || s.parent_email || "";
+        const realOccupation = s.occupation || (s as any).parentOccupation || (typeof s.parent === "object" ? s.parent?.occupation : "") || s.father_occupation || "";
+        const realAddress = s.address || (typeof s.parent === "object" ? s.parent?.address : "") || s.residential_address || "";
+        const realPhone = s.phone || (typeof s.parent === "object" ? s.parent?.phone : "") || "";
+
         if (!parentMap.has(pKey)) {
           parentMap.set(pKey, {
             id: s.parentId || `PAR-${s.id}`,
             name: parentName,
-            email: `${parentName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@sunshine-parents.com`,
-            phone: s.phone || "+91 98765 43210",
-            occupation: getOccupation(s.id),
+            email: realEmail || "Not specified",
+            phone: realPhone || "Not specified",
+            occupation: realOccupation || "Not specified",
+            address: realAddress || "Not specified",
             children: [s.name],
-            emergencyContact: s.phone || "+91 98765 43210",
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`,
+            emergencyContact: realPhone || "Not specified",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(parentName)}`,
           });
         } else {
           const existing = parentMap.get(pKey)!;
           if (!existing.children.includes(s.name)) {
             existing.children.push(s.name);
           }
+          if ((!existing.occupation || existing.occupation === "Not specified") && realOccupation) {
+            existing.occupation = realOccupation;
+          }
+          if ((!existing.email || existing.email === "Not specified") && realEmail) {
+            existing.email = realEmail;
+          }
+          if ((!existing.address || existing.address === "Not specified") && realAddress) {
+            existing.address = realAddress;
+          }
+          if ((!existing.phone || existing.phone === "Not specified") && realPhone) {
+            existing.phone = realPhone;
+            existing.emergencyContact = realPhone;
+          }
         }
       });
+
       setParentList(Array.from(parentMap.values()));
     });
   };
 
   useAutoRefresh("students", loadData);
-  useAutoRefresh("parents", loadData);
+  useAutoRefresh("admissions", loadData);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (selectedParent) {
+      const updated = parentList.find((p) => p.id === selectedParent.id || p.phone === selectedParent.phone || p.name === selectedParent.name);
+      if (updated) {
+        setSelectedParent(updated);
+      }
+    }
+  }, [parentList]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return parentList.filter((p) => {
-      if (q && !`${p.name} ${p.email} ${p.phone} ${p.children.join(" ")}`.toLowerCase().includes(q)) return false;
+      if (q && !`${p.name} ${p.email} ${p.phone} ${p.occupation} ${p.children.join(" ")}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [parentList, search]);
@@ -116,7 +132,7 @@ function ParentsPage() {
       </div>
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-2">
         <FilterBar
-          searchPlaceholder="Search parents by name, child, phone..."
+          searchPlaceholder="Search parents by name, child, phone, occupation..."
           filters={[]}
           search={search}
           onSearchChange={setSearch}
@@ -180,7 +196,7 @@ function ParentsPage() {
                 </div>
                 <div className="flex items-center gap-2.5 text-slate-600">
                   <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span>Sunshine Play School Campus Residency, Block B</span>
+                  <span>{selectedParent.address}</span>
                 </div>
               </div>
 
@@ -203,3 +219,4 @@ function ParentsPage() {
     </div>
   );
 }
+

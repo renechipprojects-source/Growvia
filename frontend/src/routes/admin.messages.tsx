@@ -1,29 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/admin/page-primitives";
-import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Send } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { requireAuthGuard } from "@/lib/auth";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin/messages")({
-  beforeLoad: async () => {
-    await requireAuthGuard("super-admin");
+  beforeLoad: () => {
+    throw redirect({ to: "/admin", replace: true });
   },
-  head: () => ({
-    meta: [
-      { title: "Messages — Admin Portal" },
-      { name: "description", content: "School communications and message center." },
-    ],
-  }),
-  component: AdminMessages,
+  component: () => null,
 });
 
 function AdminMessages() {

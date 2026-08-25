@@ -29,7 +29,6 @@ type OperationEntry = Item | Group;
 
 const operations: OperationEntry[] = [
   { title: "Circulars", url: "/admin/circulars", icon: Megaphone },
-  { title: "Messages", url: "/admin/messages", icon: Megaphone },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
   { title: "Transport", url: "/admin/transport", icon: Bus },
 ];

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { PageHeader } from "@/components/admin/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchExpenses, fetchTeachers, type Expense, type Teacher } from "@/lib/supabaseService";
-import { Search, Lock, FileText } from "lucide-react";
+import { Search, FileText } from "lucide-react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/admin/expenses")({
   head: () => ({
     meta: [
       { title: "School Expenses — Sunshine Play School" },
-      { name: "description", content: "Read-only view of school-wide operating expenses." },
+      { name: "description", content: "School-wide operating expenses and outlays." },
     ],
   }),
   component: AdminExpensesOverview,
@@ -27,17 +28,25 @@ function AdminExpensesOverview() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     Promise.all([fetchExpenses(), fetchTeachers()]).then(([{ data: expData }, { data: teachData }]) => {
       setExpenses(expData || []);
       setTeachers(teachData || []);
     });
   }, []);
 
+  useAutoRefresh("expenses", loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const categories = useMemo(() => {
     const set = new Set<string>();
-    expenses.forEach((e) => set.add(e.category));
-    return Array.from(set);
+    expenses.forEach((e) => {
+      if (e.category && e.category.trim()) set.add(e.category.trim());
+    });
+    return Array.from(set).sort();
   }, [expenses]);
 
   const filtered = useMemo(() => {
@@ -47,7 +56,8 @@ function AdminExpensesOverview() {
         !q ||
         e.description.toLowerCase().includes(q) ||
         e.paidTo.toLowerCase().includes(q) ||
-        e.category.toLowerCase().includes(q);
+        e.category.toLowerCase().includes(q) ||
+        (e.paymentMethod && e.paymentMethod.toLowerCase().includes(q));
       const matchC = categoryFilter === "all" || e.category === categoryFilter;
       return matchQ && matchC;
     });
@@ -157,12 +167,11 @@ function AdminExpensesOverview() {
           <table className="w-full text-sm border-collapse min-w-full table-auto">
             <thead className="bg-slate-50/95 backdrop-blur-md border-b border-slate-200 text-xs font-bold uppercase text-slate-600 sticky top-0 z-20">
               <tr>
-                <th className="text-left px-4 py-3.5 font-bold w-[12%]">Date</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[28%]">Description</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[16%]">Category</th>
-                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Paid To</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[14%]">Amount (₹)</th>
-                <th className="text-right px-4 py-3.5 font-bold w-[12%]">Action</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[15%]">Date</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[32%]">Description</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[18%]">Category</th>
+                <th className="text-left px-4 py-3.5 font-bold w-[20%]">Paid To</th>
+                <th className="text-right px-4 py-3.5 font-bold w-[15%]">Amount (₹)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -178,11 +187,6 @@ function AdminExpensesOverview() {
                   <td className="px-4 py-3 text-slate-600 text-xs">{e.paidTo}</td>
                   <td className="px-4 py-3 text-right font-bold text-slate-900 font-mono">
                     ₹{e.amount.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button size="sm" variant="outline" className="rounded-xl h-8 px-2.5 text-xs">
-                      View Details
-                    </Button>
                   </td>
                 </tr>
               ))}

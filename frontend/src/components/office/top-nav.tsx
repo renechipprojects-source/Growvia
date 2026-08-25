@@ -23,7 +23,6 @@ const labels: Record<string, string> = {
   receipts: "Fee Receipts",
   expenses: "Expenses",
   inventory: "Inventory",
-  messages: "Messages",
   "parent-credentials": "Parent Logins",
   "teacher-credentials": "Teacher Logins",
   "password-resets": "Password Reset Requests",

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { GraduationCap, Search, Bus, CheckCircle2, XCircle, Pencil, Loader2 } from "lucide-react";
+import { GraduationCap, Search, Bus, CheckCircle2, XCircle, Pencil, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [allocations, setAllocations] = useState<StudentTransportAllocationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [availableRoutes, setAvailableRoutes] = useState<string[]>(["Route 1 - Main Express", "Route 2 - Central", "Route 3 - North"]);
+  const [availableRoutes, setAvailableRoutes] = useState<string[]>([]);
 
   // Search & Filter State
   const [search, setSearch] = useState<string>("");
@@ -54,9 +54,9 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
   const [formOpted, setFormOpted] = useState<"Yes" | "No">("Yes");
   const [formMode, setFormMode] = useState<"One Way" | "Two Way">("Two Way");
   const [formDirection, setFormDirection] = useState<"Pickup" | "Drop" | "Both">("Both");
-  const [formRoute, setFormRoute] = useState<string>("Route 1 - Main Express");
-  const [formPickupStop, setFormPickupStop] = useState<string>("Home Stop");
-  const [formDropStop, setFormDropStop] = useState<string>("School Gate");
+  const [formRoute, setFormRoute] = useState<string>("");
+  const [formPickupStop, setFormPickupStop] = useState<string>("");
+  const [formDropStop, setFormDropStop] = useState<string>("");
   const [formFee, setFormFee] = useState<number>(1500);
 
   const loadAllData = useCallback(() => {
@@ -67,11 +67,10 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
 
       const rawAlloc = getStoredAllocations();
       const routes = getStoredRoutes();
-      if (routes.length > 0) {
-        setAvailableRoutes(routes.map((r) => r.name));
-      }
+      const routeNames = routes.map((r) => r.name).filter(Boolean);
+      setAvailableRoutes(routeNames);
 
-      // Map allocations
+      // Map allocations dynamically from real students and real allocations
       const mappedList: StudentTransportAllocationItem[] = studentList.map((s) => {
         const match = rawAlloc.find(
           (a: any) => a.studentId === s.id || a.id === s.id || (a.studentName || a.student || "").toLowerCase() === s.name.toLowerCase()
@@ -85,18 +84,18 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
             id: match.id || `ALC-${s.id}`,
             studentId: s.id,
             studentName: s.name,
-            className: s.className,
-            section: s.section,
+            className: s.className || "Unassigned",
+            section: s.section || "A",
             rollNo: s.rollNo,
             parentName: typeof s.parent === "object" ? (s.parent as any)?.name : s.parent,
             phone: s.phone,
             transportOpted: opted,
             transportMode: mode,
             direction: dir,
-            routeName: match.routeName || match.route || "Route 1 - Main Express",
-            pickupStop: match.pickupStop || match.pickupPoint || "Main Stop",
-            dropStop: match.dropStop || match.dropPoint || "School Gate",
-            monthlyFee: Number(match.monthlyFee || 1500),
+            routeName: match.routeName || match.route || "",
+            pickupStop: match.pickupStop || match.pickupPoint || "",
+            dropStop: match.dropStop || match.dropPoint || "",
+            monthlyFee: Number(match.monthlyFee || 0),
             status: match.status || "Active",
           };
         } else {
@@ -104,18 +103,18 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
             id: `ALC-${s.id}`,
             studentId: s.id,
             studentName: s.name,
-            className: s.className,
-            section: s.section,
+            className: s.className || "Unassigned",
+            section: s.section || "A",
             rollNo: s.rollNo,
             parentName: typeof s.parent === "object" ? (s.parent as any)?.name : s.parent,
             phone: s.phone,
             transportOpted: "No",
             transportMode: "Two Way",
             direction: "Both",
-            routeName: "Route 1 - Main Express",
-            pickupStop: "Main Stop",
-            dropStop: "School Gate",
-            monthlyFee: 1500,
+            routeName: "",
+            pickupStop: "",
+            dropStop: "",
+            monthlyFee: 0,
             status: "Inactive",
           };
         }
@@ -138,10 +137,10 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
     setFormOpted(item.transportOpted);
     setFormMode(item.transportMode || "Two Way");
     setFormDirection(item.direction || (item.transportMode === "One Way" ? "Pickup" : "Both"));
-    setFormRoute(item.routeName || availableRoutes[0] || "Route 1 - Main Express");
-    setFormPickupStop(item.pickupStop || "Home Stop");
-    setFormDropStop(item.dropStop || "School Gate");
-    setFormFee(item.monthlyFee || 1500);
+    setFormRoute(item.routeName || availableRoutes[0] || "");
+    setFormPickupStop(item.pickupStop || "");
+    setFormDropStop(item.dropStop || "");
+    setFormFee(item.monthlyFee || (item.transportOpted === "Yes" ? 1500 : 0));
     setOpenModal(true);
   };
 
@@ -158,10 +157,10 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
         transportOpted: formOpted,
         transportMode: formOpted === "No" ? "Two Way" : formMode,
         direction: updatedDir,
-        routeName: formRoute,
-        pickupStop: formPickupStop,
-        dropStop: formDropStop,
-        monthlyFee: Number(formFee),
+        routeName: formOpted === "No" ? "" : formRoute,
+        pickupStop: formOpted === "No" ? "" : formPickupStop,
+        dropStop: formOpted === "No" ? "" : formDropStop,
+        monthlyFee: formOpted === "No" ? 0 : Number(formFee),
         status: formOpted === "Yes" ? "Active" : "Inactive",
       };
 
@@ -211,12 +210,10 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
       if (item.transportOpted !== "Yes") return false;
 
       if (viewTab === "pickup") {
-        // Must include Pickup (One Way Pickup OR Two Way/Both)
         return item.direction === "Pickup" || item.direction === "Both" || item.transportMode === "Two Way";
       }
 
       if (viewTab === "drop") {
-        // Must include Drop (One Way Drop OR Two Way/Both)
         return item.direction === "Drop" || item.direction === "Both" || item.transportMode === "Two Way";
       }
 
@@ -226,7 +223,7 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
 
   // Class List Options
   const classOptions = useMemo(() => {
-    return Array.from(new Set(allocations.map((a) => a.className))).sort();
+    return Array.from(new Set(allocations.map((a) => a.className))).filter(Boolean).sort();
   }, [allocations]);
 
   // Active Allocations Count
@@ -348,10 +345,24 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
             <span className="text-sm">Loading student transport roster...</span>
           </div>
         ) : filteredList.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">
+          <div className="p-12 text-center text-slate-500 space-y-1">
             <Bus className="h-10 w-10 mx-auto text-slate-300 mb-2" />
-            <p className="font-semibold text-slate-700">No students match the selected transport filter.</p>
-            <p className="text-xs text-slate-400 mt-1">Try switching tabs or adjusting search filters.</p>
+            {allocations.length === 0 ? (
+              <>
+                <p className="font-semibold text-slate-700">No Student Records Found</p>
+                <p className="text-xs text-slate-400">No registered students exist in the system for transport allocation.</p>
+              </>
+            ) : totalOptedCount === 0 && viewTab !== "unallocated" ? (
+              <>
+                <p className="font-semibold text-slate-700">No Active Transport Allocations</p>
+                <p className="text-xs text-slate-400">No students have opted for transport yet. Click "No Transport" tab to view all students and edit allocation.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-700">No Matching Transport Allocations</p>
+                <p className="text-xs text-slate-400">Try clearing your search query or adjusting class/section filters.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -411,13 +422,13 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {item.transportOpted === "Yes" ? item.routeName : <span className="text-slate-400">—</span>}
+                      {item.transportOpted === "Yes" && item.routeName ? item.routeName : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {item.transportOpted === "Yes" ? (
+                      {item.transportOpted === "Yes" && (item.pickupStop || item.dropStop) ? (
                         <div className="text-[11px]">
-                          <div><span className="text-slate-400">Pickup:</span> {item.pickupStop}</div>
-                          <div><span className="text-slate-400">Drop:</span> {item.dropStop}</div>
+                          {item.pickupStop && <div><span className="text-slate-400">Pickup:</span> {item.pickupStop}</div>}
+                          {item.dropStop && <div><span className="text-slate-400">Drop:</span> {item.dropStop}</div>}
                         </div>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -485,6 +496,15 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
 
             {formOpted === "Yes" && (
               <>
+                {availableRoutes.length === 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong>No Routes Configured:</strong> No bus routes exist in the system yet. Please configure routes under "Bus Routes" first.
+                    </div>
+                  </div>
+                )}
+
                 {/* Transport Mode (One Way / Two Way) */}
                 <div className="space-y-1.5 pt-2 border-t border-slate-100">
                   <Label className="text-xs font-semibold">Transport Mode</Label>
@@ -528,16 +548,25 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
                 {/* Route Selection */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Bus Route</Label>
-                  <Select value={formRoute} onValueChange={setFormRoute}>
-                    <SelectTrigger className="h-9 text-xs rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableRoutes.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {availableRoutes.length > 0 ? (
+                    <Select value={formRoute} onValueChange={setFormRoute}>
+                      <SelectTrigger className="h-9 text-xs rounded-xl">
+                        <SelectValue placeholder="Select a route..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoutes.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={formRoute}
+                      onChange={(e) => setFormRoute(e.target.value)}
+                      placeholder="Enter route name..."
+                      className="h-9 text-xs rounded-xl"
+                    />
+                  )}
                 </div>
 
                 {/* Pickup & Drop Stops */}
@@ -547,7 +576,7 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
                     <Input
                       value={formPickupStop}
                       onChange={(e) => setFormPickupStop(e.target.value)}
-                      placeholder="e.g. Indiranagar Stop 3"
+                      placeholder="e.g. Stop 3 / Home"
                       className="h-9 text-xs rounded-xl"
                     />
                   </div>

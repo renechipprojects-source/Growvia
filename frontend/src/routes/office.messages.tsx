@@ -1,19 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/ui-blocks";
-import { useMessages, markMessageRead, type Message } from "@/lib/messagesStore";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MailOpen, Send, Plus, Reply } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { NotificationService } from "@/lib/notifications";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/office/messages")({ component: Messages });
+export const Route = createFileRoute("/office/messages")({
+  beforeLoad: () => {
+    throw redirect({ to: "/office", replace: true });
+  },
+  component: () => null,
+});
 
 function Messages() {
   const { messages, dispatchMessage, markRead } = useMessages();

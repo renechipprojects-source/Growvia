@@ -109,6 +109,7 @@ export interface Expense {
   paidTo: string;
   paymentMethod?: string;
   notes?: string;
+  salaryBreakdown?: any[];
 }
 
 // ─── Generators ──────────────────────────────────────────────────────────────

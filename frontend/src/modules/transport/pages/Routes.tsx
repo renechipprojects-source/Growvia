@@ -60,13 +60,13 @@ export function RoutesPage({ readOnly }: { readOnly?: boolean }) {
 
   const handleOpenAdd = () => {
     setForm({
-      name: `Route #${routeList.length + 1}`,
-      pickup: "Station A, Stop B",
-      drop: "School Gate 1",
-      distanceKm: 15,
-      vehicle: "KA-04-B-1001",
-      driver: "Assigned Driver",
-      students: 10,
+      name: "",
+      pickup: "",
+      drop: "",
+      distanceKm: 0,
+      vehicle: "",
+      driver: "",
+      students: 0,
     });
     setOpen(true);
   };

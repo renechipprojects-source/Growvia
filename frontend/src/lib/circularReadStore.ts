@@ -195,22 +195,94 @@ export function isCircularTargetedToRole(circular: any, role: string): boolean {
   return canonicalTargets.includes(canonicalUserRole);
 }
 
-export function getDeliveryStats(circularId: string, recipients?: string[]) {
+import { fetchStudents, fetchTeachers } from "./supabaseService";
+
+export async function fetchDeliveryStats(circularId: string, recipients?: string[]) {
+  await syncReadStoreFromSupabase();
+
   const readStore = getReadStore(READ_STORAGE_KEY);
   const ackStore = getReadStore(ACK_STORAGE_KEY);
 
-  const readers = readStore[circularId] || [];
-  const acks = ackStore[circularId] || [];
+  const readers = (readStore[circularId] || []).filter((r) => r !== "system" && r !== "all");
+  const acks = (ackStore[circularId] || []).filter((r) => r !== "system" && r !== "all");
+
+  const [{ data: students }, { data: teachers }] = await Promise.all([
+    fetchStudents(),
+    fetchTeachers(),
+  ]);
+
+  const rawList: string[] = Array.isArray(recipients) && recipients.length > 0
+    ? recipients
+    : ["Parents", "Teachers"];
+
+  const canonicalTargets = rawList
+    .flatMap((r: any) => (typeof r === "string" ? r.split(",") : [String(r)]))
+    .map((r: string) => r.trim());
+
+  let totalSent = 0;
+
+  const isAll = canonicalTargets.some((t) => {
+    const l = t.toLowerCase();
+    return l === "all" || l === "everyone" || l === "all roles";
+  });
+
+  const includesParents = isAll || canonicalTargets.some((t) => {
+    const l = t.toLowerCase();
+    return l === "parents" || l === "parent" || l === "all parents" || l === "students" || l === "all students";
+  });
+
+  const includesStaff = isAll || canonicalTargets.some((t) => {
+    const l = t.toLowerCase();
+    return l === "teachers" || l === "teacher" || l === "all teachers" || l === "staff" || l === "all staff" || l === "office staff" || l === "office";
+  });
+
+  if (includesParents) {
+    totalSent += (students || []).length;
+  } else {
+    // Check specific class targeted recipients (e.g. "Nursery", "Grade 1")
+    const targetedClasses = canonicalTargets.map((t) => t.toLowerCase());
+    const matchingStudents = (students || []).filter((s) =>
+      targetedClasses.some((tc) => tc === s.className?.toLowerCase() || tc === `class ${s.className}`.toLowerCase())
+    );
+    totalSent += matchingStudents.length;
+  }
+
+  if (includesStaff) {
+    totalSent += (teachers || []).length;
+  }
+
+  if (totalSent === 0 && (students?.length || teachers?.length)) {
+    totalSent = (students || []).length + (teachers || []).length;
+  }
+
+  const readCount = Math.min(readers.length, totalSent);
+  const ackCount = Math.min(acks.length, totalSent);
+
+  const unreadCount = Math.max(0, totalSent - readCount);
+  const pendingAckCount = Math.max(0, totalSent - ackCount);
+  const readPercentage = totalSent > 0 ? Math.min(100, Math.round((readCount / totalSent) * 100)) : 0;
+
+  return {
+    totalSent,
+    readCount,
+    ackCount,
+    unreadCount,
+    pendingAckCount,
+    readPercentage,
+  };
+}
+
+export function getDeliveryStats(circularId: string, recipients?: string[], totalSentOverride?: number) {
+  const readStore = getReadStore(READ_STORAGE_KEY);
+  const ackStore = getReadStore(ACK_STORAGE_KEY);
+
+  const readers = (readStore[circularId] || []).filter((r) => r !== "system" && r !== "all");
+  const acks = (ackStore[circularId] || []).filter((r) => r !== "system" && r !== "all");
+
   const readCount = readers.length;
   const ackCount = acks.length;
 
-  let totalSent = 45; // Base recipient count
-  if (Array.isArray(recipients) && recipients.length > 0) {
-    if (recipients.includes("Parents")) totalSent += 80;
-    if (recipients.includes("Teachers")) totalSent += 20;
-    if (recipients.includes("Office Staff")) totalSent += 10;
-  }
-
+  const totalSent = typeof totalSentOverride === "number" && totalSentOverride > 0 ? totalSentOverride : 0;
   const unreadCount = Math.max(0, totalSent - readCount);
   const pendingAckCount = Math.max(0, totalSent - ackCount);
 
@@ -220,6 +292,6 @@ export function getDeliveryStats(circularId: string, recipients?: string[]) {
     ackCount,
     unreadCount,
     pendingAckCount,
-    readPercentage: Math.min(100, Math.round((readCount / (totalSent || 1)) * 100)),
+    readPercentage: totalSent > 0 ? Math.min(100, Math.round((readCount / totalSent) * 100)) : 0,
   };
 }

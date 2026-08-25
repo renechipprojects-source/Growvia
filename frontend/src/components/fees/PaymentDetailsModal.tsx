@@ -1,27 +1,34 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Calendar, CheckCircle2, AlertCircle, Receipt, User, GraduationCap } from "lucide-react";
-import { toCanonicalAdmissionNo, type FeeLedgerItem } from "@/lib/supabaseService";
+import { Button } from "@/components/ui/button";
+import { CreditCard, Receipt, Plus } from "lucide-react";
+import { toCanonicalAdmissionNo, calculateFeeComponents, type FeeLedgerItem } from "@/lib/supabaseService";
 
 export function PaymentDetailsModal({
   open,
   onClose,
   ledger,
+  onCollectPayment,
 }: {
   open: boolean;
   onClose: () => void;
   ledger: FeeLedgerItem | null;
+  onCollectPayment?: (ledger: FeeLedgerItem) => void;
 }) {
   if (!ledger) return null;
 
   const origFee = ledger.originalFee || ledger.amount || 12000;
   const discAmt = ledger.discountAmount || 0;
   const finalFee = ledger.finalFee || Math.max(0, origFee - discAmt);
-  const paid = (ledger.payments && ledger.payments.length > 0)
+  const feeComponents = ledger.feeComponents || calculateFeeComponents(finalFee);
+
+  const rawPaid = (ledger.payments && ledger.payments.length > 0)
     ? ledger.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
     : (ledger.paid || 0);
-  const remaining = Math.max(0, finalFee - paid);
-  const advance = Math.max(0, paid - finalFee);
+
+  const paid = finalFee > 0 ? Math.min(rawPaid, finalFee) : rawPaid;
+  const remaining = Math.max(0, finalFee - rawPaid);
+  const advance = Math.max(0, rawPaid - finalFee);
 
   let status = "Unpaid";
   let statusTone = "bg-rose-50 text-rose-700 border-rose-200";
@@ -41,7 +48,7 @@ export function PaymentDetailsModal({
   const paymentsList = ledger.payments && ledger.payments.length > 0 ? ledger.payments : [
     {
       id: `p-1`,
-      amount: paid,
+      amount: rawPaid,
       date: ledger.lastPaymentDate || new Date().toISOString().split("T")[0],
       method: "Online Transfer / UPI",
       receiptNo: `REC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -64,7 +71,7 @@ export function PaymentDetailsModal({
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
-          {/* Student Banner (Professional Light Theme) */}
+          {/* Student Banner */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200/90 text-slate-900 flex items-center justify-between shadow-xs">
             <div className="space-y-1">
               <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50 border border-indigo-100/80 px-2.5 py-0.5 rounded-full inline-block">
@@ -93,19 +100,19 @@ export function PaymentDetailsModal({
             <h4 className="font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-2">Standard Fee Components Breakdown</h4>
             <div className="flex justify-between text-slate-600">
               <span>Tuition & Academic Term Fee</span>
-              <span className="font-mono font-medium">₹{Math.round(finalFee * 0.6).toLocaleString()}</span>
+              <span className="font-mono font-semibold text-slate-800">₹{feeComponents.tuitionFee.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Development & Campus Maintenance</span>
-              <span className="font-mono font-medium">₹{Math.round(finalFee * 0.2).toLocaleString()}</span>
+              <span className="font-mono font-semibold text-slate-800">₹{feeComponents.developmentFee.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Examination & Activity Facilities</span>
-              <span className="font-mono font-medium">₹{Math.round(finalFee * 0.2).toLocaleString()}</span>
+              <span className="font-mono font-semibold text-slate-800">₹{feeComponents.examinationFee.toLocaleString()}</span>
             </div>
             <div className="border-t pt-2 flex justify-between font-bold text-slate-900 text-sm">
               <span>Net Calculated Fee</span>
-              <span className="font-mono">₹{finalFee.toLocaleString()}</span>
+              <span className="font-mono text-indigo-700">₹{finalFee.toLocaleString()}</span>
             </div>
           </div>
 
@@ -151,6 +158,24 @@ export function PaymentDetailsModal({
               ))}
             </div>
           </div>
+
+          {onCollectPayment && (
+            <DialogFooter className="mt-4 gap-2">
+              <Button variant="outline" size="sm" onClick={onClose} className="rounded-xl text-xs">
+                Close
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onCollectPayment(ledger);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" /> Collect Fee
+              </Button>
+            </DialogFooter>
+          )}
         </div>
       </DialogContent>
     </Dialog>

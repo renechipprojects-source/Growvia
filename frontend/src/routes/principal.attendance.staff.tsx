@@ -1,13 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { PageHeader } from "@/components/principal/PageHeader";
+import { createFileRoute } from '@tanstack/react-router'
+import { useState, useEffect, useMemo } from "react";
+import { CalendarCheck, UserCheck, UserX, Clock, Search } from "lucide-react";
+import { StatCard, PageHeader } from "@/components/admin/page-primitives";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchTeachers, type Teacher } from "@/lib/supabaseService";
-import { fetchStaffAttendanceFromSupabase, getLocalDateString } from "@/lib/attendanceStore";
-
+import { fetchStaffAttendanceFromSupabase, getLocalDateString, computeStaffStatus } from "@/lib/attendanceStore";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
+import { getClassTeacherAssignment } from "@/routes/admin.attendance.staff";
 
 export const Route = createFileRoute("/principal/attendance/staff")({
   head: () => ({
@@ -35,9 +36,9 @@ function StatusBadge({ s }: { s: "Present" | "Absent" | "Half Day" | "Leave" | "
 function StaffAttendancePage() {
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
-  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string }>>({});
+  const [liveAttendanceMap, setLiveAttendanceMap] = useState<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string }>>({});
   const [q, setQ] = useState("");
-  const [dept, setDept] = useState("all");
+  const [selectedClass, setSelectedClass] = useState("all");
 
   const loadData = () => {
     fetchTeachers().then(({ data }) => {
@@ -59,105 +60,108 @@ function StaffAttendancePage() {
     return teachersList.map((t, idx) => {
       const sId = t.id || `STF-${idx}`;
       const rec = liveAttendanceMap[sId] || liveAttendanceMap[t.name];
-
-      let status = "Not Marked";
-      let checkIn = "—";
-      let checkOut = "—";
-      let workingHours = "—";
-
-      if (rec && rec.checkIn && rec.checkIn !== "—") {
-        checkIn = rec.checkIn;
-        checkOut = rec.checkOut || "—";
-        workingHours = rec.workingHours || "—";
-
-        if (rec.checkOut && rec.checkOut !== "—") {
-          status = "Checked Out";
-        } else {
-          status = rec.status || "Present";
-        }
-      }
+      const res = computeStaffStatus(rec, selectedDate);
 
       return {
         id: sId,
         name: t.name,
-        department: (t as any).department || "Not Assigned",
-        checkIn,
-        checkOut,
-        workingHours,
-        status,
+        assignedClass: getClassTeacherAssignment(sId, t.name),
+        checkIn: res.checkIn,
+        checkOut: res.checkOut,
+        workingHours: res.workingHours,
+        status: res.status,
       };
     });
-  }, [teachersList, liveAttendanceMap]);
+  }, [teachersList, liveAttendanceMap, selectedDate]);
 
-  const departments = useMemo(() => Array.from(new Set(staffData.map((s) => s.department))), [staffData]);
+  const classOptions = useMemo(() => Array.from(new Set(staffData.map((s) => s.assignedClass))).filter((c) => c !== "Not Assigned"), [staffData]);
   const filtered = useMemo(
     () =>
       staffData.filter((r) => {
         const matchQ = !q || r.name.toLowerCase().includes(q.toLowerCase());
-        const matchD = dept === "all" || r.department === dept;
-        return matchQ && matchD;
+        const matchC = selectedClass === "all" || r.assignedClass === selectedClass;
+        return matchQ && matchC;
       }),
-    [staffData, q, dept],
+    [staffData, q, selectedClass],
   );
 
+  const present = filtered.filter((r) => r.status === "Present" || r.status === "Checked Out").length;
+  const late = filtered.filter((r) => r.status === "Late").length;
+  const absent = filtered.filter((r) => r.status === "Absent").length;
+  const total = filtered.length;
+  const attended = present + late;
+  const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none">
+    <div className="flex flex-1 min-h-0 flex-col w-full max-w-none space-y-4">
       <PageHeader title="Staff Attendance" description="Live staff attendance overview for today." />
 
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Present / Active" value={present} tone="success" icon={<UserCheck className="h-5 w-5" />} />
+        <StatCard label="Absent" value={absent} tone="danger" icon={<UserX className="h-5 w-5" />} />
+        <StatCard label="Late" value={late} tone="warning" icon={<Clock className="h-5 w-5" />} />
+        <StatCard label="Attendance %" value={`${pct}%`} tone="info" icon={<CalendarCheck className="h-5 w-5" />} />
+      </div>
+
       <div className="card-elevated p-4 md:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex flex-col md:flex-row gap-3 shrink-0">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 shrink-0">
+            <span>Date:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value || getLocalDateString())}
+              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search staff by name" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value || getLocalDateString())}
-            className="md:w-44 h-10 bg-white text-xs font-semibold border-slate-300 shadow-sm"
-          />
-          <Select value={dept} onValueChange={setDept}>
-            <SelectTrigger className="md:w-52"><SelectValue placeholder="Department" /></SelectTrigger>
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="md:w-52"><SelectValue placeholder="Class Assigned" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              <SelectItem value="all">All Classes</SelectItem>
+              {classOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
 
         <div className="mt-4 flex-1 min-h-0 overflow-y-auto max-h-[calc(100vh-260px)] rounded-lg border">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead className="bg-slate-100/95 backdrop-blur-md text-xs uppercase text-muted-foreground sticky top-0 z-20">
-                <tr>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Staff</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Department</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check In</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check Out</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Working Hours</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Status</th>
+          <table className="w-full text-sm min-w-[720px]">
+            <thead className="bg-slate-100/95 backdrop-blur-md text-xs uppercase text-muted-foreground sticky top-0 z-20">
+              <tr>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Staff</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Class Assigned (Class Teacher)</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check In</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Check Out</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Working Hours</th>
+                <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Status ({selectedDate})</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id} className="border-t hover:bg-muted/30">
+                  <td className="px-4 py-3 font-medium">{r.name}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant="outline" className={r.assignedClass !== "Not Assigned" ? "bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-medium" : "bg-slate-50 text-slate-500 border-slate-200 text-xs font-normal"}>
+                      {r.assignedClass}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.checkIn}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.checkOut}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.workingHours}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge s={r.status as any} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id} className="border-t hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{r.name}</div>
-                    </td>
-                    <td className="px-4 py-3">{r.department}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.checkIn}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.checkOut}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.workingHours}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge s={r.status as any} />
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">No records found.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">No records found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

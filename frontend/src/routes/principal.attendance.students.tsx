@@ -36,10 +36,10 @@ function StudentAttendancePage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [viewingStudent, setViewingStudent] = useState<any | null>(null);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const { attendance: liveAttendanceRecords } = useLiveAttendance();
+  const { attendance: liveAttendanceRecords } = useLiveAttendance(undefined, selectedDate);
 
   const loadData = () => {
     fetchStudents().then(({ data }) => {
@@ -53,6 +53,11 @@ function StudentAttendancePage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const classOptions = useMemo(() => {
+    const list = Array.from(new Set(studentsList.map((s: any) => s.className || s.class_name || "Nursery"))).filter(Boolean);
+    return list.length > 0 ? list : ["Playgroup", "Nursery", "LKG", "UKG"];
+  }, [studentsList]);
 
   const attendanceData = useMemo(() => {
     return studentsList.map((s: any, idx: number) => {
@@ -111,7 +116,16 @@ function StudentAttendancePage() {
       </div>
 
       <div className="card-elevated p-4 md:p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 shrink-0">
+            <span>Date:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by student name or class..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
@@ -120,10 +134,9 @@ function StudentAttendancePage() {
             <SelectTrigger className="md:w-48"><SelectValue placeholder="Class" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Classes</SelectItem>
-              <SelectItem value="Playgroup">Playgroup</SelectItem>
-              <SelectItem value="Nursery">Nursery</SelectItem>
-              <SelectItem value="LKG">LKG</SelectItem>
-              <SelectItem value="UKG">UKG</SelectItem>
+              {classOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
@@ -139,7 +152,6 @@ function StudentAttendancePage() {
           </Select>
         </div>
 
-
         <div className="mt-4 overflow-x-auto">
           <div className="max-h-[60vh] overflow-y-auto rounded-lg border">
             <table className="w-full text-sm min-w-[600px]">
@@ -147,7 +159,7 @@ function StudentAttendancePage() {
                 <tr>
                   <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Student</th>
                   <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Class & Sec</th>
-                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Today Status</th>
+                  <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-left px-4 py-3 font-medium">Status ({selectedDate})</th>
                   <th className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md text-right px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>

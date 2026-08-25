@@ -9,6 +9,13 @@ import { fetchMergedFeeLedgers, toCanonicalAdmissionNo, type FeeLedgerItem } fro
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { PaymentDetailsModal } from "@/components/fees/PaymentDetailsModal";
 
+import { Edit3 } from "lucide-react";
+import { saveFeeRecord, recalculateFeeLedger } from "@/lib/supabaseService";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
 export const Route = createFileRoute("/admin/fees/payments")({
   component: PaymentsPage,
   head: () => ({ meta: [{ title: "Student Fee Ledger — Sunshine Play School" }] }),
@@ -19,6 +26,11 @@ function PaymentsPage() {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [selectedLedger, setSelectedLedger] = useState<FeeLedgerItem | null>(null);
+
+  // Edit Fee Modal State
+  const [editingLedger, setEditingLedger] = useState<FeeLedgerItem | null>(null);
+  const [editOriginalFee, setEditOriginalFee] = useState("");
+  const [editDiscountAmount, setEditDiscountAmount] = useState("");
 
   const loadData = () => {
     fetchMergedFeeLedgers().then(({ data }) => {
@@ -33,6 +45,41 @@ function PaymentsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const openEditFeeModal = (f: FeeLedgerItem) => {
+    setEditingLedger(f);
+    setEditOriginalFee(String(f.originalFee || f.amount || 15000));
+    setEditDiscountAmount(String(f.discountAmount || 0));
+  };
+
+  const handleSaveFeeStructure = async () => {
+    if (!editingLedger) return;
+    const origFee = Number(editOriginalFee || 0);
+    const discAmt = Number(editDiscountAmount || 0);
+
+    if (isNaN(origFee) || origFee < 0 || isNaN(discAmt) || discAmt < 0) {
+      return toast.error("Fee amounts cannot be negative.");
+    }
+    if (discAmt > origFee) {
+      return toast.error("Discount cannot exceed original total fee.");
+    }
+
+    const res = await saveFeeRecord({
+      ...editingLedger,
+      originalFee: origFee,
+      discountAmount: discAmt,
+    });
+
+    if (!res.success) {
+      return toast.error(res.error || "Failed to persist fee update.");
+    }
+
+    const updated = res.data!;
+    setFeeLedgers((prev) => prev.map((f) => (f.id === editingLedger.id ? updated : f)));
+    setEditingLedger(null);
+
+    toast.success(`Fee structure updated for ${updated.studentName}! Total Applicable Fee: ₹${updated.finalFee.toLocaleString()}`);
+  };
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -75,9 +122,7 @@ function PaymentsPage() {
     const headers = ["Student Name", "Admission No", "Class", "Total Fee", "Total Paid", "Remaining Balance", "Installments Used", "Payment Status"];
     const rows = filtered.map((f) => {
       const finalFee = f.finalFee || (f.originalFee || f.amount || 8500) - (f.discountAmount || 0);
-      const paid = (f.payments && f.payments.length > 0)
-        ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-        : (f.paid || 0);
+      const paid = f.paid || 0;
       const remaining = Math.max(0, finalFee - paid);
       const instCount = f.payments?.length || (paid > 0 ? 1 : 0);
 
@@ -152,12 +197,8 @@ function PaymentsPage() {
           total={filtered.length}
         >
           {filtered.map((f) => {
-            const origFee = f.originalFee || f.amount || 8500;
-            const discAmt = f.discountAmount || 0;
-            const finalFee = f.finalFee || origFee - discAmt;
-            const paid = (f.payments && f.payments.length > 0)
-              ? f.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-              : (f.paid || 0);
+            const finalFee = f.finalFee || (f.originalFee || f.amount || 8500) - (f.discountAmount || 0);
+            const paid = f.paid || 0;
             const remaining = Math.max(0, finalFee - paid);
             const instCount = f.payments?.length || (paid > 0 ? 1 : 0);
 
@@ -180,9 +221,14 @@ function PaymentsPage() {
                 </TableCell>
                 <TableCell><StatusBadge status={displayStatus} /></TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="outline" className="rounded-xl h-8 px-2.5 text-xs" onClick={() => setSelectedLedger(f)}>
-                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View Details
-                  </Button>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-amber-700 hover:bg-amber-50 rounded-lg" onClick={() => openEditFeeModal(f)}>
+                      <Edit3 className="mr-1 h-3.5 w-3.5" /> Edit Total Fee
+                    </Button>
+                    <Button size="sm" variant="outline" className="rounded-xl h-8 px-2.5 text-xs" onClick={() => setSelectedLedger(f)}>
+                      <Eye className="mr-1.5 h-3.5 w-3.5" /> View Details
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -195,6 +241,72 @@ function PaymentsPage() {
         onClose={() => setSelectedLedger(null)}
         ledger={selectedLedger}
       />
+
+      {/* Admin Edit Fee Structure Modal */}
+      {editingLedger && (
+        <Dialog open={!!editingLedger} onOpenChange={(o) => !o && setEditingLedger(null)}>
+          <DialogContent className="max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Edit3 className="h-5 w-5 text-amber-600" /> Adjust Student Total Fee
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="font-bold text-slate-800 text-sm">{editingLedger.studentName}</div>
+                <div className="text-slate-500 font-mono text-[11px] mt-0.5">
+                  Adm No: {toCanonicalAdmissionNo(editingLedger.admissionNo, editingLedger.id)} | Class: {editingLedger.className}
+                </div>
+                <div className="text-emerald-700 font-semibold text-[11px] mt-1">
+                  Currently Recorded Paid Amount: ₹{(editingLedger.paid || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Original Total Annual Fee (₹)</Label>
+                <Input
+                  type="number"
+                  value={editOriginalFee}
+                  onChange={(e) => setEditOriginalFee(e.target.value)}
+                  placeholder="e.g. 15000"
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Concession / Discount Amount (₹)</Label>
+                <Input
+                  type="number"
+                  value={editDiscountAmount}
+                  onChange={(e) => setEditDiscountAmount(e.target.value)}
+                  placeholder="e.g. 2000"
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 space-y-1">
+                <div className="flex justify-between font-bold text-indigo-900">
+                  <span>Net Total Applicable Fee:</span>
+                  <span>₹{Math.max(0, Number(editOriginalFee || 0) - Number(editDiscountAmount || 0)).toLocaleString()}</span>
+                </div>
+                <p className="text-[11px] text-indigo-700">
+                  Changing the total fee will safely recalculate balance and status without altering recorded payments.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditingLedger(null)} className="rounded-xl text-xs">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveFeeStructure} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs">
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
