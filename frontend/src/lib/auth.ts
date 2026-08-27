@@ -187,7 +187,7 @@ export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Ses
 
   const cachedSession = getSession();
 
-  if (!authUser) {
+  if (!authUser && !cachedSession) {
     clearAllClientCaches();
     throw redirect({ to: "/" });
   }
