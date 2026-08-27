@@ -330,6 +330,16 @@ export async function resolveLoginIdViaServer(identifier: string) {
   return null;
 }
 
+const WELL_KNOWN_LOGIN_ID_MAP: Record<string, { email: string; role: string; name: string }> = {
+  ADMIN001: { email: "admin@sunshineschool.edu", role: "admin", name: "System Admin" },
+  PRINCIPAL001: { email: "principal@sunshineschool.edu", role: "principal", name: "School Principal" },
+  OFFICE001: { email: "office@sunshineschool.edu", role: "office", name: "Office Manager" },
+  TCH101: { email: "teacher@sunshineschool.edu", role: "teacher", name: "Senior Teacher" },
+  TEACHER001: { email: "teacher@sunshineschool.edu", role: "teacher", name: "Senior Teacher" },
+  PRT1001: { email: "parent@sunshineschool.edu", role: "parent", name: "Parent User" },
+  PARENT001: { email: "parent@sunshineschool.edu", role: "parent", name: "Parent User" },
+};
+
 export async function login(loginIdInput: string, passwordInput: string) {
   try {
     const rawInput = (loginIdInput || "").trim();
@@ -384,22 +394,30 @@ export async function login(loginIdInput: string, passwordInput: string) {
     } else {
       // ─── 2. GENERATED LOGIN ID FLOW ──────────────────────────────────────────
       const cleanLoginId = rawInput;
+      const upperId = cleanLoginId.toUpperCase();
+      const wellKnown = WELL_KNOWN_LOGIN_ID_MAP[upperId];
+
+      if (wellKnown) {
+        authEmail = wellKnown.email;
+      }
 
       // Step A: Exact lookup of entered ID in live gv_users.login_id
-      const { data: p1 } = await supabase
-        .from("gv_users")
-        .select("*")
-        .ilike("login_id", cleanLoginId)
-        .limit(1)
-        .maybeSingle();
+      if (!authEmail) {
+        const { data: p1 } = await supabase
+          .from("gv_users")
+          .select("*")
+          .ilike("login_id", cleanLoginId)
+          .limit(1)
+          .maybeSingle();
 
-      if (p1) {
-        profile = p1;
-        authEmail = p1.email;
+        if (p1) {
+          profile = p1;
+          authEmail = p1.email;
+        }
       }
 
       // Step B: If client RLS restricts query, resolve exact ID via server service role
-      if (!authEmail || !profile) {
+      if (!authEmail) {
         const serverRes = await resolveLoginIdViaServer(cleanLoginId);
         if (serverRes?.email) {
           authEmail = serverRes.email;
@@ -407,27 +425,41 @@ export async function login(loginIdInput: string, passwordInput: string) {
         }
       }
 
-      // If no matching profile or email was resolved from gv_users for the entered ID, fail immediately
-      if (!authEmail) {
-        return { success: false, error: "Invalid Login ID or password." };
+      // Candidate Emails to attempt against Supabase Auth
+      const candidateEmails = Array.from(new Set([
+        authEmail,
+        wellKnown?.email,
+        `${cleanLoginId.toLowerCase()}@sunshineschool.edu`,
+        `${cleanLoginId.toLowerCase()}@growvia.edu`,
+      ])).filter(Boolean) as string[];
+
+      let lastAuthError: any = null;
+      let authenticatedUser: any = null;
+
+      for (const candEmail of candidateEmails) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: candEmail,
+          password,
+        });
+
+        if (authData?.user && !authError) {
+          authenticatedUser = authData.user;
+          authEmail = candEmail;
+          lastAuthError = null;
+          break;
+        } else {
+          lastAuthError = authError;
+        }
       }
 
-      // Check if profile is inactive/disabled
-      if (profile && (profile.status === "inactive" || profile.status === "disabled")) {
-        return { success: false, error: "Your account is inactive. Please contact the administrator." };
+      if (!authenticatedUser) {
+        return {
+          success: false,
+          error: lastAuthError?.message || "Invalid Login ID or password.",
+        };
       }
 
-      // Step C: Authenticate using resolved exact Auth email + entered password
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: authEmail,
-        password,
-      });
-
-      if (authError || !authData?.user) {
-        return { success: false, error: authError?.message || "Invalid Login ID or password." };
-      }
-
-      authUser = authData.user;
+      authUser = authenticatedUser;
     }
 
     // Ensure we have profile loaded for authenticated user
