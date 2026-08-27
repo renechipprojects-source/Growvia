@@ -7,6 +7,7 @@ import { NotificationService } from "./notifications";
 import { API_URL } from "./api";
 import { getUserScopedStorageKey } from "./auth";
 import { dedupeAndCacheFetch, invalidateCache } from "./cacheService";
+import { triggerAutoRefresh } from "./autoRefreshContext";
 
 export type { Student, Teacher, Enquiry, Fee, Expense };
 
@@ -1778,7 +1779,7 @@ export async function saveFeeRecord(fee: FeeLedgerItem): Promise<{ success: bool
   // 1. Persistent local storage cache override (guarantees survival across reloads/reconnects)
   saveStoredFeeOverride(
     recalculated.studentId,
-    recalculated.admissionNo,
+    recalculated.admissionNo || "",
     recalculated.studentName,
     {
       originalFee: recalculated.originalFee,

@@ -15,6 +15,12 @@ import { ClassAssignmentProvider } from "@/lib/classAssignmentContext";
 import { AcademicYearProvider } from "@/lib/academicYearContext";
 import { AutoRefreshProvider } from "@/lib/autoRefreshContext";
 import { useDeveloperSettings } from "@/lib/developerSettingsStore";
+import { StudentDocsProvider } from "@/lib/studentDocsContext";
+import { AlertsProvider } from "@/lib/alertsContext";
+import { InventoryProvider } from "@/lib/inventoryContext";
+import { EnquiryProvider } from "@/lib/enquiryContext";
+import { LeaveProvider } from "@/lib/leaveContext";
+import { ParentProvider } from "@/lib/parentContext";
 
 function NotFoundComponent() {
   return (
@@ -124,13 +130,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-import { StudentDocsProvider } from "@/lib/studentDocsContext";
-import { AlertsProvider } from "@/lib/alertsContext";
-import { InventoryProvider } from "@/lib/inventoryContext";
-import { EnquiryProvider } from "@/lib/enquiryContext";
-import { LeaveProvider } from "@/lib/leaveContext";
-import { ParentProvider } from "@/lib/parentContext";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

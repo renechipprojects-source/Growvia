@@ -207,3 +207,7 @@ export function notifyAutoRefresh(module: ERPModule) {
     } catch {}
   }
 }
+
+export function triggerAutoRefresh(module: ERPModule) {
+  notifyAutoRefresh(module);
+}

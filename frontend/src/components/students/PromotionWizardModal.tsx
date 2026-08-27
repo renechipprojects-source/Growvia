@@ -25,10 +25,10 @@ interface PromotionWizardModalProps {
   onPromoteSuccess?: () => void;
 }
 
-const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
-
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 import { useAcademicYear } from "@/lib/academicYearContext";
+
+const CLASSES = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"] as const;
 
 export function PromotionWizardModal({ open, onClose, onPromoteSuccess }: PromotionWizardModalProps) {
   const { activeYear } = useAcademicYear();

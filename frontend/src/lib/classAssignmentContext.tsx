@@ -262,7 +262,7 @@ export function ClassAssignmentProvider({ children }: { children: ReactNode }) {
         } catch {}
 
         if (a.teacherId) {
-          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId).then(({ data, error }) => {
+          supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("id", a.teacherId).select().then(({ data, error }) => {
             if (error || !data || (Array.isArray(data) && data.length === 0)) {
               supabase.from("gv_users").update({ class_name: clsString, section: a.section }).eq("login_id", a.teacherId);
             }

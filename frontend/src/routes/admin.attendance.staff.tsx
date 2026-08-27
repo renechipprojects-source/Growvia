@@ -58,7 +58,7 @@ export function getClassTeacherAssignment(teacherId: string, teacherName: string
       (m.classTeacher.toLowerCase() === teacherName.toLowerCase() || (m as any).teacherId === teacherId)
   );
   if (masterCT) {
-    return `${masterCT.name || masterCT.className} - ${masterCT.section || "A"}`;
+    return `${masterCT.name || (masterCT as any).className || "Class"} - ${masterCT.section || "A"}`;
   }
 
   return "Not Assigned";

@@ -25,9 +25,9 @@ export async function triggerServerUserProvisioning(params?: {
   const targetRole = (params.role || "teacher").toLowerCase();
   const targetName = (params.name || "User Account").trim();
 
-  // 1. Try Backend Provisioning Endpoint
   const backendUrls = Array.from(new Set([
     BACKEND_URL,
+    "http://localhost:5000",
     "http://localhost:5001",
     "https://growvia-backend-4wp7.onrender.com",
     ""
@@ -297,14 +297,14 @@ export async function resolveLoginIdViaServer(identifier: string) {
   const clean = (identifier || "").trim();
   if (!clean) return null;
 
-  const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const isLocal = typeof window === "undefined" || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const backendUrls = Array.from(new Set([
-    isLocal ? "http://localhost:5001" : BACKEND_URL,
+    "http://localhost:5000",
     BACKEND_URL,
     "http://localhost:5001",
     "https://growvia-backend-4wp7.onrender.com",
     ""
-  ])).filter(Boolean);
+  ])).filter((u) => typeof u === "string");
 
   for (const baseUrl of backendUrls) {
     try {
@@ -362,10 +362,14 @@ export async function login(loginIdInput: string, passwordInput: string) {
       authUser = authData.user;
 
       // Resolve linked live gv_users profile
+      const p1OrFilter = authEmail
+        ? `auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authEmail}`
+        : `auth_user_id.eq.${authUser.id},id.eq.${authUser.id}`;
       const { data: p1 } = await supabase
         .from("gv_users")
         .select("*")
-        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authEmail}`)
+        .or(p1OrFilter)
+        .limit(1)
         .maybeSingle();
 
       if (p1) {
@@ -386,6 +390,7 @@ export async function login(loginIdInput: string, passwordInput: string) {
         .from("gv_users")
         .select("*")
         .ilike("login_id", cleanLoginId)
+        .limit(1)
         .maybeSingle();
 
       if (p1) {
@@ -427,10 +432,14 @@ export async function login(loginIdInput: string, passwordInput: string) {
 
     // Ensure we have profile loaded for authenticated user
     if (!profile) {
+      const p2OrFilter = authUser.email
+        ? `auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`
+        : `auth_user_id.eq.${authUser.id},id.eq.${authUser.id}`;
       const { data: p2 } = await supabase
         .from("gv_users")
         .select("*")
-        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`)
+        .or(p2OrFilter)
+        .limit(1)
         .maybeSingle();
       if (p2) profile = p2;
     }

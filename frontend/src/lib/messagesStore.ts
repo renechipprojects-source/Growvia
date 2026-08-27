@@ -62,12 +62,15 @@ export async function fetchMessagesFromSupabase(): Promise<Message[]> {
       .eq("message_type", "message");
 
     const session = getSession();
-    if (session && (session.role === "teacher" || session.role === "parent" || session.role === "student")) {
+    const roleStr = (session?.role as string) || "";
+    if (session && (roleStr === "teacher" || roleStr === "parent" || roleStr === "student")) {
       const uId = session.linkId || session.loginId;
-      const rName = session.role;
-      query = query.or(
-        `sender_id.eq.${uId},receiver_id.eq.${uId},recipient_user_id.eq.${uId},receiver_role.eq.${rName},receiver_role.eq.all,recipient_role.eq.all`
-      );
+      const rName = roleStr;
+      if (uId) {
+        query = query.or(
+          `sender_id.eq.${uId},receiver_id.eq.${uId},recipient_user_id.eq.${uId},receiver_role.eq.${rName},receiver_role.eq.all,recipient_role.eq.all`
+        );
+      }
     }
 
     const { data, error } = await query.order("created_at", { ascending: false });

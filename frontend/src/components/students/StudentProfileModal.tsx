@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import { getPromotionHistory, getActivityTimeline } from "@/lib/promotionStore";
 import { cn } from "@/lib/utils";
 import { toCanonicalAdmissionNo } from "@/lib/credentials";
 import { useStudentDocs } from "@/lib/studentDocsContext";
+import { fetchStudents } from "@/lib/supabaseService";
+import { fetchAttendanceFromSupabase, getStoredAttendance, type StudentAttendanceEntry } from "@/lib/attendanceStore";
 
 interface StudentProfileModalProps {
   open: boolean;
@@ -18,42 +20,310 @@ interface StudentProfileModalProps {
   onEditStudent?: (student: any) => void;
 }
 
+const mergeStudentData = (base: any, fresh: any) => {
+  if (!fresh) return base;
+  if (!base) return fresh;
+
+  let parentObj: any = {};
+  if (typeof base.parent === "object" && base.parent !== null) {
+    parentObj = { ...base.parent };
+  } else if (typeof base.parent === "string" && base.parent.trim()) {
+    parentObj.name = base.parent.trim();
+  }
+
+  const freshParentName = typeof fresh.parent === "object"
+    ? fresh.parent?.name
+    : (fresh.parent || fresh.parent_name || fresh.fatherName);
+  if (freshParentName && String(freshParentName).trim() && String(freshParentName).trim() !== "N/A" && String(freshParentName).trim() !== "Not provided") {
+    parentObj.name = String(freshParentName).trim();
+  }
+  if (!parentObj.name) parentObj.name = "Parent";
+
+  const freshPhone = fresh.mobile || fresh.phone || (typeof fresh.parent === "object" ? fresh.parent?.phone : undefined);
+  if (freshPhone && String(freshPhone).trim() && String(freshPhone).trim() !== "N/A") {
+    parentObj.phone = String(freshPhone).trim();
+  }
+
+  const freshEmail = fresh.email || fresh.parent_email || fresh.parentEmail || (typeof fresh.parent === "object" ? fresh.parent?.email : undefined);
+  if (freshEmail && String(freshEmail).trim() && String(freshEmail).trim() !== "N/A") {
+    parentObj.email = String(freshEmail).trim();
+  }
+
+  const freshOcc = fresh.occupation || fresh.parent_occupation || (typeof fresh.parent === "object" ? fresh.parent?.occupation : undefined);
+  if (freshOcc && String(freshOcc).trim() && String(freshOcc).trim() !== "N/A") {
+    parentObj.occupation = String(freshOcc).trim();
+  }
+
+  return {
+    ...base,
+    ...fresh,
+    id: base.id || fresh.id,
+    admissionNo: base.admissionNo || fresh.admissionNo || fresh.id || base.id,
+    name: fresh.name || fresh.full_name || base.name,
+    gender: fresh.gender || base.gender,
+    className: fresh.className || fresh.class_name || base.className,
+    section: fresh.section || base.section,
+    rollNo: fresh.rollNo ?? fresh.roll_no ?? base.rollNo,
+    dob: fresh.dob || fresh.dateOfBirth || fresh.date_of_birth || base.dob,
+    bloodGroup: fresh.bloodGroup || fresh.blood_group || base.bloodGroup,
+    address: fresh.address || fresh.residential_address || fresh.residentialAddress || base.address,
+    parent: parentObj,
+    phone: parentObj.phone || fresh.phone || base.phone,
+    email: parentObj.email || fresh.email || base.email,
+    academic: base.academic || fresh.academic,
+    teacherRemarks: fresh.teacherRemarks || fresh.remarks || base.teacherRemarks,
+    attendance: fresh.attendance ?? base.attendance,
+    avatar: fresh.avatar || fresh.photo_url || base.avatar,
+  };
+};
+
 export function StudentProfileModal({ open, onClose, student, onEditStudent }: StudentProfileModalProps) {
   const { activeYear } = useAcademicYear();
   const { getClassTeacher } = useClassAssignments();
   const { get: getDocs } = useStudentDocs();
   const [activeTab, setActiveTab] = useState<"profile" | "promotion" | "timeline">("profile");
+  const [liveStudent, setLiveStudent] = useState<any>(student);
+  const [attendanceStats, setAttendanceStats] = useState<{
+    totalDays: number;
+    presentDays: number;
+    absentDays: number;
+    lateDays: number;
+    leaveDays: number;
+    percentage: number | null;
+    displayStr: string;
+    breakdownStr?: string;
+  }>({
+    totalDays: 0,
+    presentDays: 0,
+    absentDays: 0,
+    lateDays: 0,
+    leaveDays: 0,
+    percentage: null,
+    displayStr: "No attendance records",
+  });
+
+  const computeAttendance = (records: StudentAttendanceEntry[], currentSt: any) => {
+    if (!currentSt) return;
+    const sId = String(currentSt?.id || "").toLowerCase();
+    const admNo = toCanonicalAdmissionNo(currentSt?.admissionNo || currentSt?.id, currentSt?.id).toLowerCase();
+    const sName = String(currentSt?.name || "").toLowerCase();
+
+    const matched = (records || []).filter((r) => {
+      const rId = String(r.studentId || "").toLowerCase();
+      const rAdm = String(r.admissionNo || "").toLowerCase();
+      const rName = String(r.studentName || "").toLowerCase();
+      return (
+        (sId && rId === sId) ||
+        (admNo && (rAdm === admNo || rId === admNo)) ||
+        (sName && rName === sName)
+      );
+    });
+
+    const totalDays = matched.length;
+    if (totalDays > 0) {
+      const presentDays = matched.filter((r) => r.status === "P").length;
+      const absentDays = matched.filter((r) => r.status === "A").length;
+      const lateDays = matched.filter((r) => r.status === "L").length;
+      const leaveDays = matched.filter((r) => r.status === "Lv").length;
+      const pct = Math.round(((presentDays + lateDays) / totalDays) * 100);
+
+      setAttendanceStats({
+        totalDays,
+        presentDays,
+        absentDays,
+        lateDays,
+        leaveDays,
+        percentage: pct,
+        displayStr: `${pct}% Present`,
+        breakdownStr: `${presentDays} Present, ${lateDays} Late, ${absentDays} Absent (${totalDays} total days)`,
+      });
+      return;
+    }
+
+    const fallbackAtt = currentSt?.attendance;
+    if (fallbackAtt !== undefined && fallbackAtt !== null) {
+      if (typeof fallbackAtt === "number") {
+        setAttendanceStats({
+          totalDays: 100,
+          presentDays: Math.round((fallbackAtt / 100) * 100),
+          absentDays: 100 - Math.round((fallbackAtt / 100) * 100),
+          lateDays: 0,
+          leaveDays: 0,
+          percentage: fallbackAtt,
+          displayStr: `${fallbackAtt}% Present`,
+          breakdownStr: `${fallbackAtt}% Present based on enrolled student record`,
+        });
+        return;
+      } else if (typeof fallbackAtt === "object") {
+        const pres = fallbackAtt.present || 0;
+        const abs = fallbackAtt.absent || 0;
+        const late = fallbackAtt.late || 0;
+        const lv = fallbackAtt.leave || 0;
+        const tot = fallbackAtt.total || (pres + abs + late + lv) || 100;
+        const pct = Math.round(((pres + late) / tot) * 100);
+
+        setAttendanceStats({
+          totalDays: tot,
+          presentDays: pres,
+          absentDays: abs,
+          lateDays: late,
+          leaveDays: lv,
+          percentage: pct,
+          displayStr: `${pct}% Present`,
+          breakdownStr: `${pres} Present, ${late} Late, ${abs} Absent (${tot} total days)`,
+        });
+        return;
+      }
+    }
+
+    setAttendanceStats({
+      totalDays: 0,
+      presentDays: 0,
+      absentDays: 0,
+      lateDays: 0,
+      leaveDays: 0,
+      percentage: null,
+      displayStr: "No attendance records",
+    });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    setLiveStudent(student);
+
+    if (open && student?.id) {
+      computeAttendance(getStoredAttendance(), student);
+
+      Promise.all([
+        fetchStudents(),
+        fetchAttendanceFromSupabase()
+      ]).then(([{ data: studentList }, attendanceRecords]) => {
+        if (!isMounted) return;
+
+        const match = (studentList || []).find((s: any) =>
+          s.id === student.id ||
+          (s.admissionNo && student.admissionNo && String(s.admissionNo).toLowerCase() === String(student.admissionNo).toLowerCase()) ||
+          (s.name && student.name && String(s.name).toLowerCase() === String(student.name).toLowerCase())
+        );
+
+        const targetSt = match ? mergeStudentData(student, match) : student;
+        setLiveStudent(targetSt);
+        computeAttendance(attendanceRecords || [], targetSt);
+      }).catch(() => {
+        if (!isMounted) return;
+        computeAttendance(getStoredAttendance(), student);
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open, student?.id]);
 
   if (!student) return null;
 
-  const canonicalAdmNo = toCanonicalAdmissionNo(student.admissionNo || student.id, student.id);
-  const docRecord = getDocs(canonicalAdmNo) || getDocs(student.admissionNo) || getDocs(student.id);
+  const st = liveStudent || student;
 
-  const parentName = typeof student.parent === "object"
-    ? student.parent?.name
-    : student.parent || student.parent_name || student.fatherName || student.guardianName || student.motherName || "N/A";
+  const canonicalAdmNo = toCanonicalAdmissionNo(st.admissionNo || st.id, st.id);
+  const docRecord = getDocs(canonicalAdmNo) || getDocs(st.admissionNo) || getDocs(st.id);
 
-  const parentPhone = typeof student.parent === "object"
-    ? student.parent?.phone
-    : student.phone || student.mobile || student.parentPhone || "N/A";
+  const rawParent = typeof st.parent === "object"
+    ? st.parent?.name
+    : (st.parent || st.parent_name || st.fatherName || st.guardianName || st.motherName);
+  const parentName = (rawParent && String(rawParent).trim() !== "" && String(rawParent).trim() !== "N/A")
+    ? String(rawParent).trim()
+    : "Not provided";
 
-  const studentEmail = student.email || (typeof student.parent === "object" ? student.parent?.email : undefined) || student.parent_email || student.parentEmail || "N/A";
-  const studentAddress = student.address || student.residential_address || student.residentialAddress || "N/A";
-  const studentDob = student.dob || student.dateOfBirth || student.date_of_birth || "N/A";
-  const studentGender = student.gender || student.sex || "N/A";
-  const studentBloodGroup = student.bloodGroup || student.blood_group || "N/A";
-  const studentHouse = student.house || student.houseGroup || "N/A";
-  const studentJoinedOn = student.joinedOn || student.admissionDate || student.created_at || student.admission_date || "N/A";
-  const studentAcademicYear = student.academicYear || student.academic_year || activeYear;
-  const rollNo = student.rollNo ?? student.roll_no;
+  const rawPhone = typeof st.parent === "object" && st.parent?.phone
+    ? st.parent.phone
+    : (st.phone || st.mobile || st.parentPhone);
+  const parentPhone = (rawPhone && String(rawPhone).trim() !== "" && String(rawPhone).trim() !== "N/A")
+    ? String(rawPhone).trim()
+    : "Not provided";
 
-  const avatarUrl = student.avatar || student.avatarSeed || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(student.name)}`;
+  const rawEmail = st.email || (typeof st.parent === "object" ? st.parent?.email : undefined) || st.parent_email || st.parentEmail;
+  const studentEmail = (rawEmail && String(rawEmail).trim() !== "" && String(rawEmail).trim() !== "N/A")
+    ? String(rawEmail).trim()
+    : "Not provided";
 
-  const promotionHistory = getPromotionHistory().filter((p) => p.studentId === student.id);
-  const activityTimeline = getActivityTimeline(student.id);
+  const rawAddress = st.address || st.residential_address || st.residentialAddress;
+  const studentAddress = (rawAddress && String(rawAddress).trim() !== "" && String(rawAddress).trim() !== "N/A")
+    ? String(rawAddress).trim()
+    : "Not provided";
 
-  const attachedDocs = (student.documents && student.documents.length > 0)
-    ? student.documents
+  const rawDob = st.dob || st.dateOfBirth || st.date_of_birth;
+  const studentDob = (rawDob && String(rawDob).trim() !== "" && String(rawDob).trim() !== "N/A")
+    ? String(rawDob).trim()
+    : "Not provided";
+
+  const rawGender = st.gender || st.sex;
+  const studentGender = (rawGender && String(rawGender).trim() !== "" && String(rawGender).trim() !== "N/A")
+    ? String(rawGender).trim()
+    : "Not provided";
+
+  const rawBloodGroup = st.bloodGroup || st.blood_group;
+  const studentBloodGroup = (rawBloodGroup && String(rawBloodGroup).trim() !== "" && String(rawBloodGroup).trim() !== "N/A")
+    ? String(rawBloodGroup).trim()
+    : "Not provided";
+
+  const rawHouse = st.house || st.houseGroup;
+  const studentHouse = (rawHouse && String(rawHouse).trim() !== "" && String(rawHouse).trim() !== "N/A")
+    ? String(rawHouse).trim()
+    : "Not provided";
+
+  const rawAdmissionDate = st.admissionDate || st.joinedOn || st.created_at || st.admission_date;
+  const studentJoinedOn = (rawAdmissionDate && String(rawAdmissionDate).trim() !== "" && String(rawAdmissionDate).trim() !== "N/A")
+    ? String(rawAdmissionDate).trim().slice(0, 10)
+    : "Not provided";
+
+  const rawAcademicYear = st.academicYear || st.academic_year || activeYear;
+  const studentAcademicYear = (rawAcademicYear && String(rawAcademicYear).trim() !== "" && String(rawAcademicYear).trim() !== "N/A")
+    ? String(rawAcademicYear).trim()
+    : "Not provided";
+
+  const rollNo = st.rollNo ?? st.roll_no;
+  const assignedClass = st.className ? `${st.className}${st.section ? `-${st.section}` : ""}` : "Not provided";
+
+  const teacherObj = getClassTeacher(st.className || "Nursery", st.section || "A");
+  const rawClassTeacher = teacherObj?.teacherName || st.classTeacher;
+  const classTeacherName = (rawClassTeacher && String(rawClassTeacher).trim() !== "" && String(rawClassTeacher).trim() !== "Unassigned" && String(rawClassTeacher).trim() !== "N/A")
+    ? String(rawClassTeacher).trim()
+    : "Not provided";
+
+  const avatarUrl = st.avatar || st.avatarSeed || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(st.name || "Student")}`;
+
+  const promotionHistory = getPromotionHistory().filter((p) =>
+    p.studentId === st.id ||
+    p.studentId === canonicalAdmNo ||
+    (p as any).studentName?.toLowerCase() === st.name?.toLowerCase()
+  );
+
+  let activityTimeline = getActivityTimeline(st.id);
+  if (activityTimeline.length === 0) {
+    activityTimeline = getActivityTimeline(canonicalAdmNo);
+  }
+  if (activityTimeline.length === 0) {
+    const allTimeline = getActivityTimeline();
+    activityTimeline = allTimeline.filter((item) =>
+      item.studentId === st.id ||
+      item.studentId === canonicalAdmNo ||
+      (item.description && item.description.toLowerCase().includes(st.name.toLowerCase()))
+    );
+  }
+  if (activityTimeline.length === 0 && st.name) {
+    activityTimeline = [{
+      id: `act-${st.id}-init`,
+      studentId: st.id,
+      title: "Student Enrolled & Registered",
+      description: `Student ${st.name} was formally registered in Class ${assignedClass} for Academic Session ${studentAcademicYear}.`,
+      timestamp: studentJoinedOn !== "Not provided" ? new Date(studentJoinedOn).toISOString() : new Date().toISOString(),
+      category: "Admission",
+      performedBy: "Office Staff",
+    }];
+  }
+
+  const attachedDocs = (st.documents && st.documents.length > 0)
+    ? st.documents
     : (docRecord?.documents && docRecord.documents.length > 0)
       ? docRecord.documents
       : [];
@@ -66,12 +336,12 @@ export function StudentProfileModal({ open, onClose, student, onEditStudent }: S
             <div className="flex items-center gap-3.5">
               <Avatar className="h-14 w-14 border-2 border-indigo-100 shadow-md">
                 <AvatarImage src={avatarUrl} />
-                <AvatarFallback className="font-bold text-indigo-700 bg-indigo-50">{student.name ? student.name[0] : "S"}</AvatarFallback>
+                <AvatarFallback className="font-bold text-indigo-700 bg-indigo-50">{st.name ? st.name[0] : "S"}</AvatarFallback>
               </Avatar>
               <div>
-                <DialogTitle className="text-xl font-bold text-slate-900 leading-snug">{student.name}</DialogTitle>
+                <DialogTitle className="text-xl font-bold text-slate-900 leading-snug">{st.name}</DialogTitle>
                 <div className="text-xs text-slate-500 font-medium mt-0.5">
-                  Admission No: <span className="font-mono font-bold text-slate-700">{canonicalAdmNo}</span> {rollNo ? `· Roll #${rollNo}` : ""} · Class {student.className}{student.section ? `-${student.section}` : ""}
+                  Admission No: <span className="font-mono font-bold text-slate-700">{canonicalAdmNo}</span> {rollNo ? `· Roll #${rollNo}` : ""} · Class {assignedClass}
                 </div>
               </div>
             </div>
@@ -82,15 +352,15 @@ export function StudentProfileModal({ open, onClose, student, onEditStudent }: S
                   variant="outline"
                   onClick={() => {
                     onClose();
-                    onEditStudent(student);
+                    onEditStudent(st);
                   }}
                   className="rounded-xl border-slate-200 text-xs font-semibold hover:bg-slate-50 text-indigo-700"
                 >
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit Details & Certificates
                 </Button>
               )}
-              <Badge className={cn("text-xs px-3 py-1 font-semibold rounded-full shrink-0 border", student.status === "Graduated" ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-emerald-100 text-emerald-800 border-emerald-200")}>
-                {student.status || "Enrolled"}
+              <Badge className={cn("text-xs px-3 py-1 font-semibold rounded-full shrink-0 border", st.status === "Graduated" ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-emerald-100 text-emerald-800 border-emerald-200")}>
+                {st.status || "Enrolled"}
               </Badge>
             </div>
           </div>
@@ -154,14 +424,22 @@ export function StudentProfileModal({ open, onClose, student, onEditStudent }: S
                 <UserCheck className="h-4 w-4 text-emerald-600" /> Academic, Class & Subject Teachers
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
-                <div><span className="text-slate-400 block font-medium">Assigned Class</span><span className="font-semibold text-slate-800">{student.className}{student.section ? `-${student.section}` : ""}</span></div>
+                <div><span className="text-slate-400 block font-medium">Assigned Class</span><span className="font-semibold text-slate-800">{assignedClass}</span></div>
                 <div>
                   <span className="text-slate-400 block font-medium">Class Teacher</span>
-                  <span className="font-bold text-indigo-700">
-                    {getClassTeacher(student.className || "Nursery", student.section || "A")?.teacherName || student.classTeacher || "Unassigned"}
-                  </span>
+                  <span className="font-bold text-indigo-700">{classTeacherName}</span>
                 </div>
-                <div><span className="text-slate-400 block font-medium">Attendance Rate</span><span className="font-bold text-emerald-600">{(student.attendance !== undefined && student.attendance !== null) ? `${student.attendance}% Present` : (student.attendance_pct !== undefined ? `${student.attendance_pct}% Present` : "N/A")}</span></div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Attendance Rate</span>
+                  <span className={cn("font-bold", attendanceStats.percentage !== null ? "text-emerald-600" : "text-slate-500 font-semibold")}>
+                    {attendanceStats.displayStr}
+                  </span>
+                  {attendanceStats.breakdownStr && (
+                    <span className="block text-[10px] text-slate-500 font-normal mt-0.5">
+                      {attendanceStats.breakdownStr}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

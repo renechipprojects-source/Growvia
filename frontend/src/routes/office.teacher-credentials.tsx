@@ -575,8 +575,6 @@ function AddStaffDialog({ open, onClose, onAdd }: { open: boolean; onClose: () =
       experience: 0,
       joined: joiningDate,
       branch: "Main Campus",
-      department,
-      role,
     };
 
     onAdd(newTeacher);

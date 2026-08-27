@@ -55,10 +55,14 @@ function Login() {
         }
 
         // Valid Supabase Auth user exists — load live profile from gv_users
+        const indexOrFilter = user.email
+          ? `auth_user_id.eq.${user.id},id.eq.${user.id},email.ilike.${user.email}`
+          : `auth_user_id.eq.${user.id},id.eq.${user.id}`;
         const { data: profile } = await supabase
           .from("gv_users")
           .select("id, auth_user_id, login_id, role, full_name, status, must_change_password")
-          .or(`auth_user_id.eq.${user.id},id.eq.${user.id},email.ilike.${user.email}`)
+          .or(indexOrFilter)
+          .limit(1)
           .maybeSingle();
 
         const activeRole = profile?.role || user.user_metadata?.role;

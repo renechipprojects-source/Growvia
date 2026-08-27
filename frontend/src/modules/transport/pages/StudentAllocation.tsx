@@ -77,9 +77,12 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
         );
 
         if (match) {
-          const opted = match.transportOpted || match.transport_required || "Yes";
-          const mode = match.transportMode || match.transport_mode || (match.direction === "Pickup" || match.direction === "Drop" || match.transport_direction === "Pickup" || match.transport_direction === "Drop" ? "One Way" : "Two Way");
-          const dir = match.direction || match.transport_direction || (mode === "One Way" ? "Pickup" : "Both");
+          const rawOpted = match.transportOpted || match.transport_required;
+          const opted: "Yes" | "No" = rawOpted === "No" ? "No" : "Yes";
+          const rawMode = match.transportMode || match.transport_mode;
+          const mode: "One Way" | "Two Way" = rawMode === "One Way" || match.direction === "Pickup" || match.direction === "Drop" || match.transport_direction === "Pickup" || match.transport_direction === "Drop" ? "One Way" : "Two Way";
+          const rawDir = match.direction || match.transport_direction;
+          const dir: "Pickup" | "Drop" | "Both" = rawDir === "Drop" ? "Drop" : rawDir === "Pickup" ? "Pickup" : "Both";
           return {
             id: match.id || `ALC-${s.id}`,
             studentId: s.id,
@@ -96,7 +99,7 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
             pickupStop: match.pickupStop || match.pickupPoint || "",
             dropStop: match.dropStop || match.dropPoint || "",
             monthlyFee: Number(match.monthlyFee || 0),
-            status: match.status || "Active",
+            status: match.status === "Inactive" ? "Inactive" : "Active",
           };
         } else {
           return {
@@ -236,7 +239,7 @@ export function StudentAllocationPage({ readOnly }: { readOnly?: boolean }) {
     <div className="w-full max-w-none space-y-6">
       <PageHeader
         title="Student Transport Allocation"
-        subtitle="Manage student bus assignments, pickup/drop directions, and monthly transport fees."
+        description="Manage student bus assignments, pickup/drop directions, and monthly transport fees."
       />
 
       {/* Summary KPI Cards */}

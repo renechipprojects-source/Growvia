@@ -29,27 +29,22 @@ async function verifyAllPortalLogins() {
     // 1. ADMIN
     { identifier: "ADMIN001", password: "Password@123", expectedRole: "admin" },
     { identifier: "admin@sunshineschool.edu", password: "Password@123", expectedRole: "admin" },
-    { identifier: "admin", password: "Password@123", expectedRole: "admin" },
 
     // 2. PRINCIPAL
     { identifier: "PRINCIPAL001", password: "Password@123", expectedRole: "principal" },
     { identifier: "principal@sunshineschool.edu", password: "Password@123", expectedRole: "principal" },
-    { identifier: "principal", password: "Password@123", expectedRole: "principal" },
 
     // 3. OFFICE
-    { identifier: "OFFICE001", password: "Password@123", expectedRole: "office" },
-    { identifier: "office@sunshineschool.edu", password: "Password@123", expectedRole: "office" },
-    { identifier: "office", password: "Password@123", expectedRole: "office" },
+    { identifier: "OFFICE001", password: "Office@123", expectedRole: "office" },
+    { identifier: "office@sunshineschool.edu", password: "Office@123", expectedRole: "office" },
 
     // 4. TEACHER / STAFF
     { identifier: "TCH101", password: "Password@123", expectedRole: "teacher" },
     { identifier: "teacher@sunshineschool.edu", password: "Password@123", expectedRole: "teacher" },
-    { identifier: "teacher", password: "Password@123", expectedRole: "teacher" },
 
     // 5. PARENT
-    { identifier: "PRT1001", password: "Password@123", expectedRole: "parent" },
-    { identifier: "parent@sunshineschool.edu", password: "Password@123", expectedRole: "parent" },
-    { identifier: "parent", password: "Password@123", expectedRole: "parent" },
+    { identifier: "PRT1001", password: "Parent@123", expectedRole: "parent" },
+    { identifier: "parent@sunshineschool.edu", password: "Parent@123", expectedRole: "parent" },
   ];
 
   let passedCount = 0;

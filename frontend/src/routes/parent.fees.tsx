@@ -8,6 +8,8 @@ import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { useT } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { fetchFees, getParentFeeView, type FeeLedgerItem } from "@/lib/supabaseService";
+import { Clock, Printer } from "lucide-react";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/parent/fees")({ component: ParentFees });
 

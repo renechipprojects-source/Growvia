@@ -6,7 +6,7 @@ import { fetchStudents, updateStudent, toCanonicalAdmissionNo } from "@/lib/supa
 import { StudentProfileModal } from "@/components/students/StudentProfileModal";
 import { EditStudentModal } from "@/components/students/EditStudentModal";
 import { PromotionWizardModal } from "@/components/students/PromotionWizardModal";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, GraduationCap, Users, User, Camera, Upload, Trash2, Loader2, UserCheck, Edit } from "lucide-react";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-
-export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 function OfficeStudents() {
@@ -384,3 +382,6 @@ function OfficeStudents() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/office/students")({ component: OfficeStudents });
+export default OfficeStudents;

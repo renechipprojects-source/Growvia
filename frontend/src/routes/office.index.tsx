@@ -1,24 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui-blocks";
-import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
-import { fetchStudents, fetchEnquiries, fetchFees } from "@/lib/supabaseService";
 import { Users, ClipboardCheck, Bell, CreditCard } from "lucide-react";
 import { useAlerts } from "@/lib/alertsContext";
 import { RecentCircularWidget } from "@/components/circulars/RecentCircularWidget";
-import { AnnualPromotionLifecycleSection } from "@/components/promotion/AnnualPromotionLifecycleSection";
-
 import { getOfficeDashboardStats } from "@/lib/dashboardStatsService";
 import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/office/")({ component: Dash });
-
-const priorityChip: Record<string, string> = {
-  Urgent: "bg-rose-100 text-rose-700",
-  High: "bg-amber-100 text-amber-700",
-  Normal: "bg-emerald-100 text-emerald-700",
-  Low: "bg-slate-100 text-slate-700",
-};
 
 function Dash() {
   const { liveFor } = useAlerts();
@@ -83,13 +72,8 @@ function Dash() {
         />
       </div>
 
-      <div className="mt-6 grid lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2">
-          <AnnualPromotionLifecycleSection />
-        </div>
-        <div>
-          <RecentCircularWidget role="office" viewAllLink="/office/circulars" />
-        </div>
+      <div className="mt-6">
+        <RecentCircularWidget role="office" viewAllLink="/office/circulars" />
       </div>
 
       <div className="mt-4">

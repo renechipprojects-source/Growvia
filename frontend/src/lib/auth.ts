@@ -179,9 +179,11 @@ export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Ses
       authUser = sessionData.session.user;
     } else {
       const { data: userData } = await supabase.auth.getUser();
-      authUser = userData?.user;
+      authUser = userData?.user ?? null;
     }
-  } catch {}
+  } catch {
+    authUser = null;
+  }
 
   const cachedSession = getSession();
 
@@ -193,10 +195,14 @@ export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Ses
   let profile: any = null;
   if (authUser) {
     try {
+      const orFilter = authUser.email
+        ? `auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`
+        : `auth_user_id.eq.${authUser.id},id.eq.${authUser.id}`;
       const { data: p } = await supabase
         .from("gv_users")
         .select("*")
-        .or(`auth_user_id.eq.${authUser.id},id.eq.${authUser.id},email.ilike.${authUser.email}`)
+        .or(orFilter)
+        .limit(1)
         .maybeSingle();
       if (p) profile = p;
     } catch {}
@@ -216,18 +222,26 @@ export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Ses
     throw redirect({ to: "/" });
   }
 
-  const activeRole: Role = (profile?.role || authUser?.user_metadata?.role || cachedSession?.role) as Role;
-  const activeLoginId = profile?.login_id || authUser?.user_metadata?.login_id || cachedSession?.loginId || authUser?.email || "user";
-  const activeName = profile?.full_name || authUser?.user_metadata?.full_name || cachedSession?.name || "User";
-  const activeMustChange = Boolean(profile?.must_change_password ?? cachedSession?.mustChangePassword);
+  const isCacheMatch = cachedSession && (
+    (profile?.login_id && cachedSession.loginId === profile.login_id) ||
+    (authUser?.email && cachedSession.email === authUser.email) ||
+    (authUser?.user_metadata?.login_id && cachedSession.loginId === authUser.user_metadata.login_id)
+  );
+  const validCachedSession = isCacheMatch ? cachedSession : null;
+
+  const activeRole: Role = (profile?.role || authUser?.user_metadata?.role || validCachedSession?.role) as Role;
+  const activeLoginId = profile?.login_id || authUser?.user_metadata?.login_id || validCachedSession?.loginId || authUser?.email || "user";
+  const activeName = profile?.full_name || authUser?.user_metadata?.full_name || validCachedSession?.name || "User";
+  const activeMustChange = Boolean(profile?.must_change_password ?? validCachedSession?.mustChangePassword);
 
   if (!activeRole) {
+    clearAllClientCaches();
     throw redirect({ to: "/" });
   }
 
   const liveSession: Session = {
     loginId: activeLoginId,
-    email: authUser?.email || profile?.email || cachedSession?.email,
+    email: authUser?.email || profile?.email || validCachedSession?.email,
     role: activeRole,
     name: activeName,
     mustChangePassword: activeMustChange,

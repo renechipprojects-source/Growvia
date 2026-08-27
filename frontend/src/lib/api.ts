@@ -12,5 +12,5 @@ export const API_URL = (
   env.VITE_API_URL ||
   env.VITE_API_BASE_URL ||
   env.API_URL ||
-  (isLocal ? "http://localhost:5001" : "https://growvia-backend-4wp7.onrender.com")
+  (isLocal ? "http://localhost:5000" : "https://growvia-backend-4wp7.onrender.com")
 ).replace(/\/$/, "");

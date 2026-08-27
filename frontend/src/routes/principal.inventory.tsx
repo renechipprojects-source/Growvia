@@ -41,7 +41,7 @@ export const Route = createFileRoute("/principal/inventory")({
 });
 
 function InventoryPage() {
-  const { items, categories, vendors, purchases, movements, lowStock } = useInventory();
+  const { items, categories, vendors, purchases, movements, lowStock, updateItem, deleteItem } = useInventory();
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [expensesList, setExpensesList] = useState<Expense[]>([]);
@@ -134,10 +134,9 @@ function InventoryPage() {
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => {
-                          const invStore = useInventory.getState ? useInventory.getState() : null;
                           const addAmount = prompt(`Restock "${i.name}". Enter additional quantity:`, "10");
                           if (addAmount && !isNaN(Number(addAmount)) && Number(addAmount) > 0) {
-                            if (invStore) invStore.updateItem(i.id, { qty: i.qty + Number(addAmount) });
+                            updateItem(i.id, { qty: i.qty + Number(addAmount) });
                           }
                         }}
                         className="px-2 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
@@ -147,9 +146,8 @@ function InventoryPage() {
                       </button>
                       <button
                         onClick={() => {
-                          const invStore = useInventory.getState ? useInventory.getState() : null;
                           if (confirm(`Delete "${i.name}" from inventory?`)) {
-                            if (invStore) invStore.deleteItem(i.id);
+                            deleteItem(i.id);
                           }
                         }}
                         className="px-2 py-1 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition"

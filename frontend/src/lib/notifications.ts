@@ -323,7 +323,7 @@ if (typeof window !== "undefined") {
   syncLiveDatabaseNotifications();
 
   window.addEventListener("storage", (e) => {
-    if (e.key === NOTIF_STORAGE_KEY && e.newValue) {
+    if ((e.key === BASE_NOTIF_STORAGE_KEY || (e.key && e.key.startsWith("sunshine.notifications"))) && e.newValue) {
       try {
         store = JSON.parse(e.newValue);
         emit();

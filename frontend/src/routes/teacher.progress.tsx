@@ -21,6 +21,7 @@ export const Route = createFileRoute("/teacher/progress")({ component: Progressi
 const DEFAULT_CLASSES: ClassName[] = ["Playgroup", "Nursery", "LKG", "UKG", "Grade 1", "Grade 2"];
 const DEFAULT_SECTIONS: Section[] = ["A", "B", "C"];
 const ASSESSMENTS = ["Unit Test 1", "Unit Test 2", "Mid Term", "Final Term"];
+const SUBJECTS = ["English", "Mathematics", "EVS", "General Science", "Hindi"];
 
 function gradeFor(pct: number): string {
   if (pct >= 90) return "A+";

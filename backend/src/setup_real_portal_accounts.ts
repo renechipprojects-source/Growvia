@@ -57,7 +57,7 @@ async function setupRealPortalAccounts() {
       role: "office",
       full_name: "Office Manager",
       mobile: "9876543212",
-      password: "Password@123",
+      password: "Office@123",
     },
     {
       login_id: "TCH101",
@@ -73,7 +73,7 @@ async function setupRealPortalAccounts() {
       role: "parent",
       full_name: "Parent User",
       mobile: "9876543214",
-      password: "Password@123",
+      password: "Parent@123",
     },
   ];
 

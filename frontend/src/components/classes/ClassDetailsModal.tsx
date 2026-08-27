@@ -56,7 +56,7 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
       let sumAttendance = 0;
       let validAttCount = 0;
 
-      classStudents.forEach((s) => {
+      classStudents.forEach((s: any) => {
         if (s.attendance !== undefined && s.attendance !== null && s.attendance !== "") {
           const num = typeof s.attendance === "number" ? s.attendance : parseFloat(String(s.attendance));
           if (!isNaN(num)) {
@@ -87,7 +87,7 @@ export function ClassDetailsModal({ open, onClose, classInfo, studentsList = [] 
     let feeRate = 100;
 
     if (totalCount > 0) {
-      classStudents.forEach((s) => {
+      classStudents.forEach((s: any) => {
         const st = (s.feeStatus || s.fee_status || "").toString().trim().toLowerCase();
         if (st === "paid") {
           paidStudents++;

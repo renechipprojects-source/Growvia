@@ -255,7 +255,7 @@ function FeeCollection() {
     const newTxn: PaymentTransaction = {
       id: `TXN-${Date.now()}`,
       feeLedgerId: activeLedger.id,
-      studentId: activeLedger.studentId || activeLedger.admissionNo,
+      studentId: activeLedger.studentId || activeLedger.admissionNo || activeLedger.id,
       receiptNo: rcptNo,
       amount: paidAmt,
       date,

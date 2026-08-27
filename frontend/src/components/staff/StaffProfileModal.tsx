@@ -73,11 +73,13 @@ export function StaffProfileModal({ open, onClose, staffId, readOnly = false, on
     }
   };
 
+  const roleStr = (currentSession?.role as string | undefined) || "";
   const isAdmin = Boolean(
-    currentSession?.role === "admin" ||
-    currentSession?.role === "superadmin" ||
-    currentSession?.role === "principal" ||
-    currentSession?.role === "office"
+    roleStr === "super-admin" ||
+    roleStr === "admin" ||
+    roleStr === "superadmin" ||
+    roleStr === "principal" ||
+    roleStr === "office"
   );
 
   const isAdminFieldDisabled = readOnly || !isAdmin;

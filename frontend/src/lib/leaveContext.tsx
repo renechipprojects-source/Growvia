@@ -42,10 +42,13 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
       .eq("request_type", "leave");
 
     const session = getSession();
-    if (session && (session.role === "parent" || session.role === "student")) {
+    const roleStr = (session?.role as string) || "";
+    if (session && (roleStr === "parent" || roleStr === "student")) {
       const uId = session.linkId || session.loginId;
-      query = query.or(`applicant_or_child_name.eq.${uId},reason_or_notes.cs.{"studentId":"${uId}"}`);
-    } else if (session && session.role === "teacher") {
+      if (uId) {
+        query = query.or(`applicant_or_child_name.eq.${uId},reason_or_notes.cs.{"studentId":"${uId}"}`);
+      }
+    } else if (session && roleStr === "teacher") {
       const teacherId = safeNormalizeId(session.linkId || session.loginId);
       const teacherAssignments = getStoredAssignments().filter(
         (a) => a.status === "active" && safeNormalizeId(a.teacherId) === teacherId
@@ -86,7 +89,7 @@ export async function fetchLeaveRequestsFromSupabase(): Promise<LeaveRequest[]> 
       };
     });
 
-    if (session && session.role === "teacher") {
+    if (session && roleStr === "teacher") {
       const teacherId = safeNormalizeId(session.linkId || session.loginId);
       const teacherAssignments = getStoredAssignments().filter(
         (a) => a.status === "active" && safeNormalizeId(a.teacherId) === teacherId
