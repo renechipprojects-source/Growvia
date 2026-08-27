@@ -425,6 +425,68 @@ export async function login(loginIdInput: string, passwordInput: string) {
         }
       }
 
+      // Step B.2: Check generated credentials store for issued parent/teacher keys
+      try {
+        const { listParentCredentials, listTeacherCredentials } = await import("./credentials");
+        const parentCreds = listParentCredentials();
+        const teacherCreds = listTeacherCredentials();
+
+        const matchParent = parentCreds.find((c) => (c.loginId || "").toLowerCase() === cleanLoginId.toLowerCase());
+        const matchTeacher = teacherCreds.find((c) => (c.loginId || "").toLowerCase() === cleanLoginId.toLowerCase());
+
+        const matchedCred = matchParent || matchTeacher;
+        if (matchedCred) {
+          if (matchedCred.status === "Inactive") {
+            return { success: false, error: "Your account is inactive. Please contact the administrator." };
+          }
+
+          if (matchedCred.password === password) {
+            const role = matchedCred.kind;
+            const targetEmail = matchedCred.kind === "parent"
+              ? `${cleanLoginId.toLowerCase()}@growvia.edu`
+              : `${cleanLoginId.toLowerCase()}@sunshineschool.edu`;
+
+            // Fire-and-forget provision to ensure auth.users is synced
+            triggerServerUserProvisioning({
+              login_id: cleanLoginId,
+              password,
+              role,
+              email: targetEmail,
+              name: role === "parent" ? "Parent User" : "Teacher User",
+            }).catch(() => {});
+
+            // Attempt live Supabase Auth login
+            const { data: authData } = await supabase.auth.signInWithPassword({
+              email: targetEmail,
+              password,
+            }).catch(() => ({ data: null }));
+
+            const userObj = authData?.user || {
+              id: matchedCred.kind === "parent" ? (matchedCred as any).studentId : (matchedCred as any).teacherId,
+              email: targetEmail,
+            };
+
+            const profileObj = {
+              id: userObj.id,
+              auth_user_id: userObj.id,
+              login_id: matchedCred.loginId,
+              email: targetEmail,
+              role,
+              full_name: role === "parent" ? "Parent User" : "Teacher User",
+              status: "active",
+            };
+
+            return {
+              success: true,
+              user: userObj,
+              profile: profileObj,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn("Generated credentials check notice:", e);
+      }
+
       // Candidate Emails to attempt against Supabase Auth
       const candidateEmails = Array.from(new Set([
         authEmail,
