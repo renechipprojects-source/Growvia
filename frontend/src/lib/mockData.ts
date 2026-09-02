@@ -32,6 +32,7 @@ export interface Student {
   documents?: Array<{ name: string; status: string }>;
   occupation?: string;
   parentOccupation?: string;
+  status?: string;
 }
 
 export interface Teacher {

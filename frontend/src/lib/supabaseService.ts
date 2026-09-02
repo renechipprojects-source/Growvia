@@ -560,6 +560,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
               avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
               attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
               branch: d.branch || "Main Branch",
+              status: d.status || d.student_status || d.enrollment_status || "Active",
             };
           });
 
@@ -649,6 +650,7 @@ export async function fetchStudents(classNameFilter?: string, sectionFilter?: st
             avatar: d.photo_url || d.avatar_url || d.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(d.full_name || d.name || "Student")}`,
             attendance: (d.attendance_pct !== undefined && d.attendance_pct !== null) ? Number(d.attendance_pct) : (d.attendance !== undefined ? Number(d.attendance) : undefined as any),
             branch: d.branch || "Main Branch",
+            status: d.status || d.student_status || d.enrollment_status || "Active",
           };
         });
 

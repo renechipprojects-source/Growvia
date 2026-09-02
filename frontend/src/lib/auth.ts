@@ -222,12 +222,7 @@ export async function requireAuthGuard(allowedRoles: Role | Role[]): Promise<Ses
     throw redirect({ to: "/" });
   }
 
-  const isCacheMatch = cachedSession && (
-    (profile?.login_id && cachedSession.loginId === profile.login_id) ||
-    (authUser?.email && cachedSession.email === authUser.email) ||
-    (authUser?.user_metadata?.login_id && cachedSession.loginId === authUser.user_metadata.login_id)
-  );
-  const validCachedSession = isCacheMatch ? cachedSession : null;
+  const validCachedSession = cachedSession;
 
   const activeRole: Role = (profile?.role || authUser?.user_metadata?.role || validCachedSession?.role) as Role;
   const activeLoginId = profile?.login_id || authUser?.user_metadata?.login_id || validCachedSession?.loginId || authUser?.email || "user";
