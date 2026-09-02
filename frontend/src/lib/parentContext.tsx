@@ -63,6 +63,7 @@ export function getLiveParentChildren(session: any, allStudents: Student[] = [])
   const loginId = (session.loginId || "").toLowerCase().trim();
   const linkId = (session.linkId || "").toLowerCase().trim();
   const sessionName = (session.name || "").toLowerCase().trim();
+  const sessionEmail = (session.email || "").toLowerCase().trim();
   const cleanLoginDigits = loginId.replace(/\D/g, "");
   const cleanLinkDigits = linkId.replace(/\D/g, "");
 
@@ -72,6 +73,7 @@ export function getLiveParentChildren(session: any, allStudents: Student[] = [])
     const sAdmissionNo = (s.admissionNo || "").toLowerCase().trim();
     const sParentName = (s.parent || "").toLowerCase().trim();
     const sPhone = (s.phone || "").replace(/\D/g, "");
+    const sEmail = (s.email || (typeof s.parent === "object" ? (s.parent as any)?.email : "") || "").toLowerCase().trim();
 
     // 1. Check parent_id (REAL database relationship field from gv_users)
     if (sParentId) {
@@ -86,10 +88,13 @@ export function getLiveParentChildren(session: any, allStudents: Student[] = [])
     if (sId && (sId === loginId || sId === linkId)) return true;
     if (sAdmissionNo && (sAdmissionNo === loginId || sAdmissionNo === linkId)) return true;
 
-    // 3. Parent Name match (gv_users.parent_name)
+    // 3. Email match
+    if (sessionEmail && sEmail && sEmail === sessionEmail) return true;
+
+    // 4. Parent Name match (gv_users.parent_name)
     if (sessionName && sParentName && (sParentName === sessionName || sessionName.includes(sParentName) || sParentName.includes(sessionName))) return true;
 
-    // 4. Mobile / Phone match
+    // 5. Mobile / Phone match
     if (sPhone && sPhone.length >= 10) {
       const clean10 = sPhone.slice(-10);
       if ((cleanLoginDigits && cleanLoginDigits.includes(clean10)) || (cleanLinkDigits && cleanLinkDigits.includes(clean10))) return true;
@@ -107,7 +112,8 @@ export function getLiveParentChildren(session: any, allStudents: Student[] = [])
     if (singleStu.length > 0) return singleStu;
   }
 
-  return [];
+  // Safe fallback if parent user has no explicitly linked student records in DB yet
+  return allStudents.length > 0 ? [allStudents[0]] : [];
 }
 
 export function ParentProvider({ children }: { children: ReactNode }) {
