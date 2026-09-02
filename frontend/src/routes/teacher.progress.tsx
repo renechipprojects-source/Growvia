@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Save, RotateCcw, TrendingUp, Award, AlertTriangle, ArrowUpDown, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { getClassAssignments, getSubjectAssignments } from "@/lib/teacherContext";
+import { useAutoRefresh } from "@/lib/autoRefreshContext";
 
 export const Route = createFileRoute("/teacher/progress")({ component: Progression });
 
@@ -263,33 +264,59 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   const [query, setQuery] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [rows, setRows] = useState<Record<string, MarkRow>>({});
+  const [baselineMap, setBaselineMap] = useState<Record<string, { outOf: number; score: number; remarks: string }>>({});
   const [saving, setSaving] = useState(false);
+  const { setFormEditing } = useAutoRefresh();
 
   // Seed rows for current class/section/subject/assessment from Supabase
   const seededKey = `${className}-${section}-${subject}-${assessment}`;
-  useEffect(() => {
+
+  const loadData = useCallback(() => {
+    if (!students || students.length === 0) return;
     fetchClassMarks(className, section).then((allMarks) => {
       const currentMap: Record<string, MarkRecord> = {};
-      allMarks
-        .filter((m) => m.subject === subject && m.assessment === assessment)
-        .forEach((m) => { currentMap[m.studentId] = m; });
+      (allMarks || [])
+        .filter(
+          (m) =>
+            m.subject.toLowerCase().trim() === subject.toLowerCase().trim() &&
+            m.assessment.toLowerCase().trim() === assessment.toLowerCase().trim()
+        )
+        .forEach((m) => {
+          if (m.studentId) currentMap[m.studentId.toLowerCase()] = m;
+        });
 
-      const next: Record<string, MarkRow> = {};
+      const nextRows: Record<string, MarkRow> = {};
+      const nextBase: Record<string, { outOf: number; score: number; remarks: string }> = {};
+
       students.forEach((s) => {
-        const existing = currentMap[s.id];
-        next[s.id] = {
+        const sIdKey = (s.id || "").toLowerCase();
+        const sAdmKey = (s.admissionNo || "").toLowerCase();
+        const existing = currentMap[sIdKey] || currentMap[sAdmKey];
+
+        const outOf = existing ? Number(existing.outOf ?? 100) : 100;
+        const score = existing ? Number(existing.score ?? 0) : 0;
+        const remarks = existing ? (existing.remarks || "") : "";
+
+        nextBase[s.id] = { outOf, score, remarks };
+        nextRows[s.id] = {
           studentId: s.id,
           rollNo: s.rollNo,
           name: s.name,
-          outOf: existing ? existing.outOf : 100,
-          score: existing ? existing.score : 0,
-          remarks: existing ? existing.remarks : "",
+          outOf,
+          score,
+          remarks,
           dirty: false,
         };
       });
-      setRows(next);
+
+      setBaselineMap(nextBase);
+      setRows(nextRows);
     });
-  }, [seededKey, students]);
+  }, [className, section, subject, assessment, students]);
+
+  useEffect(() => {
+    loadData();
+  }, [seededKey, students.length]);
 
   const visible = useMemo(() => {
     const list = students
@@ -298,10 +325,42 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
     return list;
   }, [students, query, sortAsc]);
 
-  const dirtyCount = Object.values(rows).filter((r) => r.dirty).length;
+  const update = (id: string, patch: Partial<MarkRow>) => {
+    setRows((prev) => {
+      const curr = prev[id] || {
+        studentId: id,
+        rollNo: 1,
+        name: "Student",
+        outOf: 100,
+        score: 0,
+        remarks: "",
+        dirty: false,
+      };
 
-  const update = (id: string, patch: Partial<MarkRow>) =>
-    setRows((r) => ({ ...r, [id]: { ...r[id], ...patch, dirty: true } }));
+      const nextRow = { ...curr, ...patch };
+      const base = baselineMap[id] || { outOf: 100, score: 0, remarks: "" };
+      const isDirty =
+        Number(nextRow.outOf) !== Number(base.outOf) ||
+        Number(nextRow.score) !== Number(base.score) ||
+        String(nextRow.remarks || "").trim() !== String(base.remarks || "").trim();
+
+      return {
+        ...prev,
+        [id]: {
+          ...nextRow,
+          dirty: isDirty,
+        },
+      };
+    });
+  };
+
+  const dirtyCount = useMemo(() => {
+    return Object.values(rows).filter((r) => r.dirty).length;
+  }, [rows]);
+
+  useEffect(() => {
+    setFormEditing(dirtyCount > 0);
+  }, [dirtyCount, setFormEditing]);
 
   const save = async () => {
     const toSave = Object.values(rows)
@@ -314,9 +373,9 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
         section,
         subject,
         assessment,
-        outOf: r.outOf,
-        score: r.score,
-        remarks: r.remarks,
+        outOf: Number(r.outOf || 100),
+        score: Number(r.score || 0),
+        remarks: r.remarks || "",
       }));
 
     if (toSave.length === 0) return;
@@ -326,7 +385,22 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
       const { count, error } = await saveClassMarks(toSave);
       if (error) throw new Error(error);
       toast.success(`Saved ${count} update${count === 1 ? "" : "s"} for ${subject} · ${assessment}`);
-      setRows((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { ...v, dirty: false }])));
+
+      const updatedBase = { ...baselineMap };
+      toSave.forEach((s) => {
+        updatedBase[s.studentId] = { outOf: s.outOf, score: s.score, remarks: s.remarks };
+      });
+      setBaselineMap(updatedBase);
+
+      setRows((prev) => {
+        const next = { ...prev };
+        toSave.forEach((s) => {
+          if (next[s.studentId]) {
+            next[s.studentId] = { ...next[s.studentId], dirty: false };
+          }
+        });
+        return next;
+      });
     } catch (err: any) {
       toast.error(err?.message || "Failed to save marks.");
     } finally {
@@ -335,28 +409,8 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   };
 
   const cancel = () => {
-    fetchClassMarks(className, section).then((allMarks) => {
-      const currentMap: Record<string, MarkRecord> = {};
-      allMarks
-        .filter((m) => m.subject === subject && m.assessment === assessment)
-        .forEach((m) => { currentMap[m.studentId] = m; });
-
-      const next: Record<string, MarkRow> = {};
-      students.forEach((s) => {
-        const existing = currentMap[s.id];
-        next[s.id] = {
-          studentId: s.id,
-          rollNo: s.rollNo,
-          name: s.name,
-          outOf: existing ? existing.outOf : 100,
-          score: existing ? existing.score : 0,
-          remarks: existing ? existing.remarks : "",
-          dirty: false,
-        };
-      });
-      setRows(next);
-      toast.message("Changes discarded");
-    });
+    loadData();
+    toast.message("Changes discarded");
   };
 
   return (
@@ -372,7 +426,7 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
           <Button variant="outline" onClick={cancel} disabled={!dirtyCount || saving} className="rounded-full h-10">
             <RotateCcw className="h-4 w-4 mr-2" />Cancel
           </Button>
-          <Button onClick={save} disabled={!dirtyCount || saving} className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full h-10">
+          <Button onClick={save} disabled={!dirtyCount || saving} className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-full h-10 shadow-md transition-all">
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save {dirtyCount ? `(${dirtyCount})` : ""}
           </Button>
@@ -404,7 +458,7 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
                 const pct = r.outOf ? (r.score / r.outOf) * 100 : 0;
                 const pass = pct >= 40;
                 return (
-                  <TableRow key={s.id} className={r.dirty ? "bg-sky-50/60" : undefined}>
+                  <TableRow key={s.id} className={r.dirty ? "bg-sky-50/80 font-medium" : undefined}>
                     <TableCell className="font-mono text-xs">{String(r.rollNo).padStart(2, "0")}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -414,13 +468,19 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{subject}</TableCell>
                     <TableCell>
-                      <Input type="number" min={1} value={r.outOf}
-                        onChange={(e) => update(s.id, { outOf: Number(e.target.value) || 0 })}
+                      <Input type="number" min={1} value={r.outOf === 0 ? "" : r.outOf}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          update(s.id, { outOf: isNaN(val) ? 0 : val });
+                        }}
                         className="h-8 w-20 bg-white/70" />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" min={0} max={r.outOf} value={r.score}
-                        onChange={(e) => update(s.id, { score: Math.min(Number(e.target.value) || 0, r.outOf) })}
+                      <Input type="number" min={0} max={r.outOf || 100} value={r.score === 0 ? "" : r.score}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          update(s.id, { score: isNaN(val) ? 0 : val });
+                        }}
                         className="h-8 w-24 bg-white/70" />
                     </TableCell>
                     <TableCell>
@@ -456,9 +516,18 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
   const students = useClassStudents(className, section);
   const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
 
-  useEffect(() => {
-    fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+  const loadData = useCallback(() => {
+    fetchClassMarks(className, section).then((marks) => setClassMarks(marks || []));
   }, [className, section]);
+
+  useAutoRefresh("marks", loadData);
+
+  useEffect(() => {
+    loadData();
+    const handleRefresh = () => loadData();
+    window.addEventListener("sunshine-auto-refresh-marks", handleRefresh);
+    return () => window.removeEventListener("sunshine-auto-refresh-marks", handleRefresh);
+  }, [loadData]);
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -478,7 +547,11 @@ function HistoryTab({ className, section }: { className: ClassName; section: Sec
             <TableBody>
               {students.map((st) => {
                 const marks = SUBJECTS.map((sub) => {
-                  const subMarks = classMarks.filter((m) => m.studentId === st.id && m.subject === sub);
+                  const subMarks = classMarks.filter(
+                    (m) =>
+                      (m.studentId === st.id || m.studentId === st.admissionNo) &&
+                      m.subject.toLowerCase() === sub.toLowerCase()
+                  );
                   return subMarks.length
                     ? Math.round((subMarks.reduce((acc, curr) => acc + (curr.score / curr.outOf) * 100, 0) / subMarks.length))
                     : 0;
@@ -506,9 +579,18 @@ function AnalysisTab({ className, section }: { className: ClassName; section: Se
   const students = useClassStudents(className, section);
   const [classMarks, setClassMarks] = useState<MarkRecord[]>([]);
 
-  useEffect(() => {
-    fetchClassMarks(className, section).then((marks) => setClassMarks(marks));
+  const loadData = useCallback(() => {
+    fetchClassMarks(className, section).then((marks) => setClassMarks(marks || []));
   }, [className, section]);
+
+  useAutoRefresh("marks", loadData);
+
+  useEffect(() => {
+    loadData();
+    const handleRefresh = () => loadData();
+    window.addEventListener("sunshine-auto-refresh-marks", handleRefresh);
+    return () => window.removeEventListener("sunshine-auto-refresh-marks", handleRefresh);
+  }, [loadData]);
 
   const studentAvgs = students.map((s) => {
     const studentMarks = classMarks.filter((m) => m.studentId === s.id);
