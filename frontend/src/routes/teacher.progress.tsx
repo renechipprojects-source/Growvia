@@ -52,8 +52,9 @@ function useClassStudents(className: ClassName, section: Section) {
 }
 
 function Progression() {
-  const myClassAsgs = getClassAssignments();
-  const mySubAsgs = getSubjectAssignments();
+  const { assignments: contextAssignments } = useClassAssignments();
+  const myClassAsgs = getClassAssignments(contextAssignments);
+  const mySubAsgs = getSubjectAssignments(contextAssignments);
   const initialAsg = myClassAsgs[0] || mySubAsgs[0];
 
   const [className, setClassName] = useState<ClassName>(initialAsg?.className || "Nursery");

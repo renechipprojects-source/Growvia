@@ -10,6 +10,7 @@ import {
   getAssignment,
   getStudentsForAssignment,
 } from "@/lib/teacherContext";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 import { useHomework, type Homework } from "@/lib/homeworkStore";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { z } from "zod";
@@ -26,10 +27,11 @@ export const Route = createFileRoute("/teacher/my-subjects")({
 });
 
 function MySubjects() {
-  const assignments = getSubjectAssignments();
+  const { assignments: contextAssignments } = useClassAssignments();
+  const assignments = getSubjectAssignments(contextAssignments);
   const { a } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const active = (a && getAssignment(a)) || assignments[0];
+  const active = (a && getAssignment(a, contextAssignments)) || assignments[0];
   const [tab, setTab] = useState<string>(TABS[0]);
   const [localSearch, setLocalSearch] = useState("");
   const [allStudents, setAllStudents] = useState<Student[]>([]);

@@ -16,6 +16,7 @@ import { Send, Search, Plus, Inbox, ArrowUpRight, FileText, Paperclip, User, Use
 import { useState } from "react";
 import { toast } from "sonner";
 import { getClassAssignments } from "@/lib/teacherContext";
+import { useClassAssignments } from "@/lib/classAssignmentContext";
 
 export const Route = createFileRoute("/teacher/messages")({ component: TeacherMessages });
 
@@ -23,7 +24,8 @@ type Folder = "Inbox" | "Sent" | "Drafts";
 type RecipientType = "class" | "multiple" | "single";
 
 function TeacherMessages() {
-  const assignments = getClassAssignments();
+  const { assignments: contextAssignments } = useClassAssignments();
+  const assignments = getClassAssignments(contextAssignments);
   const primary = assignments[0];
   const defaultCls = (primary?.className as ClassName) ?? "Nursery";
   const defaultSec = (primary?.section as Section) ?? "A";

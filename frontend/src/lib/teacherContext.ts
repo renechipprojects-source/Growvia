@@ -40,30 +40,47 @@ function toTeacherAssignment(a: ClassAssignment): TeacherAssignment {
   return { id: a.id, type: a.role, className: norm.className, section: norm.section, subject: a.subject };
 }
 
+function sanitizeName(str?: string): string {
+  return (str || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+}
+
 function myActive(customAssignments?: ClassAssignment[]): ClassAssignment[] {
   const session = getSession();
-  const activeId = safeNormalizeId(session?.linkId || session?.loginId);
-  const activeName = (session?.name || "").trim().toLowerCase();
+  const activeLinkId = sanitizeName(session?.linkId);
+  const activeLoginId = sanitizeName(session?.loginId);
+  const activeName = sanitizeName(session?.name);
 
   const sourceList = customAssignments && customAssignments.length > 0 ? customAssignments : readAssignments();
 
-  const assignments = sourceList.filter(
-    (a) =>
-      a.status === "active" &&
-      ((activeId && safeNormalizeId(a.teacherId) === activeId) ||
-        (activeId && safeNormalizeId(a.id) === activeId) ||
-        (activeName && a.teacherName.trim().toLowerCase() === activeName))
-  );
+  const assignments = sourceList.filter((a) => {
+    if (a.status !== "active") return false;
+    const aTeacherId = sanitizeName(a.teacherId);
+    const aTeacherName = sanitizeName(a.teacherName);
+    const aId = sanitizeName(a.id);
+
+    const idMatch =
+      (activeLinkId && aTeacherId === activeLinkId) ||
+      (activeLoginId && aTeacherId === activeLoginId) ||
+      (activeLinkId && aId === activeLinkId) ||
+      (activeLoginId && aId === activeLoginId);
+
+    const nameMatch =
+      activeName &&
+      aTeacherName &&
+      (aTeacherName === activeName || aTeacherName.includes(activeName) || activeName.includes(aTeacherName));
+
+    return Boolean(idMatch || nameMatch);
+  });
 
   const sessAny = session as any;
-  if (assignments.length === 0 && (sessAny?.className || sessAny?.class_name)) {
-    const rawClass = (sessAny.className || sessAny.class_name || "").trim();
+  const rawClass = (sessAny?.className || sessAny?.class_name || "").trim();
+  if (assignments.length === 0 && rawClass && rawClass.toLowerCase() !== "null") {
     const rawSection = (sessAny.section || "A").trim().toUpperCase();
     const norm = normalizeClassAndSection(rawClass, rawSection);
     return [
       {
-        id: `ASG-${activeId || "TCH"}`,
-        teacherId: activeId,
+        id: `ASG-${session?.loginId || session?.linkId || "TCH"}`,
+        teacherId: session?.linkId || session?.loginId || "TCH",
         teacherName: session?.name || "Teacher",
         role: "class",
         className: norm.className,

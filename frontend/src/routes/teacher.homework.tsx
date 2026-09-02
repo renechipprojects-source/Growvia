@@ -15,8 +15,9 @@ export const Route = createFileRoute("/teacher/homework")({ component: HW });
 
 function HW() {
   const { homework, createHomework, deleteHomework } = useHomework();
-  const classAsgs = getClassAssignments();
-  const subAsgs = getSubjectAssignments();
+  const { assignments: contextAssignments, getSubjectTeachers } = useClassAssignments();
+  const classAsgs = getClassAssignments(contextAssignments);
+  const subAsgs = getSubjectAssignments(contextAssignments);
   const allAsgs = [...classAsgs, ...subAsgs];
   const defaultAsg = allAsgs[0];
 
@@ -28,7 +29,6 @@ function HW() {
     },
   });
 
-  const { getSubjectTeachers } = useClassAssignments();
   const selectedClass = watch("className");
   const assignedSubs = getSubjectTeachers(selectedClass, "A").map((st) => st.subject).filter(Boolean) as string[];
   const dynamicSubjects = Array.from(new Set([

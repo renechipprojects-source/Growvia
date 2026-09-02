@@ -135,12 +135,7 @@ export async function fetchAssignmentsFromSupabase(): Promise<ClassAssignment[]>
         };
       });
 
-      const combined = [...mapped];
-      localItems.forEach((loc) => {
-        if (!combined.some((c) => c.id === loc.id)) combined.push(loc);
-      });
-
-      const deduplicated = deduplicateClassAssignments(combined);
+      const deduplicated = deduplicateClassAssignments(mapped);
       memoryAssignmentsCache = deduplicated;
       saveStoredAssignments(deduplicated);
       return deduplicated;
