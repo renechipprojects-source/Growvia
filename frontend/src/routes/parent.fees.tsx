@@ -20,8 +20,19 @@ function ParentFees() {
 
   const loadData = () => {
     if (!activeChild) return;
+    const cId = (activeChild.id || "").toLowerCase();
+    const cAdm = (activeChild.admissionNo || "").toLowerCase();
+    const cName = (activeChild.name || "").toLowerCase();
+
     fetchFees(activeChild.id).then(({ data }) => {
-      const match = data.find((f) => f.studentId === activeChild.id);
+      const match = data.find(
+        (f) =>
+          (f.studentId && f.studentId.toLowerCase() === cId) ||
+          (f.admissionNo && f.admissionNo.toLowerCase() === cAdm) ||
+          (f.studentId && f.studentId.toLowerCase() === cAdm) ||
+          (f.admissionNo && f.admissionNo.toLowerCase() === cId) ||
+          (f.studentName && f.studentName.toLowerCase() === cName)
+      );
       if (match) setFeeRecord(match);
       else setFeeRecord(null);
     });

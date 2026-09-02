@@ -24,8 +24,20 @@ function Dash() {
   const [hasSkillsRecords, setHasSkillsRecords] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchFees().then(({ data }) => {
-      const match = data.find((f) => f.studentId === child.id || f.studentName === child.name);
+    if (!child) return;
+    const cId = (child.id || "").toLowerCase();
+    const cAdm = (child.admissionNo || "").toLowerCase();
+    const cName = (child.name || "").toLowerCase();
+
+    fetchFees(child.id).then(({ data }) => {
+      const match = data.find(
+        (f) =>
+          (f.studentId && f.studentId.toLowerCase() === cId) ||
+          (f.admissionNo && f.admissionNo.toLowerCase() === cAdm) ||
+          (f.studentId && f.studentId.toLowerCase() === cAdm) ||
+          (f.admissionNo && f.admissionNo.toLowerCase() === cId) ||
+          (f.studentName && f.studentName.toLowerCase() === cName)
+      );
       if (match) setFeeRecord(match);
       else setFeeRecord(null);
     });

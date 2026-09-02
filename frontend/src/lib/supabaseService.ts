@@ -1570,14 +1570,60 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       .from("gv_fees_payments")
       .select("*");
 
+    // Build student lookup index to resolve student_id, admissionNo, or student_name to canonical student info
+    const studentLookupMap = new Map<string, { id: string; admissionNo: string; name: string }>();
+    const filterAliases = new Set<string>();
+
+    try {
+      const { data: stList } = await fetchStudents();
+      if (stList && stList.length > 0) {
+        stList.forEach((s) => {
+          const info = { id: s.id, admissionNo: s.admissionNo || "", name: s.name || "" };
+          studentLookupMap.set(s.id.toLowerCase(), info);
+          if (s.admissionNo) {
+            studentLookupMap.set(s.admissionNo.toLowerCase(), info);
+            studentLookupMap.set(toCanonicalAdmissionNo(s.admissionNo, s.id).toLowerCase(), info);
+          }
+          if (s.name) {
+            studentLookupMap.set(s.name.toLowerCase(), info);
+          }
+
+          if (
+            studentIdFilter &&
+            (s.id.toLowerCase() === studentIdFilter.toLowerCase() ||
+              (s.admissionNo && s.admissionNo.toLowerCase() === studentIdFilter.toLowerCase()) ||
+              (s.admissionNo && toCanonicalAdmissionNo(s.admissionNo, s.id).toLowerCase() === studentIdFilter.toLowerCase()) ||
+              (s.name && s.name.toLowerCase() === studentIdFilter.toLowerCase()))
+          ) {
+            filterAliases.add(s.id);
+            if (s.admissionNo) {
+              filterAliases.add(s.admissionNo);
+              filterAliases.add(toCanonicalAdmissionNo(s.admissionNo, s.id));
+            }
+            if (s.name) filterAliases.add(s.name);
+          }
+        });
+      }
+    } catch { }
+
+    if (studentIdFilter) {
+      filterAliases.add(studentIdFilter);
+      filterAliases.add(toCanonicalAdmissionNo(studentIdFilter, studentIdFilter));
+    }
+
     const session = getSession();
     if (session && ((session.role as string) === "parent" || (session.role as string) === "student")) {
       const targetId = studentIdFilter || session.linkId || session.loginId;
-      if (targetId) {
-        query = query.eq("student_id", targetId);
-      }
-    } else if (studentIdFilter) {
-      query = query.eq("student_id", studentIdFilter);
+      if (targetId) filterAliases.add(targetId);
+    }
+
+    if (filterAliases.size > 0) {
+      const aliasArray = Array.from(filterAliases).filter(Boolean);
+      const orFilter = aliasArray.flatMap((a) => [
+        `student_id.eq.${a}`,
+        `student_name.ilike.${a}`
+      ]).join(",");
+      query = query.or(orFilter);
     }
 
     const { data, error } = await query.order("created_at", { ascending: false });
@@ -1585,26 +1631,9 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
     if (error) return { data: [], isFromSupabase: false };
     const rows = data || [];
 
-    // Build student lookup index to resolve student_id, admissionNo, or student_name to canonical student ID
-    const studentLookupMap = new Map<string, string>();
-    try {
-      const { data: stList } = await fetchStudents();
-      if (stList && stList.length > 0) {
-        stList.forEach((s) => {
-          studentLookupMap.set(s.id.toLowerCase(), s.id);
-          if (s.admissionNo) {
-            studentLookupMap.set(s.admissionNo.toLowerCase(), s.id);
-            studentLookupMap.set(toCanonicalAdmissionNo(s.admissionNo, s.id).toLowerCase(), s.id);
-          }
-          if (s.name) {
-            studentLookupMap.set(s.name.toLowerCase(), s.id);
-          }
-        });
-      }
-    } catch { }
-
     const studentLedgerMap = new Map<string, {
       studentId: string;
+      admissionNo: string;
       studentName: string;
       className: string;
       feeType: string;
@@ -1619,18 +1648,20 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       const rawName = (d.student_name || "").toLowerCase();
       const canonicalAdm = toCanonicalAdmissionNo(d.student_id, d.student_id).toLowerCase();
 
-      const canonicalId =
+      const matchedInfo =
         studentLookupMap.get(rawId) ||
         studentLookupMap.get(canonicalAdm) ||
-        studentLookupMap.get(rawName) ||
-        rawId ||
-        rawName ||
-        "unknown";
+        studentLookupMap.get(rawName);
 
-      if (!studentLedgerMap.has(canonicalId)) {
-        studentLedgerMap.set(canonicalId, {
-          studentId: d.student_id || canonicalId,
-          studentName: d.student_name || "Student",
+      const canonicalId = matchedInfo ? matchedInfo.id : (d.student_id || rawName || "unknown");
+      const canonicalAdmNo = matchedInfo ? matchedInfo.admissionNo : (d.student_id || "");
+      const canonicalName = matchedInfo ? matchedInfo.name : (d.student_name || "Student");
+
+      if (!studentLedgerMap.has(canonicalId.toLowerCase())) {
+        studentLedgerMap.set(canonicalId.toLowerCase(), {
+          studentId: canonicalId,
+          admissionNo: canonicalAdmNo,
+          studentName: canonicalName,
           className: d.class_name || "Nursery",
           feeType: d.fee_type || "Standard",
           originalFee: Number(d.original_fee || d.amount_due || 0),
@@ -1639,8 +1670,8 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
           payments: [],
         });
       }
-      const ledger = studentLedgerMap.get(canonicalId)!;
-      if (d.student_name && ledger.studentName === "Student") ledger.studentName = d.student_name;
+      const ledger = studentLedgerMap.get(canonicalId.toLowerCase())!;
+      if (d.student_name && (ledger.studentName === "Student" || !ledger.studentName)) ledger.studentName = d.student_name;
       if (d.class_name && ledger.className === "Nursery") ledger.className = d.class_name;
 
       if (d.record_type === "fee_schedule") {
@@ -1658,7 +1689,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
         if (!ledger.payments.some((p) => p.receiptNo === receiptNo || p.id === d.id)) {
           ledger.payments.push({
             id: d.id,
-            studentId: d.student_id,
+            studentId: ledger.studentId,
             receiptNo,
             amount: Number(d.amount_paid || 0),
             date: d.payment_date || d.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -1679,8 +1710,9 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       const actualPaid = item.payments.length > 0 ? paymentsSum : item.schedulePaid;
 
       const k1 = (item.studentId || "").toLowerCase();
-      const k2 = (item.studentName || "").toLowerCase();
-      const ov = overrides[k1] || overrides[k2];
+      const k2 = (item.admissionNo || "").toLowerCase();
+      const k3 = (item.studentName || "").toLowerCase();
+      const ov = overrides[k1] || overrides[k2] || overrides[k3];
 
       const origFee = ov ? ov.originalFee : item.originalFee;
       const discAmt = ov ? ov.discountAmount : item.discountAmount;
@@ -1688,6 +1720,7 @@ export async function fetchFees(studentIdFilter?: string): Promise<{ data: FeeLe
       return recalculateFeeLedger({
         id: `FP-${item.studentId}`,
         studentId: item.studentId,
+        admissionNo: item.admissionNo || item.studentId,
         studentName: item.studentName,
         className: item.className,
         feeType: ov?.feeType || item.feeType,

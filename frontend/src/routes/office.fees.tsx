@@ -272,11 +272,12 @@ function FeeCollection() {
       payments: [...(activeLedger.payments || []), newTxn],
     });
 
-    const rcpt: Receipt = {
+    const rcpt: Receipt & { studentId?: string } = {
       id: newTxn.id,
       receiptNo: rcptNo,
       studentName: activeLedger.studentName,
       admissionNo: activeLedger.admissionNo || activeLedger.studentId,
+      studentId: activeLedger.studentId,
       className: activeLedger.className,
       feeType,
       amountDue: remainingBal,
