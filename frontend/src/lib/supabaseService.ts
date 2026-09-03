@@ -766,7 +766,6 @@ export async function createStudent(student: Omit<Student, "id"> & {
     fee_status: student.feeStatus || "Pending",
     status: "active",
     photo_url: student.avatar,
-    occupation: student.occupation,
     address: student.address,
   };
 

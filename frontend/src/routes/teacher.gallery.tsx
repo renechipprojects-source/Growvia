@@ -72,20 +72,20 @@ function TeacherGallery() {
               No photos in gallery yet. Click "Upload Photo" to add your first photo.
             </div>
           ) : (
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-3 [column-fill:_balance]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
               {images.map((item, i) => (
-                <div key={item.id || i} className="mb-3 break-inside-avoid group relative rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <div
+                  key={item.id || i}
+                  className="group relative rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-white/60 bg-white/40 aspect-[4/3] flex flex-col justify-end"
+                >
                   <img
                     src={item.cover}
                     alt={item.title || `Gallery ${i}`}
-                    className="w-full object-cover"
-                    style={{ height: 140 + (i * 37) % 120 }}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  {item.title && (
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-xs text-white font-medium truncate">
-                      {item.title}
-                    </div>
-                  )}
+                  <div className="relative z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 text-xs text-white font-medium truncate">
+                    {item.title || `Photo ${i + 1}`}
+                  </div>
                 </div>
               ))}
             </div>

@@ -36,7 +36,11 @@ export function StaffSelfAttendanceCard() {
 
   const loadAttendance = useCallback(() => {
     fetchStaffAttendanceFromSupabase(todayStr).then((map) => {
-      const rec = map[staffId] || map[staffName];
+      const rec =
+        map[staffId] ||
+        map[staffId.toLowerCase()] ||
+        map[staffName] ||
+        map[staffName.toLowerCase()];
       setRecord(rec || null);
     });
   }, [staffId, staffName, todayStr]);

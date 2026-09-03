@@ -436,78 +436,99 @@ export function computeStaffStatus(
 }
 
 export async function fetchStaffAttendanceFromSupabase(targetDate?: string): Promise<Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }>> {
-  const dateToFetch = targetDate || getLocalDateString();
+  const dateStr = targetDate || getLocalDateString();
   try {
     const { data, error } = await supabase
       .from("gv_requests")
       .select("*")
       .eq("request_type", "staff_attendance");
 
-    if (error || !data) return {};
+    if (!error && data) {
+      const out: Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }> = {};
+      data.forEach((d: any) => {
+        let meta: any = {};
+        try {
+          if (d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))) {
+            meta = JSON.parse(d.reason_or_notes);
+          }
+        } catch {}
 
-    const out: Record<string, { status: string; checkIn: string; checkOut: string; workingHours?: string; checkInTimestamp?: string; checkOutTimestamp?: string; date: string }> = {};
-    data.forEach((d: any) => {
-      try {
-        const meta = d.reason_or_notes && (d.reason_or_notes.startsWith("{") || d.reason_or_notes.startsWith("["))
-          ? JSON.parse(d.reason_or_notes)
-          : {};
-        const recDate = meta.date || (d.id ? d.id.split("-").slice(-3).join("-") : "");
-        if (recDate === dateToFetch) {
-          const sId = meta.staffId || d.applicant_or_child_name || d.id;
+        const recDate = meta.date || (d.created_at ? d.created_at.slice(0, 10) : dateStr);
+        if (recDate === dateStr) {
           const recObj = {
-            status: d.status || meta.status || "Present",
+            status: meta.status || d.status || "Present",
             checkIn: meta.checkIn || "08:30 AM",
-            checkOut: meta.checkOut || "04:30 PM",
+            checkOut: meta.checkOut && meta.checkOut !== "—" ? meta.checkOut : "—",
             workingHours: meta.workingHours || "—",
             checkInTimestamp: meta.checkInTimestamp || "",
             checkOutTimestamp: meta.checkOutTimestamp || "",
             date: recDate,
           };
-          out[sId] = recObj;
-          if (meta.staffName) {
-            out[meta.staffName] = recObj;
-          }
+
+          const keys = [
+            meta.staffId,
+            d.parent_name,
+            d.applicant_or_child_name,
+            meta.staffName,
+            d.id,
+          ].filter(Boolean);
+
+          keys.forEach((k) => {
+            out[k] = recObj;
+            out[String(k).toLowerCase()] = recObj;
+          });
         }
-      } catch {}
-    });
-    return out;
-  } catch {
-    return {};
-  }
+      });
+      return out;
+    }
+  } catch {}
+  return {};
 }
 
-export async function saveStaffAttendanceRecord(staffId: string, staffName: string, status: string, checkIn = "08:30 AM", checkOut = "04:30 PM", targetDate?: string) {
-  const dateStr = targetDate || getLocalDateString();
-  const id = `ATT-STF-${staffId}-${dateStr}`;
+export async function saveStaffAttendanceRecord(staffId: string, staffName: string, status: string, checkIn = "08:30 AM", checkOut = "—", targetDate?: string) {
+  const todayStr = targetDate || getLocalDateString();
+  const id = `ATT-STF-${staffId}-${todayStr}`;
+  const now = new Date();
+
   const payload = {
     id,
     request_type: "staff_attendance",
     applicant_or_child_name: staffName,
-    status: status,
+    parent_name: staffId,
+    status,
     reason_or_notes: JSON.stringify({
       staffId,
       staffName,
-      date: dateStr,
+      date: todayStr,
       status,
       checkIn,
       checkOut,
+      checkInTimestamp: now.toISOString(),
     }),
+    updated_at: now.toISOString(),
   };
+
   try {
-    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    const { error } = await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    if (error) throw error;
     notifyAutoRefresh("attendance");
     notifyAutoRefresh("staff");
-  } catch (err) {
-    console.warn("Failed to save staff attendance record:", err);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Failed to save staff attendance." };
   }
 }
 
-export async function markStaffTimeIn(staffId: string, staffName: string): Promise<{ success: boolean; message: string }> {
-  const todayStr = getLocalDateString();
+export async function markStaffTimeIn(staffId: string, staffName: string, targetDate?: string) {
+  const todayStr = targetDate || getLocalDateString();
   const existingMap = await fetchStaffAttendanceFromSupabase(todayStr);
-  const existing = existingMap[staffId] || existingMap[staffName];
+  const existing =
+    existingMap[staffId] ||
+    existingMap[staffId.toLowerCase()] ||
+    existingMap[staffName] ||
+    existingMap[staffName.toLowerCase()];
 
-  if (existing && existing.checkIn && existing.checkIn !== "—" && existing.checkIn !== "") {
+  if (existing && existing.checkIn && existing.checkIn !== "—") {
     return {
       success: false,
       message: `You have already marked Time In for today at ${existing.checkIn}.`,
@@ -515,37 +536,43 @@ export async function markStaffTimeIn(staffId: string, staffName: string): Promi
   }
 
   const now = new Date();
-  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  const timeInStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
 
   const hours = now.getHours();
   const minutes = now.getMinutes();
-  const status = (hours < 9 || (hours === 9 && minutes === 0)) ? "Present" : "Late";
+  let status = "Present";
+  if (hours > 9 || (hours === 9 && minutes > 15)) {
+    status = "Late";
+  }
 
   const id = `ATT-STF-${staffId}-${todayStr}`;
   const payload = {
     id,
     request_type: "staff_attendance",
     applicant_or_child_name: staffName,
-    status: status,
+    parent_name: staffId,
+    status,
     reason_or_notes: JSON.stringify({
       staffId,
       staffName,
       date: todayStr,
       status,
-      checkIn: timeStr,
+      checkIn: timeInStr,
       checkOut: "—",
       checkInTimestamp: now.toISOString(),
       workingHours: "—",
     }),
+    updated_at: now.toISOString(),
   };
 
   try {
-    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    const { error } = await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    if (error) throw error;
     notifyAutoRefresh("attendance");
     notifyAutoRefresh("staff");
     return {
       success: true,
-      message: `Time In marked successfully at ${timeStr} (${status}).`,
+      message: `Time In marked successfully at ${timeInStr} (${status}).`,
     };
   } catch (err: any) {
     return {
@@ -555,10 +582,14 @@ export async function markStaffTimeIn(staffId: string, staffName: string): Promi
   }
 }
 
-export async function markStaffTimeOut(staffId: string, staffName: string): Promise<{ success: boolean; message: string }> {
-  const todayStr = getLocalDateString();
+export async function markStaffTimeOut(staffId: string, staffName: string, targetDate?: string) {
+  const todayStr = targetDate || getLocalDateString();
   const existingMap = await fetchStaffAttendanceFromSupabase(todayStr);
-  const existing = existingMap[staffId] || existingMap[staffName];
+  const existing =
+    existingMap[staffId] ||
+    existingMap[staffId.toLowerCase()] ||
+    existingMap[staffName] ||
+    existingMap[staffName.toLowerCase()];
 
   if (!existing || !existing.checkIn || existing.checkIn === "—") {
     return {
@@ -594,6 +625,7 @@ export async function markStaffTimeOut(staffId: string, staffName: string): Prom
     id,
     request_type: "staff_attendance",
     applicant_or_child_name: staffName,
+    parent_name: staffId,
     status: existing.status,
     reason_or_notes: JSON.stringify({
       staffId,
@@ -606,15 +638,17 @@ export async function markStaffTimeOut(staffId: string, staffName: string): Prom
       checkOutTimestamp: now.toISOString(),
       workingHours,
     }),
+    updated_at: now.toISOString(),
   };
 
   try {
-    await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    const { error } = await supabase.from("gv_requests").upsert([payload], { onConflict: "id" });
+    if (error) throw error;
     notifyAutoRefresh("attendance");
     notifyAutoRefresh("staff");
     return {
       success: true,
-      message: `Time Out marked successfully at ${timeOutStr}. Total working time: ${workingHours}.`,
+      message: `Time Out / Checkout marked successfully at ${timeOutStr}. Total working time: ${workingHours}.`,
     };
   } catch (err: any) {
     return {

@@ -272,7 +272,7 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
   // Seed rows for current class/section/subject/assessment from Supabase
   const seededKey = `${className}-${section}-${subject}-${assessment}`;
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((force = false) => {
     if (!students || students.length === 0) return;
     fetchClassMarks(className, section).then((allMarks) => {
       const currentMap: Record<string, MarkRecord> = {};
@@ -311,13 +311,29 @@ function MarksEntryTab({ className, section, subject, assessment, onClass, onSec
       });
 
       setBaselineMap(nextBase);
-      setRows(nextRows);
+      setRows((prev) => {
+        const hasDirty = Object.values(prev).some((r) => r.dirty);
+        if (hasDirty && !force) {
+          const merged = { ...nextRows };
+          Object.keys(prev).forEach((k) => {
+            if (prev[k]?.dirty) {
+              merged[k] = prev[k];
+            }
+          });
+          return merged;
+        }
+        return nextRows;
+      });
     });
   }, [className, section, subject, assessment, students]);
 
   useEffect(() => {
-    loadData();
-  }, [seededKey, students.length]);
+    loadData(true);
+  }, [seededKey]);
+
+  useEffect(() => {
+    loadData(false);
+  }, [students.length]);
 
   const visible = useMemo(() => {
     const list = students
